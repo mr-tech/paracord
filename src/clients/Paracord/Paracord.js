@@ -39,7 +39,7 @@ module.exports = class Paracord extends EventEmitter {
     /* Internal clients. */
     /** @type {Api} Client through which to make REST api calls to Discord. */
     this.api;
-    /** @type {Gateway[]]} Client through which to interact with Discord's gateway. */
+    /** @type {Object<number, Gateway>} Clients through which to interact with Discord's gateway keyed to their identified shard. */
     this.gateways;
     /** @type {Gateway[]]} Gateways queue to log in. */
     this.gatewayLoginQueue;
@@ -84,6 +84,10 @@ module.exports = class Paracord extends EventEmitter {
     this.allowEventsDuringStartup;
 
     this.constructorDefaults(token, options);
+  }
+
+  get shards() {
+    return this.gateways;
   }
 
   /*
@@ -327,8 +331,12 @@ module.exports = class Paracord extends EventEmitter {
   addNewGateway(identity) {
     const gatewayOptions = { identity, api: this.api, emitter: this };
     const gateway = this.setUpGateway(this.token, gatewayOptions);
+    if (this.gateways[gateway.shard] !== undefined) {
+      throw Error(`duplicate shard id ${gateway.shard}. shard ids must be unique`);
+    }
+
     ++this.gatewayWaitCount;
-    this.gateways.push(gateway);
+    this.gateways[gateway.shard] = gateway;
     this.gatewayLoginQueue.push(gateway);
   }
 
