@@ -65,24 +65,24 @@ module.exports = class ShardLauncher {
 
     if (main === undefined) {
       throw Error(
-        "Main must be defined. Please provide the path to your app's entry file.",
+        "main must be defined. please provide the path to your app's entry file.",
       );
     }
     if (token === undefined && shardCount === undefined) {
-      throw Error('Must provide either a token or shardCount in the options.');
+      throw Error('must provide either a token or shardCount in the options.');
     }
     if (shardCount <= 0) {
-      throw Error('Shard count may not be less than or equal to 0.');
+      throw Error('shardCount must be greater than 0.');
     }
 
-    if (shardCount && shardIds === undefined) {
-      console.warn('Shard Ids given without shard count. shardCount will be assumed from Discord and may change in the future. It is recommended that shardCount be defined to avoid unexpected changes.');
+    if (shardCount && shardIds === undefined && shardChunks === undefined) {
+      console.warn(`received shardCount without shardIds or shardChunks. spawning ${shardCount} shards.`);
     }
-    if (shardIds !== undefined && shardChunks === undefined) {
-      console.warn('shardIds defined without shardCount. Ignoring shardIds.');
+    if (shardIds !== undefined && shardCount === undefined) {
+      console.warn('received shardIds without shardCount. shardCount will be assumed from Discord and may change in the future. it is recommended that shardCount be defined to avoid unexpected changes.');
     }
     if (shardIds && shardChunks) {
-      console.warn('shardChunks defined. Ignoring shardIds.');
+      console.warn('shardChunks defined. ignoring shardIds.');
     }
 
     if (shardChunks && shardCount) {
@@ -203,7 +203,7 @@ module.exports = class ShardLauncher {
    */
   detach(err) {
     if (--this.launchCount === 0) {
-      console.log('All chunks launched. Disconnecting from pm2.');
+      console.log('All shards launched. Disconnecting from pm2.');
       pm2.disconnect();
     }
 

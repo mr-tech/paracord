@@ -179,7 +179,7 @@ module.exports = class Gateway {
   log(level, message, data = {}) {
     data.shard = this.shard;
     this.emit('DEBUG', {
-      source: LOG_SOURCES.API,
+      source: LOG_SOURCES.GATEWAY,
       level: LOG_LEVELS[level],
       message,
       data,
