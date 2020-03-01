@@ -101,6 +101,8 @@ module.exports = class Guild {
     }
 
     Object.assign(this, guildData);
+
+    return this;
   }
 
   /**

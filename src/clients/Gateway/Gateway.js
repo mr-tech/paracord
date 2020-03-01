@@ -785,7 +785,7 @@ module.exports = class Gateway {
       const acquiredLock = await this.acquireIdentifyLock(this.mainIdentifyLock);
       if (!acquiredLock) {
         if (this.identifyLocks !== undefined) {
-          this.identifyLocks.forEach((l) => Gateway.releaseIdentifyLock(l));
+          this.identifyLocks.forEach((l) => this.releaseIdentifyLock(l));
         }
 
         return false;
@@ -813,7 +813,7 @@ module.exports = class Gateway {
         if (acquiredLock) {
           acquiredLocks.push(lock);
         } else {
-          acquiredLocks.forEach((l) => Gateway.releaseIdentifyLock(l));
+          acquiredLocks.forEach((l) => this.releaseIdentifyLock(l));
           return false;
         }
       }
