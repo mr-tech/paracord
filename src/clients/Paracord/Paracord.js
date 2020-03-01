@@ -201,7 +201,7 @@ module.exports = class Paracord extends EventEmitter {
    */
   log(level, message, data) {
     this.emit('DEBUG', {
-      source: LOG_SOURCES.API,
+      source: LOG_SOURCES.PARACORD,
       level: LOG_LEVELS[level],
       message,
       data,
