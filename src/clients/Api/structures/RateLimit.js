@@ -1,6 +1,7 @@
 'use strict';
 
 const Utils = require('../../../utils');
+const { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } = require('../../../utils/constants');
 
 /** State of a Discord rate limit. */
 module.exports = class RateLimit {
@@ -16,6 +17,35 @@ module.exports = class RateLimit {
     this.resetTimestamp = resetTimestamp;
     /** @type {number} From Discord - Rate limit request cap. */
     this.limit = limit;
+    /** @type {number} Timestamp of when this rate limit will expire if not accessed again before then. */
+    this.expires;
+
+    this.refreshExpire();
+  }
+
+  /**
+   * If the request cannot be made without triggering a Discord rate limit.
+   * @type {boolean} `true` if the rate limit exists and is active. Do no send a request.
+   */
+  get isRateLimited() {
+    this.refreshExpire();
+
+    if (this.rateLimitHasReset) {
+      this.resetRemaining();
+      return false;
+    } if (this.hasRemainingUses) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * If it is past the time Discord said the rate limit would reset.
+   * @private
+   * @type {boolean}
+   */
+  get rateLimitHasReset() {
+    return this.resetTimestamp <= new Date().getTime();
   }
 
   /**
@@ -27,41 +57,22 @@ module.exports = class RateLimit {
     return this.remaining > 0;
   }
 
-  /**
-   * If it is past the time Discord said the rate limit would reset.
-   * @private
-   * @type {boolean}
-   */
-  get rateLimitHasExpired() {
-    return this.resetTimestamp <= new Date().getTime();
-  }
-
   /** @type {number} How long until the rate limit resets in ms. */
   get resetAfter() {
     const resetAfter = Utils.millisecondsFromNow(this.resetTimestamp);
     return resetAfter > 0 ? resetAfter : 0;
   }
 
-  /**
-   * If the request cannot be made without triggering a Discord rate limit.
-   * @type {boolean} `true` if the rate limit exists and is active. Do no send a request.
-   */
-  get isRateLimited() {
-    if (this.rateLimitHasExpired) {
-      this.reset();
-      return false;
-    } if (this.hasRemainingUses) {
-      return false;
-    }
-    return true;
+  refreshExpire() {
+    this.expires = new Date().getTime() + API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS;
   }
 
   /** Sets the remaining requests back to the known limit. */
-  reset() {
+  resetRemaining() {
     this.remaining = this.limit;
   }
 
-  /** Reduces the remaining requests before internally rate limiting by 1. */
+  /** Reduces the remaining requests (before internally rate limiting) by 1. */
   decrementRemaining() {
     --this.remaining;
   }

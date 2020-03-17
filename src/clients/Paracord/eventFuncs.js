@@ -319,12 +319,12 @@ exports.GATEWAY_IDENTIFY = function GATEWAY_IDENTIFY(identity) {
  * @param {Identity} identity From a gateway client.
  */
 exports.GATEWAY_CLOSE = function GATEWAY_CLOSE({ shouldReconnect, gateway }) {
+  if (this.startingGateway !== null && gateway.shard === this.startingGateway.shard) {
+    this.startingGateway.releaseIdentifyLocks();
+    this.startingGateway = null;
+  }
+
   if (shouldReconnect) {
     this.gatewayLoginQueue.push(gateway);
-
-    if (gateway.shard === this.startingGateway.shard) {
-      this.startingGateway.releaseIdentifyLocks();
-      this.startingGateway = null;
-    }
   }
 };

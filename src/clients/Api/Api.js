@@ -214,9 +214,9 @@ module.exports = class Api {
   /**
    * Starts the request rate limit queue processing.
    *
-   * @param {number} [interval=1e3] Time between checks in ms.
+   * @param {number} [interval=100] Time between checks in ms.
    */
-  startQueue(interval = 1e3) {
+  startQueue(interval = 100) {
     if (this.requestQueueProcessInterval === undefined) {
       this.log('INFO', 'Starting request queue.');
       this.requestQueueProcessInterval = setInterval(
@@ -307,6 +307,7 @@ module.exports = class Api {
     if (this.rpcRequestService === undefined || local) {
       return this.handleRequestLocal(request);
     }
+
     return this.handleRequestRemote(request);
   }
 
@@ -381,11 +382,19 @@ module.exports = class Api {
    * @param {Request} request Request being made,
    */
   async sendRequest(request) {
-    if (await this.returnOkToMakeRequest(request)) {
+    let isRateLimited;
+    if (this.rpcRateLimitService !== undefined) {
+      isRateLimited = !(await this.authorizeRequestWithServer(request));
+    } else {
+      isRateLimited = this.rateLimitCache.returnIsRateLimited(request);
+    }
+
+    if (!isRateLimited) {
       const message = `Sending request: ${request.method} ${request.url}`;
       this.log('DEBUG', message, request);
       return this.wrappedRequest(request);
     }
+
     const message = `Enqueuing request: ${request.method} ${request.url}`;
     this.log('DEBUG', message, request);
     return this.enqueueRequest(request);
@@ -396,10 +405,11 @@ module.exports = class Api {
    * @param {Request} request Request being made.
    * @returns {boolean} `true` if request will not trigger a rate limit.
    */
-  async returnOkToMakeRequest(request) {
+  returnOkToMakeRequest(request) {
     if (this.rpcRateLimitService !== undefined) {
       return this.authorizeRequestWithServer(request);
     }
+
     return !this.rateLimitCache.returnIsRateLimited(request);
   }
 

@@ -2,6 +2,8 @@
 
 const RateLimitMap = require('./RateLimitMap');
 const RateLimit = require('./RateLimit');
+const Utils = require('../../../utils');
+const { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } = require('../../../utils/constants');
 
 // TODO(lando): add a periodic sweep for rate limits to fix potential memory leak.
 
@@ -23,8 +25,17 @@ const RateLimit = require('./RateLimit');
 
 /** @typedef {Map<RateLimitBucket, void|RateLimitTemplate>} RateLimitTemplateMap */
 
+/** @typedef GlobalRateLimitState
+ * @property {number} remaining How many requests remaining before checking to see if global rate limit should trigger.
+ * @property {number} resetTimestamp
+ */
+
 /** Stores the state of all known rate limits this client has encountered. */
 module.exports = class RateLimitCache {
+  static returnStricterResetTimestamp(globalResetAfter, rateLimitResetAfter) {
+    return globalResetAfter > rateLimitResetAfter ? globalResetAfter : rateLimitResetAfter;
+  }
+
   /** Creates a new rate limit cache. */
   constructor() {
     /** @type {RateLimitMetaToBucket} Request meta values to their associated rate limit bucket or to `null` if no rate limit for the meta. */
@@ -33,7 +44,62 @@ module.exports = class RateLimitCache {
     this.rateLimits = new RateLimitMap();
     /** @type {RateLimitTemplateMap} Bucket Ids to saved rate limits state to create new rate limits from known constraints. */
     this.templates = new Map();
+    /** @type {GlobalRateLimitState} */
+    this.globalRateLimitState = {
+      remaining: 0,
+      resetTimestamp: 0,
+    };
+
+    this.rateLimits.startSweepInterval();
   }
+
+  /**
+   * If the request cannot be made without triggering a Discord rate limit.
+   * @type {boolean} `true` if the rate limit exists and is active. Do no send a request.
+   */
+  get isGloballyRateLimited() {
+    if (this.globalRateLimitHasReset) {
+      this.resetGlobalRateLimit();
+      return false;
+    }
+
+    if (this.globalRateLimitHasRemainingUses) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * If it is past the time Discord said the rate limit would reset.
+   * @private
+   * @type {boolean}
+   */
+  get globalRateLimitHasReset() {
+    return this.globalRateLimitState.resetTimestamp <= new Date().getTime();
+  }
+
+  /**
+   * If a request can be made without triggering a Discord rate limit.
+   * @private
+   * @type {boolean}
+   */
+  get globalRateLimitHasRemainingUses() {
+    return this.globalRateLimitState.remaining > 0;
+  }
+
+  /** @type {number} How long until the rate limit resets in ms. */
+  get globalRateLimitResetAfter() {
+    const resetAfter = Utils.millisecondsFromNow(this.globalRateLimitState.resetTimestamp);
+    return resetAfter > 0 ? resetAfter : 0;
+  }
+
+  /** Sets the remaining requests back to the known limit. */
+  resetGlobalRateLimit() {
+    this.globalRateLimitState.resetTimestamp = 0;
+    this.globalRateLimitState.remaining = API_GLOBAL_RATE_LIMIT;
+  }
+
 
   /**
    * Decorator for requests. Decrements rate limit when executing if one exists for this request.
@@ -50,26 +116,50 @@ module.exports = class RateLimitCache {
         rateLimit.decrementRemaining();
       }
 
+      this.decrementGlobalRemaining();
+
       return requestFunc.apply(this, [request.sendData]);
     };
 
     return wrappedRequest;
   }
 
+  decrementGlobalRemaining() {
+    if (this.globalRateLimitResetAfter === 0) {
+      this.globalRateLimitState.resetTimestamp = new Date().getTime() + API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS;
+    }
+
+    --this.globalRateLimitState.remaining;
+  }
+
   /**
    * Authorizes a request being check via the rate limit rpc service.
    *
    * @param {BaseRequest} request Request's rate limit key formed in BaseRequest.
-   * @returns {number} When the client should wait until before asking to authorize this request again.
+   * @returns {number} Until when the client should wait before asking to authorize this request again.
    */
   authorizeRequestFromClient(request) {
+    const { isGloballyRateLimited } = this;
     const rateLimit = this.getRateLimitFromCache(request);
+
+    if (isGloballyRateLimited) {
+      if (rateLimit !== undefined && rateLimit.isRateLimited) {
+        return RateLimitCache.returnStricterResetTimestamp(this.globalResetAfter, rateLimit.resetAfter);
+      }
+
+      return this.globalRateLimitResetAfter;
+    }
+
     if (rateLimit === undefined) {
       return 0;
-    } if (!rateLimit.isRateLimited) {
+    }
+
+    if (!rateLimit.isRateLimited) {
       rateLimit.decrementRemaining();
+      this.decrementGlobalRemaining();
       return 0;
     }
+
     return rateLimit.resetAfter;
   }
 
@@ -157,8 +247,11 @@ module.exports = class RateLimitCache {
    * @returns {boolean} `true` if rate limit would get triggered.
    */
   returnIsRateLimited(request) {
-    const rateLimit = this.getRateLimitFromCache(request);
+    if (this.isGloballyRateLimited) {
+      return true;
+    }
 
+    const rateLimit = this.getRateLimitFromCache(request);
     if (rateLimit !== undefined) {
       return rateLimit.isRateLimited;
     }

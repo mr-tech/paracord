@@ -286,35 +286,30 @@ module.exports = class Gateway {
    * @param {import("ws")} [_Websocket] Ignore. For unittest dependency injection only.
    */
   async login(_Websocket = ws) {
-    if (this.loggingIn || this.wsUrl !== undefined) {
-      const message = 'Client is currently trying to log in or is already identified.';
-      this.log('ERROR', message);
+    if (this.loggingIn) {
+      throw Error('client is currently trying to log in');
+    } if (this.wsUrl !== undefined) {
+      throw Error('client is currently trying to log in or is already identified');
     }
 
     this.loggingIn = true;
 
     try {
-      if (this.wsUrl === true) {
-        throw Error('gateway already logged in');
+      this.wsUrl = await this.getWebsocketUrl();
+
+      if (this.wsUrl === undefined) {
+        return;
       }
 
-      try {
-        this.wsUrl = await this.getWebsocketUrl();
+      this.log('DEBUG', `Connecting to url: ${this.wsUrl}`);
 
-        if (this.wsUrl === undefined) {
-          return;
-        }
-
-        this.log('DEBUG', `Connecting to url: ${this.wsUrl}`);
-
-        this.ws = new _Websocket(this.wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
-        this.assignWebsocketMethods();
-      } catch (err) {
-        if (err.response) {
-          console.error(err.response.data.message);
-        } else {
-          console.error(err);
-        }
+      this.ws = new _Websocket(this.wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+      this.assignWebsocketMethods();
+    } catch (err) {
+      if (err.response) {
+        console.error(err.response.data.message);
+      } else {
+        console.error(err);
       }
     } finally {
       this.loggingIn = false;
@@ -457,12 +452,12 @@ module.exports = class Gateway {
    * @param {Object<string, any>} event Object containing information about the close.
    */
   async _onclose(event) {
+    this.wsUrl = undefined;
     this.clearHeartbeat();
 
     const shouldReconnect = this.handleCloseCode(event.code);
 
     await this.handleEvent('GATEWAY_CLOSE', { shouldReconnect, gateway: this });
-    this.wsUrl = undefined;
   }
 
   /**
@@ -755,12 +750,10 @@ module.exports = class Gateway {
       return;
     }
 
-    if (this.shard) {
-      this.log(
-        'INFO',
-        `Identifying as shard: ${this.identity.shard[0]}/${this.identity.shard[1] - 1}`,
-      );
-    }
+    this.log(
+      'INFO',
+      `Identifying as shard: ${this.identity.shard[0]}/${this.identity.shard[1] - 1}`,
+    );
 
     this.handleEvent('GATEWAY_IDENTIFY', this.identity);
 

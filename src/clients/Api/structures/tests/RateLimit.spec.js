@@ -13,12 +13,12 @@ describe('RateLimit', () => {
 
   describe('get isRateLimited', () => {
     let stub_hasRemainingUses;
-    let stub_rateLimitHasExpired;
+    let stub_rateLimitHasReset;
     let stub_reset;
 
     beforeEach(() => {
       stub_hasRemainingUses = sinon.stub(rateLimit, 'hasRemainingUses');
-      stub_rateLimitHasExpired = sinon.stub(rateLimit, 'rateLimitHasExpired');
+      stub_rateLimitHasReset = sinon.stub(rateLimit, 'rateLimitHasReset');
       stub_reset = sinon.stub(rateLimit, 'reset');
     });
 
@@ -29,9 +29,9 @@ describe('RateLimit', () => {
 
       assert.strictEqual(got, false);
     });
-    it('rateLimitHasExpired=true => Executes reset and returns false', () => {
+    it('rateLimitHasReset=true => Executes reset and returns false', () => {
       stub_hasRemainingUses.value(false);
-      stub_rateLimitHasExpired.value(true);
+      stub_rateLimitHasReset.value(true);
 
       const got = rateLimit.isRateLimited;
 
@@ -40,7 +40,7 @@ describe('RateLimit', () => {
     });
     it('All values false => Returns true', () => {
       stub_hasRemainingUses.value(false);
-      stub_rateLimitHasExpired.value(false);
+      stub_rateLimitHasReset.value(false);
 
       const got = rateLimit.isRateLimited;
 
