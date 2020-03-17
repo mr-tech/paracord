@@ -833,13 +833,13 @@ module.exports = class Gateway {
 
       return true;
     } catch (err) {
-      this.log('WARNING', `Was not able to connect to lock server to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
-
       if (err.code === 14 && lock.allowFallback) {
-        if (err !== undefined) {
-          return false;
-        }
+        this.log('WARNING', `Was not able to connect to lock server to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
         return true;
+      }
+
+      if (err !== undefined) {
+        return false;
       }
 
       throw err;
