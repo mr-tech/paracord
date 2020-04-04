@@ -26,7 +26,7 @@ module.exports = class IdentifyLockService extends definition.LockService {
     this.allowFallback;
     /** @type {number} How long in ms the client tells the server it should wait before expiring the lock. */
     this.duration;
-    /** @type {string} Unique ID given to this client when acquiring the lock. */
+    /** @type {string} Unique id given to this client when acquiring the lock. */
     this.token;
   }
 

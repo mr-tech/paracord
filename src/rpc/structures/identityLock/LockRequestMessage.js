@@ -6,12 +6,12 @@ module.exports = class LockRequestMessage {
    * Creates a new LockRequestMessage sent from client to server.
    *
    * @param {number} timeOut How long in ms the server should wait before expiring the lock.
-   * @param {string|void} token Unique ID given to the last client to acquire the lock.
+   * @param {string|void} token Unique id given to the last client to acquire the lock.
    */
   constructor(timeOut, token) {
     /** @type {number} How long in ms the server should wait before expiring the lock. */
     this.timeOut = timeOut;
-    /** @type {string|void} Unique ID given to the last client that acquired the lock. */
+    /** @type {string|void} Unique id given to the last client that acquired the lock. */
     this.token = token;
   }
 

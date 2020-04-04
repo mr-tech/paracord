@@ -140,7 +140,7 @@ module.exports = class Util {
    *
    * @param {number} perms Member's channel-level permissions.
    * @param {Object<string, string|number>[]} overwrites Channel's overwrites.
-   * @param {string} guildId ID of the guild in which the permissions are being checked.
+   * @param {string} guildId id of the guild in which the permissions are being checked.
    * @returns {number} The new perms.
    */
   static _everyoneOverwrites(perms, overwrites, guildId) {
@@ -180,7 +180,7 @@ module.exports = class Util {
    *
    * @param {number} perms Member's channel-level permissions.
    * @param {Object<string, string|number>[]} overwrites Channel's overwrites.
-   * @param {string} memberId ID of the member whose permissions are being checked.
+   * @param {string} memberId id of the member whose permissions are being checked.
    * @returns {number} The new perms.
    */
   static _memberOverwrites(perms, overwrites, memberId) {
