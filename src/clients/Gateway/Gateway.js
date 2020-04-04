@@ -938,19 +938,17 @@ module.exports = class Gateway {
       && this.ws !== undefined
       && this.ws.readyState === ws.OPEN
     ) {
-      const message = 'Sending payload.';
-      this.log('DEBUG', message, { payload });
-
       const packet = JSON.stringify(payload);
       this.ws.send(packet);
 
       this.updateWsRateLimit();
 
+      this.log('DEBUG', 'Sent payload.', { payload });
+
       return true;
     }
 
-    const message = 'Failed to send payload.';
-    this.log('DEBUG', message, { payload });
+    this.log('DEBUG', 'Failed to send payload.', { payload });
 
     return false;
   }
