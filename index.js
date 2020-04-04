@@ -6,4 +6,5 @@ module.exports = {
   Paracord: require('./src/clients/Paracord/Paracord'),
   ShardLauncher: require('./src/clients/Paracord/ShardLauncher'),
   Server: require('./src/rpc/server/Server'),
+  constants: require('./src/constants'),
 };
