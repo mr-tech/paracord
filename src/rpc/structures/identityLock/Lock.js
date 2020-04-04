@@ -18,7 +18,7 @@ module.exports = class Lock {
    */
   constructor(emitter) {
     /**
-     * @type {string|void} A unique ID given to the client who currently has the lock
+     * @type {string|void} A unique id given to the client who currently has the lock
      * `undefined` indicates that the lock is available.
      */
     this.token;
@@ -31,7 +31,7 @@ module.exports = class Lock {
    * Attempts to acquire the lock.
    *
    * @param {number} timeOut How long in ms to wait before expiring the lock.
-   * @param {string|void} token Unique ID given to the last client to acquire the lock.
+   * @param {string|void} token Unique id given to the last client to acquire the lock.
    */
   acquire(timeOut, token) {
     let success = false;
@@ -55,7 +55,7 @@ module.exports = class Lock {
   /**
    * Attempts to release the lock.
    *
-   * @param {string} token Unique ID given to the last client to acquire the lock.
+   * @param {string} token Unique id given to the last client to acquire the lock.
    */
   release(token) {
     let success = false;

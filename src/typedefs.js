@@ -170,14 +170,14 @@
  *
  * @property {boolean} success true, the operation was a success; false, the operation failed.
  * @property {string} message Reason for the failed operation.
- * @property {string} token Unique ID given to the last client to acquire the lock.
+ * @property {string} token Unique id given to the last client to acquire the lock.
  */
 
 /**
  * @typedef LockRequestProto
  *
  * @property {number} time_out How long in ms the server should wait before expiring the lock.
- * @property {string} token Unique ID given to the last client to acquire the lock.
+ * @property {string} token Unique id given to the last client to acquire the lock.
  */
 
 /**
@@ -191,7 +191,7 @@
  *
  * @property {boolean} success Whether or not the operation was successful.
  * @property {string|void} [message] Reason why the operation failed.
- * @property {string|void} token Unique ID given to the last client to acquire the lock.
+ * @property {string|void} token Unique id given to the last client to acquire the lock.
  */
 
 /**

@@ -9,7 +9,7 @@ module.exports = class StatusMessage {
    *
    * @param {boolean} didSucceed Whether or not the operation was successful.
    * @param {string|void} message Reason why the operation failed.
-   * @param {string|void} token Unique ID given to the last client to acquire the lock.
+   * @param {string|void} token Unique id given to the last client to acquire the lock.
    */
   constructor(didSucceed, message, token) {
     this.success = didSucceed;

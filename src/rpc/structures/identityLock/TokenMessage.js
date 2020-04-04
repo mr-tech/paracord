@@ -5,7 +5,7 @@ module.exports = class TokenMessage {
   /**
    * Create a new TokenMessage sent from the client to server.
    *
-   * @param {string} value The unique ID given to the last client to acquire the lock.
+   * @param {string} value The unique id given to the last client to acquire the lock.
    */
   constructor(value) {
     this.value = value;

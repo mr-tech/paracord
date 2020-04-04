@@ -859,19 +859,19 @@ module.exports = class Paracord extends EventEmitter {
   /**
    * Fetch a member using the Rest API
    *
-   * @param {string|Guild} guild The guild object or id of the member.
-   * @param {string} memberId User id of the member.
+   * @param {string|Guild} guild Guild object or id of the member.
+   * @param {string} memberId Id of the member.
    */
   fetchMember(guild, memberId) {
-    let guildID;
+    let guildId;
 
     if (typeof guild === 'string') {
-      guildID = guild;
-      guild = this.guilds.get(guildID);
+      guildId = guild;
+      guild = this.guilds.get(guildId);
     } else {
-      ({ id: guildID } = guild);
+      ({ id: guildId } = guild);
     }
-    const res = this.request('get', `/guilds/${guildID}/members/${memberId}`);
+    const res = this.request('get', `/guilds/${guildId}/members/${memberId}`);
 
     if (res.status === 200) {
       guild.upsertMember(res.data, this);

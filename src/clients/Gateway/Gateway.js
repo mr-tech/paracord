@@ -52,7 +52,7 @@ module.exports = class Gateway {
 
     /** @type {number|void} From Discord - Most recent event sequence id received. https://discordapp.com/developers/docs/topics/gateway#payloads */
     this.sequence;
-    /** @type {string|void} From Discord - ID of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
+    /** @type {string|void} From Discord - Id of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
     this.sessionId;
     /** @type {boolean} If the last heartbeat packet sent to Discord received an ACK. */
     this.heartbeatAck;
