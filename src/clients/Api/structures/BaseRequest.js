@@ -74,7 +74,7 @@ module.exports = class BaseRequest {
     else if (method === 'PATCH') key.push('u');
     else if (method === 'DELETE') key.push('d');
 
-    key.append(rateLimitMinorParameters);
+    key.concat(rateLimitMinorParameters);
 
     // Below is a (incomplete) micro-optimization
     // for (const param of rateLimitMinorParameters) {
