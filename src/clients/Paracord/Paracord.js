@@ -562,8 +562,11 @@ module.exports = class Paracord extends EventEmitter {
     clearInterval(this.startWithUnavailableGuildsInterval);
 
     this.startingGateway.releaseIdentifyLocks();
+    const shard = this.startingGateway;
     this.startingGateway = undefined;
     --this.gatewayWaitCount;
+
+    this.emit('SHARD_STARTUP_COMPLETE', { shard, forced });
   }
 
   /**
