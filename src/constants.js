@@ -44,7 +44,9 @@ module.exports = {
     INVALID_VERSION: 4012,
     INVALID_INTENT: 4013,
     DISALLOWED_INTENT: 4014,
-    HEARTBEAT_TIMEOUT: 4999, // Not a Discord close event
+    SESSION_INVALIDATED: 4997, // Not a Discord close event, received an Invalid Session message and cannot resume
+    SESSION_INVALIDATED_RESUMABLE: 4998, // Not a Discord close event, received an Invalid Session message but can resume
+    HEARTBEAT_TIMEOUT: 4999, // Not a Discord close event, heartbeat has timedout
 
   },
   CHANNEL_TYPES: {

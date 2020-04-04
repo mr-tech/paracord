@@ -16,7 +16,7 @@ const { Lock } = require('../structures');
 const Api = require('../../clients/Api');
 const { RateLimitCache } = require('../../clients/Api/structures');
 
-const { LOG_SOURCES, LOG_LEVELS } = require('../../utils/constants');
+const { LOG_SOURCES, LOG_LEVELS } = require('../../constants');
 
 const requestProto = loadProto('request');
 const lockProto = loadProto('identify_lock');

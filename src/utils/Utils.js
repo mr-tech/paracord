@@ -1,6 +1,6 @@
 'use strict';
 
-const { DISCORD_EPOCH, PERMISSIONS: P, DISCORD_CDN_URL } = require('./constants');
+const { DISCORD_EPOCH, PERMISSIONS: P, DISCORD_CDN_URL } = require('../constants');
 
 /** A class of help functions used throughout the library. */
 module.exports = class Util {

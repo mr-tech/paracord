@@ -18,10 +18,10 @@ const {
   GATEWAY_REQUEST_BUFFER,
   LOG_LEVELS,
   LOG_SOURCES,
-} = require('../../utils/constants');
+} = require('../../constants');
 
 /**
- * @typedef {Object<string, number>} WebsocketRateLimitCache Information about the current request count and time that it should reset in relation to Discord rate limits. https://discordapp.com/developers/docs/topics/gateway#rate-limiting
+ * @typedef WebsocketRateLimitCache Information about the current request count and time that it should reset in relation to Discord rate limits. https://discordapp.com/developers/docs/topics/gateway#rate-limiting
  * @property {number} wsRateLimitCache.resetTimestamp Timestamp in ms when the request limit is expected to reset.
  * @property {number} wsRateLimitCache.remainingRequests How many more requests will be allowed.
  */
@@ -34,9 +34,6 @@ module.exports = class Gateway {
    * @param {GatewayOptions} [options={}] Optional parameters for this handler.
    */
   constructor(token, options = {}) {
-    /** @type {boolean} If the gateway client is currently in the process of getting the ws url to connect. */
-    this.loggingIn;
-
     /** @type {Api} Client through which to make REST api calls to Discord. */
     this.api;
     /** @type {void|IdentifyLockService} Rpc service through which to coordinate identifies with other shards. Will not be released except by time out. Best used for global minimum wait time. */
@@ -53,9 +50,9 @@ module.exports = class Gateway {
     /** @type {WebsocketRateLimitCache} */
     this.wsRateLimitCache;
 
-    /** @type {number} From Discord - Most recent event sequence id received. https://discordapp.com/developers/docs/topics/gateway#payloads */
+    /** @type {number|void} From Discord - Most recent event sequence id received. https://discordapp.com/developers/docs/topics/gateway#payloads */
     this.sequence;
-    /** @type {string)} From Discord - ID of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
+    /** @type {string|void} From Discord - ID of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
     this.sessionId;
     /** @type {boolean} If the last heartbeat packet sent to Discord received an ACK. */
     this.heartbeatAck;
@@ -82,9 +79,10 @@ module.exports = class Gateway {
 
   /** @type {boolean} Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
   get resumable() {
-    return this.sessionId !== undefined && this.sequence !== 0;
+    return this.sessionId !== undefined && this.sequence !== null;
   }
 
+  /** @type {string} Bot token this client uses to identify with. */
   get token() {
     return this.identity.token;
   }
@@ -92,6 +90,11 @@ module.exports = class Gateway {
   /** @type {void|Shard} [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
   get shard() {
     return this.identity.shard ? this.identity.shard[0] : undefined;
+  }
+
+  /** @type {boolean} Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
+  get online() {
+    return this.ws !== undefined;
   }
 
   /*
@@ -112,7 +115,7 @@ module.exports = class Gateway {
 
     const defaults = {
       emitter: options.emitter || new EventEmitter(),
-      sequence: 0,
+      sequence: null,
       wsRateLimitCache: {
         remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
         resetTimestamp: 0,
@@ -286,33 +289,41 @@ module.exports = class Gateway {
    * @param {import("ws")} [_Websocket] Ignore. For unittest dependency injection only.
    */
   async login(_Websocket = ws) {
-    if (this.loggingIn) {
-      throw Error('client is currently trying to log in');
-    } if (this.wsUrl !== undefined) {
-      throw Error('client is currently trying to log in or is already identified');
+    if (this.ws !== undefined) {
+      throw Error('Client is already connected.');
     }
 
-    this.loggingIn = true;
-
     try {
-      this.wsUrl = await this.getWebsocketUrl();
-
       if (this.wsUrl === undefined) {
-        return;
+        this.wsUrl = await this.getWebsocketUrl();
       }
 
       this.log('DEBUG', `Connecting to url: ${this.wsUrl}`);
 
       this.ws = new _Websocket(this.wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+
       this.assignWebsocketMethods();
     } catch (err) {
       if (err.response) {
-        console.error(err.response.data.message);
+        console.error(err.response.data.message); // TODO: emit
       } else {
-        console.error(err);
+        console.error(err); // TODO: emit
       }
-    } finally {
-      this.loggingIn = false;
+
+      if (this.ws !== undefined) {
+        this.ws = undefined;
+      }
+    }
+  }
+
+  /**
+   * Releases all non-main identity locks.
+   */
+  async releaseIdentifyLocks() {
+    if (this.identifyLocks.length) {
+      this.identifyLocks.forEach((l) => {
+        if (l.token !== undefined) this.releaseIdentifyLock(l);
+      });
     }
   }
 
@@ -342,6 +353,7 @@ module.exports = class Gateway {
 
       return data.url + GATEWAY_DEFAULT_WS_PARAMS;
     }
+
     this.handleBadStatus(status, statusText, data.message, data.code);
 
     return undefined;
@@ -372,7 +384,7 @@ module.exports = class Gateway {
       message += ` Trying again in ${this.wsUrlRetryWait} seconds.`;
       this.log('WARNING', message);
 
-      setTimeout(() => this.login(), this.wsUrlRetryWait);
+      setTimeout(this.login, this.wsUrlRetryWait);
     } else {
       // 401 is bad token, unable to continue.
       message += ' Please check your token.';
@@ -452,10 +464,14 @@ module.exports = class Gateway {
    * @param {Object<string, any>} event Object containing information about the close.
    */
   async _onclose(event) {
-    this.wsUrl = undefined;
+    this.ws = undefined;
     this.clearHeartbeat();
-
     const shouldReconnect = this.handleCloseCode(event.code);
+
+    this.wsRateLimitCache = {
+      remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
+      resetTimestamp: 0,
+    };
 
     await this.handleEvent('GATEWAY_CLOSE', { shouldReconnect, gateway: this });
   }
@@ -486,75 +502,108 @@ module.exports = class Gateway {
       INVALID_VERSION,
       INVALID_INTENT,
       DISALLOWED_INTENT,
+      SESSION_INVALIDATED,
+      SESSION_INVALIDATED_RESUMABLE,
       HEARTBEAT_TIMEOUT,
     } = GATEWAY_CLOSE_CODES;
 
     let message;
     let shouldReconnect = true;
     let level;
-    if (code === ABNORMAL_CLOSE) {
-      level = LOG_LEVELS.INFO;
-      message = 'Abnormal close. Reconnecting.';
-    } else if (code === UNKNOWN_ERROR) {
-      level = LOG_LEVELS.WARNING;
-      message = "Discord's not sure what went wrong. Reconnecting.";
-    } else if (code === UNKNOWN_OPCODE) {
-      level = LOG_LEVELS.ERROR;
-      message = "Sent an invalid Gateway opcode or an invalid payload for an opcode. Don't do that!";
-    } else if (code === DECODE_ERROR) {
-      level = LOG_LEVELS.ERROR;
-      message = "Sent an invalid payload. Don't do that!";
-    } else if (code === NOT_AUTHENTICATED) {
-      level = LOG_LEVELS.ERROR;
-      message = 'Sent a payload prior to identifying. Please login first.';
-    } else if (code === AUTHENTICATION_FAILED) {
-      level = LOG_LEVELS.FATAL;
-      message = 'Account token sent with identify payload is incorrect. Terminating login.';
-      shouldReconnect = false;
-    } else if (code === ALREADY_AUTHENTICATED) {
-      level = LOG_LEVELS.ERROR;
-      message = 'Sent more than one identify payload. Stahp. Terminating login.';
-      shouldReconnect = false;
-    } else if (code === SESSION_NO_LONGER_VALID) {
-      level = LOG_LEVELS.INFO;
-      message = 'Session is no longer valid. Reconnecting with new session. Also occurs when trying to reconnect with a bad or mismatched token (different than identified with).';
-      this.sessionId = undefined;
-      this.sequence = 0;
-    } else if (code === INVALID_SEQ) {
-      message = 'Sequence sent when resuming the session was invalid. Reconnecting with a new session.';
-      level = LOG_LEVELS.INFO;
-    } else if (code === RATE_LIMITED) {
-      level = LOG_LEVELS.ERROR;
-      message = "Woah nelly! You're sending payloads too quickly. Slow it down!";
-    } else if (code === SESSION_TIMEOUT) {
-      level = LOG_LEVELS.INFO;
-      message = 'Session timed out. Reconnecting with a new session.';
-    } else if (code === INVALID_SHARD) {
-      level = LOG_LEVELS.FATAL;
-      message = 'Sent an invalid shard when identifying. Terminating login.';
-      shouldReconnect = false;
-    } else if (code === SHARDING_REQUIRED) {
-      level = LOG_LEVELS.FATAL;
-      message = 'Session would have handled too many guilds - client is required to shard connection in order to connect. Terminating login.';
-      shouldReconnect = false;
-    } else if (code === INVALID_VERSION) {
-      message = 'You sent an invalid version for the gateway.';
-      shouldReconnect = false;
-    } else if (code === INVALID_INTENT) {
-      message = 'You sent an invalid intent for a Gateway Intent. You may have incorrectly calculated the bitwise value.';
-      shouldReconnect = false;
-    } else if (code === DISALLOWED_INTENT) {
-      message = 'You sent a disallowed intent for a Gateway Intent. You may have tried to specify an intent that you have not enabled or are not whitelisted for';
-      shouldReconnect = false;
-    } else if (code === HEARTBEAT_TIMEOUT) {
-      level = LOG_LEVELS.WARNING;
-      message = 'Heartbeat Ack not received from Discord in time.';
-    } else if (code === CLEAN) {
-      level = LOG_LEVELS.INFO;
-      message = 'Clean close.';
-    } else {
-      level = LOG_LEVELS.INFO;
-      message = 'Unknown close code.';
+
+    switch (code) {
+      case ABNORMAL_CLOSE:
+        level = LOG_LEVELS.INFO;
+        message = 'Abnormal close. (Reconnecting.)';
+        break;
+      case UNKNOWN_ERROR:
+        level = LOG_LEVELS.WARNING;
+        message = "Discord's not sure what went wrong. (Reconnecting.)";
+        break;
+      case UNKNOWN_OPCODE:
+        level = LOG_LEVELS.WARNING;
+        message = "Sent an invalid Gateway opcode or an invalid payload for an opcode. Don't do that! (Reconnecting.)";
+        break;
+      case DECODE_ERROR:
+        level = LOG_LEVELS.ERROR;
+        message = "Sent an invalid payload. Don't do that! (Reconnecting.)";
+        break;
+      case NOT_AUTHENTICATED:
+        level = LOG_LEVELS.ERROR;
+        message = 'Sent a payload prior to identifying. Please login first. (Reconnecting.)';
+        break;
+      case AUTHENTICATION_FAILED:
+        level = LOG_LEVELS.FATAL;
+        message = 'Account token sent with identify payload is incorrect. (Terminating login.)';
+        shouldReconnect = false;
+        break;
+      case ALREADY_AUTHENTICATED:
+        level = LOG_LEVELS.ERROR;
+        message = 'Sent more than one identify payload. Stahp. (Terminating login.)';
+        shouldReconnect = false;
+        break;
+      case SESSION_NO_LONGER_VALID:
+        level = LOG_LEVELS.INFO;
+        message = 'Session is no longer valid. Reconnecting with new session. (Reconnecting.)'; // Also occurs when trying to resume with a bad or mismatched token (different than identified with).
+        this.clearSession();
+        break;
+      case INVALID_SEQ:
+        message = 'Sequence sent when resuming the session was invalid. Reconnecting with a new session. (Reconnecting.)';
+        level = LOG_LEVELS.INFO;
+        this.clearSession();
+        break;
+      case RATE_LIMITED:
+        level = LOG_LEVELS.ERROR;
+        message = "Woah nelly! You're sending payloads too quickly. Slow it down! (Reconnecting.)";
+        break;
+      case SESSION_TIMEOUT:
+        level = LOG_LEVELS.INFO;
+        message = 'Session timed out. (Reconnecting.)';
+        this.clearSession();
+        break;
+      case INVALID_SHARD:
+        level = LOG_LEVELS.FATAL;
+        message = 'Sent an invalid shard when identifying. (Terminating login.)';
+        shouldReconnect = false;
+        break;
+      case SHARDING_REQUIRED:
+        level = LOG_LEVELS.FATAL;
+        message = 'Session would have handled too many guilds - client is required to shard connection in order to connect. (Terminating login.)';
+        shouldReconnect = false;
+        break;
+      case INVALID_VERSION:
+        message = 'You sent an invalid version for the gateway. (Terminating login.)';
+        shouldReconnect = false;
+        break;
+      case INVALID_INTENT:
+        message = 'You sent an invalid intent for a Gateway Intent. You may have incorrectly calculated the bitwise value. (Terminating login.)';
+        shouldReconnect = false;
+        break;
+      case DISALLOWED_INTENT:
+        message = 'You sent a disallowed intent for a Gateway Intent. You may have tried to specify an intent that you have not enabled or are not whitelisted for. (Terminating login.)';
+        shouldReconnect = false;
+        break;
+      case HEARTBEAT_TIMEOUT:
+        level = LOG_LEVELS.WARNING;
+        message = 'Heartbeat Ack not received from Discord in time. (Reconnecting.)';
+        break;
+      case CLEAN:
+        level = LOG_LEVELS.INFO;
+        message = 'Clean close. (Reconnecting.)';
+        // this.clearSession();
+        break;
+      case SESSION_INVALIDATED:
+        level = LOG_LEVELS.INFO;
+        message = 'Received an Invalid Session message and is not resumable. Reconnecting with new session. (Reconnecting.)';
+        this.clearSession();
+        break;
+      case SESSION_INVALIDATED_RESUMABLE:
+        level = LOG_LEVELS.INFO;
+        message = 'Received an Invalid Session message and is resumable. (Reconnecting.)';
+        break;
+      default:
+        level = LOG_LEVELS.INFO;
+        message = 'Unknown close code. (Reconnecting.)';
     }
 
     this.emit('DEBUG', {
@@ -564,6 +613,12 @@ module.exports = class Gateway {
     });
 
     return shouldReconnect;
+  }
+
+  clearSession() {
+    this.sessionId = undefined;
+    this.sequence = null;
+    this.wsUrl = undefined;
   }
 
   /**
@@ -614,13 +669,13 @@ module.exports = class Gateway {
     } else if (opCode === GATEWAY_OP_CODES.HEARTBEAT_ACK) {
       this.handleHeartbeatAck();
     } else if (opCode === GATEWAY_OP_CODES.HEARTBEAT) {
-      this.send(GATEWAY_OP_CODES.HEARTBEAT, 0);
+      this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
     } else if (opCode === GATEWAY_OP_CODES.INVALID_SESSION) {
       this.handleInvalidSession(data);
     } else if (opCode === GATEWAY_OP_CODES.RECONNECT) {
       this.log('INFO', 'Gateway has requested the client reconnect.');
 
-      this.ws.close(GATEWAY_CLOSE_CODES.CLEAN);
+      this.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
     } else {
       this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
     }
@@ -638,7 +693,6 @@ module.exports = class Gateway {
     this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
 
     this.sessionId = data.session_id;
-    this.sequence = 0;
 
     this.handleEvent('READY', data);
   }
@@ -684,11 +738,12 @@ module.exports = class Gateway {
    */
   heartbeat() {
     if (this.heartbeatAck === false) {
+      this.log('ERROR', 'Heartbeat not acknowledged in time.');
       this.ws.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
       this.lastHeartbeatTimestamp = new Date().getTime();
       this.heartbeatAck = false;
-      this.send(GATEWAY_OP_CODES.HEARTBEAT, 0);
+      this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
     }
   }
 
@@ -741,9 +796,6 @@ module.exports = class Gateway {
    * @private
    */
   async identify() {
-    this.sessionId = undefined;
-    this.sequence = 0;
-
     const acquiredLocks = await this.acquireLocks();
     if (!acquiredLocks) {
       setTimeout(() => this.identify(), SECOND_IN_MILLISECONDS);
@@ -752,7 +804,7 @@ module.exports = class Gateway {
 
     this.log(
       'INFO',
-      `Identifying as shard: ${this.identity.shard[0]}/${this.identity.shard[1] - 1}`,
+      `Identifying as shard: ${this.identity.shard[0]}/${this.identity.shard[1] - 1} (0-indexed)`,
     );
 
     this.handleEvent('GATEWAY_IDENTIFY', this.identity);
@@ -778,7 +830,7 @@ module.exports = class Gateway {
       const acquiredLock = await this.acquireIdentifyLock(this.mainIdentifyLock);
       if (!acquiredLock) {
         if (this.identifyLocks !== undefined) {
-          this.identifyLocks.forEach((l) => this.releaseIdentifyLock(l));
+          this.identifyLocks.forEach(this.releaseIdentifyLock);
         }
 
         return false;
@@ -806,7 +858,7 @@ module.exports = class Gateway {
         if (acquiredLock) {
           acquiredLocks.push(lock);
         } else {
-          acquiredLocks.forEach((l) => this.releaseIdentifyLock(l));
+          acquiredLocks.forEach(this.releaseIdentifyLock);
           return false;
         }
       }
@@ -846,17 +898,6 @@ module.exports = class Gateway {
     }
   }
 
-  /**
-   * Releases all non-main identity locks.
-   * @private
-   */
-  async releaseIdentifyLocks() {
-    if (this.identifyLocks.length) {
-      this.identifyLocks.forEach((l) => {
-        if (l.token !== undefined) this.releaseIdentifyLock(l);
-      });
-    }
-  }
 
   /**
    * Releases the identity lock.
@@ -890,15 +931,17 @@ module.exports = class Gateway {
    * @returns {boolean} true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
   send(op, data) {
+    const payload = { op, d: data };
+
     if (
       this.canSendPacket(op)
       && this.ws !== undefined
       && this.ws.readyState === ws.OPEN
     ) {
       const message = 'Sending payload.';
-      this.log('DEBUG', message, { payload: Utils.clone(data) });
+      this.log('DEBUG', message, { payload });
 
-      const packet = JSON.stringify({ op, d: data });
+      const packet = JSON.stringify(payload);
       this.ws.send(packet);
 
       this.updateWsRateLimit();
@@ -907,7 +950,7 @@ module.exports = class Gateway {
     }
 
     const message = 'Failed to send payload.';
-    this.log('DEBUG', message, { payload: Utils.clone(data) });
+    this.log('DEBUG', message, { payload });
 
     return false;
   }
@@ -925,11 +968,13 @@ module.exports = class Gateway {
     if (now >= this.wsRateLimitCache.resetTimestamp) {
       this.wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
       return true;
-    } if (
-      this.wsRateLimitCache.remainingRequests >= GATEWAY_REQUEST_BUFFER
-    ) {
+    }
+
+    if (this.wsRateLimitCache.remainingRequests >= GATEWAY_REQUEST_BUFFER) {
       return true;
-    } if (
+    }
+
+    if (
       this.wsRateLimitCache.remainingRequests <= GATEWAY_REQUEST_BUFFER
       && (op === GATEWAY_OP_CODES.HEARTBEAT || op === GATEWAY_OP_CODES.RECONNECT)
     ) {
@@ -965,8 +1010,14 @@ module.exports = class Gateway {
       `Received Invalid Session packet. Resumable: ${resumable}`,
     );
 
-    this.handleEvent('INVALID_SESSION', resumable);
-    this.connect(resumable && this.resumable);
+
+    if (!resumable) {
+      this.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+    } else {
+      this.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+    }
+
+    this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
   }
 
   /**
@@ -976,15 +1027,19 @@ module.exports = class Gateway {
    * @param {number} s Sequence value from Discord.
    */
   updateSequence(s) {
-    if (s > this.sequence + 1) {
-      this.log(
-        'WARNING',
-        `Non-consecutive sequence (${this.sequence} -> ${s})`,
-      );
-    }
-
-    if (s > this.sequence) {
+    if (this.sequence === null) {
       this.sequence = s;
+    } else {
+      if (s > this.sequence + 1) {
+        this.log(
+          'WARNING',
+          `Non-consecutive sequence (${this.sequence} -> ${s})`,
+        );
+      }
+
+      if (s > this.sequence) {
+        this.sequence = s;
+      }
     }
   }
 };

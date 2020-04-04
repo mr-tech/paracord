@@ -1,7 +1,7 @@
 'use strict';
 
 const Utils = require('../../../utils');
-const { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } = require('../../../utils/constants');
+const { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } = require('../../../constants');
 
 /** State of a Discord rate limit. */
 module.exports = class RateLimit {

@@ -3,7 +3,7 @@
 const RateLimitMap = require('./RateLimitMap');
 const RateLimit = require('./RateLimit');
 const Utils = require('../../../utils');
-const { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } = require('../../../utils/constants');
+const { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } = require('../../../constants');
 
 // TODO(lando): add a periodic sweep for rate limits to fix potential memory leak.
 
@@ -226,7 +226,7 @@ module.exports = class RateLimitCache {
    * Creates a new template if one does not already exist.
    * @private
    *
-   * @param {string} rateLimitBucketKey Request's bucket key.
+   * @param {string} bucket Request's bucket key.
    * @param {void|RateLimitState} state State of the rate limit if one exists derived from a set of response headers.
    */
   setTemplateIfNotExists(bucket, state) {
