@@ -74,11 +74,71 @@ module.exports = class BaseRequest {
     else if (method === 'PATCH') key.push('u');
     else if (method === 'DELETE') key.push('d');
 
-    for (const param of rateLimitMinorParameters) {
-      if (param === 'members') key.push('m');
-      else if (param === 'guilds') key.push('gu');
-      else if (param === 'channels') key.push('c');
-    }
+    key.append(rateLimitMinorParameters);
+
+    // Below is a (incomplete) micro-optimization
+    // for (const param of rateLimitMinorParameters) {
+    // switch (param) {
+    //   case 'channels':
+    //     key.push('c');
+    //     break;
+    //   case 'members':
+    //     key.push('m');
+    //     break;
+    //   case 'guilds':
+    //     key.push('g');
+    //     break;
+    //   case 'messages':
+    //     key.push('msg');
+    //     break;
+    //   case 'roles':
+    //     key.push('r');
+    //     break;
+    //   case 'reactions':
+    //     key.push('re');
+    //     break;
+    //   case 'permissions':
+    //     key.push('p');
+    //     break;
+    //   case 'invites':
+    //     key.push('i');
+    //     break;
+    //   case 'emojis':
+    //     key.push('e');
+    //     break;
+    //   case 'embed':
+    //     key.push('em');
+    //     break;
+    //   case 'bans':
+    //     key.push('b');
+    //     break;
+    //   case 'prune':
+    //     key.push('pru');
+    //     break;
+    //   case 'bulk-delete':
+    //     key.push('bd');
+    //     break;
+    //   case 'typing':
+    //     key.push('t');
+    //     break;
+    //   case 'pins':
+    //     key.push('pins');
+    //     break;
+    //   case 'recipients':
+    //     key.push('re');
+    //     break;
+    //   case 'preview':
+    //     key.push('pre');
+    //     break;
+    //   case 'integrations':
+    //     key.push('int');
+    //     break;
+    //   case 'regions':
+    //     key.push('reg');
+    //     break;
+    //   default:
+    // }
+    // }
 
     return key.join('-');
   }

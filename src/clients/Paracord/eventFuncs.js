@@ -1,12 +1,12 @@
 'use strict';
 
-const { SECOND_IN_MILLISECONDS } = require('../../utils/constants');
+const { SECOND_IN_MILLISECONDS } = require('../../constants');
 
 const Guild = require('./structures/Guild');
 const {
   PARACORD_UPDATE_USER_WAIT_MILLISECONDS,
   CHANNEL_TYPES,
-} = require('../../utils/constants');
+} = require('../../constants');
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
@@ -316,15 +316,20 @@ exports.GATEWAY_IDENTIFY = function GATEWAY_IDENTIFY(identity) {
 /**
  * @private
  * @this {Paracord}
- * @param {Identity} identity From a gateway client.
+ * @param {Object} data
+ * @param {Gateway} data.gateway Gateway that emitted the event.
+ * @param {boolean} data.shouldReconnect Whether or not to attempt to login again.
  */
-exports.GATEWAY_CLOSE = function GATEWAY_CLOSE({ shouldReconnect, gateway }) {
-  if (this.startingGateway !== null && gateway.shard === this.startingGateway.shard) {
-    this.startingGateway.releaseIdentifyLocks();
-    this.startingGateway = null;
-  }
-
+exports.GATEWAY_CLOSE = function GATEWAY_CLOSE({ gateway, shouldReconnect }) {
   if (shouldReconnect) {
-    this.gatewayLoginQueue.push(gateway);
+    if (gateway.resumable) {
+      gateway.login();
+    } else if (this.startingGateway === gateway) {
+      clearInterval(this.startWithUnavailableGuildsInterval);
+      this.gatewayLoginQueue.unshift(gateway);
+      this.startingGateway = undefined;
+    } else {
+      this.gatewayLoginQueue.push(gateway);
+    }
   }
 };

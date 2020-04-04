@@ -3,7 +3,7 @@
 'use strict';
 
 const { LockRequestMessage, TokenMessage } = require('../../structures');
-const { LOG_SOURCES, LOG_LEVELS } = require('../../../utils/constants');
+const { LOG_SOURCES, LOG_LEVELS } = require('../../../constants');
 
 /**
  * Create callback functions for the identify lock service.

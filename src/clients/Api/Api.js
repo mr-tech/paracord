@@ -15,7 +15,7 @@ const {
   LOG_SOURCES,
   DISCORD_API_URL,
   DISCORD_API_DEFAULT_VERSION,
-} = require('../../utils/constants');
+} = require('../../constants');
 
 /** @typedef {import("./structures/Request")} Request */
 /** @typedef {import("../../rpc/")} Response */

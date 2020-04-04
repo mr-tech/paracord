@@ -104,6 +104,8 @@
  * @param {Object<string, any>} [identity] An object containing information for identifying with the gateway. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure
  * @property {number[]} [shards] Shards to spawn internally.
  * @property {number} [shardCount] The total number of shards that will be handled by the bot.
+ * @property {number} [unavailableGuildTolerance] During a shard's start up, how many guilds may be unavailable before forcing ready.
+ * @property {number} [unavailableGuildWait] During a shard's start up, time in seconds to wait from the last GUILD_CREATE to force ready.
  * @property {boolean} [allowEventsDuringStartup=false] During startup, if events should be emitted before `PARACORD_STARTUP_COMPLETE` is emitted. `GUILD_CREATE` events will never be emitted during start up.
  */
 

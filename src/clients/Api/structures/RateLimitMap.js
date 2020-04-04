@@ -1,7 +1,7 @@
 'use strict';
 
 const RateLimit = require('./RateLimit');
-const { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } = require('../../../utils/constants');
+const { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } = require('../../../constants');
 
 /** @typedef {import("./Request")} Request */
 
@@ -37,11 +37,11 @@ module.exports = class RateLimitMap extends Map {
 
   sweepExpiredRateLimits() {
     const now = new Date().getTime();
-    Array.from(this.entries()).forEach(([key, { expires }]) => {
+    for (const [key, { expires }] of this.entries()) {
       if (expires < now) {
         this.delete(key);
       }
-    });
+    }
   }
 
   startSweepInterval() {

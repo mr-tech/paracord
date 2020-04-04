@@ -2,7 +2,7 @@
 
 const StatusMessage = require('./StatusMessage');
 const Utils = require('../../../utils');
-const { LOG_SOURCES, LOG_LEVELS } = require('../../../utils/constants');
+const { LOG_SOURCES, LOG_LEVELS } = require('../../../constants');
 
 /**
  * A mutex primarily used by gateway clients to coordinate identifies.

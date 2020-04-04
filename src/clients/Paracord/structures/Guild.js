@@ -1,7 +1,7 @@
 'use strict';
 
 const Utils = require('../../../utils');
-const { PERMISSIONS: P } = require('../../../utils/constants');
+const { PERMISSIONS: P } = require('../../../constants');
 
 /** A Discord guild. */
 module.exports = class Guild {
@@ -342,6 +342,14 @@ module.exports = class Guild {
   upsertMember(member, client) {
     const cachedUser = client.upsertUser(member.user);
     if (cachedUser !== undefined) {
+      const now = new Date().getTime();
+      const readOnly = {
+        get cachedTimestamp() {
+          return now;
+        },
+      };
+      member = { ...member, ...readOnly };
+
       member.user = cachedUser;
 
       const cachedMember = this.members.get(member.user.id);
