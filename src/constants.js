@@ -44,6 +44,7 @@ module.exports = {
     INVALID_VERSION: 4012,
     INVALID_INTENT: 4013,
     DISALLOWED_INTENT: 4014,
+    RECONNECT: 4996,
     SESSION_INVALIDATED: 4997, // Not a Discord close event, received an Invalid Session message and cannot resume
     SESSION_INVALIDATED_RESUMABLE: 4998, // Not a Discord close event, received an Invalid Session message but can resume
     HEARTBEAT_TIMEOUT: 4999, // Not a Discord close event, heartbeat has timedout
@@ -62,7 +63,7 @@ module.exports = {
   DISCORD_API_DEFAULT_VERSION: 'v6',
   /** Discord epoch (2015-01-01T00:00:00.000Z) */
   DISCORD_EPOCH: 1420070400000,
-  DISCORD_CDN_URL: 'https://cdn.discordapp.com/',
+  DISCORD_CDN_URL: 'https://cdn.discordapp.com',
   PARACORD_SWEEP_INTERVAL: 500,
   /** A permissions map for operations relevant to the library. */
   PERMISSIONS: {

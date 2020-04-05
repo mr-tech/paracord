@@ -48,7 +48,7 @@ module.exports = class Paracord extends EventEmitter {
     /* Internal clients. */
     /** @type {Api} Client through which to make REST API calls to Discord. */
     this.api;
-    /** @type {Object<number, Gateway>} Clients through which to interact with Discord's gateway keyed to their identified shard. */
+    /** @type {Map<number, Gateway>} Gateway clients keyed to their shard #. */
     this.gateways;
     /** @type {Gateway[]} Gateways queue to log in. */
     this.gatewayLoginQueue;
@@ -95,8 +95,14 @@ module.exports = class Paracord extends EventEmitter {
     this.constructorDefaults(token, options);
   }
 
+  /** @type {Map<number, Gateway>} Gateway clients keyed to their shard #. */
   get shards() {
     return this.gateways;
+  }
+
+  /** @type {Boolean} Whether or not there are gateways currently starting up. */
+  get connecting() {
+    return this.gatewayLoginQueue.length !== 0 || this.startingGateway !== undefined;
   }
 
   /*
@@ -360,12 +366,12 @@ module.exports = class Paracord extends EventEmitter {
   addNewGateway(identity) {
     const gatewayOptions = { identity, api: this.api, emitter: this };
     const gateway = this.setUpGateway(this.token, gatewayOptions);
-    if (this.gateways[gateway.shard] !== undefined) {
+    if (this.gateways.get(gateway.shard) !== undefined) {
       throw Error(`duplicate shard id ${gateway.shard}. shard ids must be unique`);
     }
 
     ++this.gatewayWaitCount;
-    this.gateways[gateway.shard] = gateway;
+    this.gateways.set(gateway.shard, gateway);
     this.gatewayLoginQueue.push(gateway);
   }
 
@@ -859,7 +865,7 @@ module.exports = class Paracord extends EventEmitter {
   /**
    * Fetch a member using the Rest API
    *
-   * @param {string|Guild} guild Guild object or id of the member.
+   * @param {string|Guild} guild Guild object or id in which to search for member.
    * @param {string} memberId Id of the member.
    */
   fetchMember(guild, memberId) {
@@ -871,6 +877,7 @@ module.exports = class Paracord extends EventEmitter {
     } else {
       ({ id: guildId } = guild);
     }
+
     const res = this.request('get', `/guilds/${guildId}/members/${memberId}`);
 
     if (res.status === 200) {
