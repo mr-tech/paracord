@@ -79,9 +79,7 @@ module.exports = class Guild {
     if (!guildData.unavailable) {
       this.unavailable = false;
 
-      if (this.created_on === undefined) {
-        this.created_on = Utils.timestampFromSnowflake(guildData.id);
-      }
+      Utils.assignCreatedOn(guildData);
 
       this.assignFromGuildCreate(guildData, client);
 
@@ -218,7 +216,7 @@ module.exports = class Guild {
    * @param {Object<string, any>} channel https://discordapp.com/developers/docs/resources/channel#channel-object-channel-structure
    */
   static upsertChannel(channels, channel) {
-    channel.created_on = Utils.timestampFromSnowflake(channel.id);
+    Utils.assignCreatedOn(channel);
     channels.set(
       channel.id,
       Object.assign(channels.get(channel.id) || {}, channel),
@@ -245,7 +243,7 @@ module.exports = class Guild {
    * @param {Object<string, any>} role https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
    */
   static upsertRole(roles, role) {
-    role.created_on = Utils.timestampFromSnowflake(role.id);
+    Utils.assignCreatedOn(role);
     roles.set(role.id, Object.assign(roles.get(role.id) || {}, role));
   }
 
@@ -357,6 +355,10 @@ module.exports = class Guild {
         Object.assign(cachedMember, member);
       } else {
         this.members.set(member.user.id, member);
+      }
+
+      if (this.owner_id === cachedMember.user.id) {
+        this.owner = cachedMember;
       }
 
       return cachedMember;

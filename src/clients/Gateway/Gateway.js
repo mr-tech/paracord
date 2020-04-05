@@ -41,6 +41,8 @@ module.exports = class Gateway {
     /** @type {void|IdentifyLockService[]} Rpc service through which to coordinate identifies with other shards. */
     this.identifyLocks;
 
+    /** @type {boolean} Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
+    this.online;
     /** @type {ws} Websocket used to connect to gateway. */
     this.ws;
     /** @type {string} From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
@@ -92,8 +94,8 @@ module.exports = class Gateway {
     return this.identity.shard ? this.identity.shard[0] : undefined;
   }
 
-  /** @type {boolean} Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
-  get online() {
+  /** @type {boolean} Whether or not the client is connected to the gateway. */
+  get connected() {
     return this.ws !== undefined;
   }
 
@@ -196,9 +198,9 @@ module.exports = class Gateway {
    * @param {string} type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
    * @param {void|Object<string, any>} data Data to send with the event.
    */
-  emit(type, data) {
+  emit(type, data, shard) {
     if (this.emitter !== undefined) {
-      this.emitter.emit(type, data);
+      this.emitter.emit(type, data, this.shard);
     }
   }
 
@@ -416,7 +418,7 @@ module.exports = class Gateway {
     }
 
     if (data !== undefined) {
-      this.emit(type, data, this.shard);
+      this.emit(type, data);
     }
   }
 
@@ -465,6 +467,7 @@ module.exports = class Gateway {
    */
   async _onclose(event) {
     this.ws = undefined;
+    this.online = false;
     this.clearHeartbeat();
     const shouldReconnect = this.handleCloseCode(event.code);
 
@@ -502,6 +505,7 @@ module.exports = class Gateway {
       INVALID_VERSION,
       INVALID_INTENT,
       DISALLOWED_INTENT,
+      RECONNECT,
       SESSION_INVALIDATED,
       SESSION_INVALIDATED_RESUMABLE,
       HEARTBEAT_TIMEOUT,
@@ -590,12 +594,16 @@ module.exports = class Gateway {
       case CLEAN:
         level = LOG_LEVELS.INFO;
         message = 'Clean close. (Reconnecting.)';
-        // this.clearSession();
+        this.clearSession();
         break;
       case SESSION_INVALIDATED:
         level = LOG_LEVELS.INFO;
         message = 'Received an Invalid Session message and is not resumable. Reconnecting with new session. (Reconnecting.)';
         this.clearSession();
+        break;
+      case RECONNECT:
+        level = LOG_LEVELS.INFO;
+        message = 'Gateway has requested the client reconnect. (Reconnecting.)';
         break;
       case SESSION_INVALIDATED_RESUMABLE:
         level = LOG_LEVELS.INFO;
@@ -606,11 +614,7 @@ module.exports = class Gateway {
         message = 'Unknown close code. (Reconnecting.)';
     }
 
-    this.emit('DEBUG', {
-      source: LOG_SOURCES.GATEWAY,
-      level,
-      message: `Websocket closed. Code: ${code}. Reason: ${message}`,
-    });
+    this.log(level, `Websocket closed. Code: ${code}. Reason: ${message}`, 'DEBUG');
 
     return shouldReconnect;
   }
@@ -656,29 +660,41 @@ module.exports = class Gateway {
       t: type, s: sequence, op: opCode, d: data,
     } = p;
 
-    if (opCode === GATEWAY_OP_CODES.DISPATCH) {
-      if (type === 'READY') {
-        this.handleReady(data);
-      } else if (type === 'RESUMED') {
-        this.handleResumed();
-      } else {
-        setImmediate(() => this.handleEvent(type, data));
-      }
-    } else if (opCode === GATEWAY_OP_CODES.HELLO) {
-      this.handleHello(data);
-    } else if (opCode === GATEWAY_OP_CODES.HEARTBEAT_ACK) {
-      this.handleHeartbeatAck();
-    } else if (opCode === GATEWAY_OP_CODES.HEARTBEAT) {
-      this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
-    } else if (opCode === GATEWAY_OP_CODES.INVALID_SESSION) {
-      this.handleInvalidSession(data);
-    } else if (opCode === GATEWAY_OP_CODES.RECONNECT) {
-      this.log('INFO', 'Gateway has requested the client reconnect.');
+    switch (opCode) {
+      case GATEWAY_OP_CODES.DISPATCH:
+        if (type === 'READY') {
+          this.handleReady(data);
+        } else if (type === 'RESUMED') {
+          this.handleResumed();
+        } else {
+          setImmediate(() => this.handleEvent(type, data));
+        }
+        break;
 
-      this.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
-    } else {
-      this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
+      case GATEWAY_OP_CODES.HELLO:
+        this.handleHello(data);
+        break;
+
+      case GATEWAY_OP_CODES.HEARTBEAT_ACK:
+        this.handleHeartbeatAck();
+        break;
+
+      case GATEWAY_OP_CODES.HEARTBEAT:
+        this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
+        break;
+
+      case GATEWAY_OP_CODES.INVALID_SESSION:
+        this.handleInvalidSession(data);
+        break;
+
+      case GATEWAY_OP_CODES.RECONNECT:
+        this.ws.close(GATEWAY_CLOSE_CODES.RECONNECT);
+        break;
+
+      default:
+        this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
     }
+
 
     this.updateSequence(sequence);
   }
@@ -693,6 +709,7 @@ module.exports = class Gateway {
     this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
 
     this.sessionId = data.session_id;
+    this.online = true;
 
     this.handleEvent('READY', data);
   }
@@ -703,6 +720,7 @@ module.exports = class Gateway {
    */
   handleResumed() {
     this.log('INFO', 'Replay finished. Resuming events.');
+    this.online = true;
 
     this.handleEvent('RESUMED', null);
   }

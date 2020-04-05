@@ -194,17 +194,17 @@ module.exports = class Util {
     return perms;
   }
 
-  static constructUserAvatarUrl(user) {
+  static constructUserAvatarUrl(user, fileType = '') {
     if (user.avatar === null || user.avatar === undefined) {
-      return `${DISCORD_CDN_URL}embed/avatars/${Number(user.discriminator)
-        % 5}.png`;
+      return `${DISCORD_CDN_URL}/embed/avatars/${Number(user.discriminator)
+        % 5}${fileType ? `.${fileType}` : ''}`;
     }
 
     if (user.avatar.startsWith('a_')) {
-      return `${DISCORD_CDN_URL}avatars/${user.id}/${user.avatar}.gif`;
+      return `${DISCORD_CDN_URL}/avatars/${user.id}/${user.avatar}${fileType ? `.${fileType}` : ''}`;
     }
 
-    return `${DISCORD_CDN_URL}avatars/${user.id}/${user.avatar}.png`;
+    return `${DISCORD_CDN_URL}/avatars/${user.id}/${user.avatar}${fileType ? `.${fileType}` : ''}`;
   }
 
   /**
@@ -214,6 +214,14 @@ module.exports = class Util {
    */
   static constructUserTag(user) {
     return `${user.username}#${user.discriminator}`;
+  }
+
+  static constructGuildIcon(guild, fileType = '') {
+    if (guild.icon.startsWith('a_')) {
+      return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;
+    }
+
+    return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;
   }
 
   /**
