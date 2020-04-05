@@ -32,9 +32,9 @@ module.exports = class Paracord extends EventEmitter {
   constructor(token, options = {}) {
     super();
     /** @type {string} Discord bot token. */
-    this.token = token;
+    this.token;
     /** @type {boolean} Whether or not the `init()` function has already been called. */
-    this.initialized = false;
+    this.initialized;
     /** @type {Object<string, any>} User details given by Discord in the "Ready" event form the gateway. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
     this.user;
 
@@ -122,13 +122,15 @@ module.exports = class Paracord extends EventEmitter {
     Paracord.validateParams(token);
 
     const defaults = {
+      token,
+      initialized: false,
       guilds: new Map(),
       users: new Map(),
       presences: new Map(),
       veryRecentlyUpdatedPresences: new Map(),
       veryRecentlyUpdatedUsers: new Map(),
       safeGatewayIdentifyTimestamp: 0,
-      gateways: [],
+      gateways: new Map(),
       gatewayLoginQueue: [],
       gatewayWaitCount: 0,
       guildWaitCount: 0,
