@@ -290,7 +290,7 @@ exports.GUILD_DELETE = function GUILD_DELETE(data) {
     return this.upsertGuild(data);
   }
 
-  return data;
+  return guild;
 };
 
 /**

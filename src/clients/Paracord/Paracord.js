@@ -681,7 +681,13 @@ module.exports = class Paracord extends EventEmitter {
    * @param {Object<string, any>} presence From Discord - https://discordapp.com/developers/docs/topics/gateway#presence-update
    */
   circularAssignCachedUser(presence) {
-    const cachedUser = this.users.get(presence.user.id);
+    let cachedUser;
+    if (Object.keys(presence).length === 1) { // don't upsert if id is the only property
+      cachedUser = this.users.get(presence.user.id);
+    } else {
+      cachedUser = this.upsertUser(presence.user);
+    }
+
     if (cachedUser !== undefined) {
       presence.user = cachedUser;
       presence.user.presence = presence;

@@ -44,10 +44,13 @@ module.exports = {
     INVALID_VERSION: 4012,
     INVALID_INTENT: 4013,
     DISALLOWED_INTENT: 4014,
-    RECONNECT: 4996,
-    SESSION_INVALIDATED: 4997, // Not a Discord close event, received an Invalid Session message and cannot resume
-    SESSION_INVALIDATED_RESUMABLE: 4998, // Not a Discord close event, received an Invalid Session message but can resume
-    HEARTBEAT_TIMEOUT: 4999, // Not a Discord close event, heartbeat has timedout
+    RECONNECT: 4993,
+    SESSION_INVALIDATED: 4994, // Not a Discord close event, received an Invalid Session message and cannot resume
+    SESSION_INVALIDATED_RESUMABLE: 4995, // Not a Discord close event, received an Invalid Session message but can resume
+    HEARTBEAT_TIMEOUT: 4996, // Not a Discord close event, heartbeat has timedout
+    USER_TERMINATE_RESUMABLE: 4997, // Not s Discord close event. Closed by user. Start new connection and resume.
+    USER_TERMINATE_RECONNECT: 4998, // Not s Discord close event. Closed by user. Start new session.
+    USER_TERMINATE: 4999, // Not s Discord close event. Closed by user. Do not reconnect.
 
   },
   CHANNEL_TYPES: {
