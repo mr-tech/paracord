@@ -128,7 +128,6 @@ module.exports = class Paracord extends EventEmitter {
       gateways: new Map(),
       gatewayLoginQueue: [],
       gatewayWaitCount: 0,
-      guildWaitCount: 0,
       allowEventsDuringStartup: false,
       preventLogin: false,
     };
@@ -167,7 +166,6 @@ module.exports = class Paracord extends EventEmitter {
   bindTimerFunction() {
     this.sweepCaches = this.sweepCaches.bind(this);
     this.processGatewayQueue = this.processGatewayQueue.bind(this);
-    this.startWithUnavailableGuilds = this.startWithUnavailableGuilds.bind(this);
   }
 
   /*
@@ -303,26 +301,27 @@ module.exports = class Paracord extends EventEmitter {
         await gateway.login();
 
         if (this.unavailableGuildTolerance && this.unavailableGuildWait) {
-          this.startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds, 1e3);
+          this.startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3);
         }
       } catch (err) {
         this.log('FATAL', err.message, gateway);
+        this.clearStartingShardState();
         this.gatewayLoginQueue.unshift(gateway);
-        this.startingGateway = undefined;
-        clearInterval(this.startWithUnavailableGuildsInterval);
       }
     }
   }
 
-  startWithUnavailableGuilds() {
+  startWithUnavailableGuilds(gateway) {
     const {
       unavailableGuildTolerance, guildWaitCount, unavailableGuildWait, lastGuildTimestamp,
     } = this;
 
-    const withinTolerance = guildWaitCount <= unavailableGuildTolerance;
-    const timedOut = lastGuildTimestamp + unavailableGuildWait * 1e3 < new Date().getTime();
+    const withinTolerance = this.guildWaitCount !== undefined && guildWaitCount <= unavailableGuildTolerance;
+    const timedOut = lastGuildTimestamp !== undefined && lastGuildTimestamp + unavailableGuildWait * 1e3 < new Date().getTime();
 
-    if (withinTolerance && timedOut) {
+    if (this.startingGateway === gateway && withinTolerance && timedOut) {
+      const message = `Forcing startup complete for shard ${this.startingGateway.id} with ${this.guildWaitCount} unavailable guilds.`;
+      this.log('WARNING', message);
       this.checkIfDoneStarting(true);
     }
   }
@@ -506,6 +505,7 @@ module.exports = class Paracord extends EventEmitter {
   handleReady(data, shard) {
     const { user, guilds } = data;
 
+    this.guildWaitCount = guilds.length;
     guilds.forEach((g) => this.guilds.set(g.id, new Guild(g, this, shard)));
 
     user.tag = Utils.constructUserTag(user);
@@ -518,7 +518,6 @@ module.exports = class Paracord extends EventEmitter {
     if (guilds.length === 0) {
       this.checkIfDoneStarting();
     } else {
-      this.guildWaitCount = guilds.length;
       this.lastGuildTimestamp = new Date().getTime();
     }
   }
@@ -530,10 +529,10 @@ module.exports = class Paracord extends EventEmitter {
    * @param {boolean} emptyShard Whether or not the shard started with no guilds.
    */
   checkIfDoneStarting(forced) {
-    if (forced || (this.guildWaitCount === 0 && this.startingGateway !== undefined)) {
+    if ((forced || this.guildWaitCount === 0) && this.startingGateway !== undefined) {
       this.completeShardStartup(forced);
 
-      if (this.gatewayWaitCount === 0) {
+      if (--this.gatewayWaitCount === 0) {
         this.completeStartup();
       }
     } else if (this.guildWaitCount < 0) {
@@ -547,23 +546,24 @@ module.exports = class Paracord extends EventEmitter {
   }
 
   completeShardStartup(forced = false) {
-    if (forced) {
-      const message = `Forcing startup complete for shard ${this.startingGateway.id} with ${this.guildWaitCount} unavailable guilds.`;
-      this.log('WARNING', message);
-      this.guildWaitCount = 0;
-    } else {
+    if (!forced) {
       const message = `Shard ${this.startingGateway.id} - received all start up guilds.`;
       this.log('INFO', message);
     }
 
-    clearInterval(this.startWithUnavailableGuildsInterval);
-
     this.startingGateway.releaseIdentifyLocks();
     const shard = this.startingGateway;
-    this.startingGateway = undefined;
-    --this.gatewayWaitCount;
+
+    this.clearStartingShardState();
 
     this.emit('SHARD_STARTUP_COMPLETE', { shard, forced });
+  }
+
+  clearStartingShardState() {
+    this.startingGateway = undefined;
+    this.lastGuildTimestamp = undefined;
+    this.guildWaitCount = undefined;
+    clearInterval(this.startWithUnavailableGuildsInterval);
   }
 
   /**
@@ -686,7 +686,7 @@ module.exports = class Paracord extends EventEmitter {
    */
   circularAssignCachedUser(presence) {
     let cachedUser;
-    if (Object.keys(presence).length === 1) { // don't upsert if id is the only property
+    if (Object.keys(presence.user).length === 1) { // don't upsert if id is the only property
       cachedUser = this.users.get(presence.user.id);
     } else {
       cachedUser = this.upsertUser(presence.user);
