@@ -114,26 +114,22 @@ module.exports = class Guild {
    */
   assignFromGuildCreate(guildData, client) {
     if (guildData.channels !== undefined) {
-      this.channels = Guild.mapChannels(guildData.channels);
+      guildData.channels.forEach((c) => this.upsertChannel(c));
       delete guildData.channels;
     }
 
     if (guildData.roles !== undefined) {
-      this.roles = Guild.mapRoles(guildData.roles);
+      guildData.roles.forEach((r) => this.upsertRole(r));
       delete guildData.roles;
     }
 
     if (guildData.members !== undefined) {
-      Guild.mapMembers(guildData.members, this, client);
+      guildData.members.forEach((m) => this.upsertMember(m, client));
       delete guildData.members;
     }
 
     if (guildData.voice_states !== undefined) {
-      this.voiceStates = Guild.mapVoiceStates(
-        guildData.voice_states,
-        this,
-        client,
-      );
+      guildData.voice_states.forEach((v) => this.upsertVoiceState(v, client));
     }
 
     if (guildData.presences !== undefined) {
@@ -154,7 +150,7 @@ module.exports = class Guild {
    * @param {number} permission Bit value to check for.
    * @param {Object<string, any>} member Member whose perms to check.
    * @param {} [channelId] Channel to check overwrites.
-   * @param {boolean} [adminOverride=true] Whether or not Adminstrator permissions can return `true`.
+   * @param {boolean} [adminOverride=true] Whether or not Administrator permissions can return `true`.
    * @returns {boolean} `true` if member has the permission.
    */
   hasPermission(permission, member, adminOverride = true) {
@@ -171,7 +167,7 @@ module.exports = class Guild {
    *
    * @param {number} permission Bit value to check for.
    * @param {Object<string, any>} member Member whose perms to check.
-   * @param {string|Object<string, any>} channe Channel to check overwrites.
+   * @param {string|Object<string, any>} channel Channel to check overwrites.
    * @param {boolean} [adminOverride=true] Whether or not Adminstrator permissions can return `true`.
    * @returns {boolean} `true` if member has the permission.
    */
@@ -199,42 +195,21 @@ module.exports = class Guild {
    */
 
   /**
-   * Create a map of channels keyed to their ids.
-   * @private
-   *
-   * @param {Object<string, any>[]} channels https://discordapp.com/developers/docs/resources/channel#channel-object-channel-structure
-   */
-  static mapChannels(channels) {
-    const channelMap = new Map();
-    channels.forEach((c) => Guild.upsertChannel(channelMap, c));
-    return channelMap;
-  }
-
-  /**
    * Add a channel with some additional information to a map of channels.
    * @private
    *
    * @param {Map<string, any>} channels Map of channels keyed to their ids.
    * @param {Object<string, any>} channel https://discordapp.com/developers/docs/resources/channel#channel-object-channel-structure
    */
-  static upsertChannel(channels, channel) {
+  upsertChannel(channel) {
+    const { channels } = this;
     Utils.assignCreatedOn(channel);
-    channels.set(
-      channel.id,
-      Object.assign(channels.get(channel.id) || {}, channel),
-    );
-  }
 
-  /**
-   * Create a map of roles keyed to their ids.
-   * @private
-   *
-   * @param {Object<string, any>[]} roles https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
-   */
-  static mapRoles(roles) {
-    const roleMap = new Map();
-    roles.forEach((r) => Guild.upsertRole(roleMap, r));
-    return roleMap;
+    const cachedChannel = Object.assign(channels.get(channel.id) || {}, channel);
+    channels.set(channel.id, cachedChannel);
+    cachedChannel.guild_id = this.id;
+
+    return cachedChannel;
   }
 
   /**
@@ -244,21 +219,14 @@ module.exports = class Guild {
    * @param {Map<string, any>} roles Map of roles keyed to their ids.
    * @param {Object<string, any>} role https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
    */
-  static upsertRole(roles, role) {
+  upsertRole(role) {
+    const { roles } = this;
     Utils.assignCreatedOn(role);
-    roles.set(role.id, Object.assign(roles.get(role.id) || {}, role));
-  }
 
-  /**
-   * Create a map of voice states keyed to their user's id.
-   * @private
-   *
-   * @param {Object<string, any>[]} voiceStates https://discordapp.com/developers/docs/resources/voice
-   */
-  static mapVoiceStates(voiceStates, guild, client) {
-    const voiceStateMap = new Map();
-    voiceStates.forEach((v) => Guild.upsertVoiceState(voiceStateMap, v, guild, client));
-    return voiceStateMap;
+    const cachedRole = Object.assign(roles.get(role.id) || {}, role);
+    roles.set(role.id, cachedRole);
+
+    return cachedRole;
   }
 
   /**
@@ -270,22 +238,26 @@ module.exports = class Guild {
    * @param {Guild} guild
    * @param {Paracord} client
    */
-  static upsertVoiceState(voiceStates, voiceState, guild, client) {
+  upsertVoiceState(voiceState, client) {
+    const { voiceStates } = this;
+
     let member;
     if (voiceState.member !== undefined) {
-      member = guild.members.get(voiceState.member.user.id);
+      member = this.members.get(voiceState.member.user.id);
       if (member === undefined) {
-        member = guild.upsertMember(voiceState.member, client);
+        member = this.upsertMember(voiceState.member, client);
       }
     }
 
     if (member === undefined) {
-      member = guild.members.get(voiceState.user_id);
+      member = this.members.get(voiceState.user_id);
     }
 
     voiceState.member = member;
 
     voiceStates.set(voiceState.user_id, voiceState);
+
+    return voiceState;
   }
 
   /**
