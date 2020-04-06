@@ -76,6 +76,9 @@ module.exports = class Gateway {
     /** @type {number} Time that the shard's identify mutex will be locked for in ms. */
     this.remoteLoginWait;
 
+    /** @type {number} Amount of identifies reported by the last call to /gateway/bot. */
+    this.lastKnownSessionLimitData;
+
     this.constructorDefaults(token, options);
   }
 
@@ -350,6 +353,7 @@ module.exports = class Gateway {
     );
 
     if (status === 200) {
+      this.lastKnownSessionLimitData = data.session_start_limit;
       const { total, remaining, reset_after } = data.session_start_limit;
 
       const message = `Login limit: ${total}. Remaining: ${remaining}. Reset after ${reset_after}ms (${new Date(
@@ -440,7 +444,7 @@ module.exports = class Gateway {
     this.log('DEBUG', 'Websocket open.');
 
     this.wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
-    this.handleEvent('GATEWAY_OPEN', null);
+    this.handleEvent('GATEWAY_OPEN', this);
   }
 
   /*
@@ -513,6 +517,9 @@ module.exports = class Gateway {
       SESSION_INVALIDATED,
       SESSION_INVALIDATED_RESUMABLE,
       HEARTBEAT_TIMEOUT,
+      USER_TERMINATE_RESUMABLE,
+      USER_TERMINATE_RECONNECT,
+      USER_TERMINATE,
     } = GATEWAY_CLOSE_CODES;
 
     let message;
@@ -612,6 +619,20 @@ module.exports = class Gateway {
       case SESSION_INVALIDATED_RESUMABLE:
         level = LOG_LEVELS.INFO;
         message = 'Received an Invalid Session message and is resumable. (Reconnecting.)';
+        break;
+      case USER_TERMINATE_RESUMABLE:
+        level = LOG_LEVELS.INFO;
+        message = 'Connection terminated by you. Will resume. (Reconnecting.)';
+        break;
+      case USER_TERMINATE_RECONNECT:
+        level = LOG_LEVELS.INFO;
+        message = 'Connection terminated by you. Will start a new session. (Reconnecting.)';
+        this.clearSession();
+        break;
+      case USER_TERMINATE:
+        level = LOG_LEVELS.INFO;
+        message = 'Connection terminated by you. (Terminating login.)';
+        shouldReconnect = false;
         break;
       default:
         level = LOG_LEVELS.INFO;
