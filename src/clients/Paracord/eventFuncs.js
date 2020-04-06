@@ -150,10 +150,10 @@ exports.GUILD_MEMBER_UPDATE = function GUILD_MEMBER_UPDATE(data) {
 exports.GUILD_MEMBER_REMOVE = function GUILD_MEMBER_REMOVE(data) {
   const guild = this.guilds.get(data.guild_id);
   if (guild) {
+    --guild.member_count;
     const member = guild.members.get(data.user_id);
     guild.members.delete(data.user.id);
     guild.presences.delete(data.user.id);
-    --guild.member_count;
     return member;
   }
 
@@ -314,9 +314,8 @@ exports.GATEWAY_CLOSE = function GATEWAY_CLOSE({ gateway, shouldReconnect }) {
     if (gateway.resumable) {
       gateway.login();
     } else if (this.startingGateway === gateway) {
-      clearInterval(this.startWithUnavailableGuildsInterval);
+      this.clearStartingShardState();
       this.gatewayLoginQueue.unshift(gateway);
-      this.startingGateway = undefined;
     } else {
       this.gatewayLoginQueue.push(gateway);
     }
