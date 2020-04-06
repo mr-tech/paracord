@@ -35,9 +35,7 @@ exports.PRESENCE_UPDATE = function PRESENCE_UPDATE(data) {
  * @param {Object<string, any>} data From Discord.
  */
 exports.USER_UPDATE = function USER_UPDATE(data) {
-  this.upsertUser(data);
-
-  return data;
+  return this.upsertUser(data);
 };
 
 /**
@@ -104,16 +102,15 @@ exports.VOICE_STATE_UPDATE = function VOICE_STATE_UPDATE(data) {
   const guild = this.guilds.get(data.guild_id);
 
   if (guild) {
-    if (data.channel_id !== null) {
-      Guild.upsertVoiceState(guild.voiceStates, data, guild, this);
-    } else {
-      guild.voiceStates.delete(data.user_id);
-    }
-  }
+    this.cacheMemberFromEvent(
+      this.guilds.get(data.guild_id), data.member, data.member.user.id,
+    );
 
-  return this.cacheMemberFromEvent(
-    this.guilds.get(data.guild_id), data.member, data.member.user.id,
-  );
+    if (data.channel_id !== null) {
+      return guild.upsertVoiceState(data, this);
+    }
+    guild.voiceStates.delete(data.user_id);
+  }
 };
 
 /**
@@ -124,8 +121,8 @@ exports.VOICE_STATE_UPDATE = function VOICE_STATE_UPDATE(data) {
 exports.GUILD_MEMBER_ADD = function GUILD_MEMBER_ADD(data) {
   const guild = this.guilds.get(data.guild_id);
   if (guild) {
-    guild.upsertMember(data, this);
     ++guild.member_count;
+    return guild.upsertMember(data, this);
   }
 
   return data;
@@ -139,8 +136,9 @@ exports.GUILD_MEMBER_ADD = function GUILD_MEMBER_ADD(data) {
 exports.GUILD_MEMBER_UPDATE = function GUILD_MEMBER_UPDATE(data) {
   const guild = this.guilds.get(data.guild_id);
   if (guild) {
-    guild.upsertMember(data, this);
+    return guild.upsertMember(data, this);
   }
+
   return data;
 };
 
@@ -152,9 +150,11 @@ exports.GUILD_MEMBER_UPDATE = function GUILD_MEMBER_UPDATE(data) {
 exports.GUILD_MEMBER_REMOVE = function GUILD_MEMBER_REMOVE(data) {
   const guild = this.guilds.get(data.guild_id);
   if (guild) {
+    const member = guild.members.get(data.user_id);
     guild.members.delete(data.user.id);
     guild.presences.delete(data.user.id);
     --guild.member_count;
+    return member;
   }
 
   return data;
@@ -184,11 +184,11 @@ exports.CHANNEL_CREATE = function CHANNEL_CREATE(data) {
   if (data.type !== CHANNEL_TYPES.DM && data.type !== CHANNEL_TYPES.GROUP_DM) {
     const guild = this.guilds.get(data.guild_id);
     if (guild) {
-      Guild.upsertChannel(guild.channels, data);
+      return guild.upsertChannel(data);
     }
   }
 
-  return data;
+  return undefined;
 };
 
 /**
@@ -198,11 +198,7 @@ exports.CHANNEL_CREATE = function CHANNEL_CREATE(data) {
  */
 exports.CHANNEL_UPDATE = function CHANNEL_UPDATE(data) {
   const guild = this.guilds.get(data.guild_id);
-  if (guild) {
-    Guild.upsertChannel(guild.channels, data);
-  }
-
-  return data;
+  return guild.upsertChannel(data);
 };
 
 /**
@@ -212,9 +208,9 @@ exports.CHANNEL_UPDATE = function CHANNEL_UPDATE(data) {
  */
 exports.CHANNEL_DELETE = function CHANNEL_DELETE(data) {
   const guild = this.guilds.get(data.guild_id);
+  const channel = guild.channels.get(data.id);
   guild.channels.delete(data.id);
-
-  return data;
+  return channel;
 };
 
 /**
@@ -224,9 +220,7 @@ exports.CHANNEL_DELETE = function CHANNEL_DELETE(data) {
  */
 exports.GUILD_ROLE_CREATE = function GUILD_ROLE_CREATE(data) {
   const guild = this.guilds.get(data.guild_id);
-  Guild.upsertRole(guild.roles, data.role);
-
-  return data;
+  return { role: guild.upsertRole(data.role), guild_id: data.guild_id };
 };
 
 /**
@@ -236,9 +230,7 @@ exports.GUILD_ROLE_CREATE = function GUILD_ROLE_CREATE(data) {
  */
 exports.GUILD_ROLE_UPDATE = function GUILD_ROLE_UPDATE(data) {
   const guild = this.guilds.get(data.guild_id);
-  Guild.upsertRole(guild.roles, data.role);
-
-  return data;
+  return { role: guild.upsertRole(data.role), guild_id: data.guild_id };
 };
 
 /**
@@ -248,9 +240,10 @@ exports.GUILD_ROLE_UPDATE = function GUILD_ROLE_UPDATE(data) {
  */
 exports.GUILD_ROLE_DELETE = function GUILD_ROLE_DELETE(data) {
   const guild = this.guilds.get(data.guild_id);
+  const role = guild.roles.get(data.role_id);
   guild.roles.delete(data.role_id);
 
-  return data;
+  return { role, guild_id: data.guild_id };
 };
 
 /**

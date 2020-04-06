@@ -87,6 +87,8 @@ module.exports = class Paracord extends EventEmitter {
     /** @type {boolean} During startup, if events should be emitted before `PARACORD_STARTUP_COMPLETE` is emitted. `GUILD_CREATE` events will never be emitted during start up. */
     this.allowEventsDuringStartup;
 
+    this.preventLogin;
+
     this.constructorDefaults(token, options);
   }
 
@@ -128,6 +130,7 @@ module.exports = class Paracord extends EventEmitter {
       gatewayWaitCount: 0,
       guildWaitCount: 0,
       allowEventsDuringStartup: false,
+      preventLogin: false,
     };
 
     Object.assign(this, { ...options, ...defaults });
@@ -257,8 +260,8 @@ module.exports = class Paracord extends EventEmitter {
     this.unavailableGuildWait = unavailableGuildWait;
 
     if (PARACORD_SHARD_IDS !== undefined) {
-      options.shards = PARACORD_SHARD_IDS.split(',');
-      options.shardCount = PARACORD_SHARD_COUNT;
+      options.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
+      options.shardCount = Number(PARACORD_SHARD_COUNT);
       const message = `Injecting shard settings from shard launcher. Shard Ids: ${options.shards}. Shard count: ${options.shardCount}`;
       this.log('INFO', message);
     }
@@ -287,7 +290,8 @@ module.exports = class Paracord extends EventEmitter {
    */
   async processGatewayQueue() {
     if (
-      this.gatewayLoginQueue.length
+      !this.preventLogin
+        && this.gatewayLoginQueue.length
         && this.startingGateway === undefined
         && new Date().getTime() > this.safeGatewayIdentifyTimestamp
     ) {
