@@ -1,6 +1,6 @@
 'use strict';
 
-const Utils = require('../../../utils/Utils');
+const Utils = require('../../../utils');
 
 /** Representation of rate limit values from the header of a response from Discord. */
 module.exports = class RateLimitHeaders {

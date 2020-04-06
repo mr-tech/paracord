@@ -1,7 +1,7 @@
 'use strict';
 
 const axios = require('axios');
-const Utils = require('../../utils/Utils');
+const Utils = require('../../utils');
 const { RequestService, RateLimitService } = require('../../rpc/services');
 const {
   RateLimitCache,
@@ -410,6 +410,8 @@ module.exports = class Api {
       return this.authorizeRequestWithServer(request);
     }
 
+    console.log(!this.rateLimitCache.returnIsRateLimited(request));
+
     return !this.rateLimitCache.returnIsRateLimited(request);
   }
 
@@ -464,7 +466,7 @@ module.exports = class Api {
 
     this.log('DEBUG', message, rateLimitHeaders);
 
-    this.updateRateLimitCache(request);
+    this.updateRateLimitCache(request, rateLimitHeaders);
     return this.enqueueRequest(request);
   }
 
