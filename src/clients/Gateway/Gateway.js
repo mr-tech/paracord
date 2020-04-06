@@ -3,7 +3,7 @@
 const ws = require('ws');
 const { EventEmitter } = require('events');
 const Api = require('../Api');
-const Utils = require('../../utils/Utils');
+const Utils = require('../../utils');
 const Identity = require('./structures/Identity');
 const { IdentifyLockService } = require('../../rpc/services');
 
