@@ -91,7 +91,11 @@ module.exports = class Gateway {
 
   /** @type {void|Shard} [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
   get shard() {
-    return this.identity.shard ? this.identity.shard[0] : undefined;
+    return this.identity.shard !== undefined ? this.identity.shard : undefined;
+  }
+
+  get id() {
+    return this.identity.shard !== undefined ? this.identity.shard[0] : undefined;
   }
 
   /** @type {boolean} Whether or not the client is connected to the gateway. */
@@ -182,7 +186,7 @@ module.exports = class Gateway {
    * @param {*} [data] Data pertinent to the event.
    */
   log(level, message, data = {}) {
-    data.shard = this.shard;
+    data.shard = this.id;
     this.emit('DEBUG', {
       source: LOG_SOURCES.GATEWAY,
       level: LOG_LEVELS[level],
@@ -198,9 +202,9 @@ module.exports = class Gateway {
    * @param {string} type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
    * @param {void|Object<string, any>} data Data to send with the event.
    */
-  emit(type, data, shard) {
+  emit(type, data) {
     if (this.emitter !== undefined) {
-      this.emitter.emit(type, data, this.shard);
+      this.emitter.emit(type, data, this.id);
     }
   }
 
@@ -414,11 +418,11 @@ module.exports = class Gateway {
    */
   async handleEvent(type, data) {
     if (this.emitter.eventHandler !== undefined) {
-      data = await this.emitter.eventHandler(type, data, this.shard);
+      data = await this.emitter.eventHandler(type, data, this.id);
     }
 
     if (data !== undefined) {
-      this.emit(type, data);
+      this.emit(type, data, this.id);
     }
   }
 
@@ -614,7 +618,7 @@ module.exports = class Gateway {
         message = 'Unknown close code. (Reconnecting.)';
     }
 
-    this.log(level, `Websocket closed. Code: ${code}. Reason: ${message}`, 'DEBUG');
+    this.log(level, `Websocket closed. Code: ${code}. Reason: ${message}`);
 
     return shouldReconnect;
   }

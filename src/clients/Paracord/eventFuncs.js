@@ -3,10 +3,7 @@
 const { SECOND_IN_MILLISECONDS } = require('../../constants');
 
 const Guild = require('./structures/Guild');
-const {
-  PARACORD_UPDATE_USER_WAIT_MILLISECONDS,
-  CHANNEL_TYPES,
-} = require('../../constants');
+const { CHANNEL_TYPES } = require('../../constants');
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
@@ -15,8 +12,8 @@ const {
  * @this {Paracord}
  * @param {Object<string, any>} data From Discord.
  */
-exports.READY = function READY(data) {
-  this.handleReady(data);
+exports.READY = function READY(data, shard) {
+  this.handleReady(data, shard);
 
   return data;
 };
@@ -38,14 +35,7 @@ exports.PRESENCE_UPDATE = function PRESENCE_UPDATE(data) {
  * @param {Object<string, any>} data From Discord.
  */
 exports.USER_UPDATE = function USER_UPDATE(data) {
-  if (!this.veryRecentlyUpdatedUsers.has(data.id)) {
-    this.upsertUser(data);
-
-    this.veryRecentlyUpdatedUsers.set(
-      data.id,
-      new Date().getTime() + PARACORD_UPDATE_USER_WAIT_MILLISECONDS,
-    );
-  }
+  this.upsertUser(data);
 
   return data;
 };
@@ -58,10 +48,12 @@ exports.USER_UPDATE = function USER_UPDATE(data) {
 exports.MESSAGE_CREATE = function MESSAGE_CREATE(data) {
   if (data.member !== undefined) {
     data.member.user = data.author;
-    this.cacheMemberFromEvent(
+    data.member = this.cacheMemberFromEvent(
       this.guilds.get(data.guild_id),
       data.member,
     );
+
+    data.author = data.member.user;
   }
 
   return data;
@@ -74,10 +66,11 @@ exports.MESSAGE_CREATE = function MESSAGE_CREATE(data) {
 exports.MESSAGE_EDIT = function MESSAGE_EDIT(data) {
   if (data.member !== undefined) {
     data.member.user = data.author;
-    return this.cacheMemberFromEvent(
+    data.member = this.cacheMemberFromEvent(
       this.guilds.get(data.guild_id),
       data.member,
     );
+    data.author = data.member.user;
   }
 
   return data;
@@ -91,10 +84,12 @@ exports.MESSAGE_EDIT = function MESSAGE_EDIT(data) {
 exports.MESSAGE_DELETE = function MESSAGE_DELETE(data) {
   if (data.member !== undefined) {
     data.member.user = data.author;
-    return this.cacheMemberFromEvent(
+    data.member = this.cacheMemberFromEvent(
       this.guilds.get(data.guild_id),
       data.member,
+      data.author.id,
     );
+    data.author = data.member.user;
   }
 
   return data;
@@ -116,7 +111,9 @@ exports.VOICE_STATE_UPDATE = function VOICE_STATE_UPDATE(data) {
     }
   }
 
-  return this.cacheMemberFromEvent(this.guilds.get(data.guild_id), data.member);
+  return this.cacheMemberFromEvent(
+    this.guilds.get(data.guild_id), data.member, data.member.user.id,
+  );
 };
 
 /**
@@ -173,7 +170,7 @@ exports.GUILD_MEMBERS_CHUNK = function GUILD_MEMBERS_CHUNK(data) {
   if (data.presences !== undefined) {
     data.presences.forEach((p) => this.handlePresence(guild, p));
   }
-  data.members.forEach((m) => this.cacheMemberFromEvent(guild, m));
+  data.members.forEach((m) => this.cacheMemberFromEvent(guild, m, m.user.id));
 
   return data;
 };
@@ -262,8 +259,7 @@ exports.GUILD_ROLE_DELETE = function GUILD_ROLE_DELETE(data) {
  * @param {Object<string, any>} data From Discord.
  */
 exports.GUILD_CREATE = function GUILD_CREATE(data, shard) {
-  data._shard = shard;
-  return this.upsertGuild(data);
+  return this.upsertGuild(data, shard);
 };
 
 /**

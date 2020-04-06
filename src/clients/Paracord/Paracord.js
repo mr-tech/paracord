@@ -10,7 +10,6 @@ const {
   MINUTE_IN_MILLISECONDS,
   LOG_LEVELS,
   LOG_SOURCES,
-  PARACORD_SWEEP_INTERVAL,
 } = require('../../constants');
 
 const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
@@ -81,10 +80,6 @@ module.exports = class Paracord extends EventEmitter {
     this.sweepCachesInterval;
     /** @type {NodeJS.Timer} Interval that removes object from the redundant presence update cache. */
     this.sweepRecentPresenceUpdatesInterval;
-    /** @type {Map<string, number>} A short-tern cache for presence updates used to avoid processing the same event multiple times. */
-    this.veryRecentlyUpdatedPresences;
-    /** @type {Map<string, number>} A short-tern cache for user updates used to avoid processing the same event multiple times. */
-    this.veryRecentlyUpdatedUsers;
 
     /* User-defined event handling behavior. */
     /** @type {Object<string, string>} Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
@@ -127,8 +122,6 @@ module.exports = class Paracord extends EventEmitter {
       guilds: new Map(),
       users: new Map(),
       presences: new Map(),
-      veryRecentlyUpdatedPresences: new Map(),
-      veryRecentlyUpdatedUsers: new Map(),
       safeGatewayIdentifyTimestamp: 0,
       gateways: new Map(),
       gatewayLoginQueue: [],
@@ -170,7 +163,6 @@ module.exports = class Paracord extends EventEmitter {
    */
   bindTimerFunction() {
     this.sweepCaches = this.sweepCaches.bind(this);
-    this.sweepOldUpdates = this.sweepOldUpdates.bind(this);
     this.processGatewayQueue = this.processGatewayQueue.bind(this);
     this.startWithUnavailableGuilds = this.startWithUnavailableGuilds.bind(this);
   }
@@ -186,7 +178,7 @@ module.exports = class Paracord extends EventEmitter {
    *
    * @param {string} eventType The type of the event from the gateway. https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events (Events tend to be emitted in all caps and underlines in place of spaces.)
    * @param {Object} data From Discord.
-   * @param {number} shard Shard of the gateway that emitted this event.
+   * @param {number} shard Shard id of the gateway that emitted this event.
    */
   eventHandler(eventType, data, shard) {
     /** @type {Function|void} Method defined in ParacordEvents.js */
@@ -197,12 +189,13 @@ module.exports = class Paracord extends EventEmitter {
       emit = paracordEvent(data, shard);
     }
 
-    if (this.startingGateway !== undefined && this.startingGateway.shard === shard) {
+    if (this.startingGateway !== undefined && this.startingGateway.id === shard) {
       if (eventType === 'GUILD_CREATE') {
         --this.guildWaitCount;
         this.checkIfDoneStarting();
         return undefined;
       }
+
       return this.allowEventsDuringStartup ? data : undefined;
     }
 
@@ -275,7 +268,7 @@ module.exports = class Paracord extends EventEmitter {
 
     this.allowEventsDuringStartup = allowEventsDuringStartup || false;
 
-    this.startSweepIntervals();
+    this.startSweepInterval();
   }
 
   /**
@@ -312,6 +305,7 @@ module.exports = class Paracord extends EventEmitter {
         this.log('FATAL', err.message, gateway);
         this.gatewayLoginQueue.unshift(gateway);
         this.startingGateway = undefined;
+        clearInterval(this.startWithUnavailableGuildsInterval);
       }
     }
   }
@@ -337,7 +331,7 @@ module.exports = class Paracord extends EventEmitter {
    */
   async enqueueGateways(options) {
     let { shards, shardCount, identity } = options;
-    if (shards && shardCount) {
+    if (shards !== undefined && shardCount !== undefined) {
       shards.forEach((s) => {
         if (s + 1 > shardCount) {
           throw Error(`shard id ${s} exceeds max shard id of ${shardCount - 1}`);
@@ -345,18 +339,14 @@ module.exports = class Paracord extends EventEmitter {
       });
     }
 
-    if (identity !== undefined && Object.prototype.hasOwnProperty.call(identity, 'shard')) {
-      const identityCopy = Utils.clone(identity); // mirror above behavior
-      this.addNewGateway(identityCopy);
-    } else {
-      ({ shards, shardCount } = await this.computeShards(shards, shardCount));
 
-      shards.forEach((shard) => {
-        const identityCopy = Utils.clone(identity || {});
-        identityCopy.shard = [shard, shardCount];
-        this.addNewGateway(identityCopy);
-      });
-    }
+    ({ shards, shardCount } = await this.computeShards(shards, shardCount));
+
+    shards.forEach((shard) => {
+      const identityCopy = Utils.clone(identity || {});
+      identityCopy.shard = [shard, shardCount];
+      this.addNewGateway(identityCopy);
+    });
   }
 
   /**
@@ -368,12 +358,12 @@ module.exports = class Paracord extends EventEmitter {
   addNewGateway(identity) {
     const gatewayOptions = { identity, api: this.api, emitter: this };
     const gateway = this.setUpGateway(this.token, gatewayOptions);
-    if (this.gateways.get(gateway.shard) !== undefined) {
-      throw Error(`duplicate shard id ${gateway.shard}. shard ids must be unique`);
+    if (this.gateways.get(gateway.id) !== undefined) {
+      throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
     }
 
     ++this.gatewayWaitCount;
-    this.gateways.set(gateway.shard, gateway);
+    this.gateways.set(gateway.id, gateway);
     this.gatewayLoginQueue.push(gateway);
   }
 
@@ -423,15 +413,10 @@ module.exports = class Paracord extends EventEmitter {
    * Begins the intervals that prune caches.
    * @private
    */
-  startSweepIntervals() {
+  startSweepInterval() {
     this.sweepCachesInterval = setInterval(
       this.sweepCaches,
       60 * MINUTE_IN_MILLISECONDS,
-    );
-
-    this.sweepOldUpdatesInterval = setInterval(
-      this.sweepOldUpdates,
-      PARACORD_SWEEP_INTERVAL,
     );
   }
 
@@ -514,10 +499,10 @@ module.exports = class Paracord extends EventEmitter {
    *
    * @param {Object<string, any>} data Number of unavailable guilds received from Discord.
    */
-  handleReady(data) {
+  handleReady(data, shard) {
     const { user, guilds } = data;
 
-    guilds.forEach((g) => this.guilds.set(g.id, new Guild(g, this)));
+    guilds.forEach((g) => this.guilds.set(g.id, new Guild(g, this, shard)));
 
     user.tag = Utils.constructUserTag(user);
     this.user = user;
@@ -548,22 +533,22 @@ module.exports = class Paracord extends EventEmitter {
         this.completeStartup();
       }
     } else if (this.guildWaitCount < 0) {
-      const message = `Shard ${this.startingGateway.shard} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${this.guildWaitCount}`;
+      const message = `Shard ${this.startingGateway.id} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${this.guildWaitCount}`;
       this.log('WARNING', message);
     } else {
       this.lastGuildTimestamp = new Date().getTime();
-      const message = `Shard ${this.startingGateway.shard} - ${this.guildWaitCount} guilds left in start up.`;
+      const message = `Shard ${this.startingGateway.id} - ${this.guildWaitCount} guilds left in start up.`;
       this.log('INFO', message);
     }
   }
 
   completeShardStartup(forced = false) {
     if (forced) {
-      const message = `Forcing startup complete for shard ${this.startingGateway.shard} with ${this.guildWaitCount} unavailable guilds.`;
+      const message = `Forcing startup complete for shard ${this.startingGateway.id} with ${this.guildWaitCount} unavailable guilds.`;
       this.log('WARNING', message);
       this.guildWaitCount = 0;
     } else {
-      const message = `Shard ${this.startingGateway.shard} - received all start up guilds.`;
+      const message = `Shard ${this.startingGateway.id} - received all start up guilds.`;
       this.log('INFO', message);
     }
 
@@ -606,13 +591,15 @@ module.exports = class Paracord extends EventEmitter {
    * @param {Object<string, any>} data From Discord - https://discordapp.com/developers/docs/resources/guild#guild-object
    * @param {Paracord} client
    * @param {Function} Guild Ignore. For dependency injection.
+   * @param {Number} shard Id of shard that spawned this guild.
    */
-  upsertGuild(data, GuildConstructor = Guild) {
+  upsertGuild(data, shard, GuildConstructor = Guild) {
     const cachedGuild = this.guilds.get(data.id);
     if (cachedGuild !== undefined) {
       return cachedGuild.constructGuildFromData(data, this);
     }
-    const guild = new GuildConstructor(data, this);
+
+    const guild = new GuildConstructor(data, this, shard);
     this.guilds.set(data.id, guild);
     return guild;
   }
@@ -645,24 +632,13 @@ module.exports = class Paracord extends EventEmitter {
    * @param {Object<string, any>} presence From Discord - https://discordapp.com/developers/docs/topics/gateway#presence-update
    */
   updatePresences(presence) {
-    let cachedPresence;
-
-    if (!this.veryRecentlyUpdatedPresences.has(presence.user.id)) {
-      if (presence.status !== 'offline') {
-        cachedPresence = this.upsertPresence(presence);
-      } else {
-        this.deletePresence(presence.user.id);
-      }
+    if (presence.status !== 'offline') {
+      presence = this.upsertPresence(presence);
     } else {
-      cachedPresence = this.presences.get(presence.user.id);
+      this.deletePresence(presence.user.id);
     }
 
-    this.veryRecentlyUpdatedPresences.set(
-      presence.user.id,
-      new Date().getTime() + 500,
-    );
-
-    return cachedPresence;
+    return presence;
   }
 
   /**
@@ -806,25 +782,6 @@ module.exports = class Paracord extends EventEmitter {
     this.users.delete(id);
   }
 
-  /**
-   * Removes outdated states from the redundancy caches.
-   * @private
-   */
-  sweepOldUpdates() {
-    const now = new Date().getTime();
-
-    Paracord.sweepOldEntries(now, this.veryRecentlyUpdatedPresences);
-    Paracord.sweepOldEntries(now, this.veryRecentlyUpdatedUsers);
-  }
-
-  /** Remove entries from a map whose timestamp is older than now. */
-  static sweepOldEntries(now, map) {
-    for (const [id, ts] of map.entries()) {
-      if (ts < now) {
-        map.delete(id);
-      }
-    }
-  }
 
   /*
    ********************************
@@ -865,12 +822,12 @@ module.exports = class Paracord extends EventEmitter {
   }
 
   /**
-   * Fetch a member using the Rest API
+   * Fetch a guild member using the REST API, caching on successful hit.
    *
    * @param {string|Guild} guild Guild object or id in which to search for member.
    * @param {string} memberId Id of the member.
    */
-  fetchMember(guild, memberId) {
+  async fetchMember(guild, memberId) {
     let guildId;
 
     if (typeof guild === 'string') {
@@ -880,10 +837,26 @@ module.exports = class Paracord extends EventEmitter {
       ({ id: guildId } = guild);
     }
 
-    const res = this.request('get', `/guilds/${guildId}/members/${memberId}`);
+    const res = await this.request('get', `/guilds/${guildId}/members/${memberId}`);
 
     if (res.status === 200) {
-      guild.upsertMember(res.data, this);
+      res.data = guild.upsertMember(res.data, this);
+    }
+
+    return res;
+  }
+
+
+  /**
+   * Fetch a user using the REST API, caching on successful hit.
+   *
+   * @param {string} userId Id of the user.
+   */
+  async fetchUser(userId) {
+    const res = await this.request('get', `/users/${userId}`);
+
+    if (res.status === 200) {
+      res.data = this.upsertUser(res.data);
     }
 
     return res;

@@ -11,7 +11,7 @@ module.exports = class Guild {
    * @param {Object<string, any>} guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
    * @param {Paracord} client Paracord client.
    */
-  constructor(guildData, client) {
+  constructor(guildData, client, shard) {
     /** @type {Map<string, Object<string, Object<string, any>>>} Cached member objects of this guild. */
     this.members;
     /** @type {Map<string, Object<string, Object<string, any>>} Cached channel objects of this guild. */
@@ -33,7 +33,7 @@ module.exports = class Guild {
     /** @type {number} Gateway shard that the guild is a part of. */
     this._shard;
 
-    this.constructorDefaults(guildData, client);
+    this.constructorDefaults(guildData, client, shard);
   }
 
   get shard() {
@@ -53,7 +53,7 @@ module.exports = class Guild {
    * @param {Object<string, any>} guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
    * @param {Paracord} client Paracord client.
    */
-  constructorDefaults(guildData, client) {
+  constructorDefaults(guildData, client, shard) {
     const defaults = {
       members: new Map(),
       channels: new Map(),
@@ -64,6 +64,8 @@ module.exports = class Guild {
     };
 
     Object.assign(this, defaults);
+
+    this._shard = shard;
 
     this.constructGuildFromData(guildData, client);
   }
@@ -269,15 +271,19 @@ module.exports = class Guild {
    * @param {Paracord} client
    */
   static upsertVoiceState(voiceStates, voiceState, guild, client) {
+    let member;
     if (voiceState.member !== undefined) {
-      let cachedMember = guild.members.get(voiceState.member);
-      if (cachedMember === undefined) {
-        cachedMember = guild.upsertMember(voiceState.member, client);
+      member = guild.members.get(voiceState.member.user.id);
+      if (member === undefined) {
+        member = guild.upsertMember(voiceState.member, client);
       }
-
-      voiceState = { ...voiceState };
-      voiceState.member = cachedMember;
     }
+
+    if (member === undefined) {
+      member = guild.members.get(voiceState.user_id);
+    }
+
+    voiceState.member = member;
 
     voiceStates.set(voiceState.user_id, voiceState);
   }
@@ -338,33 +344,29 @@ module.exports = class Guild {
    * @param {Paracord} client
    */
   upsertMember(member, client) {
-    const cachedUser = client.upsertUser(member.user);
-    if (cachedUser !== undefined) {
-      const now = new Date().getTime();
-      const readOnly = {
-        get cachedTimestamp() {
-          return now;
-        },
-      };
-      member = { ...member, ...readOnly };
+    const now = new Date().getTime();
+    const readOnly = {
+      get cachedTimestamp() {
+        return now;
+      },
+    };
 
-      member.user = cachedUser;
+    member = { ...member, ...readOnly };
 
-      const cachedMember = this.members.get(member.user.id);
-      if (cachedMember !== undefined) {
-        Object.assign(cachedMember, member);
-      } else {
-        this.members.set(member.user.id, member);
-      }
+    member.user = client.upsertUser(member.user);
 
-      if (this.owner_id === cachedMember.user.id) {
-        this.owner = cachedMember;
-      }
-
-      return cachedMember;
+    const cachedMember = this.members.get(member.user.id);
+    if (cachedMember !== undefined) {
+      member = Object.assign(cachedMember, member);
+    } else {
+      this.members.set(member.user.id, member);
     }
 
-    return undefined;
+    if (this.owner_id === member.user.id) {
+      this.owner = cachedMember;
+    }
+
+    return member;
   }
 
   // /**

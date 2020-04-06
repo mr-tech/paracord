@@ -59,12 +59,17 @@ module.exports = {
     GUILD_NEWS: 5,
     GUILD_STORE: 6,
   },
+  // ACTIVITY_TYPES: {
+  //   GAME: 0,
+  //   STREAMIng: 1,
+  //   LISTENING: 2,
+  //   CUSTOM: 4,
+  // },
   DISCORD_API_URL: 'https://discordapp.com/api',
   DISCORD_API_DEFAULT_VERSION: 'v6',
   /** Discord epoch (2015-01-01T00:00:00.000Z) */
   DISCORD_EPOCH: 1420070400000,
   DISCORD_CDN_URL: 'https://cdn.discordapp.com',
-  PARACORD_SWEEP_INTERVAL: 500,
   /** A permissions map for operations relevant to the library. */
   PERMISSIONS: {
     ADMINISTRATOR: 0x8,
