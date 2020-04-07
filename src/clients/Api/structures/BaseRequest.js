@@ -15,7 +15,7 @@ module.exports = class BaseRequest {
     this.url = BaseRequest.stripUrlLeadingSlash(url);
 
     /** @type {string} Key generated from the method and minor parameters of a request used internally to get shared buckets. */
-    this.rateLimitBucketKey;
+    this.requestRouteMeta;
     /** @type {string} Key for this specific requests rate limit state in the rate limit cache. */
     this.rateLimitKey;
 
@@ -39,7 +39,7 @@ module.exports = class BaseRequest {
    *
    * @param {string} method HTTP method of the request.
    * @param {string} url Discord endpoint the request will be sent to.
-   * @returns An object containing the `rateLimitBucketKey` and `rateLimitKey`.
+   * @returns An object containing the `requestRouteMeta` and `rateLimitKey`.
    */
   static assignRateLimitMeta(method, url) {
     const [
@@ -48,14 +48,14 @@ module.exports = class BaseRequest {
       ...rateLimitMinorParameters
     ] = url.split('/');
 
-    const rateLimitBucketKey = BaseRequest.convertMetaToBucketKey(
+    const requestRouteMeta = BaseRequest.extractRouteMeta(
       method,
       rateLimitMinorParameters,
     );
 
-    const rateLimitKey = `${rateLimitMajorType}-${rateLimitMajorID}-${rateLimitBucketKey}`;
+    const rateLimitKey = `${rateLimitMajorType}-${rateLimitMajorID}-${requestRouteMeta}`;
 
-    return { rateLimitBucketKey, rateLimitKey };
+    return { requestRouteMeta, rateLimitKey };
   }
 
   /**
@@ -66,7 +66,7 @@ module.exports = class BaseRequest {
    * @param {string} rateLimitMinorParameters Request method and parameters in the url following the major parameter.
    * @returns {string} A key used internally to find related buckets.
    */
-  static convertMetaToBucketKey(method, rateLimitMinorParameters) {
+  static extractRouteMeta(method, rateLimitMinorParameters) {
     const key = [];
 
     if (method === 'GET') key.push('ge');
@@ -74,8 +74,6 @@ module.exports = class BaseRequest {
     else if (method === 'PATCH') key.push('u');
     else if (method === 'DELETE') key.push('d');
 
-
-    // Below is a (incomplete) micro-optimization
     rateLimitMinorParameters.forEach((param) => {
       switch (param) {
         case 'channels':

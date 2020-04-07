@@ -327,11 +327,14 @@ module.exports = class Api {
     // TODO(lando): Review 429-handling logic. This loop may be stacking calls.
 
     let response = await this.sendRequest(request);
-    const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
+    let rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
       response.headers,
     );
 
     while (response.status === 429) {
+      rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
+        response.headers,
+      );
       if (this.requestQueueProcessInterval === undefined) {
         const message = 'A request has been rate limited and will not be processed. Please invoke `startQueue()` on this client so that rate limits may be handled.';
         this.log('WARNING', message);
@@ -410,8 +413,6 @@ module.exports = class Api {
       return this.authorizeRequestWithServer(request);
     }
 
-    console.log(!this.rateLimitCache.returnIsRateLimited(request));
-
     return !this.rateLimitCache.returnIsRateLimited(request);
   }
 
@@ -429,11 +430,12 @@ module.exports = class Api {
       if (resetAfter === 0) {
         return true;
       }
+
       if (
         request.waitUntil === undefined
           || request.waitUntil < new Date().getTime()
       ) {
-        const waitUntil = Utils.timestampNMillisecondsInFuture(resetAfter);
+        const waitUntil = new Date().getTime() + resetAfter;
         request.assignIfStricterWait(waitUntil);
       }
       return false;

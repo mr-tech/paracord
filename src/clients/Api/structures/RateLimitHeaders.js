@@ -1,6 +1,7 @@
 'use strict';
 
-const Utils = require('../../../utils');
+// const Utils = require('../../../utils');
+const { SECOND_IN_MILLISECONDS } = require('../../../constants');
 
 /** Representation of rate limit values from the header of a response from Discord. */
 module.exports = class RateLimitHeaders {
@@ -22,10 +23,10 @@ module.exports = class RateLimitHeaders {
     this.limit = limit;
     /** @type {number} From Discord - Number of requests available before hitting rate limit. */
     this.remaining = remaining;
-    /** @type {number} From Discord - How long in ms the rate limit resets. */
+    /** @type {number} From Discord - How long in ms until the rate limit resets. */
     this.resetAfter = resetAfter;
     /** @type {number} A localized timestamp of when the rate limit resets. */
-    this.resetTimestamp = Utils.timestampNSecondsInFuture(this.resetAfter);
+    this.resetTimestamp = new Date().getTime() + this.resetAfter;
   }
 
   /** @type {boolean} Whether or not the header values indicate the request has a rate limit. */
@@ -70,7 +71,7 @@ module.exports = class RateLimitHeaders {
       bucket,
       Number(limit),
       Number(remaining),
-      Number(resetAfter),
+      Number(resetAfter) * SECOND_IN_MILLISECONDS,
     );
   }
 };

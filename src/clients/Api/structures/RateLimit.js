@@ -9,8 +9,9 @@ module.exports = class RateLimit {
    * Creates a new rate limit state.
    *
    * @param {RateLimitState}
+   * @param {import("./RateLimitTemplate")} template
    */
-  constructor({ remaining, resetTimestamp, limit }) {
+  constructor({ remaining, resetTimestamp, limit }, template) {
     /** @type {number} Number of requests available before hitting rate limit. Triggers internal rate limiting when 0. */
     this.remaining = remaining;
     /** @type {number|void}  When the rate limit's remaining requests resets to `limit`. */
@@ -19,6 +20,8 @@ module.exports = class RateLimit {
     this.limit = limit;
     /** @type {number} Timestamp of when this rate limit will expire if not accessed again before then. */
     this.expires;
+    /** @type {import("./RateLimitTemplate")} */
+    this.template = template;
 
     this.refreshExpire();
   }
@@ -36,6 +39,7 @@ module.exports = class RateLimit {
     } if (this.hasRemainingUses) {
       return false;
     }
+
     return true;
   }
 
@@ -67,13 +71,9 @@ module.exports = class RateLimit {
     this.expires = new Date().getTime() + API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS;
   }
 
-  /** Sets the remaining requests back to the known limit. */
-  resetRemaining() {
-    this.remaining = this.limit;
-  }
-
   /** Reduces the remaining requests (before internally rate limiting) by 1. */
   decrementRemaining() {
+    this.refreshExpire();
     --this.remaining;
   }
 
@@ -93,5 +93,14 @@ module.exports = class RateLimit {
     if (resetTimestamp !== undefined && limit < this.limit) {
       this.limit = limit;
     }
+  }
+
+  /**
+   * Sets the remaining requests back to the known limit.
+   * @private
+   * */
+  resetRemaining() {
+    this.remaining = this.limit;
+    this.resetTimestamp = new Date().getTime() + this.template.resetAfter;
   }
 };
