@@ -22,6 +22,7 @@ module.exports = class RateLimit {
     this.expires;
     /** @type {import("./RateLimitTemplate")} */
     this.template = template;
+    this.allowHeaderOverride = true;
 
     this.refreshExpire();
   }
@@ -84,15 +85,16 @@ module.exports = class RateLimit {
    * @param {RateLimitState}
    */
   assignIfStricter({ remaining, resetTimestamp, limit }) {
-    if (resetTimestamp !== undefined && remaining < this.remaining) {
+    if (resetTimestamp !== undefined && (this.allowHeaderOverride || remaining < this.remaining)) {
       this.remaining = remaining;
     }
-    if (resetTimestamp !== undefined && resetTimestamp > this.resetTimestamp) {
+    if (resetTimestamp !== undefined && (this.allowHeaderOverride || resetTimestamp > this.resetTimestamp)) {
       this.resetTimestamp = resetTimestamp;
     }
-    if (resetTimestamp !== undefined && limit < this.limit) {
+    if (resetTimestamp !== undefined && (this.allowHeaderOverride || limit < this.limit)) {
       this.limit = limit;
     }
+    this.allowHeaderOverride = false;
   }
 
   /**
@@ -102,5 +104,6 @@ module.exports = class RateLimit {
   resetRemaining() {
     this.remaining = this.limit;
     this.resetTimestamp = new Date().getTime() + this.template.resetAfter;
+    this.allowHeaderOverride = true;
   }
 };

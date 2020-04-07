@@ -206,7 +206,6 @@ module.exports = class RateLimitCache {
 
       this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
       const template = this.rateLimitTemplateMap.upsert(bucket, state);
-      console.log(template);
       this.rateLimitMap.upsert(rateLimitKey, state, template);
     }
   }
