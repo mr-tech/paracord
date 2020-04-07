@@ -430,6 +430,23 @@ module.exports = class Gateway {
     }
   }
 
+  /**
+   * Close the websocket.
+   * @param {string|void} [option] `resume` to reconnect and attempt resume. `reconnect` to reconnect with a new session. Blank to not reconnect.
+   */
+  terminate(option) {
+    const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = GATEWAY_CLOSE_CODES;
+
+    let code = USER_TERMINATE;
+    if (option === 'resume') {
+      code = USER_TERMINATE_RESUMABLE;
+    } else if (option === 'reconnect') {
+      code = USER_TERMINATE_RECONNECT;
+    }
+
+    this.ws.close(code);
+  }
+
   /*
    ********************************
    ******* WEBSOCKET - OPEN *******
@@ -497,6 +514,7 @@ module.exports = class Gateway {
   handleCloseCode(code) {
     const {
       CLEAN,
+      GOING_AWAY,
       ABNORMAL_CLOSE,
       UNKNOWN_ERROR,
       UNKNOWN_OPCODE,
@@ -527,6 +545,15 @@ module.exports = class Gateway {
     let level;
 
     switch (code) {
+      case CLEAN:
+        level = LOG_LEVELS.INFO;
+        message = 'Clean close. (Reconnecting.)';
+        this.clearSession();
+        break;
+      case GOING_AWAY:
+        level = LOG_LEVELS.INFO;
+        message = 'The current endpoint is going away. (Reconnecting.)';
+        break;
       case ABNORMAL_CLOSE:
         level = LOG_LEVELS.INFO;
         message = 'Abnormal close. (Reconnecting.)';
@@ -559,11 +586,11 @@ module.exports = class Gateway {
         break;
       case SESSION_NO_LONGER_VALID:
         level = LOG_LEVELS.INFO;
-        message = 'Session is no longer valid. Reconnecting with new session. (Reconnecting.)'; // Also occurs when trying to resume with a bad or mismatched token (different than identified with).
+        message = 'Session is no longer valid. (Reconnecting with new session.)'; // Also occurs when trying to resume with a bad or mismatched token (different than identified with).
         this.clearSession();
         break;
       case INVALID_SEQ:
-        message = 'Sequence sent when resuming the session was invalid. Reconnecting with a new session. (Reconnecting.)';
+        message = 'Sequence sent when resuming the session was invalid. (Reconnecting with new session.)';
         level = LOG_LEVELS.INFO;
         this.clearSession();
         break;
@@ -573,7 +600,7 @@ module.exports = class Gateway {
         break;
       case SESSION_TIMEOUT:
         level = LOG_LEVELS.INFO;
-        message = 'Session timed out. (Reconnecting.)';
+        message = 'Session timed out. (Reconnecting with new session.)';
         this.clearSession();
         break;
       case INVALID_SHARD:
@@ -602,14 +629,9 @@ module.exports = class Gateway {
         level = LOG_LEVELS.WARNING;
         message = 'Heartbeat Ack not received from Discord in time. (Reconnecting.)';
         break;
-      case CLEAN:
-        level = LOG_LEVELS.INFO;
-        message = 'Clean close. (Reconnecting.)';
-        this.clearSession();
-        break;
       case SESSION_INVALIDATED:
         level = LOG_LEVELS.INFO;
-        message = 'Received an Invalid Session message and is not resumable. Reconnecting with new session. (Reconnecting.)';
+        message = 'Received an Invalid Session message and is not resumable. (Reconnecting with new session.)';
         this.clearSession();
         break;
       case RECONNECT:
@@ -622,11 +644,11 @@ module.exports = class Gateway {
         break;
       case USER_TERMINATE_RESUMABLE:
         level = LOG_LEVELS.INFO;
-        message = 'Connection terminated by you. Will resume. (Reconnecting.)';
+        message = 'Connection terminated by you. (Reconnecting.)';
         break;
       case USER_TERMINATE_RECONNECT:
         level = LOG_LEVELS.INFO;
-        message = 'Connection terminated by you. Will start a new session. (Reconnecting.)';
+        message = 'Connection terminated by you. (Reconnecting with new session.)';
         this.clearSession();
         break;
       case USER_TERMINATE:

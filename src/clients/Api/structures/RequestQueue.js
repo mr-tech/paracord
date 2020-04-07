@@ -120,7 +120,7 @@ module.exports = class RequestQueue {
       // if (request.timeout <= new Date().getTime()) {
       //   removedIndices.push(queueIdx);
       // } else
-      if (await this.apiClient.returnOkToMakeRequest(request, true)) {
+      if (await this.apiClient.returnOkToMakeRequest(request)) {
         request.response = this.apiClient.sendQueuedRequest(request);
 
         removedIndices.push(queueIdx);

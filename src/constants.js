@@ -28,6 +28,7 @@ module.exports = {
   /** https://discordapp.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
   GATEWAY_CLOSE_CODES: {
     CLEAN: 1000,
+    GOING_AWAY: 1001,
     ABNORMAL_CLOSE: 1006,
     UNKNOWN_ERROR: 4000,
     UNKNOWN_OPCODE: 4001,

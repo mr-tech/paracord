@@ -1,7 +1,7 @@
 'use strict';
 
 const RateLimitMap = require('./RateLimitMap');
-const RateLimit = require('./RateLimit');
+const RateLimitTemplateMap = require('./RateLimitTemplateMap');
 const Utils = require('../../../utils');
 const { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } = require('../../../constants');
 
@@ -14,16 +14,15 @@ const { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } = requ
 /** @typedef {string} RateLimitKey */
 
 /**
- * @typedef {Map<RateLimitRequestMeta, RateLimitBucket|void>} RateLimitMetaToBucket
- * `RateLimitBucket` will be `null` if there is no rate limit associated with the request's meta.
+ * @typedef {Map<RateLimitRequestMeta, RateLimitBucket>} requestRouteMetaToBucket
  */
 
-/**
- * @typedef {RateLimit} RateLimitTemplate A frozen instance of a rate limit that is used as
- * a reference for requests with the same bucket but without an existing cached state.
- */
+// /**
+//  * @typedef {RateLimit} RateLimitTemplate A frozen instance of a rate limit that is used as
+//  * a reference for requests with the same bucket but without an existing cached state.
+//  */
 
-/** @typedef {Map<RateLimitBucket, void|RateLimitTemplate>} RateLimitTemplateMap */
+// /** @typedef {Map<RateLimitBucket, void|RateLimitTemplate>} RateLimitTemplateMap */
 
 /** @typedef GlobalRateLimitState
  * @property {number} remaining How many requests remaining before checking to see if global rate limit should trigger.
@@ -38,19 +37,19 @@ module.exports = class RateLimitCache {
 
   /** Creates a new rate limit cache. */
   constructor() {
-    /** @type {RateLimitMetaToBucket} Request meta values to their associated rate limit bucket or to `null` if no rate limit for the meta. */
-    this.rateLimitMetaToBucket = new Map();
+    /** @type {requestRouteMetaToBucket} Request meta values to their associated rate limit bucket, if one exists. */
+    this.requestRouteMetaToBucket = new Map();
     /** @type {RateLimitMap} Rate limit keys to their associate rate limit. */
-    this.rateLimits = new RateLimitMap();
+    this.rateLimitMap = new RateLimitMap();
     /** @type {RateLimitTemplateMap} Bucket Ids to saved rate limits state to create new rate limits from known constraints. */
-    this.templates = new Map();
+    this.rateLimitTemplateMap = new RateLimitTemplateMap();
     /** @type {GlobalRateLimitState} */
     this.globalRateLimitState = {
       remaining: 0,
       resetTimestamp: 0,
     };
 
-    this.rateLimits.startSweepInterval();
+    this.rateLimitMap.startSweepInterval();
   }
 
   /**
@@ -143,7 +142,7 @@ module.exports = class RateLimitCache {
     const rateLimit = this.getRateLimitFromCache(request);
 
     if (isGloballyRateLimited) {
-      if (rateLimit !== undefined && rateLimit.isRateLimited) {
+      if (rateLimit !== undefined && this.returnIsRateLimited(request)) {
         return RateLimitCache.returnStricterResetTimestamp(this.globalResetAfter, rateLimit.resetAfter);
       }
 
@@ -154,7 +153,7 @@ module.exports = class RateLimitCache {
       return 0;
     }
 
-    if (!rateLimit.isRateLimited) {
+    if (!this.returnIsRateLimited(request)) {
       rateLimit.decrementRemaining();
       this.decrementGlobalRemaining();
       return 0;
@@ -171,32 +170,23 @@ module.exports = class RateLimitCache {
    * @return {RateLimit} `undefined` when there is no cached rate limit or matching template for this request.
    */
   getRateLimitFromCache(request) {
-    const { rateLimitBucketKey, rateLimitKey } = request;
+    const { requestRouteMeta, rateLimitKey } = request;
 
-    const bucket = this.rateLimitMetaToBucket.get(rateLimitBucketKey);
-    if (bucket !== null && bucket !== undefined) {
-      const rateLimit = this.rateLimits.get(rateLimitKey);
-      if (rateLimit !== undefined) {
-        return rateLimit;
-      }
-      return this.createRateLimitFromTemplate(bucket, rateLimitKey);
+    const bucket = this.requestRouteMetaToBucket.get(requestRouteMeta);
+    if (bucket !== undefined) {
+      return this.rateLimitMap.get(rateLimitKey) || this.rateLimitFromTemplate(request);
     }
 
     return undefined;
   }
 
-  /**
-   * Creates a new rate limit from a template if one exists.
-   * @private
-   *
-   * @param {string} bucket Request's bucket Id.
-   * @param {string} rateLimitKey Request's rate limit key.
-   * @return {RateLimit} `undefined` when there is no matching template.
-   */
-  createRateLimitFromTemplate(bucket, rateLimitKey) {
-    const rateLimitTemplate = this.templates.get(bucket);
-    if (rateLimitTemplate !== undefined) {
-      return this.rateLimits.upsert(rateLimitKey, rateLimitTemplate);
+  rateLimitFromTemplate(request, bucket) {
+    const { rateLimitKey } = request;
+
+    const rateLimit = this.rateLimitTemplateMap.createAssumedRateLimit(bucket);
+    if (rateLimit !== undefined) {
+      this.rateLimitMap.set(rateLimitKey, rateLimit);
+      return rateLimit;
     }
 
     return undefined;
@@ -209,34 +199,15 @@ module.exports = class RateLimitCache {
    * @param {RateLimitHeaders} rateLimitHeaders Rate limit values from the response.
    */
   update(request, rateLimitHeaders) {
-    const { rateLimitBucketKey, rateLimitKey } = request;
+    const { requestRouteMeta, rateLimitKey } = request;
 
-    if (rateLimitHeaders === undefined) {
-      this.rateLimitMetaToBucket.set(rateLimitBucketKey, null);
-    } else {
+    if (rateLimitHeaders !== undefined) {
       const { bucket, ...state } = rateLimitHeaders;
 
-      this.rateLimitMetaToBucket.set(rateLimitBucketKey, bucket);
-      this.rateLimits.upsert(rateLimitKey, state);
-      this.setTemplateIfNotExists(bucket, state);
-    }
-  }
-
-  /**
-   * Creates a new template if one does not already exist.
-   * @private
-   *
-   * @param {string} bucket Request's bucket key.
-   * @param {void|RateLimitState} state State of the rate limit if one exists derived from a set of response headers.
-   */
-  setTemplateIfNotExists(bucket, state) {
-    if (!this.templates.has(bucket)) {
-      const template = {
-        resetTimestamp: undefined,
-        remaining: state.limit,
-        limit: state.limit,
-      };
-      this.templates.set(bucket, Object.freeze(new RateLimit(template)));
+      this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
+      const template = this.rateLimitTemplateMap.upsert(bucket, state);
+      console.log(template);
+      this.rateLimitMap.upsert(rateLimitKey, state, template);
     }
   }
 

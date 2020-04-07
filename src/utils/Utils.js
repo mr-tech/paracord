@@ -1,6 +1,8 @@
 'use strict';
 
-const { DISCORD_EPOCH, PERMISSIONS: P, DISCORD_CDN_URL } = require('../constants');
+const {
+  DISCORD_EPOCH, PERMISSIONS: P, DISCORD_CDN_URL, SECOND_IN_MILLISECONDS,
+} = require('../constants');
 
 /** A class of help functions used throughout the library. */
 module.exports = class Util {
@@ -19,7 +21,7 @@ module.exports = class Util {
    * @param {number} seconds Number of seconds from now to base the timestamp on.
    */
   static timestampNSecondsInFuture(seconds) {
-    return new Date().getTime() + Number(seconds) * 1000;
+    return new Date().getTime() + (Number(seconds) * SECOND_IN_MILLISECONDS);
   }
 
   /**

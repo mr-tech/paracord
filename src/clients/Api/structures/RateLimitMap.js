@@ -3,8 +3,6 @@
 const RateLimit = require('./RateLimit');
 const { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } = require('../../../constants');
 
-/** @typedef {import("./Request")} Request */
-
 /**
  * Rate limit keys to their associated state.
  * @extends Map<string,RateLimit>
@@ -23,11 +21,11 @@ module.exports = class RateLimitMap extends Map {
    * @param {RateLimitState} state Rate limit state derived from response headers.
    * @returns {RateLimit} New / updated rate limit.
    */
-  upsert(rateLimitKey, state) {
+  upsert(rateLimitKey, state, template) {
     const rateLimit = this.get(rateLimitKey);
 
     if (rateLimit === undefined) {
-      this.set(rateLimitKey, new RateLimit(state));
+      this.set(rateLimitKey, new RateLimit(state, template));
     } else {
       rateLimit.assignIfStricter(state);
     }
@@ -47,8 +45,7 @@ module.exports = class RateLimitMap extends Map {
   startSweepInterval() {
     this.sweepInterval = setInterval(
       this.sweepExpiredRateLimits.bind(this),
-      60e3,
-      // API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS,
+      API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS,
     );
   }
 };
