@@ -172,6 +172,7 @@ module.exports = class Gateway {
   bindTimerFunctions() {
     this.login = this.login.bind(this);
     this.heartbeat = this.heartbeat.bind(this);
+    this.checkLocksPromise = this.checkLocksPromise.bind(this);
   }
 
   /*
@@ -223,13 +224,22 @@ module.exports = class Gateway {
    * @param  {void|ServerOptions} mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
    * @param  {ServerOptions} [serverOptions] Options for connecting this service to the identifylock server. Will be acquired and released in order.
    */
-  addIdentifyLockServices(mainServerOptions, ...serverOptions) {
+  addIdentifyLockServices(mainServerOptions = {}, ...serverOptions) {
+    const usedHostPort = {};
     if (mainServerOptions !== null) {
+      usedHostPort[mainServerOptions.host || '127.0.0.1'] = mainServerOptions.port || 50051;
       this.mainIdentifyLock = this.configureLockService(mainServerOptions);
     }
 
     if (serverOptions.length) {
       serverOptions.forEach((options) => {
+        const host = serverOptions.host || '127.0.0.1';
+        const port = options.port || 55051;
+        if (usedHostPort[host] === port) {
+          throw Error('Multiple locks specified for the same host:port.');
+        }
+
+        usedHostPort[host] = mainServerOptions.port || port;
         this.identifyLocks.push(this.configureLockService(options));
       });
     }
@@ -292,6 +302,20 @@ module.exports = class Gateway {
     });
   }
 
+  async checkLocksPromise(resolve) {
+    if (await this.acquireLocks()) {
+      resolve();
+    } else {
+      setTimeout(() => this.checkLocksPromise(resolve), SECOND_IN_MILLISECONDS);
+    }
+  }
+
+  async loginWaitForLocks() {
+    /** Continuously checks if the response has returned. */
+
+    return new Promise(this.checkLocksPromise);
+  }
+
   /**
    * Connects to Discord's event gateway.
    *
@@ -301,6 +325,8 @@ module.exports = class Gateway {
     if (this.ws !== undefined) {
       throw Error('Client is already connected.');
     }
+
+    await this.loginWaitForLocks();
 
     try {
       if (this.wsUrl === undefined) {
@@ -861,12 +887,6 @@ module.exports = class Gateway {
    * @private
    */
   async identify() {
-    const acquiredLocks = await this.acquireLocks();
-    if (!acquiredLocks) {
-      setTimeout(() => this.identify(), SECOND_IN_MILLISECONDS);
-      return;
-    }
-
     this.log(
       'INFO',
       `Identifying as shard: ${this.identity.shard[0]}/${this.identity.shard[1] - 1} (0-indexed)`,
@@ -885,7 +905,6 @@ module.exports = class Gateway {
   async acquireLocks() {
     if (this.identifyLocks !== undefined) {
       const acquiredLocks = await this.acquireIdentifyLocks();
-
       if (!acquiredLocks) {
         return false;
       }
