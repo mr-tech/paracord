@@ -60,8 +60,11 @@ module.exports = class Gateway {
     this.heartbeatAck;
     /** @type {number} Time when last heartbeat packet was sent in ms. */
     this.lastHeartbeatTimestamp;
+    /** @type {number} Time when the next heartbeat packet should be sent in ms. */
+    this.nextHeartBeatTimestamp;
     /** @type {NodeJS.Timer} Interval that checks and sends heartbeats. */
     this.heartbeatInterval;
+    this.heartbeatIntervalTime;
 
     /** @type {import("events").EventEmitter} Emitter for gateway and Api events. Will create a default if not provided via the options. */
     this.emitter;
@@ -78,6 +81,7 @@ module.exports = class Gateway {
 
     /** @type {number} Amount of identifies reported by the last call to /gateway/bot. */
     this.lastKnownSessionLimitData;
+
 
     this.constructorDefaults(token, options);
   }
@@ -821,6 +825,8 @@ module.exports = class Gateway {
   startHeartbeat(heartbeatInterval) {
     this.heartbeatAck = true;
     this.heartbeatInterval = setInterval(this.heartbeat, heartbeatInterval);
+    this.heartbeatIntervalTime = heartbeatInterval;
+    this.nextHeartBeatTimestamp = new Date().getTime() + heartbeatInterval;
   }
 
   /**
@@ -832,7 +838,11 @@ module.exports = class Gateway {
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
       this.ws.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
-      this.lastHeartbeatTimestamp = new Date().getTime();
+      const now = new Date().getTime();
+      this.log('DEBUG', `Heartbeat sending ${now - this.nextHeartBeatTimestamp}ms after scheduled time.`);
+      this.nextHeartBeatTimestamp += this.heartbeatIntervalTime;
+
+      this.lastHeartbeatTimestamp = now;
       this.heartbeatAck = false;
       this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
     }
