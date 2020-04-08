@@ -23,8 +23,13 @@ module.exports = class RateLimitTemplateMap extends Map {
 
   createAssumedRateLimit(bucket) {
     const template = this.get(bucket);
-    const { limit, limit: remaining } = template;
-    const resetTimestamp = new Date() + template.resetAfter;
-    return new Ratelimit({ remaining, resetTimestamp, limit }, template);
+
+    if (template !== undefined) {
+      const { limit, limit: remaining } = template;
+      const resetTimestamp = new Date() + template.resetAfter;
+      return new Ratelimit({ remaining, resetTimestamp, limit }, template);
+    }
+
+    return undefined;
   }
 };
