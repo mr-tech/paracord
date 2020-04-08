@@ -62,8 +62,8 @@ module.exports = class Gateway {
     this.lastHeartbeatTimestamp;
     /** @type {number} Time when the next heartbeat packet should be sent in ms. */
     this.nextHeartBeatTimestamp;
-    /** @type {NodeJS.Timer} Interval that checks and sends heartbeats. */
-    this.heartbeatInterval;
+    /** @type {NodeJS.Timer} Node timeout for the next heartbeat. */
+    this.heartbeatTimeout;
     this.heartbeatIntervalTime;
 
     /** @type {import("events").EventEmitter} Emitter for gateway and Api events. Will create a default if not provided via the options. */
@@ -703,12 +703,13 @@ module.exports = class Gateway {
   }
 
   /**
-   * Clears heartbeat values and clears the heartbeatinterval.
+   * Clears heartbeat values and clears the heartbeatTimeout.
    * @private
    */
   clearHeartbeat() {
-    clearInterval(this.heartbeatInterval);
-    this.heartbeatInterval = undefined;
+    clearTimeout(this.heartbeatTimeout);
+    this.heartbeatTimeout = undefined;
+    this.heartbeatIntervalTime = undefined;
     this.heartbeatAck = undefined;
   }
 
@@ -824,9 +825,11 @@ module.exports = class Gateway {
    */
   startHeartbeat(heartbeatInterval) {
     this.heartbeatAck = true;
-    this.heartbeatInterval = setInterval(this.heartbeat, heartbeatInterval);
     this.heartbeatIntervalTime = heartbeatInterval;
-    this.nextHeartBeatTimestamp = new Date().getTime() + heartbeatInterval;
+
+    const now = new Date().getTime();
+    this.nextHeartBeatTimestamp = now + this.heartbeatIntervalTime;
+    this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartBeatTimestamp - now);
   }
 
   /**
@@ -838,13 +841,17 @@ module.exports = class Gateway {
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
       this.ws.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
-      const now = new Date().getTime();
-      this.log('DEBUG', `Heartbeat sending ${now - this.nextHeartBeatTimestamp}ms after scheduled time.`);
-      this.nextHeartBeatTimestamp += this.heartbeatIntervalTime;
-
-      this.lastHeartbeatTimestamp = now;
       this.heartbeatAck = false;
       this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
+
+      const now = new Date().getTime();
+      this.lastHeartbeatTimestamp = now;
+
+      const message = `Heartbeat sent ${now - this.nextHeartBeatTimestamp}ms after scheduled time.`;
+      this.nextHeartBeatTimestamp = now + this.heartbeatIntervalTime;
+      this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartBeatTimestamp - now);
+
+      this.log('DEBUG', message);
     }
   }
 
