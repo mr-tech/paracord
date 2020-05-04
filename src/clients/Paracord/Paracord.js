@@ -821,14 +821,16 @@ module.exports = class Paracord extends EventEmitter {
    * @param {string|Object} message  When a string is passed for `message`, that string will populate the `content` field. https://discordapp.com/developers/docs/resources/channel#create-message-params
    */
   editMessage(message, newMessage) {
-    return this.request({
-      method: 'patch',
-      url: `channels/${message.channel_id}/messages/${message.id}`,
-      data:
+    return this.request(
+      'patch',
+      `channels/${message.channel_id}/messages/${message.id}`,
+      {
+        data:
         typeof newMessage === 'string'
           ? { content: newMessage }
           : { embed: newMessage },
-    });
+      },
+    );
   }
 
   /**
