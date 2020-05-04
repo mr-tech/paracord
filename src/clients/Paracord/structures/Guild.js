@@ -159,7 +159,7 @@ module.exports = class Guild {
     if (perms & P.ADMINISTRATOR && adminOverride) {
       return true;
     }
-    return Boolean(perms ^ permission);
+    return Boolean(perms & permission);
   }
 
   /**
@@ -185,7 +185,7 @@ module.exports = class Guild {
     if (perms & P.ADMINISTRATOR && adminOverride) {
       return true;
     }
-    return (perms ^ permission) !== 0;
+    return Boolean(perms & permission);
   }
 
   /*

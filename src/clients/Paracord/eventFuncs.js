@@ -292,7 +292,7 @@ exports.GUILD_DELETE = function GUILD_DELETE(data) {
  * @param {Identity} identity From a gateway client.
  */
 exports.GATEWAY_IDENTIFY = function GATEWAY_IDENTIFY(identity) {
-  this.safeGatewayIdentifyTimestamp = new Date().getTime() + (5 * SECOND_IN_MILLISECONDS);
+  this.safeGatewayIdentifyTimestamp = new Date().getTime() + (6 * SECOND_IN_MILLISECONDS);
 
   const { shard: { 0: shard } } = identity;
   for (const guild of this.guilds.values()) {
