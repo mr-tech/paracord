@@ -330,8 +330,6 @@ module.exports = class Gateway {
       throw Error('Client is already connected.');
     }
 
-    await this.loginWaitForLocks();
-
     try {
       if (this.wsUrl === undefined) {
         this.wsUrl = await this.getWebsocketUrl();
@@ -872,10 +870,11 @@ module.exports = class Gateway {
    * Connects to gateway.
    * @private
    */
-  connect(resume) {
+  async connect(resume) {
     if (resume) {
       this.resume();
     } else {
+      await this.loginWaitForLocks();
       this.identify();
     }
   }
