@@ -1,4 +1,3 @@
-'use strict';
 
 const StatusMessage = require('./StatusMessage');
 const Utils = require('../../../utils');

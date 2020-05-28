@@ -1,4 +1,3 @@
-'use strict';
 
 /** A class for the LockRequestMessage protobuf. */
 module.exports = class LockRequestMessage {

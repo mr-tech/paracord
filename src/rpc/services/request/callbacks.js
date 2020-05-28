@@ -1,6 +1,5 @@
 /* eslint-disable callback-return */
 
-'use strict';
 
 const { RequestMessage, ResponseMessage } = require('../../structures');
 

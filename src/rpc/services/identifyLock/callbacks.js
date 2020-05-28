@@ -1,6 +1,5 @@
 /* eslint-disable callback-return */
 
-'use strict';
 
 const { LockRequestMessage, TokenMessage } = require('../../structures');
 const { LOG_SOURCES, LOG_LEVELS } = require('../../../constants');

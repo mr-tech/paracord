@@ -1,4 +1,3 @@
-'use strict';
 
 /** A class for the RequestMetaMessage protobuf. */
 module.exports = class RequestMetaMessage {

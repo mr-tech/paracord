@@ -1,4 +1,3 @@
-'use strict';
 
 /** A class for the TokenMessage protobuf. */
 module.exports = class TokenMessage {

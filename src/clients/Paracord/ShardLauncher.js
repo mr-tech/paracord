@@ -1,9 +1,8 @@
 /* eslint-disable no-console */
 
-'use strict';
 
 const pm2 = require('pm2');
-const Api = require('../Api/');
+const Api = require('../Api/Api');
 
 function validateShard(shard, shardCount) {
   if (shard > shardCount - 1) {

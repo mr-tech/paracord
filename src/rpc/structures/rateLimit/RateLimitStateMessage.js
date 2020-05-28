@@ -1,4 +1,3 @@
-'use strict';
 
 const RequestMetaMessage = require('./RequestMetaMessage');
 

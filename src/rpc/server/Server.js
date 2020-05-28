@@ -1,6 +1,5 @@
 /* eslint-disable no-sync */
 
-'use strict';
 
 const grpc = require('@grpc/grpc-js');
 
@@ -13,7 +12,7 @@ const {
 const { loadProto } = require('../services/common');
 const { Lock } = require('../structures');
 
-const Api = require('../../clients/Api');
+const Api = require('../../clients/Api/Api');
 const { RateLimitCache } = require('../../clients/Api/structures');
 
 const { LOG_SOURCES, LOG_LEVELS } = require('../../constants');

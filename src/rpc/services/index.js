@@ -1,13 +1,10 @@
-'use strict';
 
-module.exports = {
-  /* Identify Lock */
-  identifyLockCallbacks: require('./identifyLock/callbacks'),
-  IdentifyLockService: require('./identifyLock/IdentifyLockService'),
-  /* Rate Limit */
-  rateLimitCallbacks: require('./rateLimit/callbacks'),
-  RateLimitService: require('./rateLimit/RateLimitService'),
-  /* Request */
-  requestCallbacks: require('./request/callbacks'),
-  RequestService: require('./request/RequestService'),
-};
+/* Identify Lock */
+export { default as identifyLockCallbacks } from './identifyLock/callbacks';
+export { default as IdentifyLockService } from './identifyLock/IdentifyLockService';
+/* Rate Limit */
+export { default as rateLimitCallbacks } from './rateLimit/callbacks';
+export { default as RateLimitService } from './rateLimit/RateLimitService';
+/* Request */
+export { default as requestCallbacks } from './request/callbacks';
+export { default as RequestService } from './request/RequestService';

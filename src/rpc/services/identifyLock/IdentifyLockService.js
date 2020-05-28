@@ -1,6 +1,5 @@
 /* eslint-disable prefer-destructuring */
 
-'use strict';
 
 const {
   LockRequestMessage,

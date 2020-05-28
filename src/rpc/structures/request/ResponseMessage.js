@@ -1,4 +1,3 @@
-'use strict';
 
 /** A class for the ResponseMessage protobuf */
 module.exports = class ResponseMessage {
@@ -39,7 +38,7 @@ module.exports = class ResponseMessage {
    * Validate incoming message and translate it into common state.
    *
    * @param {ResponseProto} message
-   * @returns {ApiResponse}
+   * @returns {IApiResponse}
    */
   static fromProto(message) {
     ResponseMessage.validateIncoming(message);
