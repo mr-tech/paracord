@@ -3,19 +3,24 @@
     "node": true,
     "mocha": true
   },
+  "plugins": [
+    "@typescript-eslint"
+  ],
   "extends": [
-    "airbnb-base"
+    "airbnb-base",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended"
   ],
   "globals": {
     "Atomics": "readonly",
     "SharedArrayBuffer": "readonly",
     "BigInt": true
   },
+  "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "sourceType": "script",
-    "ecmaFeatures": {
-      "modules": false
-    }
+    "project": "./tsconfig.json",
+    "ecmaVersion": 2020, // Allows for the parsing of modern ECMAScript features
+    "sourceType": "module" // Allows for the use of imports
   },
   "rules": {
     "no-underscore-dangle": "off",
@@ -33,7 +38,17 @@
     "max-len": "off",
     "camelcase": "warn",
     "prefer-const": "warn",
-    "no-await-in-loop": "warn"
+    "no-await-in-loop": "warn",
+    "import/extensions": [
+      "error",
+      "ignorePackages",
+      {
+        "js": "never",
+        "jsx": "never",
+        "ts": "never",
+        "tsx": "never"
+      }
+    ]
   },
   "settings": {
     "import/core-modules": [
@@ -43,6 +58,16 @@
       "grpc",
       "pm2",
       "ws"
-    ]
+    ],
+    "import/resolver": {
+      "node": {
+        "extensions": [
+          ".js",
+          ".jsx",
+          ".ts",
+          ".tsx"
+        ]
+      }
+    }
   }
 }

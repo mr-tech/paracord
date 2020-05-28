@@ -1,4 +1,3 @@
-'use strict';
 
 /**  A container of information for identifying with the gateway. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
 module.exports = class Identity {

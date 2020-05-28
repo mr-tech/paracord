@@ -1,4 +1,3 @@
-'use strict';
 
 const { SECOND_IN_MILLISECONDS } = require('../../constants');
 

@@ -1,4 +1,3 @@
-'use strict';
 
 const Utils = require('../../../utils');
 const { PERMISSIONS: P } = require('../../../constants');

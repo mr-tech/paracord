@@ -1,8 +1,7 @@
-'use strict';
 
 const ws = require('ws');
 const { EventEmitter } = require('events');
-const Api = require('../Api');
+const Api = require('../Api/Api');
 const Utils = require('../../utils');
 const Identity = require('./structures/Identity');
 const { IdentifyLockService } = require('../../rpc/services');
@@ -225,8 +224,8 @@ module.exports = class Gateway {
   /**
    * Adds the service that will acquire a lock from a server(s) before identifying.
    *
-   * @param  {void|ServerOptions} mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
-   * @param  {ServerOptions} [serverOptions] Options for connecting this service to the identifylock server. Will be acquired and released in order.
+   * @param  {void|IServiceOptions} mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
+   * @param  {IServiceOptions} [serverOptions] Options for connecting this service to the identifylock server. Will be acquired and released in order.
    */
   addIdentifyLockServices(mainServerOptions = {}, ...serverOptions) {
     const usedHostPort = {};
