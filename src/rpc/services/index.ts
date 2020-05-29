@@ -1,10 +1,10 @@
 
 /* Identify Lock */
-export { default as identifyLockCallbacks } from './identifyLock/callbacks';
+export { default as addIdentifyLockService } from './identifyLock/addService';
 export { default as IdentifyLockService } from './identifyLock/IdentifyLockService';
 /* Rate Limit */
-export { default as rateLimitCallbacks } from './rateLimit/callbacks';
+export { default as addRateLimitService } from './rateLimit/addService';
 export { default as RateLimitService } from './rateLimit/RateLimitService';
 /* Request */
-export { default as requestCallbacks } from './request/callbacks';
+export { default as addRequestService } from './request/addService';
 export { default as RequestService } from './request/RequestService';

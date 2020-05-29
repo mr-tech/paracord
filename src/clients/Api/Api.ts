@@ -19,8 +19,10 @@ import {
 } from '../../constants';
 
 import {
-  WrappedRequest, IApiOptions, DebugLevel, IServiceOptions, IApiResponse, IRequestOptions,
-} from '../../types';
+  WrappedRequest, IApiOptions, IServiceOptions, IApiResponse, IRequestOptions,
+} from './types';
+import { RemoteApiResponse } from '../../rpc/types';
+import { DebugLevel } from '../../types';
 
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
 export default class Api {
@@ -257,7 +259,7 @@ export default class Api {
    * Sends the request to the rpc server for handling.
    * @param request ApiRequest being made.
    */
-  private async handleRequestRemote(rpcRequestService: RequestService, request: ApiRequest): Promise<IApiResponse> {
+  private async handleRequestRemote(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse> {
     this.emit('DEBUG', {
       source: LOG_SOURCES.API,
       level: LOG_LEVELS.DEBUG,
@@ -288,7 +290,7 @@ export default class Api {
    * @param options.local If true, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests.
    * @returns Response to the request made.
    */
-  public async request(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse> {
+  public async request(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse | RemoteApiResponse> {
     const { data, headers, local } : {
       data?: Record<string, unknown>;
       headers?: Record<string, unknown>;

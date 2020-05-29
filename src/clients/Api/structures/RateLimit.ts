@@ -2,7 +2,7 @@ import { millisecondsFromNow } from '../../../utils/Utils';
 import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
 
 import type RateLimitTemplate from './RateLimitTemplate';
-import type { RateLimitState } from '../../../types';
+import type { RateLimitState } from '../types';
 
 /** State of a Discord rate limit. */
 export default class RateLimit {

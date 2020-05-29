@@ -1,5 +1,5 @@
 import { BaseRequest } from '.';
-import { IRequestOptions, IApiResponse } from '../../../types';
+import { IRequestOptions, IApiResponse } from '../types';
 
 /**
  * A request that will be made to Discord's REST API.
@@ -7,10 +7,10 @@ import { IRequestOptions, IApiResponse } from '../../../types';
  */
 export default class Request extends BaseRequest {
   /** Data to send in the body of the request.  */
-  private data: Record<string, unknown> | undefined;
+  public data: Record<string, unknown> | undefined;
 
   /** Additional headers to send with the request. */
-  private headers: Record<string, unknown> | undefined;
+  public headers: Record<string, unknown> | undefined;
 
   /** If queued, will be the response when this request is sent. */
   public response: Promise<IApiResponse> | undefined;
@@ -25,7 +25,7 @@ export default class Request extends BaseRequest {
    * @param url Discord REST endpoint target of the request. (e.g. channels/123)
    * @param options Optional parameters for this request.
    */
-  public constructor(method: string, url: string, options?: IRequestOptions) {
+  public constructor(method: string, url: string, options?: Partial<IRequestOptions>) {
     super(method, url);
     this.data;
     this.headers = undefined;

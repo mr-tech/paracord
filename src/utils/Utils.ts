@@ -73,7 +73,7 @@ export function coerceTokenToBotLike(token: string) {
    * @param {boolean} [stopOnOwnerAdmin] Whether or not to stop and return the Administrator perm if the user qualifies.
    * @returns {number} THe Administrator perm or the new perms.
    */
-export function computeChannelPerms(member: Object, guild: Object, channel: Object, stopOnOwnerAdmin: boolean = false) {
+export function computeChannelPerms(member: Object, guild: Object, channel: Object, stopOnOwnerAdmin = false) {
   const guildPerms = computeGuildPerms(member, guild, stopOnOwnerAdmin);
 
   if (stopOnOwnerAdmin && guildPerms & P.ADMINISTRATOR) {
@@ -91,7 +91,7 @@ export function computeChannelPerms(member: Object, guild: Object, channel: Obje
    * @param {boolean} [stopOnOwnerAdmin] Whether or not to stop and return the Administrator perm if the user qualifies.
    * @returns {number} THe Administrator perm or the new perms.
    */
-export function computeGuildPerms(member: any, guild: any, stopOnOwnerAdmin: boolean = false) {
+export function computeGuildPerms(member: any, guild: any, stopOnOwnerAdmin = false) {
   if (stopOnOwnerAdmin && guild.owner_id === member.user.id) {
     return P.ADMINISTRATOR;
   }
@@ -194,7 +194,7 @@ export function _memberOverwrites(perms: number, overwrites: any, memberId: stri
   return perms;
 }
 
-export function constructUserAvatarUrl(user: any, fileType: string = '') {
+export function constructUserAvatarUrl(user: any, fileType = '') {
   if (user.avatar === null || user.avatar === undefined) {
     return `${DISCORD_CDN_URL}/embed/avatars/${Number(user.discriminator)
         % 5}${fileType ? `.${fileType}` : ''}`;
@@ -216,7 +216,7 @@ export function constructUserTag(user: any) {
   return `${user.username}#${user.discriminator}`;
 }
 
-export function constructGuildIcon(guild: any, fileType: string = '') {
+export function constructGuildIcon(guild: any, fileType = '') {
   if (guild.icon.startsWith('a_')) {
     return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;
   }
@@ -244,7 +244,7 @@ export function bindFunctionsFromFile(obj: any, funcs: any) {
    * https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
    * @returns {string}
    */
-export function uuid() {
+export function createUnsafeUuid() {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     /* eslint-disable-next-line eqeqeq */

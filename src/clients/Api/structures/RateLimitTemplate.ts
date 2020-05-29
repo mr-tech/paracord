@@ -1,4 +1,4 @@
-import { RateLimitState } from '../../../types';
+import { RateLimitState } from '../types';
 
 /** A frozen instance of a rate limit that is used as a reference for requests with the same bucket but without an existing cached state. */
 export default class RateLimitTemplate {

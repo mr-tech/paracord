@@ -1,30 +1,25 @@
+import { AuthorizationProto } from '../../types';
+
 /** A class for the AuthorizationMessage protobuf. */
 export default class AuthorizationMessage {
   /** How long in ms the client should wait before attempting to authorize this request. */
-  resetAfter: number
+  public resetAfter: number
 
   /**
-   * Creates a new AuthorizationMessage sent from client to server.
-   *
-   * @param {number} resetAfter How long in ms the client should wait before attempting to authorize this request.
+   * Translates the rpc message into an instance of this class.
+   * @param {AuthorizationProto} message Message received by client.
    */
-  constructor(resetAfter: number) {
-    this.resetAfter = resetAfter;
-  }
+  public static fromProto(message: AuthorizationProto): AuthorizationMessage {
+    AuthorizationMessage.validateIncoming(message);
 
-  /** @type {AuthorizationProto} The properties of this message formatted for sending over rpc. */
-  get proto() {
-    // AuthorizationMessage.validateOutgoing(this);
-
-    return { reset_after: this.resetAfter };
+    return new AuthorizationMessage(message.reset_after);
   }
 
   /**
    * Verifies that the message being sent is valid.
-   *
-   * @param {AuthorizationMessage} requestMeta
+   * @param message Message being sent to client.
    */
-  static validateOutgoing(authorization: AuthorizationMessage) {
+  private static validateOutgoing(authorization: AuthorizationMessage): void {
     if (authorization.resetAfter === undefined) {
       throw Error("'resetAfter' must be a defined number");
     }
@@ -32,24 +27,26 @@ export default class AuthorizationMessage {
 
   /**
    * Validates that the message being received is valid.
-   *
-   * @param {AuthorizationProto} message
+   * @param message Message received by client.
    */
-  static validateIncoming(message: AuthorizationProto) {
+  private static validateIncoming(message: AuthorizationProto): void {
     if (message.reset_after === undefined) {
       throw Error("received invalid message. missing property 'reset_after'");
     }
   }
 
   /**
-   * Translates the rpc message into an instance of this class.
-   *
-   * @param {AuthorizationProto} message
-   * @return {AuthorizationMessage}
+   * Creates a new AuthorizationMessage sent from client to server.
+   * @param resetAfter How long in ms the client should wait before attempting to authorize this request.
    */
-  static fromProto(message: AuthorizationProto) {
-    AuthorizationMessage.validateIncoming(message);
-
-    return new AuthorizationMessage(message.reset_after);
+  public constructor(resetAfter: number) {
+    this.resetAfter = resetAfter;
   }
-};
+
+  /** The properties of this message formatted for sending over rpc. */
+  public get proto(): AuthorizationProto {
+    AuthorizationMessage.validateOutgoing(this);
+
+    return { reset_after: this.resetAfter };
+  }
+}
