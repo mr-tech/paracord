@@ -466,7 +466,7 @@ module.exports = class Api {
       message = `Request rate limited: ${request.method} ${request.url}`;
     }
 
-    this.log('DEBUG', message, rateLimitHeaders);
+    this.log('WARNING', message, rateLimitHeaders);
 
     this.updateRateLimitCache(request, rateLimitHeaders);
     return this.enqueueRequest(request);
