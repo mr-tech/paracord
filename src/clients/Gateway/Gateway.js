@@ -874,7 +874,9 @@ module.exports = class Gateway {
     if (resume) {
       this.resume();
     } else {
-      await this.loginWaitForLocks();
+      if (this.identifyLocks) {
+        await this.loginWaitForLocks();
+      }
       this.identify();
     }
   }
