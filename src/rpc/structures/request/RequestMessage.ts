@@ -1,57 +1,49 @@
+import { IRequestOptions } from '../../../clients/Api/types';
+import { RequestProto } from '../../types';
+import { ApiRequest } from '../../../clients/Api/structures';
+
 /** A class for the RequestMessage protobuf */
 export default class RequestMessage {
   /** HTTP method of the request. */
-  method: string;
+  public method: string;
 
   /** Discord REST endpoint target of the request. (e.g. channels/123) */
-  url: string;
+  public url: string;
 
   /** Data to send in the body of the request. */
-  data: any | undefined;
+  public data?: Record<string, unknown>;
 
   /** Headers to send with the request. */
-  headers: Object | undefined;
+  public headers?: Record<string, unknown>;
 
   /**
-   * Create a new RequestMessage sent from client to server.
-   *
-   * @param {string} method HTTP method of the request.
-   * @param {string} url Discord endpoint url. (e.g. channels/123)
-   * @param {IApiOptions} options Optional parameters for this request.
+   * Validate incoming message and translate it into common state.
+   * @param message Message received by server.
    */
-  constructor(method:string, url:string, options: IApiOptions = {}) {
-  /** @type {string}  */
-    this.method = method;
-    /** @type {string}  */
-    this.url = url;
-    /** @type {*}  */
-    this.data = options.data;
-    /** @type {Object}  */
-    this.headers = options.headers;
-  }
+  public static fromProto(message: RequestProto): RequestMessage {
+    RequestMessage.validateIncoming(message);
 
-  /** @type {RequestProto} The properties of this message formatted for sending over rpc. */
-  get proto() {
-    const proto: RequestProto = {
-      method: this.method,
-      url: this.url,
-    };
+    const { method, url, ...options } = message;
 
-    if (this.data !== undefined) {
-      proto.data = JSON.stringify(this.data);
+    let data;
+    let headers;
+    if (options.data !== undefined) {
+      data = JSON.parse(options.data);
+    }
+    if (options.headers !== undefined) {
+      headers = JSON.parse(options.headers);
     }
 
-    if (this.headers !== undefined) {
-      proto.headers = JSON.stringify(this.headers);
-    }
-
-    RequestMessage.validateOutgoing(proto);
-
-    return proto;
+    return new RequestMessage({
+      method, url, data, headers,
+    });
   }
 
-  /** Verifies that the message being sent is valid. */
-  static validateOutgoing(request: RequestProto) {
+  /**
+   * Verifies that the message being sent is valid.
+   * @param message Message being sent to server.
+   */
+  private static validateOutgoing(request: RequestProto):void {
     if (typeof request.method !== 'string') {
       throw Error("'method' must be type 'string'");
     }
@@ -69,10 +61,9 @@ export default class RequestMessage {
 
   /**
    * Validates that the message being received is valid.
-   *
-   * @param {RequestProto} message
+   * @param message Message received by server.
    */
-  static validateIncoming(message: RequestProto) {
+  private static validateIncoming(message: RequestProto):void {
     if (message.method === undefined) {
       throw Error("received invalid message. missing property 'method'");
     }
@@ -81,19 +72,36 @@ export default class RequestMessage {
     }
   }
 
-  /** Validate incoming message and translate it into common state. */
-  static fromProto(message: RequestProto): RequestMessage {
-    RequestMessage.validateIncoming(message);
+  /**
+   * Create a new RequestMessage sent from client to server.
+   * @param  method HTTP method of the request.
+   * @param  url Discord endpoint url. (e.g. channels/123)
+   * @param  options Optional parameters for this request.
+   */
+  public constructor(apiRequest: ApiRequest) {
+    this.method = apiRequest.method;
+    this.url = apiRequest.url;
+    this.data = apiRequest.data;
+    this.headers = apiRequest.headers;
+  }
 
-    const { method, url, ...options } = message;
+  /** The properties of this message formatted for sending over rpc. */
+  public get proto(): RequestProto {
+    const proto: RequestProto = {
+      method: this.method,
+      url: this.url,
+    };
 
-    if (options.data !== undefined) {
-      options.data = JSON.parse(options.data);
+    if (this.data !== undefined) {
+      proto.data = JSON.stringify(this.data);
     }
-    if (options.headers !== undefined) {
-      options.headers = JSON.parse(options.headers);
+
+    if (this.headers !== undefined) {
+      proto.headers = JSON.stringify(this.headers);
     }
 
-    return new RequestMessage(method, url, options);
+    RequestMessage.validateOutgoing(proto);
+
+    return proto;
   }
 }
