@@ -1,6 +1,4 @@
-import { IRequestOptions } from '../../../clients/Api/types';
-import { RequestProto } from '../../types';
-import { ApiRequest } from '../../../clients/Api/structures';
+import { RequestProto, IRequestMessage } from '../../types';
 
 /** A class for the RequestMessage protobuf */
 export default class RequestMessage {
@@ -43,7 +41,7 @@ export default class RequestMessage {
    * Verifies that the message being sent is valid.
    * @param message Message being sent to server.
    */
-  private static validateOutgoing(request: RequestProto):void {
+  private static validateOutgoing(request: RequestProto): void {
     if (typeof request.method !== 'string') {
       throw Error("'method' must be type 'string'");
     }
@@ -63,7 +61,7 @@ export default class RequestMessage {
    * Validates that the message being received is valid.
    * @param message Message received by server.
    */
-  private static validateIncoming(message: RequestProto):void {
+  private static validateIncoming(message: RequestProto): void {
     if (message.method === undefined) {
       throw Error("received invalid message. missing property 'method'");
     }
@@ -72,13 +70,8 @@ export default class RequestMessage {
     }
   }
 
-  /**
-   * Create a new RequestMessage sent from client to server.
-   * @param  method HTTP method of the request.
-   * @param  url Discord endpoint url. (e.g. channels/123)
-   * @param  options Optional parameters for this request.
-   */
-  public constructor(apiRequest: ApiRequest) {
+  /** Create a new RequestMessage sent from client to server. */
+  public constructor(apiRequest: IRequestMessage) {
     this.method = apiRequest.method;
     this.url = apiRequest.url;
     this.data = apiRequest.data;

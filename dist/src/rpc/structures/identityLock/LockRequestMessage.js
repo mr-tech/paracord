@@ -1,12 +1,13 @@
 "use strict";
-module.exports = class LockRequestMessage {
+Object.defineProperty(exports, "__esModule", { value: true });
+class LockRequestMessage {
     constructor(timeOut, token) {
         this.timeOut = timeOut;
         this.token = token;
     }
-    get proto() {
-        LockRequestMessage.validateOutgoing(this);
-        return { time_out: this.timeOut, token: this.token };
+    static fromProto(message) {
+        LockRequestMessage.validateIncoming(message);
+        return new LockRequestMessage(message.time_out, message.token);
     }
     static validateOutgoing(lockRequest) {
         if (lockRequest.timeOut === undefined) {
@@ -24,8 +25,9 @@ module.exports = class LockRequestMessage {
             throw Error("received invalid message. missing property 'time_out'");
         }
     }
-    static fromProto(message) {
-        LockRequestMessage.validateIncoming(message);
-        return new LockRequestMessage(message.time_out, message.token);
+    get proto() {
+        LockRequestMessage.validateOutgoing(this);
+        return { time_out: this.timeOut, token: this.token };
     }
-};
+}
+exports.default = LockRequestMessage;

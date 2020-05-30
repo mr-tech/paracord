@@ -3,7 +3,7 @@ import {
   RateLimitMap, RateLimitTemplateMap, BaseRequest, RateLimitHeaders, RateLimit,
 } from '.';
 
-import { millisecondsFromNow } from '../../../utils/Utils';
+import { millisecondsFromNow } from '../../../Utils';
 import { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
 
 import { WrappedRequest, IApiResponse } from '../types';

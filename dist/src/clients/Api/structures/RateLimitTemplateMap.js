@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 const RateLimitTemplate_1 = __importDefault(require("./RateLimitTemplate"));
-const RateLimit_1 = __importDefault(require("./RateLimit"));
+const _1 = require(".");
 module.exports = class RateLimitTemplateMap extends Map {
     upsert(state) {
         const { bucket } = state;
@@ -22,7 +22,7 @@ module.exports = class RateLimitTemplateMap extends Map {
         if (template !== undefined) {
             const { limit, limit: remaining } = template;
             const resetTimestamp = new Date() + template.resetAfter;
-            return new RateLimit_1.default({
+            return new _1.RateLimit({
                 remaining, resetTimestamp, limit, resetAfter: 0,
             }, template);
         }

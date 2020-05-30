@@ -1,7 +1,8 @@
 "use strict";
-const Utils_1 = require("../../../utils/Utils");
+Object.defineProperty(exports, "__esModule", { value: true });
+const Utils_1 = require("../../../Utils");
 const constants_1 = require("../../../constants");
-module.exports = class RateLimit {
+class RateLimit {
     constructor({ remaining, resetTimestamp, limit }, template) {
         this.remaining = remaining;
         this.resetTimestamp = resetTimestamp;
@@ -58,4 +59,5 @@ module.exports = class RateLimit {
         this.resetTimestamp = new Date().getTime() + this.template.resetAfter;
         this.allowHeaderOverride = true;
     }
-};
+}
+exports.default = RateLimit;

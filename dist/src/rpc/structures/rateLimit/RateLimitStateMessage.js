@@ -1,6 +1,10 @@
 "use strict";
-const RequestMetaMessage = require('./RequestMetaMessage');
-module.exports = class RateLimitStateMessage {
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const RequestMetaMessage_1 = __importDefault(require("./RequestMetaMessage"));
+class RateLimitStateMessage {
     constructor(requestMeta, global, bucket, limit, remaining, resetAfter) {
         this.requestMeta = requestMeta;
         this.global = global || false;
@@ -9,21 +13,14 @@ module.exports = class RateLimitStateMessage {
         this.remaining = remaining;
         this.resetAfter = resetAfter;
     }
-    get proto() {
-        RateLimitStateMessage.validateOutgoing(this);
-        return {
-            request_meta: this.requestMeta.proto,
-            bucket: this.bucket,
-            limit: this.limit,
-            remaining: this.remaining,
-            reset_after: this.resetAfter,
-            global: this.global,
-        };
+    static fromProto(message) {
+        RateLimitStateMessage.validateIncoming(message);
+        return new RateLimitStateMessage(RequestMetaMessage_1.default.fromProto(message.request_meta), message.global, message.bucket, message.limit, message.remaining, message.reset_after);
     }
-    static validateOutgoing(rateLimitState) {
-        const { requestMeta, global, bucket, remaining, resetAfter, limit, } = rateLimitState;
+    static validateOutgoing(message) {
+        const { requestMeta, global, bucket, remaining, resetAfter, limit, } = message;
         if (requestMeta === undefined
-            || !(requestMeta instanceof RequestMetaMessage)) {
+            || !(requestMeta instanceof RequestMetaMessage_1.default)) {
             throw Error("'requestMeta' must be a defined RequestMetaMessage");
         }
         if (global === undefined) {
@@ -60,8 +57,16 @@ module.exports = class RateLimitStateMessage {
             }
         }
     }
-    static fromProto(message) {
-        RateLimitStateMessage.validateIncoming(message);
-        return new RateLimitStateMessage(RequestMetaMessage.fromProto(message.request_meta), message.global, message.bucket, message.limit, message.remaining, message.reset_after);
+    get proto() {
+        RateLimitStateMessage.validateOutgoing(this);
+        return {
+            request_meta: this.requestMeta.proto,
+            bucket: this.bucket,
+            limit: this.limit,
+            remaining: this.remaining,
+            reset_after: this.resetAfter,
+            global: this.global,
+        };
     }
-};
+}
+exports.default = RateLimitStateMessage;

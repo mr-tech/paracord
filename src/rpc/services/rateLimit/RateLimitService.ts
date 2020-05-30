@@ -1,10 +1,10 @@
 /* eslint-disable prefer-destructuring */
 import { ServiceError } from '@grpc/grpc-js';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
-import { IServerOptions } from '../../../types';
 import { ApiRequest } from '../../../clients/Api/structures';
 import { AuthorizationMessage, RequestMetaMessage, RateLimitStateMessage } from '../../structures';
 import { AuthorizationProto } from '../../types';
+import { IServerOptions } from '../../../common';
 
 const definition = loadProtoDefinition('rate_limit');
 

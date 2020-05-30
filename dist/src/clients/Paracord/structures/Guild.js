@@ -3,6 +3,8 @@ const Utils = require('../../../utils');
 const { PERMISSIONS: P } = require('../../../constants');
 module.exports = class Guild {
     constructor(guildData, client, shard) {
+        this.id;
+        this.ownerId;
         this.members;
         this.channels;
         this.presences;

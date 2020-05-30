@@ -6,8 +6,8 @@ import {
   TokenMessage,
 } from '../../structures';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
-import { ILockServiceOptions } from '../../../types';
 import { StatusProto } from '../../types';
+import { ILockServiceOptions } from '../../../common';
 
 const DEFAULT_LOCK_DURATION = 6e3;
 
@@ -18,16 +18,16 @@ const definition = loadProtoDefinition('identify_lock');
 // @ts-ignore: interface can in fact be extended
 export default class IdentifyLockService extends definition.LockService {
   /** host:port the service is pointed at. */
-  public target: string;
+  readonly target: string;
 
   /** Used by the client to determine if it should fallback to an alternative method or not. */
-  public allowFallback: boolean;
+  readonly allowFallback: boolean;
 
   /** How long in ms the client tells the server it should wait before expiring the lock. */
-  private duration: number;
+  readonly duration: number;
 
   /** Unique id given to this client when acquiring the lock. */
-  private token: string | undefined;
+  private _token?: string;
 
   /**
    * Creates an identity lock service.
@@ -44,7 +44,14 @@ export default class IdentifyLockService extends definition.LockService {
     this.target = dest;
     this.allowFallback = allowFallback;
     this.duration = options.duration || DEFAULT_LOCK_DURATION;
-    this.token;
+  }
+
+  public get token(): string | undefined {
+    return this._token;
+  }
+
+  public clearToken(): void {
+    this._token = undefined;
   }
 
   /** Sends a request to acquire the lock to the server, returning a promise with the parsed response. */
@@ -59,7 +66,7 @@ export default class IdentifyLockService extends definition.LockService {
           reject(Error('no message'));
         } else {
           const statusMessage = StatusMessage.fromProto(res);
-          ({ token: this.token } = statusMessage);
+          ({ token: this._token } = statusMessage);
           resolve(statusMessage);
         }
       });

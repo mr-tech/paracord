@@ -1,18 +1,19 @@
 "use strict";
-module.exports = class RequestMetaMessage {
+Object.defineProperty(exports, "__esModule", { value: true });
+class RequestMetaMessage {
     constructor(method, url) {
         this.method = method;
         this.url = url;
     }
-    get proto() {
-        RequestMetaMessage.validateOutgoing(this);
-        return { method: this.method, url: this.url };
+    static fromProto(message) {
+        RequestMetaMessage.validateIncoming(message);
+        return new RequestMetaMessage(message.method, message.url);
     }
-    static validateOutgoing(requestMeta) {
-        if (requestMeta.method === undefined) {
+    static validateOutgoing(message) {
+        if (message.method === undefined) {
             throw Error("'method' must be a defined string");
         }
-        if (requestMeta.url === undefined) {
+        if (message.url === undefined) {
             throw Error("'url' must be a defined string");
         }
     }
@@ -24,8 +25,9 @@ module.exports = class RequestMetaMessage {
             throw Error("received invalid message. missing property 'url'");
         }
     }
-    static fromProto(message) {
-        RequestMetaMessage.validateIncoming(message);
-        return new RequestMetaMessage(message.method, message.url);
+    get proto() {
+        RequestMetaMessage.validateOutgoing(this);
+        return { method: this.method, url: this.url };
     }
-};
+}
+exports.default = RequestMetaMessage;

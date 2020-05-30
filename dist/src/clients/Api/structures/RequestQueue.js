@@ -8,7 +8,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-module.exports = class RequestQueue {
+Object.defineProperty(exports, "__esModule", { value: true });
+class RequestQueue {
     constructor(rateLimitCache, apiClient) {
         this.rateLimitCache = rateLimitCache;
         this.processing = false;
@@ -81,4 +82,5 @@ module.exports = class RequestQueue {
             }
         });
     }
-};
+}
+exports.default = RequestQueue;

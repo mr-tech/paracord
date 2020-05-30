@@ -1,5 +1,6 @@
 import { ChannelCredentials } from '@grpc/grpc-js';
 import { Options } from '@grpc/proto-loader';
+import { EventEmitter } from 'events';
 
 export interface IServerOptions {
   /** Server host to connect to. */
@@ -20,3 +21,11 @@ export interface ILockServiceOptions extends IServerOptions{
 }
 
 export type DebugLevel = 'FATAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG';
+
+export type UserEvents = Record<string, string>;
+
+export type RpcArguments = [boolean, string, number, number, number]
+
+export interface ExtendedEmitter extends EventEmitter {
+  eventHandler?: (type: string, data: unknown, id: number) => Promise<unknown>;
+}

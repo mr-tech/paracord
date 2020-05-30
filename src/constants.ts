@@ -7,6 +7,7 @@ export const GATEWAY_DEFAULT_WS_PARAMS = '?v=6&encoding=json';
 export const GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
 /** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
 export const GATEWAY_REQUEST_BUFFER = 4;
+export const DEFAULT_GATEWAY_BOT_WAIT = 5 * SECOND_IN_MILLISECONDS;
 /** https://discordapp.com/developers/docs/topics/opcodes-and-status-codes */
 export const GATEWAY_OP_CODES = {
   DISPATCH: 0,
@@ -39,13 +40,15 @@ export const GATEWAY_CLOSE_CODES = {
   INVALID_VERSION: 4012,
   INVALID_INTENT: 4013,
   DISALLOWED_INTENT: 4014,
-  RECONNECT: 4993,
-  SESSION_INVALIDATED: 4994, // Not a Discord close event, received an Invalid Session message and cannot resume
-  SESSION_INVALIDATED_RESUMABLE: 4995, // Not a Discord close event, received an Invalid Session message but can resume
-  HEARTBEAT_TIMEOUT: 4996, // Not a Discord close event, heartbeat has timed out
-  USER_TERMINATE_RESUMABLE: 4997, // Not s Discord close event. Closed by user. Start new connection and resume.
-  USER_TERMINATE_RECONNECT: 4998, // Not s Discord close event. Closed by user. Start new session.
-  USER_TERMINATE: 4999, // Not s Discord close event. Closed by user. Do not reconnect.
+  // The below are not Discord close events.
+  RECONNECT: 4992,
+  SESSION_INVALIDATED: 4993, // Received an Invalid Session message and cannot resume
+  SESSION_INVALIDATED_RESUMABLE: 4994, // Received an Invalid Session message but can resume
+  HEARTBEAT_TIMEOUT: 4995, // Heartbeat has timed out
+  USER_TERMINATE_RESUMABLE: 4996, // Closed by user. Start new connection and resume.
+  USER_TERMINATE_RECONNECT: 4997, // Closed by user. Start new session.
+  USER_TERMINATE: 4998, // Closed by user. Do not reconnect.
+  UNKNOWN: 4999, // Something odd happened. Refer to other ERROR level logging events.
 
 };
 export const CHANNEL_TYPES = {
@@ -89,3 +92,6 @@ export const LOG_LEVELS = {
 export const API_GLOBAL_RATE_LIMIT = 50;
 export const API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS = 1050;
 export const API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = 5 * MINUTE_IN_MILLISECONDS;
+export const RPC_CLOSE_CODES = {
+  LOST_CONNECTION: 14,
+};

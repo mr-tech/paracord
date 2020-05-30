@@ -1,6 +1,7 @@
 "use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
-module.exports = class RateLimitHeaders {
+class RateLimitHeaders {
     constructor(global, bucket, limit, remaining, resetAfter) {
         this.global = global || false;
         this.bucket = bucket;
@@ -8,18 +9,6 @@ module.exports = class RateLimitHeaders {
         this.remaining = remaining;
         this.resetAfter = resetAfter;
         this.resetTimestamp = new Date().getTime() + this.resetAfter;
-    }
-    get hasState() {
-        return this.bucket !== undefined;
-    }
-    get rpcArgs() {
-        return [
-            this.global,
-            this.bucket,
-            this.limit,
-            this.remaining,
-            this.resetAfter,
-        ];
     }
     static extractRateLimitFromHeaders(headers) {
         if (headers['x-ratelimit-bucket'] === undefined) {
@@ -29,4 +18,11 @@ module.exports = class RateLimitHeaders {
         const global = Object.prototype.hasOwnProperty.call(headers, 'x-ratelimit-global');
         return new RateLimitHeaders(global, bucket, Number(limit), Number(remaining), Number(resetAfter) * constants_1.SECOND_IN_MILLISECONDS);
     }
-};
+    get hasState() {
+        return this.bucket !== undefined;
+    }
+    get rpcArgs() {
+        return [this.global, this.bucket, this.limit, this.remaining, this.resetAfter];
+    }
+}
+exports.default = RateLimitHeaders;

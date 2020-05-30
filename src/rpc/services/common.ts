@@ -1,7 +1,7 @@
 /* eslint-disable no-sync */
 import grpc from '@grpc/grpc-js';
 import protoLoader from '@grpc/proto-loader';
-import { IServerOptions } from '../../types';
+import { IServerOptions } from '../../common';
 
 /**
  * Load in a protobuf from a file.

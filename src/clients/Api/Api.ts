@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 import type { EventEmitter } from 'events';
-import { coerceTokenToBotLike } from '../../utils/Utils';
+import { coerceTokenToBotLike, objectKeysSnakeToCamel } from '../../Utils';
 import { RequestService, RateLimitService } from '../../rpc/services';
 
 import {
@@ -22,7 +22,7 @@ import {
   WrappedRequest, IApiOptions, IServiceOptions, IApiResponse, IRequestOptions,
 } from './types';
 import { RemoteApiResponse } from '../../rpc/types';
-import { DebugLevel } from '../../types';
+import { DebugLevel } from '../../common';
 
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
 export default class Api {
@@ -284,18 +284,13 @@ export default class Api {
    *
    * @param method HTTP method of the request.
    * @param url Discord endpoint url. (e.g. "/channels/abc123")
-   * @param options
-   * @param options.data Data to send with the request.
-   * @param options.headers Headers to send with the request. "Authorization" and "Content-Type" will override the defaults.
-   * @param options.local If true, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests.
+   * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
   public async request(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse | RemoteApiResponse> {
-    const { data, headers, local } : {
-      data?: Record<string, unknown>;
-      headers?: Record<string, unknown>;
-      local?: boolean;
-    } = options;
+    const {
+      data, headers, local, keepSnake,
+    } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
       url = url.slice(1);
@@ -306,11 +301,16 @@ export default class Api {
       headers,
     });
 
+    let response: IApiResponse | RemoteApiResponse;
     if (this.rpcRequestService === undefined || local) {
-      return this.handleRequestLocal(request);
+      response = await this.handleRequestLocal(request);
+    } else {
+      response = await this.handleRequestRemote(this.rpcRequestService, request);
     }
 
-    return this.handleRequestRemote(this.rpcRequestService, request);
+    if (!keepSnake) response.data = objectKeysSnakeToCamel(<Record<string, unknown>>response.data);
+
+    return response;
   }
 
   /**

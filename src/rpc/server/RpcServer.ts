@@ -16,7 +16,7 @@ import {
   addRateLimitService,
   addRequestService,
 } from '../services';
-import { DebugLevel } from '../../types';
+import { DebugLevel } from '../../common';
 
 /**
  * Rpc server.

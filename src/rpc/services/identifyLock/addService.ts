@@ -1,5 +1,5 @@
 /* eslint-disable callback-return */
-import { LockRequestMessage, TokenMessage, StatusMessage } from '../../structures';
+import { LockRequestMessage, TokenMessage } from '../../structures';
 import { LOG_SOURCES, LOG_LEVELS } from '../../../constants';
 import Lock from '../../structures/identityLock/Lock';
 import RpcServer from '../../server/RpcServer';

@@ -1,19 +1,4 @@
 
-const camelToSnakeRegex = /[\w]([A-Z])/g;
-function camelToSnake(str) {
-  return str.replace(camelToSnakeRegex, (m) => `${m[0]}_${m[1]}`).toLowerCase();
-}
-
-const snakeToCamelRegex = /([-_][a-z])/g;
-function snakeToCamel(str) {
-  return str.replace(
-    snakeToCamelRegex,
-    (group) => group.toUpperCase()
-      .replace('-', '')
-      .replace('_', ''),
-  );
-}
-
 function upsertCommon(obj, newProps) {
   if (obj.filtering) {
     assignFilteredProperties(obj, newProps);
@@ -48,8 +33,6 @@ function assignNonBlacklistedProperties(obj, newProps, filterProps) {
 }
 
 module.exports = {
-  camelToSnake,
-  snakeToCamel,
   assignWhitelistedProperties,
   assignNonBlacklistedProperties,
   assignFilteredProperties,

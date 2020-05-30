@@ -1,12 +1,20 @@
 "use strict";
-module.exports = {
-    Lock: require('./identityLock/Lock'),
-    LockRequestMessage: require('./identityLock/LockRequestMessage'),
-    TokenMessage: require('./identityLock/TokenMessage'),
-    StatusMessage: require('./identityLock/StatusMessage'),
-    RequestMessage: require('./request/RequestMessage'),
-    ResponseMessage: require('./request/ResponseMessage'),
-    RequestMetaMessage: require('./rateLimit/RequestMetaMessage'),
-    AuthorizationMessage: require('./rateLimit/AuthorizationMessage'),
-    RateLimitStateMessage: require('./rateLimit/RateLimitStateMessage'),
-};
+Object.defineProperty(exports, "__esModule", { value: true });
+var Lock_1 = require("./identityLock/Lock");
+Object.defineProperty(exports, "Lock", { enumerable: true, get: function () { return Lock_1.default; } });
+var LockRequestMessage_1 = require("./identityLock/LockRequestMessage");
+Object.defineProperty(exports, "LockRequestMessage", { enumerable: true, get: function () { return LockRequestMessage_1.default; } });
+var TokenMessage_1 = require("./identityLock/TokenMessage");
+Object.defineProperty(exports, "TokenMessage", { enumerable: true, get: function () { return TokenMessage_1.default; } });
+var StatusMessage_1 = require("./identityLock/StatusMessage");
+Object.defineProperty(exports, "StatusMessage", { enumerable: true, get: function () { return StatusMessage_1.default; } });
+var RequestMessage_1 = require("./request/RequestMessage");
+Object.defineProperty(exports, "RequestMessage", { enumerable: true, get: function () { return RequestMessage_1.default; } });
+var ResponseMessage_1 = require("./request/ResponseMessage");
+Object.defineProperty(exports, "ResponseMessage", { enumerable: true, get: function () { return ResponseMessage_1.default; } });
+var RequestMetaMessage_1 = require("./rateLimit/RequestMetaMessage");
+Object.defineProperty(exports, "RequestMetaMessage", { enumerable: true, get: function () { return RequestMetaMessage_1.default; } });
+var AuthorizationMessage_1 = require("./rateLimit/AuthorizationMessage");
+Object.defineProperty(exports, "AuthorizationMessage", { enumerable: true, get: function () { return AuthorizationMessage_1.default; } });
+var RateLimitStateMessage_1 = require("./rateLimit/RateLimitStateMessage");
+Object.defineProperty(exports, "RateLimitStateMessage", { enumerable: true, get: function () { return RateLimitStateMessage_1.default; } });

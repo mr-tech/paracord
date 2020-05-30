@@ -1,5 +1,6 @@
 "use strict";
-module.exports = class BaseRequest {
+Object.defineProperty(exports, "__esModule", { value: true });
+class BaseRequest {
     constructor(method, url) {
         this.method = method;
         this.url = BaseRequest.stripUrlLeadingSlash(url);
@@ -114,4 +115,5 @@ module.exports = class BaseRequest {
         });
         return key.join('-');
     }
-};
+}
+exports.default = BaseRequest;
