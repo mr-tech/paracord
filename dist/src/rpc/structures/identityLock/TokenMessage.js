@@ -1,17 +1,18 @@
 "use strict";
-module.exports = class TokenMessage {
+Object.defineProperty(exports, "__esModule", { value: true });
+class TokenMessage {
     constructor(value) {
         this.value = value;
     }
-    get proto() {
-        TokenMessage.validateOutgoing(this);
-        return { value: this.value };
+    static fromProto(message) {
+        TokenMessage.validateIncoming(message);
+        return new TokenMessage(message.value);
     }
-    static validateOutgoing(token) {
-        if (token.value === undefined) {
+    static validateOutgoing(message) {
+        if (message.value === undefined) {
             throw Error("'value' must be a defined string");
         }
-        if (typeof token.value !== 'string') {
+        if (typeof message.value !== 'string') {
             throw Error("'value' must be type 'string'");
         }
     }
@@ -20,8 +21,9 @@ module.exports = class TokenMessage {
             throw Error("received invalid message. missing property 'value'");
         }
     }
-    static fromProto(message) {
-        TokenMessage.validateIncoming(message);
-        return new TokenMessage(message.value);
+    get proto() {
+        TokenMessage.validateOutgoing(this);
+        return { value: this.value };
     }
-};
+}
+exports.default = TokenMessage;

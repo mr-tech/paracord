@@ -1,10 +1,12 @@
 "use strict";
-module.exports = class AuthorizationMessage {
+Object.defineProperty(exports, "__esModule", { value: true });
+class AuthorizationMessage {
     constructor(resetAfter) {
         this.resetAfter = resetAfter;
     }
-    get proto() {
-        return { reset_after: this.resetAfter };
+    static fromProto(message) {
+        AuthorizationMessage.validateIncoming(message);
+        return new AuthorizationMessage(message.reset_after);
     }
     static validateOutgoing(authorization) {
         if (authorization.resetAfter === undefined) {
@@ -16,8 +18,9 @@ module.exports = class AuthorizationMessage {
             throw Error("received invalid message. missing property 'reset_after'");
         }
     }
-    static fromProto(message) {
-        AuthorizationMessage.validateIncoming(message);
-        return new AuthorizationMessage(message.reset_after);
+    get proto() {
+        AuthorizationMessage.validateOutgoing(this);
+        return { reset_after: this.resetAfter };
     }
-};
+}
+exports.default = AuthorizationMessage;

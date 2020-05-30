@@ -1,5 +1,6 @@
 "use strict";
-module.exports = class RateLimitTemplate {
+Object.defineProperty(exports, "__esModule", { value: true });
+class RateLimitTemplate {
     constructor({ limit, resetAfter }) {
         this.limit = limit;
         this.resetAfter = resetAfter;
@@ -12,4 +13,5 @@ module.exports = class RateLimitTemplate {
             this.resetAfter = resetAfter;
         }
     }
-};
+}
+exports.default = RateLimitTemplate;

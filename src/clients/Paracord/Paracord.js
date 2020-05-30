@@ -1,17 +1,17 @@
 
-const { EventEmitter } = require('events');
-const Guild = require('./structures/Guild');
-const Api = require('../Api/Api');
-const Gateway = require('../Gateway');
-const Utils = require('../../utils');
-const {
+import{ EventEmitter } from 'events';
+import Guild from './structures/Guild';
+import Api from '../Api/Api';
+import Gateway from '../Gateway/Gateway';
+import Utils from '../../utils';
+import {
   SECOND_IN_MILLISECONDS,
   MINUTE_IN_MILLISECONDS,
   LOG_LEVELS,
   LOG_SOURCES,
-} = require('../../constants');
+} from '../../constants';
 
-const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
+import { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } from process.env;
 
 /* "Start up" refers to logging in to the gateway and waiting for all the guilds to be returned. By default, events will be suppressed during start up. */
 

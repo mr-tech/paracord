@@ -11,12 +11,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
-const Utils_1 = require("../../utils/Utils");
+const Utils_1 = require("../../Utils");
 const services_1 = require("../../rpc/services");
 const structures_1 = require("./structures");
 const constants_1 = require("../../constants");
-module.exports = class Api {
+class Api {
     constructor(token, options = {}) {
         Api.validateParams(token);
         this.rateLimitCache = new structures_1.RateLimitCache();
@@ -117,37 +118,39 @@ module.exports = class Api {
                 level: constants_1.LOG_LEVELS.DEBUG,
                 message: 'Sending request over Rpc to server.',
             });
-            let res = {};
             try {
-                res = yield rpcRequestService.request(request);
+                return yield rpcRequestService.request(request);
             }
             catch (err) {
                 if (err.code === 14 && this.allowFallback) {
                     const message = 'Could not reach RPC server. Falling back to handling request locally.';
                     this.log('ERROR', message);
-                    res = yield this.handleRequestLocal(request);
+                    return this.handleRequestLocal(request);
                 }
-                else {
-                    throw err;
-                }
+                throw err;
             }
-            return res;
         });
     }
     request(method, url, options = {}) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { data, headers, local } = options;
+            const { data, headers, local, keepSnake, } = options;
             if (url.startsWith('/')) {
                 url = url.slice(1);
             }
-            const request = new structures_1.Request(method.toUpperCase(), url, {
+            const request = new structures_1.ApiRequest(method.toUpperCase(), url, {
                 data,
                 headers,
             });
+            let response;
             if (this.rpcRequestService === undefined || local) {
-                return this.handleRequestLocal(request);
+                response = yield this.handleRequestLocal(request);
             }
-            return this.handleRequestRemote(this.rpcRequestService, request);
+            else {
+                response = yield this.handleRequestRemote(this.rpcRequestService, request);
+            }
+            if (!keepSnake)
+                response.data = Utils_1.objectKeysSnakeToCamel(response.data);
+            return response;
         });
     }
     handleRequestLocal(request) {
@@ -166,15 +169,15 @@ module.exports = class Api {
                 }
                 response = yield this.handleRateLimitedRequest(request, rateLimitHeaders);
             }
-            this.updateRateLimitCache(request, rateLimitHeaders);
+            if (rateLimitHeaders !== undefined) {
+                this.updateRateLimitCache(request, rateLimitHeaders);
+            }
             return response;
         });
     }
     updateRateLimitCache(request, rateLimitHeaders) {
         this.rateLimitCache.update(request, rateLimitHeaders);
-        if (rateLimitHeaders !== undefined) {
-            this.updateRpcCache(request, rateLimitHeaders);
-        }
+        this.updateRpcCache(request, rateLimitHeaders);
     }
     updateRpcCache(request, rateLimitHeaders) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -218,52 +221,58 @@ module.exports = class Api {
     }
     authorizeRequestWithServer(request) {
         return __awaiter(this, void 0, void 0, function* () {
-            try {
-                const { resetAfter } = yield this.rpcRateLimitService.authorize(request);
-                if (resetAfter === 0) {
-                    return true;
+            if (this.rpcRateLimitService !== undefined) {
+                try {
+                    const { resetAfter } = yield this.rpcRateLimitService.authorize(request);
+                    if (resetAfter === 0) {
+                        return true;
+                    }
+                    if (request.waitUntil === undefined
+                        || request.waitUntil < new Date().getTime()) {
+                        const waitUntil = new Date().getTime() + resetAfter;
+                        request.assignIfStricterWait(waitUntil);
+                    }
+                    return false;
                 }
-                if (request.waitUntil === undefined
-                    || request.waitUntil < new Date().getTime()) {
-                    const waitUntil = new Date().getTime() + resetAfter;
-                    request.assignIfStricterWait(waitUntil);
+                catch (err) {
+                    if (err.code === 14 && this.allowFallback) {
+                        const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
+                        this.log('ERROR', message);
+                        return true;
+                    }
+                    throw err;
                 }
-                return false;
             }
-            catch (err) {
-                if (err.code === 14 && this.allowFallback) {
-                    const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
-                    this.log('ERROR', message);
-                    return true;
-                }
-                throw err;
-            }
+            return false;
         });
     }
     handleRateLimitedRequest(request, rateLimitHeaders) {
         let message;
         if (rateLimitHeaders === undefined || rateLimitHeaders.global) {
-            message = `Request global rate limited: ${request.method} ${request.url}`;
+            message = `ApiRequest global rate limited: ${request.method} ${request.url}`;
         }
         else {
-            message = `Request rate limited: ${request.method} ${request.url}`;
+            message = `ApiRequest rate limited: ${request.method} ${request.url}`;
         }
         this.log('DEBUG', message, rateLimitHeaders);
-        this.updateRateLimitCache(request, rateLimitHeaders);
+        if (rateLimitHeaders !== undefined) {
+            this.updateRateLimitCache(request, rateLimitHeaders);
+        }
         return this.enqueueRequest(request);
     }
     enqueueRequest(request) {
         this.requestQueue.push(request);
         request.response = undefined;
-        function checkRequest(resolve, reject) {
+        function checkRequest(resolve) {
             const { response } = request;
             if (response !== undefined) {
                 resolve(response);
             }
             else {
-                setTimeout(() => checkRequest(resolve, reject));
+                setTimeout(() => checkRequest(resolve));
             }
         }
         return new Promise(checkRequest);
     }
-};
+}
+exports.default = Api;

@@ -1,6 +1,3 @@
-
-// const TokenMessage = require("./TokenMessage");
-
 import { StatusProto } from '../../types';
 
 /** A class for the StatusMessage protobuf. */

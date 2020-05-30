@@ -1,5 +1,5 @@
 import { SECOND_IN_MILLISECONDS } from '../../../constants';
-import { RpcArguments } from '../types';
+import { RpcArguments } from '../../../common';
 
 /** Representation of rate limit values from the header of a response from Discord. */
 export default class RateLimitHeaders {

@@ -1,15 +1,13 @@
 
 import type { EventEmitter } from 'events';
 import type { ApiRequest } from './structures';
+import { UserEvents } from '../../common';
 
-export type RpcArguments = [boolean, string, number, number, number]
-
-// API
 /** Optional parameters for this api handler. */
 export interface IApiOptions {
   /** Event emitter through which to emit debug and warning events. */
   emitter?: EventEmitter;
-  events?: Record<string, string>;
+  events?: UserEvents;
   requestOptions?: IRequestOptions;
 }
 
@@ -21,6 +19,9 @@ export interface IRequestOptions {
   headers?: Record<string, unknown> | undefined;
   /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
   local?: boolean;
+  /** Whether or not to return the response data with camelCased keys. */
+  keepSnake?: boolean;
+  /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
   transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
 }
 
@@ -59,37 +60,6 @@ export interface IApiResponse {
 
   headers: Record<string, string>;
 }
-
-// /**
-//   * @export typedef GatewayLockServerOptions
-//   *
-//   * @property  {void|IServiceOptions} mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
-//    * @property  {IServiceOptions} [serverOptions] Options for connecting this service to the identifylock server. Will be acquired and released in order.
-//   */
-
-// /**
-//  * @export typedef ResponseHeaders Rate limit state with the bucket id. TODO(lando): add docs link
-//  * @property {string} bucket From Discord - the id of the rate limit bucket.
-//  * @property {RateLimitState} state
-//  */
-
-// // export type Function WrappedRequest: (BaseRequest | import("./clients/Api/structures/Request")) => any;
-
-
-// // Gateway
-
-// /**
-//  * @export typedef GatewayOptions Optional parameters for this gateway handler.
-//  *
-//  * @property {Object<string, any>} [identity] An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord's Shard Launcher. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure
-//  * @property {import("events").EventEmitter} [emitter] Emitter through which Discord gateway events are sent.
-//  * @property {Object<string, string>} [events] Key:Value mapping DISCORD_EVENT to user's preferred emitted name.
-//  * @property {RequestService|Api} [api]
-//  */
-
-// /** @export typedef {import("./clients/Gateway/structures/Identity")} Identity */
-
-// /** @export typedef {[number, number]} Shard [ShardID, ShardCount] to identify with. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
 
 
 // // Paracord

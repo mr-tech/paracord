@@ -1,4 +1,4 @@
-import { millisecondsFromNow } from '../../../utils/Utils';
+import { millisecondsFromNow } from '../../../Utils';
 import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
 
 import type RateLimitTemplate from './RateLimitTemplate';

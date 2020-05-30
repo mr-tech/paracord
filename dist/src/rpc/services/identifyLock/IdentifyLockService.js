@@ -1,42 +1,59 @@
 "use strict";
-const { LockRequestMessage, StatusMessage, TokenMessage, } = require('../../structures');
-const { loadProtoDefinition, constructorDefaults } = require('../common');
-const definition = loadProtoDefinition('identify_lock');
-module.exports = class IdentifyLockService extends definition.LockService {
+Object.defineProperty(exports, "__esModule", { value: true });
+const structures_1 = require("../../structures");
+const common_1 = require("../common");
+const DEFAULT_LOCK_DURATION = 6e3;
+const definition = common_1.loadProtoDefinition('identify_lock');
+class IdentifyLockService extends definition.LockService {
     constructor(options) {
-        const defaultArgs = constructorDefaults(options || {});
-        super(...defaultArgs);
-        this.target = defaultArgs[0];
-        this.allowFallback;
-        this.duration;
-        this.token;
+        const { host, port, channel, protoOptions, allowFallback, } = common_1.mergeOptionsWithDefaults(options || {});
+        const dest = `${host}:${port}`;
+        super(dest, channel, protoOptions);
+        this.target = dest;
+        this.allowFallback = allowFallback;
+        this.duration = options.duration || DEFAULT_LOCK_DURATION;
+    }
+    get token() {
+        return this._token;
+    }
+    clearToken() {
+        this._token = undefined;
     }
     acquire() {
-        const message = new LockRequestMessage(this.duration, this.token).proto;
+        const message = new structures_1.LockRequestMessage(this.duration, this.token).proto;
         return new Promise((resolve, reject) => {
             super.acquire(message, (err, res) => {
                 if (err === null) {
-                    const statusMessage = StatusMessage.fromProto(res);
-                    ({ token: this.token } = statusMessage);
-                    resolve(statusMessage);
+                    reject(err);
+                }
+                else if (res === undefined) {
+                    reject(Error('no message'));
                 }
                 else {
-                    reject(err);
+                    const statusMessage = structures_1.StatusMessage.fromProto(res);
+                    ({ token: this._token } = statusMessage);
+                    resolve(statusMessage);
                 }
             });
         });
     }
     release() {
-        const message = new TokenMessage(this.token).proto;
+        if (this.token === undefined)
+            return new structures_1.StatusMessage(false, 'token undefined');
+        const message = new structures_1.TokenMessage(this.token).proto;
         return new Promise((resolve, reject) => {
             super.release(message, (err, res) => {
                 if (err === null) {
-                    resolve(StatusMessage.fromProto(res));
+                    reject(err);
+                }
+                else if (res === undefined) {
+                    reject(Error('no message'));
                 }
                 else {
-                    reject(err);
+                    resolve(structures_1.StatusMessage.fromProto(res));
                 }
             });
         });
     }
-};
+}
+exports.default = IdentifyLockService;

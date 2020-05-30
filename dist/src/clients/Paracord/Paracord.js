@@ -8,14 +8,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-const { EventEmitter } = require('events');
-const Guild = require('./structures/Guild');
-const Api = require('../Api/Api');
-const Gateway = require('../Gateway');
-const Utils = require('../../utils');
-const { SECOND_IN_MILLISECONDS, MINUTE_IN_MILLISECONDS, LOG_LEVELS, LOG_SOURCES, } = require('../../constants');
-const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
-module.exports = class Paracord extends EventEmitter {
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const events_1 = require("events");
+const Guild_1 = __importDefault(require("./structures/Guild"));
+const Api_1 = __importDefault(require("../Api/Api"));
+const Gateway_1 = __importDefault(require("../Gateway/Gateway"));
+const utils_1 = __importDefault(require("../../utils"));
+const constants_1 = require("../../constants");
+const module_1 = require();
+module.exports = class Paracord extends events_1.EventEmitter {
     constructor(token, options = {}) {
         super();
         this.token;
@@ -78,7 +82,7 @@ module.exports = class Paracord extends EventEmitter {
         }
     }
     bindEventFunctions() {
-        Utils.bindFunctionsFromFile(this, require('./eventFuncs'));
+        utils_1.default.bindFunctionsFromFile(this, require('./eventFuncs'));
     }
     bindTimerFunction() {
         this.sweepCaches = this.sweepCaches.bind(this);
@@ -102,8 +106,8 @@ module.exports = class Paracord extends EventEmitter {
     }
     log(level, message, data) {
         this.emit('DEBUG', {
-            source: LOG_SOURCES.PARACORD,
-            level: LOG_LEVELS[level],
+            source: constants_1.LOG_SOURCES.PARACORD,
+            level: constants_1.LOG_LEVELS[level],
             message,
             data,
         });
@@ -124,9 +128,9 @@ module.exports = class Paracord extends EventEmitter {
             }
             this.unavailableGuildTolerance = unavailableGuildTolerance;
             this.unavailableGuildWait = unavailableGuildWait;
-            if (PARACORD_SHARD_IDS !== undefined) {
-                options.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
-                options.shardCount = Number(PARACORD_SHARD_COUNT);
+            if (module_1.PARACORD_SHARD_IDS !== undefined) {
+                options.shards = module_1.PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
+                options.shardCount = Number(module_1.PARACORD_SHARD_COUNT);
                 const message = `Injecting shard settings from shard launcher. Shard Ids: ${options.shards}. Shard count: ${options.shardCount}`;
                 this.log('INFO', message);
             }
@@ -137,7 +141,7 @@ module.exports = class Paracord extends EventEmitter {
         });
     }
     startGatewayLoginInterval() {
-        this.processGatewayQueueInterval = setInterval(this.processGatewayQueue, SECOND_IN_MILLISECONDS);
+        this.processGatewayQueueInterval = setInterval(this.processGatewayQueue, constants_1.SECOND_IN_MILLISECONDS);
     }
     processGatewayQueue() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -146,7 +150,7 @@ module.exports = class Paracord extends EventEmitter {
                 && this.startingGateway === undefined
                 && new Date().getTime() > this.safeGatewayIdentifyTimestamp) {
                 const gateway = this.gatewayLoginQueue.shift();
-                this.safeGatewayIdentifyTimestamp = 10 * SECOND_IN_MILLISECONDS;
+                this.safeGatewayIdentifyTimestamp = 10 * constants_1.SECOND_IN_MILLISECONDS;
                 this.startingGateway = gateway;
                 try {
                     yield gateway.login();
@@ -184,7 +188,7 @@ module.exports = class Paracord extends EventEmitter {
             }
             ({ shards, shardCount } = yield this.computeShards(shards, shardCount));
             shards.forEach((shard) => {
-                const identityCopy = Utils.clone(identity || {});
+                const identityCopy = utils_1.default.clone(identity || {});
                 identityCopy.shard = [shard, shardCount];
                 this.addNewGateway(identityCopy);
             });
@@ -229,17 +233,17 @@ module.exports = class Paracord extends EventEmitter {
         });
     }
     startSweepInterval() {
-        this.sweepCachesInterval = setInterval(this.sweepCaches, 60 * MINUTE_IN_MILLISECONDS);
+        this.sweepCachesInterval = setInterval(this.sweepCaches, 60 * constants_1.MINUTE_IN_MILLISECONDS);
     }
     setUpApi(token, options) {
-        const api = new Api(token, Object.assign(Object.assign({}, options), { emitter: this }));
+        const api = new Api_1.default(token, Object.assign(Object.assign({}, options), { emitter: this }));
         if (api.rpcRequestService === undefined) {
             api.startQueue();
         }
         return api;
     }
     setUpGateway(token, options) {
-        const gateway = new Gateway(token, Object.assign(Object.assign({}, options), { emitter: this, api: this.api }));
+        const gateway = new Gateway_1.default(token, Object.assign(Object.assign({}, options), { emitter: this, api: this.api }));
         if (this.gatewayLockServiceOptions) {
             const { mainServerOptions, serverOptions } = this.gatewayLockServiceOptions;
             gateway.addIdentifyLockServices(mainServerOptions, ...serverOptions);
@@ -260,8 +264,8 @@ module.exports = class Paracord extends EventEmitter {
     handleReady(data, shard) {
         const { user, guilds } = data;
         this.guildWaitCount = guilds.length;
-        guilds.forEach((g) => this.guilds.set(g.id, new Guild(g, this, shard)));
-        user.tag = Utils.constructUserTag(user);
+        guilds.forEach((g) => this.guilds.set(g.id, new Guild_1.default(g, this, shard)));
+        user.tag = utils_1.default.constructUserTag(user);
         this.user = user;
         this.log('INFO', `Logged in as ${user.tag}.`);
         const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
@@ -314,7 +318,7 @@ module.exports = class Paracord extends EventEmitter {
         this.log('INFO', message);
         this.emit('PARACORD_STARTUP_COMPLETE');
     }
-    upsertGuild(data, shard, GuildConstructor = Guild) {
+    upsertGuild(data, shard, GuildConstructor = Guild_1.default) {
         const cachedGuild = this.guilds.get(data.id);
         if (cachedGuild !== undefined) {
             return cachedGuild.constructGuildFromData(data, this);
@@ -325,10 +329,10 @@ module.exports = class Paracord extends EventEmitter {
     }
     upsertUser(user) {
         let cachedUser = this.users.get(user.id) || {};
-        cachedUser.tag = Utils.constructUserTag(user);
+        cachedUser.tag = utils_1.default.constructUserTag(user);
         cachedUser = Object.assign(cachedUser, user);
         this.users.set(cachedUser.id, cachedUser);
-        Utils.assignCreatedOn(cachedUser);
+        utils_1.default.assignCreatedOn(cachedUser);
         this.circularAssignCachedPresence(cachedUser);
         return cachedUser;
     }

@@ -52,6 +52,7 @@ export type TServiceCallbackError = null | string | ServiceError;
 
 export type LockRequestProto = {
   /** How long in ms the server should wait before expiring the lock. */
+  /* eslint-disable-next-line camelcase */
   time_out: number;
   /** token Unique id given to the last client to acquire the lock. */
   token: string | undefined;
@@ -115,6 +116,17 @@ export type RateLimitStateProto = {
   global: boolean;
 }
 
+export interface IRequestMessage {
+  /** HTTP method of the request. */
+  method: string;
+  /** Discord endpoint url. (e.g. channels/123) */
+  url: string;
+  /** JSON encoded data to send in the body of the request. */
+  data?: undefined | Record<string, unknown>;
+  /** JSON encoded headers to send with the request. */
+  headers?: undefined | Record<string, unknown>;
+}
+
 export type RequestMetaProto = {
   /** HTTP method of the request. */
   method: string;
@@ -128,5 +140,5 @@ export type RemoteApiResponse = {
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
   statusText: string;
   /** Data response from Discord not having yet been parsed into json. */
-  data: undefined | Record<string, unknown>;
+  data: Record<string, unknown>;
 }

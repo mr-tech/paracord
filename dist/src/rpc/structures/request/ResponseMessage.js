@@ -1,9 +1,31 @@
 "use strict";
-module.exports = class ResponseMessage {
+Object.defineProperty(exports, "__esModule", { value: true });
+class ResponseMessage {
     constructor(status, statusText, data) {
         this.status = status;
         this.statusText = statusText;
         this.data = data;
+    }
+    static fromProto(message) {
+        ResponseMessage.validateIncoming(message);
+        const { status_code: status, status_text: statusText, data } = message;
+        let res;
+        try {
+            res = data !== undefined ? JSON.parse(data) : undefined;
+        }
+        catch (err) {
+            res = data;
+        }
+        return {
+            status,
+            statusText,
+            data: res,
+        };
+    }
+    static validateIncoming(message) {
+        if (message.status_code === undefined) {
+            throw Error("received invalid message. missing property 'status_code'");
+        }
     }
     get proto() {
         return {
@@ -12,18 +34,5 @@ module.exports = class ResponseMessage {
             data: this.data,
         };
     }
-    static validateIncoming(response) {
-        if (response.status_code === undefined) {
-            throw Error("received invalid message. missing property 'status_code'");
-        }
-    }
-    static fromProto(message) {
-        ResponseMessage.validateIncoming(message);
-        const { status_code: status, status_text: statusText, data } = message;
-        return {
-            status,
-            statusText,
-            data: data.startsWith('{') ? JSON.parse(data) : data,
-        };
-    }
-};
+}
+exports.default = ResponseMessage;

@@ -2,15 +2,19 @@
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+Object.defineProperty(exports, "__esModule", { value: true });
 const RateLimit_1 = __importDefault(require("./RateLimit"));
 const constants_1 = require("../../../constants");
-module.exports = class RateLimitMap extends Map {
+class RateLimitMap extends Map {
     constructor() {
         super();
         this.sweepInterval = undefined;
     }
-    upsert(rateLimitKey, state, template) {
+    upsert(rateLimitKey, { remaining, limit, resetTimestamp, resetAfter, }, template) {
         const rateLimit = this.get(rateLimitKey);
+        const state = {
+            remaining, limit, resetTimestamp, resetAfter,
+        };
         if (rateLimit === undefined) {
             this.set(rateLimitKey, new RateLimit_1.default(state, template));
         }
@@ -30,4 +34,5 @@ module.exports = class RateLimitMap extends Map {
     startSweepInterval() {
         this.sweepInterval = setInterval(this.sweepExpiredRateLimits.bind(this), constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
     }
-};
+}
+exports.default = RateLimitMap;

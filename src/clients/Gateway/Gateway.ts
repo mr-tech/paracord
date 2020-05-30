@@ -1,12 +1,12 @@
 
-const ws = require('ws');
-const { EventEmitter } = require('events');
-const Api = require('../Api/Api');
-const Utils = require('../../utils');
-const Identity = require('./structures/Identity');
-const { IdentifyLockService } = require('../../rpc/services');
+import ws from 'ws';
+import { EventEmitter } from 'events';
+import Api from '../Api/Api';
+import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../Utils';
+import Identify from './structures/Identify';
+import { IdentifyLockService } from '../../rpc/services';
 
-const {
+import {
   SECOND_IN_MILLISECONDS,
   MINUTE_IN_MILLISECONDS,
   GIGABYTE_IN_BYTES,
@@ -17,7 +17,14 @@ const {
   GATEWAY_REQUEST_BUFFER,
   LOG_LEVELS,
   LOG_SOURCES,
-} = require('../../constants');
+  RPC_CLOSE_CODES,
+  DEFAULT_GATEWAY_BOT_WAIT,
+} from '../../constants';
+import { GatewayOptions, SessionLimitData, GatewayBotResponse } from './types';
+import { DebugLevel, ILockServiceOptions, ExtendedEmitter } from '../../common';
+import {
+  GuildRequestMembers, GatewayPayload, ReadyEventFields, Hello, Resume,
+} from '../../types';
 
 /**
  * @typedef WebsocketRateLimitCache Information about the current request count and time that it should reset in relation to Discord rate limits. https://discordapp.com/developers/docs/topics/gateway#rate-limiting
@@ -26,153 +33,131 @@ const {
  */
 
 /** A client to handle a Discord gateway connection. */
-module.exports = class Gateway {
-  /**
-   * Creates a new Discord gateway handler.
-   * @param {string} token Discord token. Will be coerced into a bot token.
-   * @param {GatewayOptions} [options={}] Optional parameters for this handler.
-   */
-  constructor(token, options = {}) {
-    /** @type {Api} Client through which to make REST api calls to Discord. */
-    this.api;
-    /** @type {void|IdentifyLockService} Rpc service through which to coordinate identifies with other shards. Will not be released except by time out. Best used for global minimum wait time. */
-    this.mainIdentifyLock;
-    /** @type {void|IdentifyLockService[]} Rpc service through which to coordinate identifies with other shards. */
-    this.identifyLocks;
+export default class Gateway {
+  /** Client through which to make REST api calls to Discord. */
+  private api?: Api;
 
-    /** @type {boolean} Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
-    this.online;
-    /** @type {ws} Websocket used to connect to gateway. */
-    this.ws;
-    /** @type {string} From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
-    this.wsUrl;
-    /** @type  {number} Time to wait between this client's attempts to connect to the gateway in seconds. */
-    this.wsUrlRetryWait;
-    /** @type {WebsocketRateLimitCache} */
-    this.wsRateLimitCache;
+  /** @ Rpc service through which to coordinate identifies with other shards. Will not be released except by time out. Best used for global minimum wait time. */
+  private mainIdentifyLock?: IdentifyLockService;
 
-    /** @type {number|void} From Discord - Most recent event sequence id received. https://discordapp.com/developers/docs/topics/gateway#payloads */
-    this.sequence;
-    /** @type {string|void} From Discord - Id of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
-    this.sessionId;
-    /** @type {boolean} If the last heartbeat packet sent to Discord received an ACK. */
-    this.heartbeatAck;
-    /** @type {number} Time when last heartbeat packet was sent in ms. */
-    this.lastHeartbeatTimestamp;
-    /** @type {number} Time when the next heartbeat packet should be sent in ms. */
-    this.nextHeartBeatTimestamp;
-    /** @type {NodeJS.Timer} Node timeout for the next heartbeat. */
-    this.heartbeatTimeout;
-    this.heartbeatIntervalTime;
+  /** Rpc service through which to coordinate identifies with other shards. */
+  private identifyLocks: IdentifyLockService[] = [];
 
-    /** @type {import("events").EventEmitter} Emitter for gateway and Api events. Will create a default if not provided via the options. */
-    this.emitter;
-    /** @type {Object<string,string>} Key:Value mapping DISCORD_EVENT to user's preferred emitted value. */
-    this.events;
+  /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
+  private online: boolean;
 
-    /** @type {Identity} Object passed to Discord when identifying. */
-    this.identity;
-    /** @type {number} Minimum time to wait between gateway identifies in ms. */
-    this.retryWait;
+  /** Websocket used to connect to gateway. */
+  private ws?: ws;
 
-    /** @type {number} Time that the shard's identify mutex will be locked for in ms. */
-    this.remoteLoginWait;
+  /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
+  private wsUrl?: string;
 
-    /** @type {number} Amount of identifies reported by the last call to /gateway/bot. */
-    this.lastKnownSessionLimitData;
+  /** Time to wait between this client's attempts to connect to the gateway in seconds. */
+  private wsUrlRetryWait: number;
 
+  private wsRateLimitCache: WebsocketRateLimitCache;
 
-    this.constructorDefaults(token, options);
-  }
+  /** From Discord - Most recent event sequence id received. https://discordapp.com/developers/docs/topics/gateway#payloads */
+  private sequence?: number;
 
-  /** @type {boolean} Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
-  get resumable() {
-    return this.sessionId !== undefined && this.sequence !== null;
-  }
+  /** From Discord - Id of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
+  private sessionId?: string;
 
-  /** @type {string} Bot token this client uses to identify with. */
-  get token() {
-    return this.identity.token;
-  }
+  /** If the last heartbeat packet sent to Discord received an ACK. */
+  private heartbeatAck: boolean;
 
-  /** @type {void|Shard} [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
-  get shard() {
-    return this.identity.shard !== undefined ? this.identity.shard : undefined;
-  }
+  /** Time when last heartbeat packet was sent in ms. */
+  private lastHeartbeatTimestamp?: number;
 
-  get id() {
-    return this.identity.shard !== undefined ? this.identity.shard[0] : undefined;
-  }
+  /** Time when the next heartbeat packet should be sent in ms. */
+  private nextHeartbeatTimestamp?:number;
 
-  /** @type {boolean} Whether or not the client is connected to the gateway. */
-  get connected() {
-    return this.ws !== undefined;
-  }
+  /** Node timeout for the next heartbeat. */
+  private heartbeatTimeout?: NodeJS.Timer;
 
-  /*
-   ********************************
-   ********* CONSTRUCTOR **********
-   ********************************
-   */
+  /** From Discord - Time between heartbeats. */
+  private heartbeatIntervalTime?: number;
 
-  /**
-   * Assigns default values to this Gateway instance based on the options.
-   * @private
-   *
-   * @param {string} token Discord token. Will be coerced into a bot token.
-   * @param {GatewayOptions} options Optional parameters for this handler.
-   */
-  constructorDefaults(token, options) {
-    Gateway.validateParams(token, options);
+  /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
+  private emitter: ExtendedEmitter;
 
-    const defaults = {
-      emitter: options.emitter || new EventEmitter(),
-      sequence: null,
-      wsRateLimitCache: {
-        remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
-        resetTimestamp: 0,
-      },
-      identifyLocks: [],
-      ...options,
-    };
+  /** Key:Value mapping DISCORD_EVENT to user's preferred emitted value. */
+  private events: Record<string, string>;
 
-    Object.assign(this, defaults);
+  /** Object passed to Discord when identifying. */
+  private identity: Identify;
 
-    const botToken = Utils.coerceTokenToBotLike(token);
-    this.assignIdentity(botToken, options.identity);
+  /** Minimum time to wait between gateway identifies in ms. */
+  private retryWait: number;
 
-    this.bindTimerFunctions();
-  }
+  /** Time that the shard's identify mutex will be locked for in ms. */
+  private remoteLoginWait: number;
+
+  /** Amount of identifies reported by the last call to /gateway/bot. */
+  private lastKnownSessionLimitData: SessionLimitData;
 
   /**
    * Throws errors and warnings if the parameters passed to the constructor aren't sufficient.
-   * @private
-   *
-   * @param {string} token Discord token.
-   * @param {GatewayOptions} options Optional parameters for this handler.
+   * @param token Discord token.
+   * @param options Optional parameters for this handler.
    */
-  static validateParams(token, options) {
+  private static validateParams(token: string, options: Partial<GatewayOptions>): void {
     if (token === undefined && options.serverOptions === undefined) {
       throw Error("client requires either a 'token' or 'serverOptions' ");
     }
   }
 
-  /**
-   * Creates and assigns or merges an Identity object used to identify with the gateway.
-   * @private
-   *
-   * @param {string} token Discord token.
-   * @param {Object<string, any>} identity An object containing information for identifying with the gateway. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure
-   */
-  assignIdentity(token, identity) {
-    this.identity = new Identity(token, identity);
+  /** Verifies parameters to set lock are valid. */
+  private static validateLockOptions(options: Partial<ILockServiceOptions>): void {
+    const { duration } = options;
+    if (duration !== undefined && typeof duration !== 'number' && duration <= 0) {
+      throw Error('Lock duration must be a number larger than 0.');
+    }
   }
 
   /**
-   * Binds `this` to certain methods so that they are able to be called in `setInterval()` and `setTimeout()`.
-   * @private
+   * Creates a new Discord gateway handler.
+   * @param token Discord token. Will be coerced into a bot token.
+   * @param options Optional parameters for this handler.
    */
-  bindTimerFunctions() {
+  public constructor(token: string, options: Partial<GatewayOptions> = {}) {
+    Gateway.validateParams(token, options);
+
+    this.emitter = options.emitter ?? new EventEmitter();
+    this.wsRateLimitCache = {
+      remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
+      resetTimestamp: 0,
+    };
+
+    this.identity = new Identify(coerceTokenToBotLike(token), options.identity);
+    this.api = options.api;
+    this.heartbeatAck = false;
+    this.wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
+    this.bindTimerFunctions();
+  }
+
+  /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
+  private get resumable(): boolean {
+    return this.sessionId !== undefined && this.sequence !== null;
+  }
+
+  /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
+  private get shard(): Identify['shard'] | undefined {
+    return this.identity.shard !== undefined ? this.identity.shard : undefined;
+  }
+
+  /** The shard id that this gateway is connected to. */
+  private get id(): number {
+    return this.identity.shard !== undefined ? this.identity.shard[0] : 0;
+  }
+
+  /** Whether or not the client is connected to the gateway. */
+  private get connected(): boolean {
+    return this.ws !== undefined;
+  }
+
+  /** Binds `this` to certain methods so that they are able to be called in `setInterval()` and `setTimeout()`. */
+  private bindTimerFunctions(): void {
     this.login = this.login.bind(this);
     this.heartbeat = this.heartbeat.bind(this);
     this.checkLocksPromise = this.checkLocksPromise.bind(this);
@@ -186,13 +171,11 @@ module.exports = class Gateway {
 
   /**
    * Simple alias for logging events emitted by this client.
-   * @private
-   *
-   * @param {string} level Key of the logging level of this message.
-   * @param {string} message Content of the log
-   * @param {*} [data] Data pertinent to the event.
+   * @param level Key of the logging level of this message.
+   * @param message Content of the log
+   * @param data Data pertinent to the event.
    */
-  log(level, message, data = {}) {
+  private log(level: DebugLevel, message: string, data: Record<string, unknown> = {}): void {
     data.shard = this.id;
     this.emit('DEBUG', {
       source: LOG_SOURCES.GATEWAY,
@@ -204,12 +187,10 @@ module.exports = class Gateway {
 
   /**
    * Emits various events through `this.emitter`, both Discord and Api. Will emit all events if `this.events` is undefined; otherwise will only emit those defined as keys in the `this.events` object.
-   * @private
-   *
-   * @param {string} type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
-   * @param {void|Object<string, any>} data Data to send with the event.
+   * @param type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
+   * @param data Data to send with the event.
    */
-  emit(type, data) {
+  private emit(type: string, data?: unknown): void {
     if (this.emitter !== undefined) {
       this.emitter.emit(type, data, this.id);
     }
@@ -223,53 +204,49 @@ module.exports = class Gateway {
 
   /**
    * Adds the service that will acquire a lock from a server(s) before identifying.
-   *
-   * @param  {void|IServiceOptions} mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
-   * @param  {IServiceOptions} [serverOptions] Options for connecting this service to the identifylock server. Will be acquired and released in order.
+   * @param mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
+   * @param serverOptions Options for connecting this service to the identifylock server. Will be acquired and released in order.
    */
-  addIdentifyLockServices(mainServerOptions = {}, ...serverOptions) {
-    const usedHostPort = {};
+  public addIdentifyLockServices(mainServerOptions: null | Partial<ILockServiceOptions>, ...serverOptions: Partial<ILockServiceOptions>[]): void {
+    const usedHostPorts: Record<string, number> = {};
+
     if (mainServerOptions !== null) {
-      usedHostPort[mainServerOptions.host || '127.0.0.1'] = mainServerOptions.port || 50051;
+      let { port } = mainServerOptions;
+      if (typeof port === 'string') {
+        port = Number(port);
+      }
+
+      const { host } = mainServerOptions;
+      usedHostPorts[host ?? '127.0.0.1'] = port ?? 50051; // TODO: move port to constant
+
       this.mainIdentifyLock = this.configureLockService(mainServerOptions);
     }
 
     if (serverOptions.length) {
       serverOptions.forEach((options) => {
-        const host = serverOptions.host || '127.0.0.1';
-        const port = options.port || 55051;
-        if (usedHostPort[host] === port) {
+        let { host, port } = options;
+        if (typeof port === 'string') {
+          port = Number(port);
+        }
+
+        if (usedHostPorts[host ?? '127.0.0.1'] === port) {
           throw Error('Multiple locks specified for the same host:port.');
         }
 
-        usedHostPort[host] = mainServerOptions.port || port;
+        usedHostPorts[host ?? '127.0.0.1'] = port ?? 50051; // TODO: move port to constant
         this.identifyLocks.push(this.configureLockService(options));
       });
     }
   }
 
-  configureLockService(serverOptions) {
-    const identifyLock = new IdentifyLockService(serverOptions);
+  private configureLockService(serverOptions: Partial<ILockServiceOptions>): IdentifyLockService {
     Gateway.validateLockOptions(serverOptions);
+    const identifyLock = new IdentifyLockService(serverOptions);
 
-    identifyLock.allowFallback = serverOptions.allowFallback;
-    identifyLock.duration = serverOptions.duration;
     const message = `Rpc service created for identify coordination. Connected to: ${identifyLock.target}. Default duration of lock: ${identifyLock.duration}`;
     this.log('INFO', message);
 
     return identifyLock;
-  }
-
-  /**
-   * Verifies parameters to set lock are valid.
-   *
-   * @param {*} options
-   */
-  static validateLockOptions(options) {
-    const { duration } = options;
-    if (typeof duration !== 'number' && duration <= 0) {
-      throw Error('Lock duration must be a number larger than 0.');
-    }
   }
 
   /*
@@ -280,32 +257,23 @@ module.exports = class Gateway {
 
   /**
    * Sends a `Request Guild Members` websocket message.
-   *
-   * @param {string} guildId Id of the guild to request members from.
-   * @param {Object} options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discordapp.com/developers/docs/topics/gateway#request-guild-members
-   * @param {string} [options.query] "string that username starts with, or an empty string to return all members"
-   * @param {number} [options.limit] "maximum number of members to send matching the query; a limit of 0 can be used with an empty string query to return all members"
-   * @param {boolean} [options.presences] "used to specify if we want the presences of the matched members"
-   * @param {Array<string>} [options.user_ids] "used to specify which users you wish to fetch"
+   * @param guildId Id of the guild to request members from.
+   * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discordapp.com/developers/docs/topics/gateway#request-guild-members
    */
-  requestGuildMembers(guildId, options = {}) {
-    const defaults = {
-      limit: 0, query: '', presences: false, user_ids: [],
+  public requestGuildMembers(guildId: string, options: Partial<GuildRequestMembers> = {}): boolean {
+    const sendOptions: Partial<GuildRequestMembers> = {
+      limit: 0, query: '', presences: false, userIds: [],
     };
 
-    for (const [k, v] of Object.entries(defaults)) {
-      if (options[k] === undefined) {
-        options[k] = v;
-      }
-    }
+    Object.assign(sendOptions, options);
 
     return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, {
       guild_id: guildId,
-      ...options,
+      ...objectKeysCamelToSnake(options),
     });
   }
 
-  async checkLocksPromise(resolve) {
+  private async checkLocksPromise(resolve: () => void): Promise<void> {
     if (await this.acquireLocks()) {
       resolve();
     } else {
@@ -313,18 +281,16 @@ module.exports = class Gateway {
     }
   }
 
-  async loginWaitForLocks() {
+  private loginWaitForLocks(): Promise<void> {
     /** Continuously checks if the response has returned. */
-
     return new Promise(this.checkLocksPromise);
   }
 
   /**
    * Connects to Discord's event gateway.
-   *
-   * @param {import("ws")} [_Websocket] Ignore. For unittest dependency injection only.
+   * @param _Websocket Ignore. For unittest dependency injection only.
    */
-  async login(_Websocket = ws) {
+  public async login(_websocket = ws): Promise<void> {
     if (this.ws !== undefined) {
       throw Error('Client is already connected.');
     }
@@ -334,11 +300,13 @@ module.exports = class Gateway {
         this.wsUrl = await this.getWebsocketUrl();
       }
 
-      this.log('DEBUG', `Connecting to url: ${this.wsUrl}`);
+      if (this.wsUrl !== undefined) {
+        this.log('DEBUG', `Connecting to url: ${this.wsUrl}`);
 
-      this.ws = new _Websocket(this.wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+        this.ws = new _websocket(this.wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
 
-      this.assignWebsocketMethods();
+        this.assignWebsocketMethods(this.ws);
+      }
     } catch (err) {
       if (err.response) {
         console.error(err.response.data.message); // TODO: emit
@@ -352,10 +320,8 @@ module.exports = class Gateway {
     }
   }
 
-  /**
-   * Releases all non-main identity locks.
-   */
-  async releaseIdentifyLocks() {
+  /** Releases all non-main identity locks. */
+  private async releaseIdentifyLocks(): Promise<void> {
     if (this.identifyLocks.length) {
       this.identifyLocks.forEach((l) => {
         if (l.token !== undefined) this.releaseIdentifyLock(l);
@@ -365,26 +331,25 @@ module.exports = class Gateway {
 
   /**
    * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
-   * @private
-   *
-   * @returns {string|void} Url if status === 200; or undefined if status !== 200.
+   * @returns Url if status === 200; or undefined if status !== 200.
    */
-  async getWebsocketUrl() {
+  private async getWebsocketUrl(): Promise<string | undefined> {
     if (this.api === undefined) {
-      this.createApiClient();
+      this.api = new Api(this.identity.token);
+      this.api.startQueue();
     }
 
-    const { status, statusText, data } = await this.api.request(
+    const { status, statusText, data } = <GatewayBotResponse> await this.api.request(
       'get',
       'gateway/bot',
     );
 
     if (status === 200) {
-      this.lastKnownSessionLimitData = data.session_start_limit;
-      const { total, remaining, reset_after } = data.session_start_limit;
+      this.lastKnownSessionLimitData = data.sessionStartLimit;
+      const { total, remaining, resetAfter } = data.sessionStartLimit;
 
-      const message = `Login limit: ${total}. Remaining: ${remaining}. Reset after ${reset_after}ms (${new Date(
-        new Date().getTime() + reset_after,
+      const message = `Login limit: ${total}. Remaining: ${remaining}. Reset after ${resetAfter}ms (${new Date(
+        new Date().getTime() + resetAfter,
       )})`;
       this.log('INFO', message);
 
@@ -397,24 +362,13 @@ module.exports = class Gateway {
   }
 
   /**
-   * Creates a new Api client with default settings.
-   * @private
-   */
-  createApiClient() {
-    this.api = new Api(this.identity.token);
-    this.api.startQueue();
-  }
-
-  /**
    * Emits logging message and sets a timeout to re-attempt login. Throws on 401 status code.
-   * @private
-   *
-   * @param {number} status HTTP status code.
-   * @param {string} statusText Status message from Discord.
-   * @param {string} dataMessage Discord's error message.
-   * @param {number} dataCode Discord's error code.
+   * @param status HTTP status code.
+   * @param statusText Status message from Discord.
+   * @param dataMessage Discord's error message.
+   * @param dataCode Discord's error code.
    */
-  handleBadStatus(status, statusText, dataMessage, dataCode) {
+  private handleBadStatus(status: number, statusText: string, dataMessage: string, dataCode: number): void {
     let message = `Failed to get websocket information from API. Status ${status}. Status text: ${statusText}. Discord code: ${dataCode}. Discord message: ${dataMessage}.`;
 
     if (status !== 401) {
@@ -429,49 +383,46 @@ module.exports = class Gateway {
     }
   }
 
-  /**
-   * Binds `this` to methods used by the websocket.
-   * @private
-   */
-  assignWebsocketMethods() {
-    this.ws.onopen = this._onopen.bind(this);
-    this.ws.onerror = this._onerror.bind(this);
-    this.ws.onclose = this._onclose.bind(this);
-    this.ws.onmessage = this._onmessage.bind(this);
+  /** Binds `this` to methods used by the websocket. */
+  private assignWebsocketMethods(websocket: ws): void {
+    websocket.onopen = this._onopen.bind(this);
+    websocket.onerror = this._onerror.bind(this);
+    websocket.onclose = this._onclose.bind(this);
+    websocket.onmessage = this._onmessage.bind(this);
   }
 
   /**
    * Handles emitting events from Discord. Will first pass through `this.emitter.eventHandler` function if one exists.
-   * @private
-   *
-   * @param {string} type Type of event. (e.g. CHANNEL_CREATE) https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events
-   * @param {Object} data Data of the event from Discord.
+   * @param type Type of event. (e.g. CHANNEL_CREATE) https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events
+   * @param data Data of the event from Discord.
    */
-  async handleEvent(type, data) {
+  private async handleEvent(type: string, data: unknown): Promise<void> {
     if (this.emitter.eventHandler !== undefined) {
       data = await this.emitter.eventHandler(type, data, this.id);
     }
 
-    if (data !== undefined) {
-      this.emit(type, data, this.id);
-    }
+    data !== undefined && this.emit(type, data);
   }
 
   /**
    * Close the websocket.
-   * @param {string|void} [option] `resume` to reconnect and attempt resume. `reconnect` to reconnect with a new session. Blank to not reconnect.
+   * @param option `resume` to reconnect and attempt resume. `reconnect` to reconnect with a new session. Blank to not reconnect.
    */
-  terminate(option) {
-    const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = GATEWAY_CLOSE_CODES;
+  private terminate(option?: string): void {
+    if (this.ws !== undefined) {
+      const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = GATEWAY_CLOSE_CODES;
 
-    let code = USER_TERMINATE;
-    if (option === 'resume') {
-      code = USER_TERMINATE_RESUMABLE;
-    } else if (option === 'reconnect') {
-      code = USER_TERMINATE_RECONNECT;
+      let code = USER_TERMINATE;
+      if (option === 'resume') {
+        code = USER_TERMINATE_RESUMABLE;
+      } else if (option === 'reconnect') {
+        code = USER_TERMINATE_RECONNECT;
+      }
+
+      this.ws.close(code);
+    } else {
+      console.warn('websocket not open');
     }
-
-    this.ws.close(code);
   }
 
   /*
@@ -480,11 +431,8 @@ module.exports = class Gateway {
    ********************************
    */
 
-  /**
-   * Assigned to websocket `onopen`.
-   * @private
-   */
-  _onopen() {
+  /** Assigned to websocket `onopen`. */
+  private _onopen(): void {
     this.log('DEBUG', 'Websocket open.');
 
     this.wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
@@ -497,11 +445,8 @@ module.exports = class Gateway {
    ********************************
    */
 
-  /**
-   * Assigned to websocket `onerror`.
-   * @private
-   */
-  _onerror(err) {
+  /** Assigned to websocket `onerror`. */
+  private _onerror(err: ws.ErrorEvent): void {
     this.log('ERROR', `Websocket error. Message: ${err.message}`);
   }
 
@@ -511,13 +456,10 @@ module.exports = class Gateway {
    ********************************
    */
 
-  /**
-   * Assigned to webscoket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
-   * @private
-   *
-   * @param {Object<string, any>} event Object containing information about the close.
+  /** Assigned to webscoket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
+   * @param event Object containing information about the close.
    */
-  async _onclose(event) {
+  private _onclose(event: ws.CloseEvent): void {
     this.ws = undefined;
     this.online = false;
     this.clearHeartbeat();
@@ -528,17 +470,14 @@ module.exports = class Gateway {
       resetTimestamp: 0,
     };
 
-    await this.handleEvent('GATEWAY_CLOSE', { shouldReconnect, gateway: this });
+    this.handleEvent('GATEWAY_CLOSE', { shouldReconnect, gateway: this });
   }
 
-  /**
-   * Uses the close code to determine what message to log and if the client should attempt to reconnect.
-   * @private
-   *
-   * @param {number} code Code that came with the websocket close event.
-   * @return {boolean} Whether or not the client should attempt to login again.
+  /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
+   * @param code Code that came with the websocket close event.
+   * @return Whether or not the client should attempt to login again.
    */
-  handleCloseCode(code) {
+  private handleCloseCode(code: ws.CloseEvent['code']): boolean {
     const {
       CLEAN,
       GOING_AWAY,
@@ -565,78 +504,73 @@ module.exports = class Gateway {
       USER_TERMINATE_RESUMABLE,
       USER_TERMINATE_RECONNECT,
       USER_TERMINATE,
+      UNKNOWN,
     } = GATEWAY_CLOSE_CODES;
 
     let message;
     let shouldReconnect = true;
-    let level;
+    let level: DebugLevel = 'INFO';
 
     switch (code) {
       case CLEAN:
-        level = LOG_LEVELS.INFO;
         message = 'Clean close. (Reconnecting.)';
         this.clearSession();
         break;
       case GOING_AWAY:
-        level = LOG_LEVELS.INFO;
         message = 'The current endpoint is going away. (Reconnecting.)';
         break;
       case ABNORMAL_CLOSE:
-        level = LOG_LEVELS.INFO;
         message = 'Abnormal close. (Reconnecting.)';
         break;
       case UNKNOWN_ERROR:
-        level = LOG_LEVELS.WARNING;
+        level = 'WARNING';
         message = "Discord's not sure what went wrong. (Reconnecting.)";
         break;
       case UNKNOWN_OPCODE:
-        level = LOG_LEVELS.WARNING;
+        level = 'WARNING';
         message = "Sent an invalid Gateway opcode or an invalid payload for an opcode. Don't do that! (Reconnecting.)";
         break;
       case DECODE_ERROR:
-        level = LOG_LEVELS.ERROR;
+        level = 'ERROR';
         message = "Sent an invalid payload. Don't do that! (Reconnecting.)";
         break;
       case NOT_AUTHENTICATED:
-        level = LOG_LEVELS.ERROR;
+        level = 'ERROR';
         message = 'Sent a payload prior to identifying. Please login first. (Reconnecting.)';
         break;
       case AUTHENTICATION_FAILED:
-        level = LOG_LEVELS.FATAL;
+        level = 'FATAL';
         message = 'Account token sent with identify payload is incorrect. (Terminating login.)';
         shouldReconnect = false;
         break;
       case ALREADY_AUTHENTICATED:
-        level = LOG_LEVELS.ERROR;
+        level = 'ERROR';
         message = 'Sent more than one identify payload. Stahp. (Terminating login.)';
         shouldReconnect = false;
         break;
       case SESSION_NO_LONGER_VALID:
-        level = LOG_LEVELS.INFO;
         message = 'Session is no longer valid. (Reconnecting with new session.)'; // Also occurs when trying to resume with a bad or mismatched token (different than identified with).
         this.clearSession();
         break;
       case INVALID_SEQ:
         message = 'Sequence sent when resuming the session was invalid. (Reconnecting with new session.)';
-        level = LOG_LEVELS.INFO;
         this.clearSession();
         break;
       case RATE_LIMITED:
-        level = LOG_LEVELS.ERROR;
+        level = 'ERROR';
         message = "Woah nelly! You're sending payloads too quickly. Slow it down! (Reconnecting.)";
         break;
       case SESSION_TIMEOUT:
-        level = LOG_LEVELS.INFO;
         message = 'Session timed out. (Reconnecting with new session.)';
         this.clearSession();
         break;
       case INVALID_SHARD:
-        level = LOG_LEVELS.FATAL;
+        level = 'FATAL';
         message = 'Sent an invalid shard when identifying. (Terminating login.)';
         shouldReconnect = false;
         break;
       case SHARDING_REQUIRED:
-        level = LOG_LEVELS.FATAL;
+        level = 'FATAL';
         message = 'Session would have handled too many guilds - client is required to shard connection in order to connect. (Terminating login.)';
         shouldReconnect = false;
         break;
@@ -653,38 +587,36 @@ module.exports = class Gateway {
         shouldReconnect = false;
         break;
       case HEARTBEAT_TIMEOUT:
-        level = LOG_LEVELS.WARNING;
+        level = 'WARNING';
         message = 'Heartbeat Ack not received from Discord in time. (Reconnecting.)';
         break;
       case SESSION_INVALIDATED:
-        level = LOG_LEVELS.INFO;
         message = 'Received an Invalid Session message and is not resumable. (Reconnecting with new session.)';
         this.clearSession();
         break;
       case RECONNECT:
-        level = LOG_LEVELS.INFO;
         message = 'Gateway has requested the client reconnect. (Reconnecting.)';
         break;
       case SESSION_INVALIDATED_RESUMABLE:
-        level = LOG_LEVELS.INFO;
         message = 'Received an Invalid Session message and is resumable. (Reconnecting.)';
         break;
       case USER_TERMINATE_RESUMABLE:
-        level = LOG_LEVELS.INFO;
         message = 'Connection terminated by you. (Reconnecting.)';
         break;
       case USER_TERMINATE_RECONNECT:
-        level = LOG_LEVELS.INFO;
         message = 'Connection terminated by you. (Reconnecting with new session.)';
         this.clearSession();
         break;
       case USER_TERMINATE:
-        level = LOG_LEVELS.INFO;
         message = 'Connection terminated by you. (Terminating login.)';
         shouldReconnect = false;
         break;
+      case UNKNOWN:
+        level = 'ERROR';
+        message = 'Something odd happened. Refer to other ERROR level logging events.';
+        break;
       default:
-        level = LOG_LEVELS.INFO;
+        level = 'WARNING';
         message = 'Unknown close code. (Reconnecting.)';
     }
 
@@ -693,21 +625,19 @@ module.exports = class Gateway {
     return shouldReconnect;
   }
 
-  clearSession() {
+  /** Removes current session information. */
+  private clearSession(): void {
     this.sessionId = undefined;
-    this.sequence = null;
+    this.sequence = undefined;
     this.wsUrl = undefined;
   }
 
-  /**
-   * Clears heartbeat values and clears the heartbeatTimeout.
-   * @private
-   */
-  clearHeartbeat() {
-    clearTimeout(this.heartbeatTimeout);
+  /** Clears heartbeat values and clears the heartbeatTimeout. */
+  private clearHeartbeat(): void {
+    this.heartbeatTimeout && clearTimeout(this.heartbeatTimeout);
     this.heartbeatTimeout = undefined;
     this.heartbeatIntervalTime = undefined;
-    this.heartbeatAck = undefined;
+    this.heartbeatAck = false;
   }
 
   /*
@@ -716,21 +646,15 @@ module.exports = class Gateway {
    ********************************
    */
 
-  /**
-   * Assigned to websocket `onmessage`.
-   * @private
-   */
-  _onmessage(m) {
-    this.handleMessage(JSON.parse(m.data));
+  /** Assigned to websocket `onmessage`. */
+  private _onmessage(m: ws.MessageEvent): void {
+    typeof m.data === 'string' && this.handleMessage(JSON.parse(m.data));
   }
 
-  /**
-   * Processes incoming messages from Discord's gateway.
-   * @private
-   *
-   * @param {Object} p Packet from Discord. https://discordapp.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
+  /** Processes incoming messages from Discord's gateway.
+   * @param p Packet from Discord. https://discordapp.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
    */
-  handleMessage(p) {
+  private handleMessage(p: GatewayPayload): void {
     const {
       t: type, s: sequence, op: opCode, d: data,
     } = p;
@@ -738,16 +662,18 @@ module.exports = class Gateway {
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
-          this.handleReady(data);
+          this.handleReady(<ReadyEventFields>data);
         } else if (type === 'RESUMED') {
           this.handleResumed();
-        } else {
+        } else if (type !== null) {
           setImmediate(() => this.handleEvent(type, data));
+        } else {
+          this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
         break;
 
       case GATEWAY_OP_CODES.HELLO:
-        this.handleHello(data);
+        this.handleHello(<Hello>data);
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT_ACK:
@@ -759,11 +685,11 @@ module.exports = class Gateway {
         break;
 
       case GATEWAY_OP_CODES.INVALID_SESSION:
-        this.handleInvalidSession(data);
+        this.handleInvalidSession(<boolean>data);
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
-        this.ws.close(GATEWAY_CLOSE_CODES.RECONNECT);
+        this.ws?.close(GATEWAY_CLOSE_CODES.RECONNECT);
         break;
 
       default:
@@ -776,24 +702,19 @@ module.exports = class Gateway {
 
   /**
    * Handles "Ready" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#ready
-   * @private
-   *
-   * @param {Object} data From Discord.
+   * @param data From Discord.
    */
-  handleReady(data) {
-    this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
+  private handleReady(data: ReadyEventFields): void {
+    this.log('INFO', `Received Ready. Session ID: ${data.sessionId}.`);
 
-    this.sessionId = data.session_id;
+    this.sessionId = data.sessionId;
     this.online = true;
 
     this.handleEvent('READY', data);
   }
 
-  /**
-   * Handles "Resumed" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#resumed
-   * @private
-   */
-  handleResumed() {
+  /** Handles "Resumed" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#resumed */
+  private handleResumed(): void {
     this.log('INFO', 'Replay finished. Resuming events.');
     this.online = true;
 
@@ -802,13 +723,11 @@ module.exports = class Gateway {
 
   /**
    * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discordapp.com/developers/docs/topics/gateway#connecting-to-the-gateway
-   * @private
-   *
-   * @param {Object} data From Discord.
+   * @param data From Discord.
    */
-  handleHello(data) {
+  private handleHello(data: Hello): void {
     this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
-    this.startHeartbeat(data.heartbeat_interval);
+    this.startHeartbeat(data.heartbeatInterval);
     this.connect(this.resumable);
 
     this.handleEvent('HELLO', data);
@@ -816,27 +735,22 @@ module.exports = class Gateway {
 
   /**
    * Starts heartbeating. https://discordapp.com/developers/docs/topics/gateway#heartbeating
-   * @private
-   *
-   * @param {number} heartbeatInterval From Discord - Number of ms to wait between sending heartbeats.
+   * @param heartbeatInterval From Discord - Number of ms to wait between sending heartbeats.
    */
-  startHeartbeat(heartbeatInterval) {
+  private startHeartbeat(heartbeatInterval: number): void {
     this.heartbeatAck = true;
     this.heartbeatIntervalTime = heartbeatInterval;
 
     const now = new Date().getTime();
-    this.nextHeartBeatTimestamp = now + this.heartbeatIntervalTime;
-    this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartBeatTimestamp - now);
+    this.nextHeartbeatTimestamp = now + this.heartbeatIntervalTime;
+    this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartbeatTimestamp - now);
   }
 
-  /**
-   * Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat.
-   * @private
-   */
-  heartbeat() {
+  /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
+  private heartbeat() {
     if (this.heartbeatAck === false) {
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
-      this.ws.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+      this.ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
       this.heartbeatAck = false;
       this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
@@ -844,32 +758,38 @@ module.exports = class Gateway {
       const now = new Date().getTime();
       this.lastHeartbeatTimestamp = now;
 
-      const message = `Heartbeat sent ${now - this.nextHeartBeatTimestamp}ms after scheduled time.`;
-      this.nextHeartBeatTimestamp = now + this.heartbeatIntervalTime;
-      this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartBeatTimestamp - now);
 
-      this.log('DEBUG', message);
+      if (this.heartbeatIntervalTime !== undefined) {
+        const message = this.nextHeartbeatTimestamp !== undefined
+          ? `Heartbeat sent ${now - this.nextHeartbeatTimestamp}ms after scheduled time.`
+          : 'nextHeartbeatTimestamp is undefined.';
+        this.nextHeartbeatTimestamp = now + this.heartbeatIntervalTime;
+        this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartbeatTimestamp - now);
+        this.log('DEBUG', message);
+      } else {
+        this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
+        this.ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      }
     }
   }
 
-  /**
-   * Handles "Heartbeat ACK" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#heartbeating
-   * @private
-   */
-  handleHeartbeatAck() {
+  /** Handles "Heartbeat ACK" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#heartbeating */
+  private handleHeartbeatAck(): void {
     this.heartbeatAck = true;
     this.handleEvent('HEARTBEAT_ACK', null);
 
-    const message = `Heartbeat acknowledged. Latency: ${new Date().getTime()
+    if (this.lastHeartbeatTimestamp !== undefined) {
+      const message = `Heartbeat acknowledged. Latency: ${new Date().getTime()
       - this.lastHeartbeatTimestamp}ms`;
-    this.log('DEBUG', message);
+      this.log('DEBUG', message);
+    } else {
+      this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
+      this.ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+    }
   }
 
-  /**
-   * Connects to gateway.
-   * @private
-   */
-  async connect(resume) {
+  /** Connects to gateway. */
+  private async connect(resume: boolean): Promise<void> {
     if (resume) {
       this.resume();
     } else {
@@ -878,46 +798,47 @@ module.exports = class Gateway {
     }
   }
 
-  /**
-   * Sends a "Resume" payload to Discord's gateway.
-   * @private
-   */
-  resume() {
+  /** Sends a "Resume" payload to Discord's gateway. */
+  private resume(): void {
     const message = `Attempting to resume connection. Session_id: ${this.sessionId}. Sequence: ${this.sequence}`;
     this.log('INFO', message);
 
-    const payload = {
-      token: this.token,
-      session_id: this.sessionId,
-      seq: this.sequence,
-    };
+    const { identity: { token }, sequence, sessionId } = this;
 
-    this.handleEvent('GATEWAY_RESUME', payload);
+    if (sessionId !== undefined && sequence !== undefined) {
+      const payload: Resume = {
+        token,
+        sessionId,
+        seq: sequence,
+      };
 
-    this.send(GATEWAY_OP_CODES.RESUME, payload);
+      this.handleEvent('GATEWAY_RESUME', payload);
+
+      this.send(GATEWAY_OP_CODES.RESUME, payload);
+    } else {
+      this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - sessionId: ${sessionId}, sequence: ${sequence}`);
+      this.ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+    }
   }
 
-  /**
-   * Sends an "Identify" payload.
-   * @private
-   */
-  async identify() {
+  /** Sends an "Identify" payload. */
+  private async identify(): Promise<void> {
+    const [shardId, shardCount] = this.shard ?? [0, 1];
     this.log(
       'INFO',
-      `Identifying as shard: ${this.identity.shard[0]}/${this.identity.shard[1] - 1} (0-indexed)`,
+      `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`,
     );
 
-    this.handleEvent('GATEWAY_IDENTIFY', this.identity);
+    await this.handleEvent('GATEWAY_IDENTIFY', this.identity);
 
     this.send(GATEWAY_OP_CODES.IDENTIFY, this.identity);
   }
 
   /**
    * Attempts to acquire all the necessary locks to identify.
-   * @private
-   * @returns {boolean} `true` if acquired locks; `false` if not.
+   * @returns `true` if acquired locks; `false` if not.
    */
-  async acquireLocks() {
+  private async acquireLocks(): Promise<boolean> {
     if (this.identifyLocks !== undefined) {
       const acquiredLocks = await this.acquireIdentifyLocks();
       if (!acquiredLocks) {
@@ -941,16 +862,13 @@ module.exports = class Gateway {
 
   /**
    * Attempts to acquire all the non-main identify locks in succession, releasing if one fails.
-   * @private
-   * @returns {boolean} `true` if acquired locks; `false` if not.
+   * @returns `true` if acquired locks; `false` if not.
    */
-  async acquireIdentifyLocks() {
+  private async acquireIdentifyLocks(): Promise<boolean> {
     if (this.identifyLocks !== undefined) {
-      /** @type {IdentifyLockService[]} */
-      const acquiredLocks = [];
+      const acquiredLocks: IdentifyLockService[] = [];
 
       for (let i = 0; i < this.identifyLocks.length; ++i) {
-      /** @type {IdentifyLockService} */
         const lock = this.identifyLocks[i]; // for intellisense
 
         const acquiredLock = await this.acquireIdentifyLock(lock);
@@ -968,12 +886,10 @@ module.exports = class Gateway {
 
   /**
    * Attempts to acquire an identify lock.
-   * @private
-   *
-   * @param {IdentifyLockService} lock Lock to acquire.
-   * @returns {boolean} `true` if acquired lock (or fallback); `false` if not.
+   * @param lock Lock to acquire.
+   * @returns `true` if acquired lock (or fallback); `false` if not.
    */
-  async acquireIdentifyLock(lock) {
+  private async acquireIdentifyLock(lock: IdentifyLockService): Promise<boolean> {
     try {
       const { success, message: err } = await lock.acquire();
 
@@ -1000,14 +916,12 @@ module.exports = class Gateway {
 
   /**
    * Releases the identity lock.
-   * @private
-   *
-   * @param {IdentifyLockService} lock Lock to release.
+   * @param lock Lock to release.
    */
-  async releaseIdentifyLock(lock) {
+  private async releaseIdentifyLock(lock: IdentifyLockService): Promise<void> {
     try {
       const { message: err } = await lock.release();
-      lock.token = undefined;
+      lock.clearToken();
 
       if (err !== undefined) {
         this.log('DEBUG', `Was not able to release lock. Message: ${err}`);
@@ -1015,7 +929,7 @@ module.exports = class Gateway {
     } catch (err) {
       this.log('WARNING', `Was not able to connect to lock server to release lock: ${lock.target}.}`);
 
-      if (err.code !== 14) {
+      if (err.code !== RPC_CLOSE_CODES.LOST_CONNECTION) {
         throw err;
       }
     }
@@ -1023,19 +937,16 @@ module.exports = class Gateway {
 
   /**
    * Sends a websocket message to Discord.
-   * @private
-   *
-   * @param {number} op Gateway Opcode https://discordapp.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
-   * @param {Object} data Data of the message.
-   * @returns {boolean} true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
+   * @param op Gateway Opcode https://discordapp.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
+   * @param data Data of the message.
+   * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
-  send(op, data) {
+  private send(op: number, data: unknown): boolean {
     const payload = { op, d: data };
 
     if (
       this.canSendPacket(op)
-      && this.ws !== undefined
-      && this.ws.readyState === ws.OPEN
+      && this.ws?.readyState === ws.OPEN
     ) {
       const packet = JSON.stringify(payload);
       this.ws.send(packet);
@@ -1054,12 +965,10 @@ module.exports = class Gateway {
 
   /**
    * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).
-   * @private
-   *
-   * @param {number} op Op code of the message to be sent.
-   * @returns {boolean} true if sending message won't exceed rate limit or padding; false if it will
+   * @param op Op code of the message to be sent.
+   * @returns true if sending message won't exceed rate limit or padding; false if it will
    */
-  canSendPacket(op) {
+  private canSendPacket(op: number): boolean {
     const now = new Date().getTime();
 
     if (now >= this.wsRateLimitCache.resetTimestamp) {
@@ -1080,11 +989,8 @@ module.exports = class Gateway {
     return false;
   }
 
-  /**
-   * Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed
-   * @private
-   */
-  updateWsRateLimit() {
+  /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
+  private updateWsRateLimit(): void {
     if (
       this.wsRateLimitCache.remainingRequests === GATEWAY_MAX_REQUESTS_PER_MINUTE
     ) {
@@ -1097,11 +1003,9 @@ module.exports = class Gateway {
   /**
    * Handles "Invalid Session" packet from Discord. Will attempt to resume a connection if Discord allows it and there is already a sessionId and sequence.
    * Otherwise, will send a new identify payload. https://discordapp.com/developers/docs/topics/gateway#invalid-session
-   * @private
-   *
-   * @param {boolean} resumable Whether or not Discord has said that the connection as able to be resumed.
+   * @param resumable Whether or not Discord has said that the connection as able to be resumed.
    */
-  handleInvalidSession(resumable) {
+  private handleInvalidSession(resumable: boolean): void {
     this.log(
       'INFO',
       `Received Invalid Session packet. Resumable: ${resumable}`,
@@ -1109,9 +1013,9 @@ module.exports = class Gateway {
 
 
     if (!resumable) {
-      this.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+      this.ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
     } else {
-      this.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+      this.ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
     }
 
     this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
@@ -1119,14 +1023,12 @@ module.exports = class Gateway {
 
   /**
    * Updates the sequence value of Discord's gateway if it's larger than the current.
-   * @private
-   *
-   * @param {number} s Sequence value from Discord.
+   * @param s Sequence value from Discord.
    */
-  updateSequence(s) {
-    if (this.sequence === null) {
-      this.sequence = s;
-    } else {
+  private updateSequence(s: number | null): void {
+    if (this.sequence === undefined) {
+      this.sequence = s ?? undefined;
+    } else if (s !== null) {
       if (s > this.sequence + 1) {
         this.log(
           'WARNING',
@@ -1139,4 +1041,4 @@ module.exports = class Gateway {
       }
     }
   }
-};
+}

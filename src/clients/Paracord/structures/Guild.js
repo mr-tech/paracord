@@ -11,13 +11,17 @@ module.exports = class Guild {
    * @param {Paracord} client Paracord client.
    */
   constructor(guildData, client, shard) {
+    /** @type {string} */
+    this.id;
+    /** @type {string} */
+    this.ownerId;
     /** @type {Map<string, Object<string, Object<string, any>>>} Cached member objects of this guild. */
     this.members;
     /** @type {Map<string, Object<string, Object<string, any>>} Cached channel objects of this guild. */
     this.channels;
     /** @type {Map<string, Object<string, Object<string, any>>>} Cached presence objects of this guild. */
     this.presences;
-    /** @type {Map<string, Object<string, Object<string, any>>>} Cached role objects of this guild. */
+    /** @type {Map<string, Object<string, Object<string, Role>>>} Cached role objects of this guild. */
     this.roles;
     /** @type {Map<string, Object<string, Object<string, any>>>} Cached voice state objects of this guild. */
     this.voiceStates;

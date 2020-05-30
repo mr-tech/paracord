@@ -1,40 +1,47 @@
 "use strict";
-const { RequestMetaMessage, AuthorizationMessage, RateLimitStateMessage, } = require('../../structures');
-const { loadProtoDefinition, constructorDefaults } = require('../common');
-const definition = loadProtoDefinition('rate_limit');
-module.exports = class RateLimitService extends definition.RateLimitService {
+Object.defineProperty(exports, "__esModule", { value: true });
+const common_1 = require("../common");
+const structures_1 = require("../../structures");
+const definition = common_1.loadProtoDefinition('rate_limit');
+class RateLimitService extends definition.RateLimitService {
     constructor(options) {
-        const defaultArgs = constructorDefaults(options || {});
-        super(...defaultArgs);
-        this.target = defaultArgs[0];
+        const { host, port, channel, protoOptions, allowFallback, } = common_1.mergeOptionsWithDefaults(options || {});
+        const dest = `${host}:${port}`;
+        super(dest, channel, protoOptions);
+        this.target = dest;
+        this.allowFallback = allowFallback || false;
     }
     authorize(request) {
         const { method, url } = request;
-        const message = new RequestMetaMessage(method, url).proto;
+        const message = new structures_1.RequestMetaMessage(method, url).proto;
         return new Promise((resolve, reject) => {
-            super.authorize(message, (err, res) => {
+            super.request(message, (err, res) => {
                 if (err === null) {
-                    resolve(AuthorizationMessage.fromProto(res));
+                    reject(err);
+                }
+                else if (res === undefined) {
+                    reject(Error('no message'));
                 }
                 else {
-                    reject(err);
+                    resolve(structures_1.AuthorizationMessage.fromProto(res));
                 }
             });
         });
     }
     update(request, global, bucket, limit, remaining, resetAfter) {
         const { method, url } = request;
-        const requestMeta = new RequestMetaMessage(method, url);
-        const message = new RateLimitStateMessage(requestMeta, global, bucket, limit, remaining, resetAfter).proto;
+        const requestMeta = new structures_1.RequestMetaMessage(method, url);
+        const message = new structures_1.RateLimitStateMessage(requestMeta, global, bucket, limit, remaining, resetAfter).proto;
         return new Promise((resolve, reject) => {
-            super.update(message, (err) => {
+            super.request(message, (err) => {
                 if (err === null) {
-                    resolve();
+                    reject(err);
                 }
                 else {
-                    reject(err);
+                    resolve();
                 }
             });
         });
     }
-};
+}
+exports.default = RateLimitService;

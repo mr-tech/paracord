@@ -3,8 +3,8 @@ import { ServiceError } from '@grpc/grpc-js';
 import { RequestMessage, ResponseMessage } from '../../structures';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 import { ApiRequest } from '../../../clients/Api/structures';
-import { IServerOptions } from '../../../types';
 import { ResponseProto, RemoteApiResponse } from '../../types';
+import { IServerOptions } from '../../../common';
 
 const definition = loadProtoDefinition('request');
 
