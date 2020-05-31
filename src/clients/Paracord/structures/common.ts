@@ -1,5 +1,6 @@
+import { snakeToCamel } from '../../../Utils';
 
-function upsertCommon(obj, newProps) {
+export function upsertCommon(obj: Record<string, unknown>, newProps: Record<string, unknown>): void {
   if (obj.filtering) {
     assignFilteredProperties(obj, newProps);
   } else {
@@ -7,7 +8,7 @@ function upsertCommon(obj, newProps) {
   }
 }
 
-function assignFilteredProperties(obj, filter, newProps) {
+export function assignFilteredProperties(obj: Record<string, unknown>, filter: Record<string, unknown>, newProps: Record<string, unknown>): void {
   const { filterWhitelist, filterProps } = filter;
   if (filterWhitelist) {
     assignWhitelistedProperties(obj, newProps, filterProps);
@@ -16,7 +17,7 @@ function assignFilteredProperties(obj, filter, newProps) {
   }
 }
 
-function assignWhitelistedProperties(obj, newProps, filterProps) {
+export function assignWhitelistedProperties(obj: Record<string, unknown>, newProps: Record<string, unknown>, filterProps: string[]): void {
   for (const [key, value] of Object.entries(newProps)) {
     if (value !== undefined && filterProps.includes(key)) {
       obj[snakeToCamel(key)] = value;
@@ -24,17 +25,10 @@ function assignWhitelistedProperties(obj, newProps, filterProps) {
   }
 }
 
-function assignNonBlacklistedProperties(obj, newProps, filterProps) {
+export function assignNonBlacklistedProperties(obj: Record<string, unknown>, newProps: Record<string, unknown>, filterProps: string[]): void {
   for (const [key, value] of Object.entries(newProps)) {
     if (value !== undefined && !filterProps.includes(key)) {
       obj[snakeToCamel(key)] = value;
     }
   }
 }
-
-module.exports = {
-  assignWhitelistedProperties,
-  assignNonBlacklistedProperties,
-  assignFilteredProperties,
-  upsertCommon,
-};

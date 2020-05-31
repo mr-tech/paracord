@@ -1,6 +1,6 @@
-import { GuildMember, Snowflake } from '.';
+import { RawGuildMember, Snowflake } from '.';
 
-export type VoiceState = {
+export type RawVoiceState = {
   /** the guild id this voice state is for */
   guildId?: Snowflake;
   /** the channel id this user is connected to */
@@ -8,7 +8,7 @@ export type VoiceState = {
   /** the user id this voice state is for */
   userId: Snowflake;
   /** the guild member this voice state is for */
-  member: GuildMember;
+  member: RawGuildMember;
   /** the session id for this voice state */
   sessionId: string;
   /** whether this user is deafened by the server */

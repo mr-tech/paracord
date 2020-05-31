@@ -31,11 +31,12 @@ export function timestampNMillisecondsInFuture(milliseconds: number): number {
 }
 
 /**
- * Returns a timestamp of some time in the future.
+ * Returns a timestamp of some time in the future. -1 if provide timestamp has already passed
  * @param timestamp Unix timestamp.
  */
 export function millisecondsFromNow(timestamp: number): number {
-  return Number(timestamp) - new Date().getTime();
+  const now = new Date().getTime();
+  return timestamp < now ? -1 : timestamp - new Date().getTime();
 }
 
 // export function guildShardFromID(guildId, shardCount) {
@@ -230,13 +231,13 @@ export function constructGuildIcon(guild: Guild, fileType = ''): string | undefi
 
 // /**
 //  * Assigns export functions to an object and binds that object to their `this`.
-//  * @param {Object<string, any>} obj Object to bind to export functions and assign export functions those export functions as properties.
-//  * @param {Object<string, Function>} funcs Functions to assign to object.
+//  * @param obj Object to bind to export functions and assign export functions those export functions as properties.
+//  * @param funcs Functions to assign to object.
 //  */
-// export function bindFunctionsFromFile(obj: any, funcs: any) {
+// export function bindEventFunctionsFromFile(obj: Record<string, unknown> | unknown, funcs: Record<string, unknown>): void {
 //   for (const prop of Object.getOwnPropertyNames(funcs)) {
 //     if (typeof funcs[prop] === 'function') {
-//       obj[prop] = funcs[prop].bind(obj);
+//       obj.events[prop] = funcs[prop].bind(obj);
 //     }
 //   }
 // }

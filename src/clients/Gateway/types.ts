@@ -6,7 +6,7 @@ import { IApiResponse } from '../Api/types';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord's Shard Launcher. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
-  identity: Identify;
+  identity: Partial<Identify>;
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventEmitter;
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
@@ -22,12 +22,14 @@ type ErrorResponse = {
   code: number;
 }
 
-export interface GatewayBotResponse extends IApiResponse{
+export interface GatewayBotResponse extends IApiResponse {
   data: {
     /** websocket url */
     url: string;
     /** state of the limits for this period of time */
     sessionStartLimit: SessionLimitData;
+    /** recommended shard count */
+    shards: number;
   } & ErrorResponse
 }
 
@@ -38,4 +40,6 @@ export type SessionLimitData = {
   remaining: number;
   /** How long in ms until `remaining` resets. */
   resetAfter: number;
+  /** How many shards are allowed to identify in parallel. */
+  maxConcurrency: number;
 }
