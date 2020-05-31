@@ -2,7 +2,7 @@
 import ws from 'ws';
 import { EventEmitter } from 'events';
 import Api from '../Api/Api';
-import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../Utils';
+import { coerceTokenToBotLike, objectKeysCamelToSnake, objectKeysSnakeToCamel } from '../../Utils';
 import Identify from './structures/Identify';
 import { IdentifyLockService } from '../../rpc/services';
 
@@ -137,17 +137,17 @@ export default class Gateway {
   }
 
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
-  private get resumable(): boolean {
+  public get resumable(): boolean {
     return this.sessionId !== undefined && this.sequence !== null;
   }
 
   /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
-  private get shard(): Identify['shard'] | undefined {
+  private get shard(): Identify['shard'] {
     return this.identity.shard !== undefined ? this.identity.shard : undefined;
   }
 
   /** The shard id that this gateway is connected to. */
-  private get id(): number {
+  public get id(): number {
     return this.identity.shard !== undefined ? this.identity.shard[0] : 0;
   }
 
@@ -321,7 +321,7 @@ export default class Gateway {
   }
 
   /** Releases all non-main identity locks. */
-  private async releaseIdentifyLocks(): Promise<void> {
+  public async releaseIdentifyLocks(): Promise<void> {
     if (this.identifyLocks.length) {
       this.identifyLocks.forEach((l) => {
         if (l.token !== undefined) this.releaseIdentifyLock(l);
@@ -401,7 +401,7 @@ export default class Gateway {
       data = await this.emitter.eventHandler(type, data, this.id);
     }
 
-    data !== undefined && this.emit(type, data);
+    data ?? this.emit(type, data);
   }
 
   /**
@@ -656,8 +656,10 @@ export default class Gateway {
    */
   private handleMessage(p: GatewayPayload): void {
     const {
-      t: type, s: sequence, op: opCode, d: data,
+      t: type, s: sequence, op: opCode, d,
     } = p;
+
+    const data = d ?? typeof d === 'object' ? objectKeysSnakeToCamel(<Record<string, unknown>>d) : d;
 
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
@@ -829,9 +831,9 @@ export default class Gateway {
       `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`,
     );
 
-    await this.handleEvent('GATEWAY_IDENTIFY', this.identity);
+    await this.handleEvent('GATEWAY_IDENTIFY', this);
 
-    this.send(GATEWAY_OP_CODES.IDENTIFY, this.identity);
+    this.send(GATEWAY_OP_CODES.IDENTIFY, this);
   }
 
   /**

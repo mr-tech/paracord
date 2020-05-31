@@ -1,8 +1,8 @@
 import {
-  Snowflake, User, ISO8601timestamp, GuildMember, Role, Emoji,
+  Snowflake, User, ISO8601timestamp, GuildMember, RawRole, RawEmoji, RawGuildMember,
 } from '.';
 
-export type Channel = {
+export type RawChannel = {
   /** the id of this channel */
   id: Snowflake;
   /** the type of channel */
@@ -53,7 +53,7 @@ export type Message = {
   /** the author of this message (not guaranteed to be a valid user, see below) */
   author: User;
   /** member properties for this message's author */
-  member?: Partial<GuildMember>;
+  member?: RawGuildMember;
   /** contents of the message */
   content: string;
   /** when this message was sent */
@@ -67,7 +67,7 @@ export type Message = {
   /** users specifically mentioned in the message */
   mentions: User & Partial<GuildMember>;
   /** roles specifically mentioned in this message */
-  mentionRoles: Role[];
+  mentionRoles: RawRole[];
   /** channels specifically mentioned in this message */
   mentionChannels?: ChannelMention[];
   /** any attached files */
@@ -195,7 +195,7 @@ export type Reaction = {
   /** whether the current user reacted using this emoji */
   me: boolean;
   /** emoji information */
-  emoji: Partial<Emoji>;
+  emoji: Partial<RawEmoji>;
 };
 
 // ========================================================================

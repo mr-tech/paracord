@@ -10,13 +10,13 @@ export default class RateLimit {
   private remaining: number;
 
   /** When the rate limit's remaining requests resets to `limit`. */
-  private resetTimestamp: number | void;
+  private resetTimestamp: number;
 
   /** From Discord - Rate limit request cap. */
   private limit: number;
 
   /** Timestamp of when this rate limit will expire if not accessed again before then. */
-  public expires: number | void;
+  public expires: number | undefined;
 
   private template: RateLimitTemplate;
 
@@ -30,7 +30,7 @@ export default class RateLimit {
    */
   public constructor({ remaining, resetTimestamp, limit }: RateLimitState, template: RateLimitTemplate) {
     this.remaining = remaining;
-    this.resetTimestamp = resetTimestamp;
+    this.resetTimestamp = resetTimestamp ?? -1;
     this.limit = limit;
     this.expires = undefined;
     this.template = template;
@@ -68,8 +68,6 @@ export default class RateLimit {
 
   /** How long until the rate limit resets in ms. */
   public get resetAfter(): number {
-    if (this.resetTimestamp === undefined) return 0;
-
     const resetAfter = millisecondsFromNow(this.resetTimestamp);
     return resetAfter > 0 ? resetAfter : 0;
   }

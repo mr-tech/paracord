@@ -1,6 +1,6 @@
 import { Snowflake } from '.';
 
-export type Role = {
+export type RawRole = {
   /** role id */
   id: Snowflake;
   /** role name */

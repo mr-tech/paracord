@@ -1,6 +1,7 @@
 import { ChannelCredentials } from '@grpc/grpc-js';
 import { Options } from '@grpc/proto-loader';
 import { EventEmitter } from 'events';
+import { RawGuild } from './types';
 
 export interface IServerOptions {
   /** Server host to connect to. */
@@ -29,3 +30,7 @@ export type RpcArguments = [boolean, string, number, number, number]
 export interface ExtendedEmitter extends EventEmitter {
   eventHandler?: (type: string, data: unknown, id: number) => Promise<unknown>;
 }
+
+export type DeleteEvent = ({ guildId }: {guildId: RawGuild['id']}) => unknown;
+
+// export type NotVoid = string | number | boolean | symbol | bigint | Record<string, unknown>;

@@ -1,5 +1,5 @@
 import {
-  Snowflake, User, UnavailableGuild, ISO8601timestamp, GuildMember, Role, Emoji,
+  Snowflake, User, UnavailableGuild, ISO8601timestamp, GuildMember, RawEmoji, RawRole,
 } from '.';
 
 export type GatewayPayload = {
@@ -239,7 +239,7 @@ export type GuildMembersChunkEventFields = {
   /** if passing an invalid id to `REQUEST_GUILD_MEMBERS`, it will be returned here */
   notFound?: [];
   /** if passing true to `REQUEST_GUILD_MEMBERS`, presences of the returned members will be here */
-  presences?: Presence[];
+  presences?: RawPresence[];
   /** the nonce used in the Guild Members Request */
   nonce?: string;
 };
@@ -250,7 +250,7 @@ export type GuildRoleCreateEventFields = {
   /** the id of the guild */
   guildId: Snowflake;
   /** the role created */
-  role: Role;
+  role: RawRole;
 };
 
 // ========================================================================
@@ -259,7 +259,7 @@ export type GuildRoleUpdateEventFields = {
   /** the id of the guild */
   guildId: Snowflake;
   /** the role updated */
-  role: Role;
+  role: RawRole;
 };
 
 // ========================================================================
@@ -345,7 +345,7 @@ export type MessageReactionAddEventFields = {
   /** the member who reacted if this happened in a guild */
   member?: GuildMember;
   /** the emoji used to react - example */
-  emoji: Partial<Emoji>;
+  emoji: Partial<RawEmoji>;
 };
 
 // ========================================================================
@@ -360,7 +360,7 @@ export type MessageReactionRemoveEventFields = {
   /** the id of the guild */
   guildId?: Snowflake;
   /** the emoji used to react - example */
-  emoji: Partial<Emoji>;
+  emoji: Partial<RawEmoji>;
 };
 
 // ========================================================================
@@ -384,26 +384,28 @@ export type MessageReactionRemoveEmoji = {
   /** the id of the message */
   messageId: Snowflake;
   /** the emoji that was removed */
-  emoji: Partial<Emoji>;
+  emoji: Partial<RawEmoji>;
 };
 
 // ========================================================================
 
-export type Presence = {
+export type RawPresence = {
   /** the user presence is being updated for */
-  user: User;
+  user: Partial<User> & {
+    id: Snowflake
+  };
   /** roles this user is in */
-  roles: Snowflake[];
+  roles?: Snowflake[];
   /** null, or the user's current activity */
-  game: Activity | null;
+  game?: Activity | null;
   /** id of the guild */
-  guildId: Snowflake;
+  guildId?: Snowflake;
   /** either "idle", "dnd", "online", or "offline" */
-  status: string;
+  status?: string;
   /** user's current activities */
-  activities: Activity[];
+  activities?: Activity[];
   /** user's platform-dependent status */
-  clientStatus: ClientStatus;
+  clientStatus?: ClientStatus;
   /** when the user started boosting the guild */
   premiumSince?: ISO8601timestamp | null;
   /** this users guild nickname (if one is set) */

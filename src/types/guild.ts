@@ -1,8 +1,8 @@
 import {
-  ISO8601timestamp, Snowflake, Emoji, User, RoleMap, EmojiMap, VoiceStateMap, PresenceMap, GuildMemberMap, GuildChannelMap,
+  ISO8601timestamp, Snowflake, User, EmojiMap, VoiceRegion, RawRole, RawEmoji, RawChannel, RawPresence, RawVoiceState,
 } from '.';
 
-export type Guild = {
+export type RawGuild = {
   /** guild id */
   id: Snowflake;
   /** guild name (2-100 characters, excluding trailing and leading whitespace) */
@@ -20,7 +20,7 @@ export type Guild = {
   /** total permissions for the user in the guild (excludes overrides) */
   permissions?: number;
   /** voice region id for the guild */
-  region: string;
+  region: VoiceRegion;
   /** id of afk channel */
   afkChannelId: Snowflake | null;
   /** afk timeout in seconds */
@@ -30,19 +30,19 @@ export type Guild = {
   /** the channel id that the widget will generate an invite to, or `null` if set to no invite (deprecated, replaced with `widget_channel_id`) */
   embedChannelId?: Snowflake | null;
   /** verification level required for the guild */
-  verificationLevel: number;
-  /** default message notifications level */
-  defaultMessageNotifications: number;
+  verificationLevel: VerificationLevel;
+  /** default message notification level */
+  defaultMessageNotifications: DefaultMessageNotificationLevel;
   /** explicit content filter level */
-  explicitContentFilter: number;
+  explicitContentFilter: ExplicitContentFilterLevel;
   /** roles in the guild */
-  roles: RoleMap;
+  roles: RawRole[];
   /** custom guild emojis */
-  emojis: EmojiMap;
+  emojis: RawEmoji[];
   /** enabled guild features */
   features: GuildFeature[];
-  /** required MFA level for the guild */
-  mfaLevel: number;
+  /** required MFA Level for the guild */
+  mfaLevel: MFALevel;
   /** application id of the guild creator if it is bot-created */
   applicationId: Snowflake | null;
   /** true if the server widget is enabled */
@@ -52,7 +52,7 @@ export type Guild = {
   /** the id of the channel where guild notices such as welcome messages and boost events are posted */
   systemChannelId: Snowflake | null;
   /** system channel flags */
-  systemChannelFlags: number;
+  systemChannelFlags: SystemChannelFlags;
   /** the id of the channel where guilds with the "PUBLIC" feature can display rules and/or guidelines */
   rulesChannelId: Snowflake | null;
   /** when this guild was joined at */
@@ -64,13 +64,13 @@ export type Guild = {
   /** total number of members in this guild */
   memberCount?: number;
   /** states of members currently in voice channels; lacks the `guild_id` key */
-  voiceStates?: VoiceStateMap;
+  voiceStates?: Partial<RawVoiceState>[];
   /** users in the guild */
-  members?: GuildMemberMap;
+  members?: RawGuildMember[];
   /** channels in the guild */
-  channels?: GuildChannelMap;
+  channels?: RawChannel[];
   /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
-  presences?: PresenceMap;
+  presences?: Partial<RawPresence>[];
   /** the maximum number of presences for the guild (the default value, currently 25000, is in effect when `null` is returned) */
   maxPresences?: number | null;
   /** the maximum number of members for the guild */
@@ -81,8 +81,8 @@ export type Guild = {
   description: string | null;
   /** banner hash */
   banner: string | null;
-  /** premium tier (Server Boost level) */
-  premiumTier: number;
+  /** server Boost level */
+  premiumTier: PremiumTier;
   /** the number of boosts this guild currently has */
   premiumSubscriptionCount?: number;
   /** the preferred locale of a guild with the "PUBLIC" feature; used in server discovery and notices from Discord; defaults to "en-US" */
@@ -96,6 +96,63 @@ export type Guild = {
   /** approximate number of non-offline members in this guild, returned from the `GET /guild/<id>` endpoint when `with_counts` is `true` */
   approximatePresenceCount?: number;
 };
+
+// ========================================================================
+
+export type DefaultMessageNotificationLevel = [
+  /** ALL_MESSAGES */
+  0 |
+  /** ONLY_MENTIONS */
+  1
+];
+
+// ========================================================================
+
+export type ExplicitContentFilterLevel = [
+  /** DISABLED */
+  0 |
+  /** MEMBERS_WITHOUT_ROLES */
+  1 |
+  /** ALL_MEMBERS */
+  2
+];
+
+// ========================================================================
+
+export type MFALevel = [
+  /** NONE */
+  0 |
+  /** ELEVATED */
+  1
+];
+
+// ========================================================================
+
+export type VerificationLevel = [
+  /** NONE */
+  0 |
+  /** LOW */
+  1 |
+  /** MEDIUM */
+  2 |
+  /** HIGH */
+  3 |
+  /** VERY_HIGH */
+  4
+];
+
+// ========================================================================
+
+export type PremiumTier = [
+  /** NONE */
+  0 |
+  /** TIER_1 */
+  1 |
+  /** TIER_2 */
+  2 |
+  /** TIER_3 */
+  3
+];
 
 // ========================================================================
 
@@ -151,7 +208,7 @@ export type GuildPreview = {
   /** discovery splash hash */
   discoverySplash: string | null;
   /** custom guild emojis */
-  emojis: Emoji[];
+  emojis: EmojiMap;
   /** enabled guild features */
   features: GuildFeature[];
   /** approximate number of members in this guild */
@@ -173,13 +230,13 @@ export type GuildWidget = {
 
 // ========================================================================
 
-export type GuildMember = {
+export type RawGuildMember = {
   /** the user this guild member represents */
   user: User;
   /** this users guild nickname */
   nick: string | null;
   /** array of role object ids */
-  roles: RoleMap;
+  roles: Snowflake[];
   /** when the user joined the guild */
   joinedAt: ISO8601timestamp;
   /** when the user started boosting the guild */

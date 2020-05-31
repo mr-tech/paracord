@@ -36,7 +36,7 @@ export default class Api {
   private requestQueueProcessInterval?: NodeJS.Timer;
 
   /** When using Rpc, the service through which to pass requests to the server. */
-  private rpcRequestService?: RequestService;
+  public rpcRequestService?: RequestService;
 
   /** When using Rpc, the service through which to get authorization to make requests. */
   private rpcRateLimitService?: RateLimitService;
@@ -99,7 +99,7 @@ export default class Api {
    * Creates an isolated axios instance for use by this REST handler.
    * @private
    */
-  private createWrappedRequest(token: string, requestOptions: IRequestOptions | void): WrappedRequest {
+  private createWrappedRequest(token: string, requestOptions: IRequestOptions | undefined): WrappedRequest {
     const instance = axios.create({
       baseURL: `${DISCORD_API_URL}/${DISCORD_API_DEFAULT_VERSION}`,
       headers: {

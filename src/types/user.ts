@@ -1,6 +1,6 @@
 import { Integration, Snowflake } from '.';
 
-export type User = {
+export type RawUser = {
   /** the user's id */
   id: Snowflake; // identify
   /** the user's username, not unique across the platform */
