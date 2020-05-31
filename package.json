@@ -9,7 +9,8 @@
     "test-nodemon": "nodemon --exec \"mocha tests/smoke.spec.js tests/suite.spec.js 'src/**/tests/*.spec.js'\"",
     "test-paracord": "nodemon --exec \"mocha tests/smoke.spec.js tests/suite.spec.js 'src/**/tests/*.spec.js' -g Paracord\"",
     "coverage": "nodemon --exec \"nyc --reporter=html --reporter=text npm run test\"",
-    "tsc:w": "tsc -w"
+    "tsc:w": "tsc -w",
+    "build": "rm -rf ./dist && tsc && cp -r src/rpc/protobufs dist/rpc/protobufs"
   },
   "repository": {
     "type": "git",

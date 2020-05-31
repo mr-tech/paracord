@@ -84,7 +84,7 @@ export default class Paracord extends EventEmitter {
     cacheMemberFromEvent(guild: Guild, member: GuildMember | RawGuildMember): GuildMember;
     private sweepCaches;
     static uqSnowflakes(...args: (Map<string, unknown> | string)[]): string[];
-    static deDupe(a: Array<Snowflake>): Map<Snowflake, undefined>;
+    static deDupe(a: Snowflake[]): Map<Snowflake, undefined>;
     private static trimMembersFromDeleteList;
     private clearUserFromCaches;
     sendMessage(channelId: Snowflake, message: string | Record<string, unknown> | Message): Promise<IApiResponse | RemoteApiResponse>;

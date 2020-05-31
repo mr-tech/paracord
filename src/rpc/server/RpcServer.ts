@@ -1,5 +1,5 @@
 /* eslint-disable no-sync */
-import grpc, { ServerCredentials } from '@grpc/grpc-js';
+import { ServerCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import Api from '../../clients/Api/Api';
 import { RateLimitCache } from '../../clients/Api/structures';
@@ -9,6 +9,9 @@ import { LOG_LEVELS, LOG_SOURCES } from '../../constants';
 import { addIdentifyLockService, addRateLimitService, addRequestService } from '../services';
 import { Lock } from '../structures';
 import { IDebugEvent, RpcServerOptions } from '../types';
+
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const grpc = require('@grpc/grpc-js');
 
 /**
  * Rpc server.

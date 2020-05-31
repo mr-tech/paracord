@@ -1,13 +1,13 @@
 import { AxiosInstance } from 'axios';
-import {
-  RateLimitMap, RateLimitTemplateMap, BaseRequest, RateLimitHeaders, RateLimit,
-} from '.';
-
-import { millisecondsFromNow } from '../../../Utils';
-import { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
-
-import { WrappedRequest, IApiResponse } from '../types';
 import type { ApiRequest } from '.';
+import { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
+import { millisecondsFromNow } from '../../../Utils';
+import { IApiResponse, WrappedRequest } from '../types';
+import BaseRequest from './BaseRequest';
+import RateLimit from './RateLimit';
+import RateLimitHeaders from './RateLimitHeaders';
+import RateLimitMap from './RateLimitMap';
+import RateLimitTemplateMap from './RateLimitTemplateMap';
 
 /** From Discord - A uid that identifies a group of requests that share a rate limit. */
 type RateLimitBucketUid = string;

@@ -281,25 +281,19 @@ export default class Api {
 
   /**
    * Makes a request to Discord, handling any rate limits and returning when a non-429 response is received.
-   *
    * @param method HTTP method of the request.
    * @param url Discord endpoint url. (e.g. "/channels/abc123")
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
   public async request(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse | RemoteApiResponse> {
-    const {
-      data, headers, local, keepCase,
-    } : IRequestOptions = options;
+    const { local, keepCase } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
       url = url.slice(1);
     }
 
-    const request = new ApiRequest(method.toUpperCase(), url, {
-      data,
-      headers,
-    });
+    const request = new ApiRequest(method.toUpperCase(), url, options);
 
     let response: IApiResponse | RemoteApiResponse;
     if (this.rpcRequestService === undefined || local) {
@@ -315,8 +309,6 @@ export default class Api {
 
   /**
    * Send the request and handle 429's.
-   * @private
-   *
    * @param request The request being sent.
    * @returns axios response.
    */
@@ -333,10 +325,11 @@ export default class Api {
       response.headers,
     );
 
-    while (response.status === 429) {
+    while (response.status === 429 && request.allowQueue) {
       rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
         response.headers,
       );
+      console.log(rateLimitHeaders);
       if (this.requestQueueProcessInterval === undefined) {
         const message = 'A request has been rate limited and will not be processed. Please invoke `startQueue()` on this client so that rate limits may be handled.';
         this.log('WARNING', message);

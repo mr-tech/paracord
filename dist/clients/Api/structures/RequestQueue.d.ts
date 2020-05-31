@@ -8,7 +8,7 @@ export default class RequestQueue {
     private apiClient;
     constructor(rateLimitCache: RateLimitCache, apiClient: Api);
     private get length();
-    push(...items: Array<ApiRequest>): void;
+    push(...items: ApiRequest[]): void;
     private spliceMany;
     process(): Promise<void>;
     private processIteration;

@@ -202,7 +202,7 @@ export default class Paracord extends EventEmitter {
   public eventHandler(eventType: string, data: unknown, shard: number): unknown {
     let emit = data ?? typeof data === 'object' ? objectKeysSnakeToCamel(<Record<string, unknown>>data) : data;
 
-    /** Method defined in ParacordEvents.js */
+    /** Method defined in ParacordEvents.ts */
     const paracordEvent = <EventFunction | undefined> this.gatewayEvents[eventType];
     if (paracordEvent !== undefined) {
       emit = paracordEvent(data, shard);
@@ -761,7 +761,7 @@ export default class Paracord extends EventEmitter {
   }
 
   /** https://stackoverflow.com/questions/6940103/how-do-i-make-an-array-with-unique-elements-i-e-remove-duplicates */
-  static deDupe(a: Array<Snowflake>): Map<Snowflake, undefined> {
+  static deDupe(a: Snowflake[]): Map<Snowflake, undefined> {
     const temp: Map<Snowflake, undefined> = new Map();
     for (let i = 0; i < a.length; i++) {
       temp.set(a[i], undefined);

@@ -1,20 +1,37 @@
+import { RateLimitHeaders } from '.';
+import RateLimit from './RateLimit';
 import RateLimitTemplate from './RateLimitTemplate';
-import { RateLimit, RateLimitHeaders } from '.';
 declare const _default: {
-    new (): {
+    new (entries?: readonly (readonly [string, RateLimitTemplate])[] | null | undefined): {
         upsert(state: RateLimitHeaders): RateLimitTemplate;
         createAssumedRateLimit(bucket: string): RateLimit | undefined;
         clear(): void;
-        delete(key: any): boolean;
-        forEach(callbackfn: (value: any, key: any, map: Map<any, any>) => void, thisArg?: any): void;
-        get(key: any): any;
-        has(key: any): boolean;
-        set(key: any, value: any): any;
+        delete(key: string): boolean;
+        forEach(callbackfn: (value: RateLimitTemplate, key: string, map: Map<string, RateLimitTemplate>) => void, thisArg?: any): void;
+        get(key: string): RateLimitTemplate | undefined;
+        has(key: string): boolean;
+        set(key: string, value: RateLimitTemplate): any;
         readonly size: number;
-        [Symbol.iterator](): IterableIterator<[any, any]>;
-        entries(): IterableIterator<[any, any]>;
-        keys(): IterableIterator<any>;
-        values(): IterableIterator<any>;
+        [Symbol.iterator](): IterableIterator<[string, RateLimitTemplate]>;
+        entries(): IterableIterator<[string, RateLimitTemplate]>;
+        keys(): IterableIterator<string>;
+        values(): IterableIterator<RateLimitTemplate>;
+        readonly [Symbol.toStringTag]: string;
+    };
+    new (iterable: Iterable<readonly [string, RateLimitTemplate]>): {
+        upsert(state: RateLimitHeaders): RateLimitTemplate;
+        createAssumedRateLimit(bucket: string): RateLimit | undefined;
+        clear(): void;
+        delete(key: string): boolean;
+        forEach(callbackfn: (value: RateLimitTemplate, key: string, map: Map<string, RateLimitTemplate>) => void, thisArg?: any): void;
+        get(key: string): RateLimitTemplate | undefined;
+        has(key: string): boolean;
+        set(key: string, value: RateLimitTemplate): any;
+        readonly size: number;
+        [Symbol.iterator](): IterableIterator<[string, RateLimitTemplate]>;
+        entries(): IterableIterator<[string, RateLimitTemplate]>;
+        keys(): IterableIterator<string>;
+        values(): IterableIterator<RateLimitTemplate>;
         readonly [Symbol.toStringTag]: string;
     };
     readonly [Symbol.species]: MapConstructor;

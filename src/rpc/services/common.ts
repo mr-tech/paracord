@@ -1,13 +1,18 @@
 /* eslint-disable no-sync */
-import grpc from '@grpc/grpc-js';
-import protoLoader from '@grpc/proto-loader';
+import { GrpcObject } from '@grpc/grpc-js';
+import { PackageDefinition } from '@grpc/proto-loader';
 import { IServerOptions } from '../../common';
+
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const protoLoader = require('@grpc/proto-loader');
+/* eslint-disable-next-line @typescript-eslint/no-var-requires */
+const grpc = require('@grpc/grpc-js');
 
 /**
  * Load in a protobuf from a file.
  * @param proto Name of the proto file.
  */
-export function loadProto(proto: string): protoLoader.PackageDefinition {
+export function loadProto(proto: string): PackageDefinition {
   const protoPath = __filename.replace(
     'services/common.js',
     `protobufs/${proto}.proto`,
@@ -22,7 +27,7 @@ export function loadProto(proto: string): protoLoader.PackageDefinition {
  * Create the proto definition from a loaded into protobuf.
  * @param proto Name of the proto file.
  */
-export function loadProtoDefinition(proto: string): grpc.GrpcObject {
+export function loadProtoDefinition(proto: string): GrpcObject {
   return grpc.loadPackageDefinition(exports.loadProto(proto));
 }
 
