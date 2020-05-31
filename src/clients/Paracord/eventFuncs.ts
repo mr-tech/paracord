@@ -1,5 +1,3 @@
-
-import { Presence } from '../../../discord-reference/altered';
 import { CHANNEL_TYPES, SECOND_IN_MILLISECONDS } from '../../constants';
 import {
   GuildChannel, GuildMember, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMembersChunkEventFields, GuildMemberUpdateEventFields, GuildRole, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, GuildVoiceState, Message, RawChannel, RawGuild, RawGuildMember, RawPresence, RawRole, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild, User,
@@ -18,7 +16,7 @@ export function READY(this: Paracord, data: ReadyEventFields, shard: number): Re
   return data;
 }
 
-export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): Presence | RawPresence {
+export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence | RawPresence {
   const { guildId } = data;
   if (guildId !== undefined) {
     const guild = this.guilds.get(guildId);

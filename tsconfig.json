@@ -12,9 +12,9 @@
     "noFallthroughCasesInSwitch": true, /* Report errors for fallthrough cases in switch statement. */
     "forceConsistentCasingInFileNames": true, /* Disallow inconsistently-cased references to the same file. */
     "strictNullChecks": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
     // "sourceMap": true,
-    // "declaration": true
+    "declaration": true
   },
   "exclude": [
     "node_modules",
