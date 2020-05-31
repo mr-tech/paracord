@@ -2,7 +2,8 @@
   "name": "paracord",
   "version": "0.0.4",
   "description": "Scalable Discord gateway and API handlers alongside a pre-built client.",
-  "main": "index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "test": "mocha tests/smoke.spec.js tests/suite.spec.js '**/tests/*.spec.js' --exit",
     "test-nodemon": "nodemon --exec \"mocha tests/smoke.spec.js tests/suite.spec.js 'src/**/tests/*.spec.js'\"",
