@@ -1,0 +1,35 @@
+import { RequestService } from '../../rpc/services';
+import { ApiRequest } from './structures';
+import { IApiOptions, IServiceOptions, IApiResponse, IRequestOptions } from './types';
+import { RemoteApiResponse } from '../../rpc/types';
+export default class Api {
+    private rateLimitCache;
+    private requestQueue;
+    private requestQueueProcessInterval?;
+    rpcRequestService?: RequestService;
+    private rpcRateLimitService?;
+    private allowFallback;
+    events?: Record<string, string>;
+    private emitter?;
+    private wrappedRequest;
+    constructor(token: string, options?: IApiOptions);
+    private static validateParams;
+    private createWrappedRequest;
+    private log;
+    private emit;
+    addRequestService(serverOptions?: IServiceOptions): void;
+    addRateLimitService(serverOptions?: IServiceOptions): void;
+    startQueue(interval?: number): void;
+    stopQueue(): void;
+    sendQueuedRequest(request: ApiRequest): Promise<IApiResponse>;
+    private handleRequestRemote;
+    request(method: string, url: string, options?: IRequestOptions): Promise<IApiResponse | RemoteApiResponse>;
+    private handleRequestLocal;
+    private updateRateLimitCache;
+    private updateRpcCache;
+    private sendRequest;
+    returnOkToMakeRequest(request: ApiRequest): boolean | Promise<boolean>;
+    private authorizeRequestWithServer;
+    private handleRateLimitedRequest;
+    private enqueueRequest;
+}
