@@ -1,9 +1,9 @@
 import {
-  RawRole, RawChannel, Overwrite, RawEmoji, RawGuildMember, RawUser,
+  Overwrite, RawChannel, RawEmoji, RawGuildMember, RawRole, RawUser,
 } from '.';
-import { RawVoiceState } from './voice';
-import { RawPresence } from './gateway';
 import Guild from '../clients/Paracord/structures/Guild';
+import { RawPresence } from './gateway';
+import { RawVoiceState } from './voice';
 
 export type Snowflake = string;
 
@@ -26,14 +26,14 @@ export type GuildRole = RawRole & {
   guildId: Guild['id'];
 };
 export type GuildEmoji = RawEmoji & {
-  roles: RoleMap;
+  // roles: RoleMap;
 };
 export type GuildMember = RawGuildMember & {
   user: User;
-  roles: RoleMap;
+  // roles: RoleMap;
 };
 export type GuildVoiceState = RawVoiceState & {
-  member: GuildMember;
+  // member: GuildMember;
 };
 // export type Presence = RawPresence & {
 //   user: User;

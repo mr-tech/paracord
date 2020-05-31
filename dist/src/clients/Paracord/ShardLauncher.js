@@ -8,29 +8,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-const pm2 = require('pm2');
-const Api = require('../Api/Api');
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const pm2_1 = __importDefault(require("pm2"));
+const Api_1 = __importDefault(require("../Api/Api"));
 function validateShard(shard, shardCount) {
     if (shard > shardCount - 1) {
         throw Error(`shard id ${shard} exceeds max shard id of ${shardCount - 1}`);
     }
 }
-module.exports = class ShardLauncher {
+class ShardLauncher {
     constructor(main, options) {
         ShardLauncher.validateParams(main, options);
         this.main = main;
-        this.shardIds;
-        this.shardChunks;
-        this.shardCount;
-        this.env;
         this.appName = options.appName !== undefined ? options.appName : 'Discord Bot';
-        this.token;
-        this.launchCount;
         Object.assign(this, options);
         this.bindCallbackFunctions();
-    }
-    bindCallbackFunctions() {
-        this.detach = this.detach.bind(this);
     }
     static validateParams(main, options) {
         const { token, shardIds, shardCount, shardChunks, } = options;
@@ -40,7 +35,7 @@ module.exports = class ShardLauncher {
         if (token === undefined && shardCount === undefined) {
             throw Error('must provide either a token or shardCount in the options.');
         }
-        if (shardCount <= 0) {
+        if (shardCount && shardCount <= 0) {
             throw Error('shardCount must be greater than 0.');
         }
         if (shardCount && shardIds === undefined && shardChunks === undefined) {
@@ -55,19 +50,23 @@ module.exports = class ShardLauncher {
         if (shardChunks && shardCount) {
             shardChunks.forEach((c) => {
                 c.forEach((s) => {
-                    validateShard(s, shardCount);
+                    s.forEach((id) => validateShard(id, shardCount));
                 });
             });
         }
         else if (shardIds && shardCount) {
             shardIds.forEach((s) => {
-                validateShard(s, shardCount);
+                s.forEach((id) => validateShard(id, shardCount));
             });
         }
     }
+    bindCallbackFunctions() {
+        this.detach = this.detach.bind(this);
+    }
     launch(pm2Options = {}) {
         return __awaiter(this, void 0, void 0, function* () {
-            let { shardCount, shardIds, shardChunks } = this;
+            const { shardChunks } = this;
+            let { shardCount, shardIds } = this;
             if (shardChunks === undefined && shardCount === undefined) {
                 ({ shardCount, shardIds } = yield this.getShardInfo());
             }
@@ -77,7 +76,7 @@ module.exports = class ShardLauncher {
                 });
             }
             try {
-                pm2.connect((err) => {
+                pm2_1.default.connect((err) => {
                     if (err) {
                         console.error(err);
                         process.exit(2);
@@ -119,11 +118,11 @@ module.exports = class ShardLauncher {
             PARACORD_SHARD_IDS: shardIdsCsv,
         };
         const pm2Config = Object.assign({ name: `${this.appName} - Shards ${shardIdsCsv}`, script: this.main, env: Object.assign(Object.assign({}, (this.env || {})), paracordEnv) }, pm2Options);
-        pm2.start(pm2Config, this.detach);
+        pm2_1.default.start(pm2Config, this.detach);
     }
     getRecommendedShards() {
         return __awaiter(this, void 0, void 0, function* () {
-            const api = new Api(this.token);
+            const api = new Api_1.default(this.token);
             const { status, statusText, data } = yield api.request('get', 'gateway/bot');
             if (status === 200) {
                 return data.shards;
@@ -134,9 +133,10 @@ module.exports = class ShardLauncher {
     detach(err) {
         if (--this.launchCount === 0) {
             console.log('All shards launched. Disconnecting from pm2.');
-            pm2.disconnect();
+            pm2_1.default.disconnect();
         }
         if (err)
             throw err;
     }
-};
+}
+exports.default = ShardLauncher;

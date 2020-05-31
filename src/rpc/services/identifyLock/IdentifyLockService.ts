@@ -1,13 +1,9 @@
 /* eslint-disable prefer-destructuring */
 import { ServiceError } from '@grpc/grpc-js';
-import {
-  LockRequestMessage,
-  StatusMessage,
-  TokenMessage,
-} from '../../structures';
-import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
-import { StatusProto } from '../../types';
 import { ILockServiceOptions } from '../../../common';
+import { LockRequestMessage, StatusMessage, TokenMessage } from '../../structures';
+import { StatusProto } from '../../types';
+import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 
 const DEFAULT_LOCK_DURATION = 6e3;
 

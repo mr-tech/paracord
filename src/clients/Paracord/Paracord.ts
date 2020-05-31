@@ -1,26 +1,23 @@
 
 import { EventEmitter } from 'events';
-import Api from '../Api/Api';
-import Gateway from '../Gateway/Gateway';
-import Guild from './structures/Guild';
+import { DebugLevel, ILockServiceOptions, UserEvents } from '../../common';
 import {
-  SECOND_IN_MILLISECONDS,
-  MINUTE_IN_MILLISECONDS,
-  LOG_LEVELS,
-  LOG_SOURCES,
+  LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, SECOND_IN_MILLISECONDS,
 } from '../../constants';
-import {
-  clone, timestampFromSnowflake, coerceTokenToBotLike,
-} from '../../Utils';
-import { UserEvents, DebugLevel, ILockServiceOptions } from '../../common';
-import {
-  User, GuildMap, UserMap, PresenceMap, Identify, Snowflake, ReadyEventFields, RawGuild, GuildMember, Message, EventFunctions, EventFunction, RawGuildMember, RawPresence, RawUser, RawPresence,
-} from '../../types';
-import { ParacordOptions, GatewayMap, ParacordLoginOptions } from './types';
-import * as eventFuncs from './eventFuncs';
-import { GatewayBotResponse, GatewayOptions } from '../Gateway/types';
-import { IApiOptions, IApiResponse } from '../Api/types';
 import { RemoteApiResponse } from '../../rpc/types';
+import {
+  EventFunction, EventFunctions, GuildMap, GuildMember, Identify, Message, PresenceMap, RawGuild, RawGuildMember, RawPresence, RawUser, ReadyEventFields, Snowflake, User, UserMap,
+} from '../../types';
+import {
+  clone, coerceTokenToBotLike, objectKeysSnakeToCamel, timestampFromSnowflake,
+} from '../../Utils';
+import Api from '../Api/Api';
+import { IApiOptions, IApiResponse } from '../Api/types';
+import Gateway from '../Gateway/Gateway';
+import { GatewayBotResponse, GatewayOptions } from '../Gateway/types';
+import * as eventFuncs from './eventFuncs';
+import Guild from './structures/Guild';
+import { GatewayMap, ParacordLoginOptions, ParacordOptions } from './types';
 
 const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
 
@@ -130,7 +127,7 @@ export default class Paracord extends EventEmitter {
    * @param {string} token Discord bot token. Will be coerced into a bot token.
    * @param {ParacordOptions} options Settings for this Paracord instance.
    */
-  constructor(token: string, options: ParacordOptions = {}) {
+  public constructor(token: string, options: ParacordOptions = {}) {
     super();
     Paracord.validateParams(token);
 
@@ -203,9 +200,9 @@ export default class Paracord extends EventEmitter {
    * @param shard Shard id of the gateway that emitted this event.
    */
   public eventHandler(eventType: string, data: unknown, shard: number): unknown {
-    /** Method defined in ParacordEvents.js */
-    let emit = data;
+    let emit = data ?? typeof data === 'object' ? objectKeysSnakeToCamel(<Record<string, unknown>>data) : data;
 
+    /** Method defined in ParacordEvents.js */
     const paracordEvent = <EventFunction | undefined> this.gatewayEvents[eventType];
     if (paracordEvent !== undefined) {
       emit = paracordEvent(data, shard);
@@ -487,8 +484,8 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Stores options that will be passed to each gateway shard when adding the service that will acquire a lock from a server(s) before identifying.
-   * @param mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
-   * @param serverOptions Options for connecting this service to the identifylock server. Will be acquired and released in order.
+   * @param mainServerOptions Options for connecting this service to the identify lock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
+   * @param serverOptions Options for connecting this service to the identify lock server. Will be acquired and released in order.
    */
   public addIdentifyLockServices(mainServerOptions: ILockServiceOptions, ...serverOptions: ILockServiceOptions[]): void {
     this.gatewayLockServiceOptions = {
@@ -575,7 +572,7 @@ export default class Paracord extends EventEmitter {
   }
 
   /**
-   * Cleans up Paracord's start up process and emits `PARACORD_STARTUP_COMPLETE`.
+   * Cleans up Paracord start up process and emits `PARACORD_STARTUP_COMPLETE`.
    * @param reason Reason for the time out.
    */
   private completeStartup(reason?: string): void {
@@ -690,7 +687,7 @@ export default class Paracord extends EventEmitter {
 
     if (cachedUser !== undefined) {
       presence.user = cachedUser;
-      presence.user.presence = presence;
+      cachedUser.presence = presence;
     }
   }
 

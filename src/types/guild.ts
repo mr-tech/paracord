@@ -64,13 +64,13 @@ export type RawGuild = {
   /** total number of members in this guild */
   memberCount?: number;
   /** states of members currently in voice channels; lacks the `guild_id` key */
-  voiceStates?: Partial<RawVoiceState>[];
+  voiceStates?: RawVoiceState[];
   /** users in the guild */
   members?: RawGuildMember[];
   /** channels in the guild */
   channels?: RawChannel[];
   /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
-  presences?: Partial<RawPresence>[];
+  presences?: RawPresence[];
   /** the maximum number of presences for the guild (the default value, currently 25000, is in effect when `null` is returned) */
   maxPresences?: number | null;
   /** the maximum number of members for the guild */

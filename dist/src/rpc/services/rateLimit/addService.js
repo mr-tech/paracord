@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const structures_1 = require("../../structures");
-const structures_2 = require("../../../clients/Api/structures");
+const structures_1 = require("../../../clients/Api/structures");
 const constants_1 = require("../../../constants");
+const structures_2 = require("../../structures");
 const common_1 = require("../common");
 const rateLimitProto = common_1.loadProto('rate_limit');
 exports.default = (server) => {
@@ -19,8 +19,8 @@ exports.default = (server) => {
 };
 function authorize(call, callback) {
     try {
-        const { method, url } = structures_1.RequestMetaMessage.fromProto(call.request);
-        const request = new structures_2.BaseRequest(method, url);
+        const { method, url } = structures_2.RequestMetaMessage.fromProto(call.request);
+        const request = new structures_1.BaseRequest(method, url);
         const resetAfter = this.rateLimitCache.authorizeRequestFromClient(request);
         if (resetAfter === 0) {
             const message = `Request approved. ${method} ${url}`;
@@ -30,7 +30,7 @@ function authorize(call, callback) {
             const message = `Request denied. ${method} ${url}`;
             this.log('DEBUG', message);
         }
-        const message = new structures_1.AuthorizationMessage(resetAfter).proto;
+        const message = new structures_2.AuthorizationMessage(resetAfter).proto;
         callback(null, message);
     }
     catch (err) {
@@ -44,11 +44,11 @@ function authorize(call, callback) {
 }
 function update(call, callback) {
     try {
-        const { requestMeta, global, bucket, limit, remaining, resetAfter, } = structures_1.RateLimitStateMessage.fromProto(call.request);
+        const { requestMeta, global, bucket, limit, remaining, resetAfter, } = structures_2.RateLimitStateMessage.fromProto(call.request);
         const { method, url } = requestMeta;
-        const request = new structures_2.BaseRequest(method, url);
+        const request = new structures_1.BaseRequest(method, url);
         if (bucket !== undefined) {
-            const rateLimitHeaders = new structures_2.RateLimitHeaders(global, bucket, limit, remaining, resetAfter);
+            const rateLimitHeaders = new structures_1.RateLimitHeaders(global, bucket, limit, remaining, resetAfter);
             this.rateLimitCache.update(request, rateLimitHeaders);
         }
         const message = `Rate limit cache updated: ${method} ${url} | Remaining: ${remaining}`;

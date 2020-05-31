@@ -133,7 +133,7 @@ class Api {
     }
     request(method, url, options = {}) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { data, headers, local, keepSnake, } = options;
+            const { data, headers, local, keepCase, } = options;
             if (url.startsWith('/')) {
                 url = url.slice(1);
             }
@@ -148,7 +148,7 @@ class Api {
             else {
                 response = yield this.handleRequestRemote(this.rpcRequestService, request);
             }
-            if (!keepSnake)
+            if (!keepCase)
                 response.data = Utils_1.objectKeysSnakeToCamel(response.data);
             return response;
         });

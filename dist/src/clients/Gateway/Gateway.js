@@ -12,33 +12,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const ws_1 = __importDefault(require("ws"));
 const events_1 = require("events");
-const Api_1 = __importDefault(require("../Api/Api"));
-const Utils_1 = require("../../Utils");
-const Identify_1 = __importDefault(require("./structures/Identify"));
-const services_1 = require("../../rpc/services");
+const ws_1 = __importDefault(require("ws"));
 const constants_1 = require("../../constants");
+const services_1 = require("../../rpc/services");
+const Utils_1 = require("../../Utils");
+const Api_1 = __importDefault(require("../Api/Api"));
+const Identify_1 = __importDefault(require("./structures/Identify"));
 class Gateway {
     constructor(token, options = {}) {
         var _a;
         this.identifyLocks = [];
-        Gateway.validateParams(token, options);
-        this.emitter = (_a = options.emitter) !== null && _a !== void 0 ? _a : new events_1.EventEmitter();
+        this.heartbeatAck = false;
+        this.online = false;
         this.wsRateLimitCache = {
             remainingRequests: constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE,
             resetTimestamp: 0,
         };
+        this.keepCase = options.keepCase || false;
+        this.emitter = (_a = options.emitter) !== null && _a !== void 0 ? _a : new events_1.EventEmitter();
         this.identity = new Identify_1.default(Utils_1.coerceTokenToBotLike(token), options.identity);
         this.api = options.api;
-        this.heartbeatAck = false;
         this.wsUrlRetryWait = constants_1.DEFAULT_GATEWAY_BOT_WAIT;
         this.bindTimerFunctions();
-    }
-    static validateParams(token, options) {
-        if (token === undefined && options.serverOptions === undefined) {
-            throw Error("client requires either a 'token' or 'serverOptions' ");
-        }
     }
     static validateLockOptions(options) {
         const { duration } = options;
@@ -74,6 +70,10 @@ class Gateway {
     }
     emit(type, data) {
         if (this.emitter !== undefined) {
+            if (this.events !== undefined) {
+                const userType = this.events[type];
+                type = userType !== null && userType !== void 0 ? userType : type;
+            }
             this.emitter.emit(type, data, this.id);
         }
     }
@@ -90,7 +90,8 @@ class Gateway {
         }
         if (serverOptions.length) {
             serverOptions.forEach((options) => {
-                let { host, port } = options;
+                const { host } = options;
+                let { port } = options;
                 if (typeof port === 'string') {
                     port = Number(port);
                 }
@@ -208,24 +209,8 @@ class Gateway {
             if (this.emitter.eventHandler !== undefined) {
                 data = yield this.emitter.eventHandler(type, data, this.id);
             }
-            data !== undefined && this.emit(type, data);
+            data !== null && data !== void 0 ? data : this.emit(type, data);
         });
-    }
-    terminate(option) {
-        if (this.ws !== undefined) {
-            const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = constants_1.GATEWAY_CLOSE_CODES;
-            let code = USER_TERMINATE;
-            if (option === 'resume') {
-                code = USER_TERMINATE_RESUMABLE;
-            }
-            else if (option === 'reconnect') {
-                code = USER_TERMINATE_RECONNECT;
-            }
-            this.ws.close(code);
-        }
-        else {
-            console.warn('websocket not open');
-        }
     }
     _onopen() {
         this.log('DEBUG', 'Websocket open.');
@@ -378,24 +363,24 @@ class Gateway {
     }
     handleMessage(p) {
         var _a;
-        const { t: type, s: sequence, op: opCode, d: data, } = p;
+        const { t: type, s: sequence, op: opCode, d, } = p;
         switch (opCode) {
             case constants_1.GATEWAY_OP_CODES.DISPATCH:
                 if (type === 'READY') {
-                    this.handleReady(data);
+                    this.handleReady(Utils_1.objectKeysSnakeToCamel(d));
                 }
                 else if (type === 'RESUMED') {
                     this.handleResumed();
                 }
                 else if (type !== null) {
-                    setImmediate(() => this.handleEvent(type, data));
+                    setImmediate(() => this.handleEvent(type, d));
                 }
                 else {
-                    this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
+                    this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
                 }
                 break;
             case constants_1.GATEWAY_OP_CODES.HELLO:
-                this.handleHello(data);
+                this.handleHello(Utils_1.objectKeysSnakeToCamel(d));
                 break;
             case constants_1.GATEWAY_OP_CODES.HEARTBEAT_ACK:
                 this.handleHeartbeatAck();
@@ -404,13 +389,13 @@ class Gateway {
                 this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
                 break;
             case constants_1.GATEWAY_OP_CODES.INVALID_SESSION:
-                this.handleInvalidSession(data);
+                this.handleInvalidSession(d);
                 break;
             case constants_1.GATEWAY_OP_CODES.RECONNECT:
                 (_a = this.ws) === null || _a === void 0 ? void 0 : _a.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
                 break;
             default:
-                this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
+                this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
         }
         this.updateSequence(sequence);
     }
@@ -512,8 +497,8 @@ class Gateway {
         return __awaiter(this, void 0, void 0, function* () {
             const [shardId, shardCount] = (_a = this.shard) !== null && _a !== void 0 ? _a : [0, 1];
             this.log('INFO', `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`);
-            yield this.handleEvent('GATEWAY_IDENTIFY', this.identity);
-            this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this.identity);
+            yield this.handleEvent('GATEWAY_IDENTIFY', this);
+            this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this);
         });
     }
     acquireLocks() {

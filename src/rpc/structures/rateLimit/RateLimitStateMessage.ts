@@ -1,5 +1,5 @@
-import RequestMetaMessage from './RequestMetaMessage';
 import { RateLimitStateProto } from '../../types';
+import RequestMetaMessage from './RequestMetaMessage';
 
 /** A class for the RateLimitStateMessage protobuf. */
 export default class RateLimitStateMessage {

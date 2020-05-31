@@ -1,13 +1,11 @@
 /* eslint-disable callback-return */
-import { RequestMessage, ResponseMessage } from '../../structures';
-import RpcServer from '../../server/RpcServer';
-import { loadProto } from '../common';
-import { IApiOptions } from '../../../clients/Api/types';
 import Api from '../../../clients/Api/Api';
-import {
-  ResponseProto, TServiceCallbackError, RequestProto,
-} from '../../types';
-import { LOG_SOURCES, LOG_LEVELS } from '../../../constants';
+import { IApiOptions } from '../../../clients/Api/types';
+import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
+import RpcServer from '../../server/RpcServer';
+import { RequestMessage, ResponseMessage } from '../../structures';
+import { RequestProto, ResponseProto, TServiceCallbackError } from '../../types';
+import { loadProto } from '../common';
 
 const requestProto = loadProto('request');
 

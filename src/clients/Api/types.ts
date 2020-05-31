@@ -1,7 +1,7 @@
 
 import type { EventEmitter } from 'events';
-import type { ApiRequest } from './structures';
 import { UserEvents } from '../../common';
+import type { ApiRequest } from './structures';
 
 /** Optional parameters for this api handler. */
 export interface IApiOptions {
@@ -20,7 +20,7 @@ export interface IRequestOptions {
   /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
   local?: boolean;
   /** Whether or not to return the response data with camelCased keys. */
-  keepSnake?: boolean;
+  keepCase?: boolean;
   /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
   transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
 }

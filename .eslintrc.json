@@ -38,7 +38,7 @@
     "max-len": "off",
     "camelcase": "warn",
     "prefer-const": "warn",
-    "no-await-in-loop": "warn",
+    "no-await-in-loop": "off",
     "import/extensions": [
       "error",
       "ignorePackages",

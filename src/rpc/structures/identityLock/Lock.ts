@@ -1,8 +1,8 @@
 
 import type { EventEmitter } from 'events';
-import StatusMessage from './StatusMessage';
+import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import { createUnsafeUuid } from '../../../Utils';
-import { LOG_SOURCES, LOG_LEVELS } from '../../../constants';
+import StatusMessage from './StatusMessage';
 
 /**
  * A mutex primarily used by gateway clients to coordinate identifies.

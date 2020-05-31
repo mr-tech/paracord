@@ -1,11 +1,11 @@
 import { EventEmitter } from 'events';
-import { Identify } from '../../types';
 import { UserEvents } from '../../common';
+import { Identify } from '../../types';
 import Api from '../Api/Api';
 import { IApiResponse } from '../Api/types';
 
 export interface GatewayOptions {
-  /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord's Shard Launcher. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
+  /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
   identity: Partial<Identify>;
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventEmitter;
@@ -13,6 +13,8 @@ export interface GatewayOptions {
   events: UserEvents;
   /** Paracord rest API handler. */
   api: Api;
+  /** Whether or not to keep all properties on Discord objects in their original snake case. */
+  keepCase: false;
 }
 
 type ErrorResponse = {
@@ -42,4 +44,12 @@ export type SessionLimitData = {
   resetAfter: number;
   /** How many shards are allowed to identify in parallel. */
   maxConcurrency: number;
+}
+
+/** Information about the current request count and time that it should reset in relation to Discord rate limits. https://discordapp.com/developers/docs/topics/gateway#rate-limiting */
+export type WebsocketRateLimitCache = {
+  /** Timestamp in ms when the request limit is expected to reset. */
+  resetTimestamp: number;
+  /** How many more requests will be allowed. */
+  remainingRequests: number;
 }

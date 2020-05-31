@@ -1,4 +1,4 @@
-import { User, Snowflake, RawRole } from '.';
+import { RawRole, Snowflake, User } from '.';
 
 export type RawEmoji = {
   /** emoji id */

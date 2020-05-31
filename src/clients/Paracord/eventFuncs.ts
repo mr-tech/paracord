@@ -8,9 +8,7 @@ import Gateway from '../Gateway/Gateway';
 import Paracord from './Paracord';
 import Guild from './structures/Guild';
 
-
 const { DM, GROUP_DM } = CHANNEL_TYPES;
-
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 

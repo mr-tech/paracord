@@ -57,7 +57,7 @@ export default class Api {
    * @param token Discord token. Will be coerced into a bot token.
    * @param options Optional parameters for this handler.
    */
-  constructor(token: string, options: IApiOptions = {}) {
+  public constructor(token: string, options: IApiOptions = {}) {
     Api.validateParams(token);
 
     this.rateLimitCache = new RateLimitCache();
@@ -289,7 +289,7 @@ export default class Api {
    */
   public async request(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse | RemoteApiResponse> {
     const {
-      data, headers, local, keepSnake,
+      data, headers, local, keepCase,
     } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
@@ -308,7 +308,7 @@ export default class Api {
       response = await this.handleRequestRemote(this.rpcRequestService, request);
     }
 
-    if (!keepSnake) response.data = objectKeysSnakeToCamel(<Record<string, unknown>>response.data);
+    if (!keepCase) response.data = objectKeysSnakeToCamel(<Record<string, unknown>>response.data);
 
     return response;
   }

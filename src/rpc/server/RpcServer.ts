@@ -1,22 +1,14 @@
 /* eslint-disable no-sync */
 import grpc, { ServerCredentials } from '@grpc/grpc-js';
-
 import type { EventEmitter } from 'events';
-import { Lock } from '../structures';
-
 import Api from '../../clients/Api/Api';
 import { RateLimitCache } from '../../clients/Api/structures';
-
-import { LOG_SOURCES, LOG_LEVELS } from '../../constants';
-import { RpcServerOptions, IDebugEvent } from '../types';
 import { IApiOptions } from '../../clients/Api/types';
-
-import {
-  addIdentifyLockService,
-  addRateLimitService,
-  addRequestService,
-} from '../services';
 import { DebugLevel } from '../../common';
+import { LOG_LEVELS, LOG_SOURCES } from '../../constants';
+import { addIdentifyLockService, addRateLimitService, addRequestService } from '../services';
+import { Lock } from '../structures';
+import { IDebugEvent, RpcServerOptions } from '../types';
 
 /**
  * Rpc server.
@@ -44,7 +36,6 @@ export default class RpcServer extends grpc.Server {
   /** GRPC channel to receive connections with. */
   private channel: ServerCredentials;
 
-
   /**
    * Creates a new rpc Server.
    * @param options
@@ -66,7 +57,7 @@ export default class RpcServer extends grpc.Server {
 
   /** Establishes the arguments that will be passed to `bindAsync()` when starting the server. */
   private get bindArgs(): [string, ServerCredentials, (e: Error | null, port?: number) => void] {
-    const callback = (e: Error | null, port?: number) => {
+    const callback = (e: Error | null) => {
       if (e !== null) {
         this.emit('DEBUG', {
           source: LOG_SOURCES.RPC,
@@ -78,6 +69,7 @@ export default class RpcServer extends grpc.Server {
           this.start();
         } catch (err) {
           if (err.message === 'server must be bound in order to start') {
+            /* eslint-disable-next-line no-console */
             console.error('server must be bound in order to start. maybe this host:port is already in use?');
           }
         }

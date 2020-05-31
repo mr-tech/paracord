@@ -1,36 +1,20 @@
 
-import ws from 'ws';
 import { EventEmitter } from 'events';
-import Api from '../Api/Api';
-import { coerceTokenToBotLike, objectKeysCamelToSnake, objectKeysSnakeToCamel } from '../../Utils';
-import Identify from './structures/Identify';
-import { IdentifyLockService } from '../../rpc/services';
-
+import ws from 'ws';
+import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
 import {
-  SECOND_IN_MILLISECONDS,
-  MINUTE_IN_MILLISECONDS,
-  GIGABYTE_IN_BYTES,
-  GATEWAY_DEFAULT_WS_PARAMS,
-  GATEWAY_OP_CODES,
-  GATEWAY_CLOSE_CODES,
-  GATEWAY_MAX_REQUESTS_PER_MINUTE,
-  GATEWAY_REQUEST_BUFFER,
-  LOG_LEVELS,
-  LOG_SOURCES,
-  RPC_CLOSE_CODES,
-  DEFAULT_GATEWAY_BOT_WAIT,
+  DEFAULT_GATEWAY_BOT_WAIT, GATEWAY_CLOSE_CODES, GATEWAY_DEFAULT_WS_PARAMS, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
-import { GatewayOptions, SessionLimitData, GatewayBotResponse } from './types';
-import { DebugLevel, ILockServiceOptions, ExtendedEmitter } from '../../common';
+import { IdentifyLockService } from '../../rpc/services';
 import {
-  GuildRequestMembers, GatewayPayload, ReadyEventFields, Hello, Resume,
+  GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
 } from '../../types';
-
-/**
- * @typedef WebsocketRateLimitCache Information about the current request count and time that it should reset in relation to Discord rate limits. https://discordapp.com/developers/docs/topics/gateway#rate-limiting
- * @property {number} wsRateLimitCache.resetTimestamp Timestamp in ms when the request limit is expected to reset.
- * @property {number} wsRateLimitCache.remainingRequests How many more requests will be allowed.
- */
+import { coerceTokenToBotLike, objectKeysCamelToSnake, objectKeysSnakeToCamel } from '../../Utils';
+import Api from '../Api/Api';
+import Identify from './structures/Identify';
+import {
+  GatewayBotResponse, GatewayOptions, SessionLimitData, WebsocketRateLimitCache,
+} from './types';
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
@@ -44,7 +28,7 @@ export default class Gateway {
   private identifyLocks: IdentifyLockService[] = [];
 
   /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
-  private online: boolean;
+  public online: boolean;
 
   /** Websocket used to connect to gateway. */
   private ws?: ws;
@@ -82,30 +66,22 @@ export default class Gateway {
   private emitter: ExtendedEmitter;
 
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted value. */
-  private events: Record<string, string>;
+  private events?: Record<string, string>;
 
   /** Object passed to Discord when identifying. */
   private identity: Identify;
 
-  /** Minimum time to wait between gateway identifies in ms. */
-  private retryWait: number;
+  /** Whether or not to keep all properties on Discord objects in their original snake case. */
+  private keepCase: false;
 
-  /** Time that the shard's identify mutex will be locked for in ms. */
-  private remoteLoginWait: number;
+  // /** Minimum time to wait between gateway identifies in ms. */
+  // private retryWait: number;
+
+  // /** Time that the shard's identify mutex will be locked for in ms. */
+  // private remoteLoginWait: number;
 
   /** Amount of identifies reported by the last call to /gateway/bot. */
-  private lastKnownSessionLimitData: SessionLimitData;
-
-  /**
-   * Throws errors and warnings if the parameters passed to the constructor aren't sufficient.
-   * @param token Discord token.
-   * @param options Optional parameters for this handler.
-   */
-  private static validateParams(token: string, options: Partial<GatewayOptions>): void {
-    if (token === undefined && options.serverOptions === undefined) {
-      throw Error("client requires either a 'token' or 'serverOptions' ");
-    }
-  }
+  public lastKnownSessionLimitData?: SessionLimitData;
 
   /** Verifies parameters to set lock are valid. */
   private static validateLockOptions(options: Partial<ILockServiceOptions>): void {
@@ -121,17 +97,17 @@ export default class Gateway {
    * @param options Optional parameters for this handler.
    */
   public constructor(token: string, options: Partial<GatewayOptions> = {}) {
-    Gateway.validateParams(token, options);
-
-    this.emitter = options.emitter ?? new EventEmitter();
+    this.heartbeatAck = false;
+    this.online = false;
     this.wsRateLimitCache = {
       remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
       resetTimestamp: 0,
     };
-
+    this.keepCase = options.keepCase || false;
+    this.emitter = options.emitter ?? new EventEmitter();
     this.identity = new Identify(coerceTokenToBotLike(token), options.identity);
     this.api = options.api;
-    this.heartbeatAck = false;
+
     this.wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.bindTimerFunctions();
   }
@@ -192,6 +168,11 @@ export default class Gateway {
    */
   private emit(type: string, data?: unknown): void {
     if (this.emitter !== undefined) {
+      if (this.events !== undefined) {
+        const userType = this.events[type];
+        type = userType ?? type;
+      }
+
       this.emitter.emit(type, data, this.id);
     }
   }
@@ -204,8 +185,8 @@ export default class Gateway {
 
   /**
    * Adds the service that will acquire a lock from a server(s) before identifying.
-   * @param mainServerOptions Options for connecting this service to the identifylock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
-   * @param serverOptions Options for connecting this service to the identifylock server. Will be acquired and released in order.
+   * @param mainServerOptions Options for connecting this service to the identify lock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
+   * @param serverOptions Options for connecting this service to the identify lock server. Will be acquired and released in order.
    */
   public addIdentifyLockServices(mainServerOptions: null | Partial<ILockServiceOptions>, ...serverOptions: Partial<ILockServiceOptions>[]): void {
     const usedHostPorts: Record<string, number> = {};
@@ -224,7 +205,8 @@ export default class Gateway {
 
     if (serverOptions.length) {
       serverOptions.forEach((options) => {
-        let { host, port } = options;
+        const { host } = options;
+        let { port } = options;
         if (typeof port === 'string') {
           port = Number(port);
         }
@@ -309,8 +291,10 @@ export default class Gateway {
       }
     } catch (err) {
       if (err.response) {
+        /* eslint-disable-next-line no-console */
         console.error(err.response.data.message); // TODO: emit
       } else {
+        /* eslint-disable-next-line no-console */
         console.error(err); // TODO: emit
       }
 
@@ -404,26 +388,27 @@ export default class Gateway {
     data ?? this.emit(type, data);
   }
 
-  /**
-   * Close the websocket.
-   * @param option `resume` to reconnect and attempt resume. `reconnect` to reconnect with a new session. Blank to not reconnect.
-   */
-  private terminate(option?: string): void {
-    if (this.ws !== undefined) {
-      const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = GATEWAY_CLOSE_CODES;
+  // /**
+  //  * Close the websocket.
+  //  * @param option `resume` to reconnect and attempt resume. `reconnect` to reconnect with a new session. Blank to not reconnect.
+  //  */
+  // private terminate(option?: string): void {
+  //   if (this.ws !== undefined) {
+  //     const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = GATEWAY_CLOSE_CODES;
 
-      let code = USER_TERMINATE;
-      if (option === 'resume') {
-        code = USER_TERMINATE_RESUMABLE;
-      } else if (option === 'reconnect') {
-        code = USER_TERMINATE_RECONNECT;
-      }
+  //     let code = USER_TERMINATE;
+  //     if (option === 'resume') {
+  //       code = USER_TERMINATE_RESUMABLE;
+  //     } else if (option === 'reconnect') {
+  //       code = USER_TERMINATE_RECONNECT;
+  //     }
 
-      this.ws.close(code);
-    } else {
-      console.warn('websocket not open');
-    }
-  }
+  //     this.ws.close(code);
+  //   } else {
+  //     /* eslint-disable-next-line no-console */
+  //     console.warn('websocket not open');
+  //   }
+  // }
 
   /*
    ********************************
@@ -456,7 +441,7 @@ export default class Gateway {
    ********************************
    */
 
-  /** Assigned to webscoket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
+  /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
    * @param event Object containing information about the close.
    */
   private _onclose(event: ws.CloseEvent): void {
@@ -659,23 +644,21 @@ export default class Gateway {
       t: type, s: sequence, op: opCode, d,
     } = p;
 
-    const data = d ?? typeof d === 'object' ? objectKeysSnakeToCamel(<Record<string, unknown>>d) : d;
-
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
-          this.handleReady(<ReadyEventFields>data);
+          this.handleReady(<ReadyEventFields>objectKeysSnakeToCamel(<Record<string, unknown>>d));
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
-          setImmediate(() => this.handleEvent(type, data));
+          setImmediate(() => this.handleEvent(type, d));
         } else {
-          this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
+          this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
         }
         break;
 
       case GATEWAY_OP_CODES.HELLO:
-        this.handleHello(<Hello>data);
+        this.handleHello(<Hello>objectKeysSnakeToCamel(<Record<string, unknown>>d));
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT_ACK:
@@ -687,7 +670,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.INVALID_SESSION:
-        this.handleInvalidSession(<boolean>data);
+        this.handleInvalidSession(<boolean>d);
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
@@ -695,7 +678,7 @@ export default class Gateway {
         break;
 
       default:
-        this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
+        this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
     }
 
 
@@ -736,7 +719,7 @@ export default class Gateway {
   }
 
   /**
-   * Starts heartbeating. https://discordapp.com/developers/docs/topics/gateway#heartbeating
+   * Starts heartbeat. https://discordapp.com/developers/docs/topics/gateway#heartbeating
    * @param heartbeatInterval From Discord - Number of ms to wait between sending heartbeats.
    */
   private startHeartbeat(heartbeatInterval: number): void {

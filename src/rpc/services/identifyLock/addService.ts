@@ -1,10 +1,10 @@
 /* eslint-disable callback-return */
-import { LockRequestMessage, TokenMessage } from '../../structures';
-import { LOG_SOURCES, LOG_LEVELS } from '../../../constants';
-import Lock from '../../structures/identityLock/Lock';
+import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import RpcServer from '../../server/RpcServer';
+import { LockRequestMessage, TokenMessage } from '../../structures';
+import Lock from '../../structures/identityLock/Lock';
+import { LockRequestProto, StatusProto, TServiceCallbackError } from '../../types';
 import { loadProto } from '../common';
-import { LockRequestProto, TServiceCallbackError, StatusProto } from '../../types';
 
 const lockProto = loadProto('identify_lock');
 

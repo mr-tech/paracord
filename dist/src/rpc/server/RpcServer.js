@@ -20,7 +20,7 @@ class RpcServer extends grpc_js_1.default.Server {
         this.rateLimitCache = new structures_1.RateLimitCache(false);
     }
     get bindArgs() {
-        const callback = (e, port) => {
+        const callback = (e) => {
             if (e !== null) {
                 this.emit('DEBUG', {
                     source: constants_1.LOG_SOURCES.RPC,

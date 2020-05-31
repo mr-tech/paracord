@@ -1,10 +1,11 @@
 /** A class of helper export functions used throughout the library. */
 import {
-  DISCORD_EPOCH, PERMISSIONS, DISCORD_CDN_URL, SECOND_IN_MILLISECONDS,
+  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS,
 } from './constants';
 import type {
-  Snowflake, GuildMember, Guild, Role, User, Overwrite, GuildChannel,
+  GuildChannel, GuildMember, Overwrite, Snowflake, User,
 } from './types';
+import Guild from './clients/Paracord/structures/Guild';
 
 /**
  * Returns a new object that is a clone of the original.
@@ -113,12 +114,15 @@ export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: {
   // start with @everyone perms
   let perms: number = everyone.permissions;
 
-  for (const role of memberRoles.values()) {
-    if ((role.permissions & PERMISSIONS.ADMINISTRATOR) !== 0) {
-      return PERMISSIONS.ADMINISTRATOR;
-    }
+  for (const roleId of memberRoles) {
+    const role = guildRoles.get(roleId);
+    if (role !== undefined) {
+      if ((role.permissions & PERMISSIONS.ADMINISTRATOR) !== 0) {
+        return PERMISSIONS.ADMINISTRATOR;
+      }
 
-    perms |= role.permissions;
+      perms |= role.permissions;
+    }
   }
 
   return perms;
@@ -167,9 +171,9 @@ function _everyoneOverwrites(perms: number, overwrites: Overwrite[], guildId: st
  * @param roles Roles in the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _roleOverwrites(perms: number, overwrites: Overwrite[], roles: Map<string, Role>): number {
+function _roleOverwrites(perms: number, overwrites: Overwrite[], roles: string[]): number {
   for (const o of overwrites) {
-    if (o.type === 'role' && roles.has(o.id)) {
+    if (o.type === 'role' && roles.includes(o.id)) {
       perms |= o.allow;
       perms &= ~o.deny;
     }
@@ -269,6 +273,7 @@ export function camelToSnake(str: string): string {
 
 export function objectKeysCamelToSnake(obj: Record<string, unknown>): Record<string, unknown> {
   const snakedObj: Record<string, unknown> = {};
+  /* eslint-disable-next-line prefer-const */
   for (let [key, value] of Object.entries(obj)) {
     if (value !== null && typeof value === 'object') {
       value = objectKeysCamelToSnake(<Record<string, unknown>>value);
@@ -291,6 +296,7 @@ export function snakeToCamel(str: string): string {
 
 export function objectKeysSnakeToCamel(obj: Record<string, unknown>): Record<string, unknown> {
   const camelObj: Record<string, unknown> = {};
+  /* eslint-disable-next-line prefer-const */
   for (let [key, value] of Object.entries(obj)) {
     if (value !== null && typeof value === 'object') {
       value = objectKeysSnakeToCamel(<Record<string, unknown>>value);
