@@ -1,4 +1,4 @@
-import { ResponseProto, RemoteApiResponse } from '../../types';
+import { RemoteApiResponse, ResponseProto } from '../../types';
 
 /** A class for the ResponseMessage protobuf */
 export default class ResponseMessage {

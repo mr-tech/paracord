@@ -5,7 +5,7 @@ const constants_1 = require("../../../constants");
 class RateLimit {
     constructor({ remaining, resetTimestamp, limit }, template) {
         this.remaining = remaining;
-        this.resetTimestamp = resetTimestamp;
+        this.resetTimestamp = resetTimestamp !== null && resetTimestamp !== void 0 ? resetTimestamp : -1;
         this.limit = limit;
         this.expires = undefined;
         this.template = template;
@@ -30,8 +30,6 @@ class RateLimit {
         return this.remaining > 0;
     }
     get resetAfter() {
-        if (this.resetTimestamp === undefined)
-            return 0;
         const resetAfter = Utils_1.millisecondsFromNow(this.resetTimestamp);
         return resetAfter > 0 ? resetAfter : 0;
     }

@@ -1,14 +1,10 @@
 /* eslint-disable callback-return */
-import {
-  RequestMetaMessage,
-  AuthorizationMessage,
-  RateLimitStateMessage,
-} from '../../structures';
 import { BaseRequest, RateLimitHeaders } from '../../../clients/Api/structures';
-import { LOG_SOURCES, LOG_LEVELS } from '../../../constants';
-import { loadProto } from '../common';
+import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import RpcServer from '../../server/RpcServer';
-import { TServiceCallbackError, AuthorizationProto, RateLimitStateProto } from '../../types';
+import { AuthorizationMessage, RateLimitStateMessage, RequestMetaMessage } from '../../structures';
+import { AuthorizationProto, RateLimitStateProto, TServiceCallbackError } from '../../types';
+import { loadProto } from '../common';
 
 const rateLimitProto = loadProto('rate_limit');
 

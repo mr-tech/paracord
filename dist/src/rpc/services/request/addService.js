@@ -12,10 +12,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const structures_1 = require("../../structures");
-const common_1 = require("../common");
 const Api_1 = __importDefault(require("../../../clients/Api/Api"));
 const constants_1 = require("../../../constants");
+const structures_1 = require("../../structures");
+const common_1 = require("../common");
 const requestProto = common_1.loadProto('request');
 exports.default = (server, token, apiOptions = {}) => {
     apiOptions.requestOptions = apiOptions.requestOptions || {};

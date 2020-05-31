@@ -1,5 +1,5 @@
 import {
-  Snowflake, User, ISO8601timestamp, GuildMember, RawRole, RawEmoji, RawGuildMember,
+  GuildMember, ISO8601timestamp, RawEmoji, RawGuildMember, RawRole, Snowflake, User,
 } from '.';
 
 export type RawChannel = {

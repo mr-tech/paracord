@@ -15,7 +15,8 @@ function timestampNMillisecondsInFuture(milliseconds) {
 }
 exports.timestampNMillisecondsInFuture = timestampNMillisecondsInFuture;
 function millisecondsFromNow(timestamp) {
-    return Number(timestamp) - new Date().getTime();
+    const now = new Date().getTime();
+    return timestamp < now ? -1 : timestamp - new Date().getTime();
 }
 exports.millisecondsFromNow = millisecondsFromNow;
 function timestampFromSnowflake(snowflake) {
@@ -55,11 +56,14 @@ function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }) {
     if (everyone === undefined)
         throw Error('roles not cached for this guild');
     let perms = everyone.permissions;
-    for (const role of memberRoles.values()) {
-        if ((role.permissions & constants_1.PERMISSIONS.ADMINISTRATOR) !== 0) {
-            return constants_1.PERMISSIONS.ADMINISTRATOR;
+    for (const roleId of memberRoles) {
+        const role = guildRoles.get(roleId);
+        if (role !== undefined) {
+            if ((role.permissions & constants_1.PERMISSIONS.ADMINISTRATOR) !== 0) {
+                return constants_1.PERMISSIONS.ADMINISTRATOR;
+            }
+            perms |= role.permissions;
         }
-        perms |= role.permissions;
     }
     return perms;
 }
@@ -84,7 +88,7 @@ function _everyoneOverwrites(perms, overwrites, guildId) {
 }
 function _roleOverwrites(perms, overwrites, roles) {
     for (const o of overwrites) {
-        if (o.type === 'role' && roles.has(o.id)) {
+        if (o.type === 'role' && roles.includes(o.id)) {
             perms |= o.allow;
             perms &= ~o.deny;
         }

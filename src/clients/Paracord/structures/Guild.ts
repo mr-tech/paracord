@@ -1,8 +1,10 @@
 import { PERMISSIONS } from '../../../constants';
-import { computeGuildPerms, computeChannelPerms, timestampFromSnowflake } from '../../../Utils';
 import {
-  Snowflake, RoleMap, EmojiMap, GuildFeature, ISO8601timestamp, VoiceStateMap, GuildMemberMap, GuildChannelMap, PresenceMap, SystemChannelFlags, MFALevel, VoiceRegion, VerificationLevel, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, PremiumTier, GuildMember, RawGuild, RawChannel, GuildChannel, RawRole, GuildRole, RawEmoji, GuildEmoji, RawGuildMember, RawVoiceState, GuildVoiceState, RawPresence, RawPresence, GuildMemberUpdateEventFields,
+  DefaultMessageNotificationLevel, EmojiMap, ExplicitContentFilterLevel, GuildChannel, GuildChannelMap, GuildEmoji, GuildFeature, GuildMember, GuildMemberMap, GuildMemberUpdateEventFields,
+  GuildRole, GuildVoiceState, ISO8601timestamp, MFALevel, PremiumTier, PresenceMap, RawChannel, RawEmoji, RawGuild, RawGuildMember, RawPresence, RawRole, RawVoiceState, RoleMap, Snowflake,
+  SystemChannelFlags, VerificationLevel, VoiceRegion, VoiceStateMap,
 } from '../../../types';
+import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../Utils';
 import Paracord from '../Paracord';
 
 /** A Discord guild. */
@@ -168,6 +170,7 @@ export default class Guild {
     if (this.members !== undefined && this.me === undefined) {
       this.me = this.members.get(client.user.id);
       if (this.me === undefined) {
+        /* eslint-disable-next-line no-console */
         console.log(
           'This message is intentional and is made to appear when a guild is created but the bot user was not included in the initial member list.',
         );
@@ -214,7 +217,7 @@ export default class Guild {
     }
 
     if (guildData.voiceStates !== undefined) {
-      guildData.voiceStates.forEach((v) => this.upsertVoiceState(<RawVoiceState>v, client));
+      guildData.voiceStates.forEach((v) => this.upsertVoiceState(v, client));
       delete guildData.voiceStates;
     }
 
@@ -234,49 +237,41 @@ export default class Guild {
   //  ********************************
   //  */
 
-  // /**
-  //  * Checks if the user has a specific permission in this guild.
-  //  *
-  //  * @param {number} permission Bit value to check for.
-  //  * @param {Object<string, any>} member Member whose perms to check.
-  //  * @param {} [channelId] Channel to check overwrites.
-  //  * @param {boolean} [adminOverride=true] Whether or not Administrator permissions can return `true`.
-  //  * @returns {boolean} `true` if member has the permission.
-  //  */
-  // hasPermission(permission, member, adminOverride = true) {
-  //   const perms = computeGuildPerms(member, this, adminOverride);
+  /**
+   * Checks if the user has a specific permission in this guild.
+   * @returns `true` if member has the permission.
+   */
+  public hasPermission(permission: number, member: GuildMember, adminOverride = true): boolean {
+    const perms = computeGuildPerms({ member, guild: this, stopOnOwnerAdmin: adminOverride });
 
-  //   if (perms & PERMISSIONS.ADMINISTRATOR && adminOverride) {
-  //     return true;
-  //   }
-  //   return Boolean(perms & permission);
-  // }
+    if (perms & PERMISSIONS.ADMINISTRATOR && adminOverride) {
+      return true;
+    }
+    return Boolean(perms & permission);
+  }
 
-  // /**
-  //  * Checks if the user has a specific permission for a channel in this guild.
-  //  *
-  //  * @param {number} permission Bit value to check for.
-  //  * @param {Object<string, any>} member Member whose perms to check.
-  //  * @param {string|Object<string, any>} channel Channel to check overwrites.
-  //  * @param {boolean} [adminOverride=true] Whether or not Adminstrator permissions can return `true`.
-  //  * @returns {boolean} `true` if member has the permission.
-  //  */
-  // hasChannelPermission(permission, member, channel, adminOverride = true) {
-  //   if (typeof channel === 'string') {
-  //     channel = this.channels.get(channel);
-  //   }
+  /**
+   * Checks if the user has a specific permission for a channel in this guild.
+   * @returns `true` if member has the permission.
+   */
+  public hasChannelPermission(permission: number, member: GuildMember, channel: GuildChannel | Snowflake, stopOnOwnerAdmin = true): boolean {
+    if (typeof channel === 'string') {
+      channel = this.channels.get(channel) ?? channel;
+    }
 
-  //   const perms = computeChannelPerms(
-  //     member,
-  //     this,
-  //     channel.adminOverride,
-  //   );
+    if (typeof channel === 'string') {
+      throw Error('channel not found'); // TODO: better error design
+    }
 
-  //   if (perms & P.ADMINISTRATOR && adminOverride) {
-  //     return true;
-  //   }
-  //   return Boolean(perms & permission);
-  // }
+    const perms = computeChannelPerms({
+      member, guild: this, channel, stopOnOwnerAdmin,
+    });
+
+    if (perms & PERMISSIONS.ADMINISTRATOR && stopOnOwnerAdmin) {
+      return true;
+    }
+    return Boolean(perms & permission);
+  }
 
   /*
    ********************************

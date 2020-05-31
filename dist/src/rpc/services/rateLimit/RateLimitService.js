@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const common_1 = require("../common");
 const structures_1 = require("../../structures");
+const common_1 = require("../common");
 const definition = common_1.loadProtoDefinition('rate_limit');
 class RateLimitService extends definition.RateLimitService {
     constructor(options) {

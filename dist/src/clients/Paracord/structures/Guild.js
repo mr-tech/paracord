@@ -1,59 +1,31 @@
 "use strict";
-const Utils = require('../../../utils');
-const { PERMISSIONS: P } = require('../../../constants');
-module.exports = class Guild {
-    constructor(guildData, client, shard) {
-        this.id;
-        this.ownerId;
-        this.members;
-        this.channels;
-        this.presences;
-        this.roles;
-        this.voiceStates;
-        this.unavailable;
-        this.owner;
-        this.me;
-        this.created_on;
-        this._shard;
-        this.constructorDefaults(guildData, client, shard);
-    }
-    get shard() {
-        return this._shard;
-    }
-    constructorDefaults(guildData, client, shard) {
-        const defaults = {
-            members: new Map(),
-            channels: new Map(),
-            presences: new Map(),
-            voiceStates: new Map(),
-            roles: new Map(),
-            unavailable: false,
-        };
-        Object.assign(this, defaults);
-        this._shard = shard;
-        this.constructGuildFromData(guildData, client);
-    }
-    constructGuildFromData(guildData, client) {
-        if (!guildData.unavailable) {
-            this.unavailable = false;
-            Utils.assignCreatedOn(guildData);
-            this.assignFromGuildCreate(guildData, client);
-            this.owner = this.members.get(guildData.owner_id);
+Object.defineProperty(exports, "__esModule", { value: true });
+const constants_1 = require("../../../constants");
+const Utils_1 = require("../../../Utils");
+class Guild {
+    constructor(guildCreate, client, shard) {
+        var _a;
+        this.members = new Map();
+        this.channels = new Map();
+        this.presences = new Map();
+        this.voiceStates = new Map();
+        this.roles = new Map();
+        this.emojis = new Map();
+        this.unavailable = (_a = guildCreate.unavailable) !== null && _a !== void 0 ? _a : false;
+        this.shard = shard;
+        this.mergeGuildData(guildCreate, client);
+        if (this.members !== undefined && this.me === undefined) {
+            this.me = this.members.get(client.user.id);
             if (this.me === undefined) {
-                this.me = this.members.get(client.user.id);
-                if (this.me === undefined) {
-                    console.log('This message is intentional and is made to appear when a guild is created but the bot user was not included in the initial member list.');
-                }
+                console.log('This message is intentional and is made to appear when a guild is created but the bot user was not included in the initial member list.');
             }
         }
-        else {
-            guildData.unavailable = true;
-        }
-        Object.assign(this, guildData);
-        return this;
     }
-    assignFromGuildCreate(guildData, client) {
-        if (guildData.channels !== undefined) {
+    get createdOn() {
+        return Utils_1.timestampFromSnowflake(this.id);
+    }
+    mergeGuildData(guildData, client) {
+        if (guildData.channels !== undefined && this.channels !== undefined) {
             guildData.channels.forEach((c) => this.upsertChannel(c));
             delete guildData.channels;
         }
@@ -61,86 +33,69 @@ module.exports = class Guild {
             guildData.roles.forEach((r) => this.upsertRole(r));
             delete guildData.roles;
         }
+        if (guildData.emojis !== undefined) {
+            guildData.emojis.forEach((e) => this.upsertEmoji(e));
+            delete guildData.emojis;
+        }
         if (guildData.members !== undefined) {
             guildData.members.forEach((m) => this.upsertMember(m, client));
             delete guildData.members;
         }
-        if (guildData.voice_states !== undefined) {
-            guildData.voice_states.forEach((v) => this.upsertVoiceState(v, client));
+        if (guildData.voiceStates !== undefined) {
+            guildData.voiceStates.forEach((v) => this.upsertVoiceState(v, client));
+            delete guildData.voiceStates;
         }
         if (guildData.presences !== undefined) {
-            this.presences = Guild.mapPresences(guildData.presences, client);
+            guildData.presences.forEach((p) => this.upsertPresence(p, client));
             delete guildData.presences;
         }
+        Object.assign(this, guildData);
+        return this;
     }
     hasPermission(permission, member, adminOverride = true) {
-        const perms = Utils.computeGuildPerms(member, this, adminOverride);
-        if (perms & P.ADMINISTRATOR && adminOverride) {
+        const perms = Utils_1.computeGuildPerms({ member, guild: this, stopOnOwnerAdmin: adminOverride });
+        if (perms & constants_1.PERMISSIONS.ADMINISTRATOR && adminOverride) {
             return true;
         }
         return Boolean(perms & permission);
     }
-    hasChannelPermission(permission, member, channel, adminOverride = true) {
+    hasChannelPermission(permission, member, channel, stopOnOwnerAdmin = true) {
+        var _a;
         if (typeof channel === 'string') {
-            channel = this.channels.get(channel);
+            channel = (_a = this.channels.get(channel)) !== null && _a !== void 0 ? _a : channel;
         }
-        const perms = Utils.computeChannelPerms(member, this, channel.adminOverride);
-        if (perms & P.ADMINISTRATOR && adminOverride) {
+        if (typeof channel === 'string') {
+            throw Error('channel not found');
+        }
+        const perms = Utils_1.computeChannelPerms({
+            member, guild: this, channel, stopOnOwnerAdmin,
+        });
+        if (perms & constants_1.PERMISSIONS.ADMINISTRATOR && stopOnOwnerAdmin) {
             return true;
         }
         return Boolean(perms & permission);
     }
     upsertChannel(channel) {
         const { channels } = this;
-        Utils.assignCreatedOn(channel);
         const cachedChannel = Object.assign(channels.get(channel.id) || {}, channel);
         channels.set(channel.id, cachedChannel);
-        cachedChannel.guild_id = this.id;
+        cachedChannel.guildId = this.id;
         return cachedChannel;
     }
     upsertRole(role) {
         const { roles } = this;
-        Utils.assignCreatedOn(role);
         const cachedRole = Object.assign(roles.get(role.id) || {}, role);
         roles.set(role.id, cachedRole);
         return cachedRole;
     }
-    upsertVoiceState(voiceState, client) {
-        const { voiceStates } = this;
-        let member;
-        if (voiceState.member !== undefined) {
-            member = this.members.get(voiceState.member.user.id);
-            if (member === undefined) {
-                member = this.upsertMember(voiceState.member, client);
-            }
-        }
-        if (member === undefined) {
-            member = this.members.get(voiceState.user_id);
-        }
-        voiceState.member = member;
-        voiceStates.set(voiceState.user_id, voiceState);
-        return voiceState;
-    }
-    static mapPresences(presences, client) {
-        const presenceMap = new Map();
-        presences.forEach((p) => {
-            const cachedPresence = client.updatePresences(p);
-            if (cachedPresence !== undefined) {
-                presenceMap.set(cachedPresence.user.id, cachedPresence);
-            }
-        });
-        return presenceMap;
-    }
-    setPresence(presence) {
-        this.presences.set(presence.user.id, presence);
-    }
-    deletePresence(userId) {
-        this.presences.delete(userId);
-    }
-    static mapMembers(members, guild, client) {
-        members.forEach((m) => guild.upsertMember(m, client));
+    upsertEmoji(emoji) {
+        const { emojis } = this;
+        const cachedEmoji = Object.assign(emojis.get(emoji.id) || {}, emoji);
+        emojis.set(emoji.id, cachedEmoji);
+        return cachedEmoji;
     }
     upsertMember(member, client) {
+        const { user } = member;
         const now = new Date().getTime();
         const readOnly = {
             get cachedTimestamp() {
@@ -148,17 +103,36 @@ module.exports = class Guild {
             },
         };
         member = Object.assign(Object.assign({}, member), readOnly);
-        member.user = client.upsertUser(member.user);
-        const cachedMember = this.members.get(member.user.id);
-        if (cachedMember !== undefined) {
-            member = Object.assign(cachedMember, member);
-        }
-        else {
-            this.members.set(member.user.id, member);
-        }
-        if (this.owner_id === member.user.id) {
+        member.user = client.upsertUser(user);
+        const { members } = this;
+        const cachedMember = Object.assign(members.get(user.id) || {}, member);
+        members.set(user.id, cachedMember);
+        if (this.ownerId === user.id) {
             this.owner = cachedMember;
         }
         return member;
     }
-};
+    upsertVoiceState(voiceState, client) {
+        var _a;
+        const member = (_a = this.members.get(voiceState.userId)) !== null && _a !== void 0 ? _a : this.upsertMember(voiceState.member, client);
+        voiceState.member = member;
+        const { voiceStates } = this;
+        voiceStates.set(voiceState.userId, voiceState);
+        return voiceState;
+    }
+    upsertPresence(presence, client) {
+        const { presences } = this;
+        const cachedPresence = client.updatePresences(presence);
+        if (cachedPresence !== undefined) {
+            presences.set(cachedPresence.user.id, cachedPresence);
+        }
+        return presence;
+    }
+    setPresence(presence) {
+        this.presences.set(presence.user.id, presence);
+    }
+    deletePresence(userId) {
+        this.presences.delete(userId);
+    }
+}
+exports.default = Guild;

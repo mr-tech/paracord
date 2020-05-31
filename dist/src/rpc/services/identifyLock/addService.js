@@ -3,8 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const structures_1 = require("../../structures");
 const constants_1 = require("../../../constants");
+const structures_1 = require("../../structures");
 const Lock_1 = __importDefault(require("../../structures/identityLock/Lock"));
 const common_1 = require("../common");
 const lockProto = common_1.loadProto('identify_lock');

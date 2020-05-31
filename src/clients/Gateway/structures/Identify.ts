@@ -30,7 +30,7 @@ export default class Identify {
    * Creates a new Identity object for use with the gateway.
    * @param identity Properties to add to this identity.
    */
-    constructor(token: string, identity: Partial<Identify> = {}) {
+    public constructor(token: string, identity: Partial<Identify> = {}) {
       this.properties = {
         $os: process.platform,
         $browser: 'Paracord',

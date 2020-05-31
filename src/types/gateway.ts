@@ -1,5 +1,5 @@
 import {
-  Snowflake, User, UnavailableGuild, ISO8601timestamp, GuildMember, RawEmoji, RawRole,
+  GuildMember, ISO8601timestamp, RawEmoji, RawRole, RawUser, Snowflake, UnavailableGuild, User,
 } from '.';
 
 export type GatewayPayload = {
@@ -391,9 +391,7 @@ export type MessageReactionRemoveEmoji = {
 
 export type RawPresence = {
   /** the user presence is being updated for */
-  user: Partial<User> & {
-    id: Snowflake
-  };
+  user: RawUser;
   /** roles this user is in */
   roles?: Snowflake[];
   /** null, or the user's current activity */

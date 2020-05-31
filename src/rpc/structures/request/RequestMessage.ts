@@ -1,4 +1,4 @@
-import { RequestProto, IRequestMessage } from '../../types';
+import { IRequestMessage, RequestProto } from '../../types';
 
 /** A class for the RequestMessage protobuf */
 export default class RequestMessage {
