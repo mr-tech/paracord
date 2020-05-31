@@ -1,6 +1,6 @@
+import { RateLimitState } from '../types';
 import RateLimit from './RateLimit';
 import RateLimitTemplate from './RateLimitTemplate';
-import { RateLimitState } from '../types';
 export default class RateLimitMap extends Map {
     private sweepInterval;
     constructor();

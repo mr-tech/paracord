@@ -1,14 +1,16 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const _1 = require(".");
-class Request extends _1.BaseRequest {
-    constructor(method, url, options) {
+const BaseRequest_1 = __importDefault(require("./BaseRequest"));
+class Request extends BaseRequest_1.default {
+    constructor(method, url, options = {}) {
         super(method, url);
-        this.data;
-        this.headers = undefined;
-        this.response = undefined;
-        this.waitUntil = undefined;
-        Object.assign(this, options);
+        const { data, headers, allowQueue, } = options;
+        this.data = data;
+        this.headers = headers;
+        this.allowQueue = allowQueue !== null && allowQueue !== void 0 ? allowQueue : true;
     }
     get sendData() {
         return {

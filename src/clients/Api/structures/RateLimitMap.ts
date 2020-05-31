@@ -1,7 +1,7 @@
-import RateLimit from './RateLimit';
 import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
-import RateLimitTemplate from './RateLimitTemplate';
 import { RateLimitState } from '../types';
+import RateLimit from './RateLimit';
+import RateLimitTemplate from './RateLimitTemplate';
 
 /**
  * Rate limit keys to their associated state.

@@ -54,7 +54,7 @@ export default class BaseRequest {
    * @param rateLimitMinorParameters Request method and parameters in the url following the major parameter.
    * @returns A key used internally to find related buckets.
    */
-  private static extractRouteMeta(method: string, rateLimitMinorParameters: Array<string>): string {
+  private static extractRouteMeta(method: string, rateLimitMinorParameters: string[]): string {
     const key = [];
 
     if (method === 'GET') key.push('ge');

@@ -1,7 +1,8 @@
 import { AxiosInstance } from 'axios';
-import { BaseRequest, RateLimitHeaders } from '.';
-import { WrappedRequest } from '../types';
 import type { ApiRequest } from '.';
+import { WrappedRequest } from '../types';
+import BaseRequest from './BaseRequest';
+import RateLimitHeaders from './RateLimitHeaders';
 export default class RateLimitCache {
     private requestRouteMetaToBucket;
     private rateLimitMap;

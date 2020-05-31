@@ -21,6 +21,8 @@ export interface IRequestOptions {
   local?: boolean;
   /** Whether or not to return the response data with camelCased keys. */
   keepCase?: boolean;
+  /** Set to false to not allow the request to be put on the rate limit queue. */
+  allowQueue?: false;
   /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
   transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
 }

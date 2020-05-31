@@ -19,7 +19,8 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.default = './src/clients/Paracord/Paracord';
+var Paracord_1 = require("./clients/Paracord/Paracord");
+Object.defineProperty(exports, "Paracord", { enumerable: true, get: function () { return Paracord_1.default; } });
 var Gateway_1 = require("./clients/Gateway/Gateway");
 Object.defineProperty(exports, "Gateway", { enumerable: true, get: function () { return Gateway_1.default; } });
 var Api_1 = require("./clients/Api/Api");

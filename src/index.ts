@@ -1,5 +1,4 @@
-export default './src/clients/Paracord/Paracord';
-
+export { default as Paracord } from './clients/Paracord/Paracord';
 export { default as Gateway } from './clients/Gateway/Gateway';
 export { default as Api } from './clients/Api/Api';
 export { default as ShardLauncher } from './clients/Paracord/ShardLauncher';

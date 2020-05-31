@@ -1,13 +1,17 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-const _1 = require(".");
-const Utils_1 = require("../../../Utils");
 const constants_1 = require("../../../constants");
+const Utils_1 = require("../../../Utils");
+const RateLimitMap_1 = __importDefault(require("./RateLimitMap"));
+const RateLimitTemplateMap_1 = __importDefault(require("./RateLimitTemplateMap"));
 class RateLimitCache {
     constructor(autoStartSweep = true) {
         this.requestRouteMetaToBucket = new Map();
-        this.rateLimitMap = new _1.RateLimitMap();
-        this.rateLimitTemplateMap = new _1.RateLimitTemplateMap();
+        this.rateLimitMap = new RateLimitMap_1.default();
+        this.rateLimitTemplateMap = new RateLimitTemplateMap_1.default();
         this.globalRateLimitState = {
             remaining: 0,
             resetTimestamp: 0,

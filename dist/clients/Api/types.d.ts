@@ -12,6 +12,7 @@ export interface IRequestOptions {
     headers?: Record<string, unknown> | undefined;
     local?: boolean;
     keepCase?: boolean;
+    allowQueue?: false;
     transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
 }
 export declare type WrappedRequest = (request: ApiRequest) => Promise<IApiResponse>;

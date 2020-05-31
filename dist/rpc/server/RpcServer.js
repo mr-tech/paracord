@@ -1,19 +1,16 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const grpc_js_1 = __importDefault(require("@grpc/grpc-js"));
 const structures_1 = require("../../clients/Api/structures");
 const constants_1 = require("../../constants");
 const services_1 = require("../services");
-class RpcServer extends grpc_js_1.default.Server {
+const grpc = require('@grpc/grpc-js');
+class RpcServer extends grpc.Server {
     constructor(options = {}) {
         super();
         const { host, port, channel, emitter, apiClient, identifyLock, } = options;
         this.host = host || '127.0.0.1';
         this.port = port || '50051';
-        this.channel = channel || grpc_js_1.default.ServerCredentials.createInsecure();
+        this.channel = channel || grpc.ServerCredentials.createInsecure();
         this.emitter = emitter;
         this.apiClient = apiClient;
         this.identifyLock = identifyLock;

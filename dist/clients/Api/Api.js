@@ -133,14 +133,11 @@ class Api {
     }
     request(method, url, options = {}) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { data, headers, local, keepCase, } = options;
+            const { local, keepCase } = options;
             if (url.startsWith('/')) {
                 url = url.slice(1);
             }
-            const request = new structures_1.ApiRequest(method.toUpperCase(), url, {
-                data,
-                headers,
-            });
+            const request = new structures_1.ApiRequest(method.toUpperCase(), url, options);
             let response;
             if (this.rpcRequestService === undefined || local) {
                 response = yield this.handleRequestLocal(request);
@@ -161,7 +158,7 @@ class Api {
             }
             let response = yield this.sendRequest(request);
             let rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
-            while (response.status === 429) {
+            while (response.status === 429 && request.allowQueue) {
                 rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
                 if (this.requestQueueProcessInterval === undefined) {
                     const message = 'A request has been rate limited and will not be processed. Please invoke `startQueue()` on this client so that rate limits may be handled.';

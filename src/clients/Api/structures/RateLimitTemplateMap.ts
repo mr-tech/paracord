@@ -1,11 +1,9 @@
+import { RateLimitHeaders } from '.';
+import RateLimit from './RateLimit';
 import RateLimitTemplate from './RateLimitTemplate';
-import { RateLimit, RateLimitHeaders } from '.';
 
-/**
- * Buckets to observed rate limit defaults.
- * @extends Map<string,RateLimitTemplate>
- */
-export = class RateLimitTemplateMap extends Map {
+/** Buckets to observed rate limit defaults. */
+export = class RateLimitTemplateMap extends Map<string, RateLimitTemplate> {
   /**
    * Insert or updates rate limit template using state.
    * @param state Incoming rate limit state.
@@ -34,7 +32,7 @@ export = class RateLimitTemplateMap extends Map {
 
     if (template !== undefined) {
       const { limit, limit: remaining } = template;
-      const resetTimestamp = new Date() + template.resetAfter;
+      const resetTimestamp = new Date().getTime() + template.resetAfter;
       return new RateLimit({
         remaining, resetTimestamp, limit, resetAfter: 0,
       }, template);

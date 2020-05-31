@@ -1,4 +1,4 @@
-import { BaseRequest } from '.';
+import BaseRequest from './BaseRequest';
 import { IRequestOptions, IApiResponse } from '../types';
 
 /**
@@ -18,6 +18,9 @@ export default class Request extends BaseRequest {
   /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
   public waitUntil: number | undefined;
 
+  /** Whether or not to not allow the request to be put on the rate limit queue. */
+  public allowQueue: boolean;
+
   /**
    * Creates a new request object.
    *
@@ -25,14 +28,16 @@ export default class Request extends BaseRequest {
    * @param url Discord REST endpoint target of the request. (e.g. channels/123)
    * @param options Optional parameters for this request.
    */
-  public constructor(method: string, url: string, options?: Partial<IRequestOptions>) {
+  public constructor(method: string, url: string, options: Partial<IRequestOptions> = {}) {
     super(method, url);
-    this.data;
-    this.headers = undefined;
-    this.response = undefined;
-    this.waitUntil = undefined;
 
-    Object.assign(this, options);
+    const {
+      data, headers, allowQueue,
+    } = options;
+
+    this.data = data;
+    this.headers = headers;
+    this.allowQueue = allowQueue ?? true;
   }
 
   /** Data relevant to sending this request via axios. */
@@ -48,7 +53,7 @@ export default class Request extends BaseRequest {
 
   /** Assigns a stricter value to `waitUntil`.
    * Strictness is defined by the value that decreases the chance of getting rate limited.
-   * @param {number} waitUntil A timestamp of when the request will first be available to try again when queued due to rate limits.
+   * @param waitUntil A timestamp of when the request will first be available to try again when queued due to rate limits.
    */
   public assignIfStricterWait(waitUntil: number): void {
     if (this.waitUntil === undefined || this.waitUntil < waitUntil) {
