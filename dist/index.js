@@ -29,5 +29,5 @@ var ShardLauncher_1 = require("./clients/Paracord/ShardLauncher");
 Object.defineProperty(exports, "ShardLauncher", { enumerable: true, get: function () { return ShardLauncher_1.default; } });
 var RpcServer_1 = require("./rpc/server/RpcServer");
 Object.defineProperty(exports, "Server", { enumerable: true, get: function () { return RpcServer_1.default; } });
-exports.ParacordUtils = __importStar(require("./Utils"));
+exports.ParacordUtils = __importStar(require("./utils"));
 exports.constants = __importStar(require("./constants"));

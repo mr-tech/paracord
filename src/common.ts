@@ -1,7 +1,6 @@
 import { ChannelCredentials } from '@grpc/grpc-js';
-import { Options } from '@grpc/proto-loader';
 import { EventEmitter } from 'events';
-import { RawGuild } from './types';
+import { Snowflake } from './types';
 
 export interface IServerOptions {
   /** Server host to connect to. */
@@ -12,8 +11,6 @@ export interface IServerOptions {
   channel: ChannelCredentials;
   /** If the service is allowed to fallback on alternate functionality. Defined differently for each service. */
   allowFallback: boolean;
-  /** Additional protobuf options. */
-  protoOptions: Options;
 }
 
 export interface ILockServiceOptions extends IServerOptions{
@@ -25,12 +22,12 @@ export type DebugLevel = 'FATAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG';
 
 export type UserEvents = Record<string, string>;
 
-export type RpcArguments = [boolean, string, number, number, number]
+export type RpcArguments = [boolean, string | undefined, number, number, number]
 
 export interface ExtendedEmitter extends EventEmitter {
   eventHandler?: (type: string, data: unknown, id: number) => Promise<unknown>;
 }
 
-export type DeleteEvent = ({ guildId }: {guildId: RawGuild['id']}) => unknown;
+export type DeleteEvent = ({ guildId }: {guildId: Snowflake}) => unknown;
 
 // export type NotVoid = string | number | boolean | symbol | bigint | Record<string, unknown>;

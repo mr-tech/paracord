@@ -7,6 +7,6 @@ export default class RateLimitService extends definition.RateLimitService {
     allowFallback: boolean;
     constructor(options: Partial<IServerOptions>);
     authorize(request: ApiRequest): Promise<AuthorizationMessage>;
-    update(request: ApiRequest, global: boolean, bucket: string, limit: number, remaining: number, resetAfter: number): Promise<void>;
+    update(request: ApiRequest, global: boolean, bucket: string | undefined, limit: number, remaining: number, resetAfter: number): Promise<void>;
 }
 export {};

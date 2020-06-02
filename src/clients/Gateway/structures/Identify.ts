@@ -1,4 +1,4 @@
-import { IdentifyConnectionProperties, GatewayStatusUpdate } from '../../../types';
+import { GatewayStatusUpdate, IdentifyConnectionProperties } from '../../../types';
 
 /** A container of information for identifying with the gateway. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
 export default class Identify {
@@ -9,7 +9,7 @@ export default class Identify {
     readonly token: string;
 
     /** information about the client and how it's connecting */
-    private properties: IdentifyConnectionProperties;
+    private properties?: IdentifyConnectionProperties;
 
     /** whether this connection supports compression of packets */
     private compress?: boolean; // false
@@ -30,7 +30,7 @@ export default class Identify {
    * Creates a new Identity object for use with the gateway.
    * @param identity Properties to add to this identity.
    */
-    public constructor(token: string, identity: Partial<Identify> = {}) {
+    public constructor(token: string, identity: Partial<Identify>) {
       this.properties = {
         $os: process.platform,
         $browser: 'Paracord',
@@ -45,6 +45,11 @@ export default class Identify {
       };
 
       Object.assign(this, identity);
+
+      if (identity.shard !== undefined) {
+        const [shard, shardCount] = identity.shard;
+        this.shard = [Number(shard), Number(shardCount)];
+      }
 
       this.token = token;
     }

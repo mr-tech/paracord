@@ -37,6 +37,7 @@ export declare type RequestProto = {
 };
 export declare type AuthorizationProto = {
     reset_after: number;
+    global: boolean;
 };
 export declare type ResponseProto = {
     status_code: number;
@@ -45,7 +46,7 @@ export declare type ResponseProto = {
 };
 export declare type RateLimitStateProto = {
     request_meta: RequestMetaProto;
-    bucket: string;
+    bucket: string | undefined;
     remaining: number;
     limit: number;
     reset_after: number;

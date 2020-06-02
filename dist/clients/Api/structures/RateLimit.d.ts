@@ -1,10 +1,10 @@
-import type RateLimitTemplate from './RateLimitTemplate';
 import type { RateLimitState } from '../types';
+import type RateLimitTemplate from './RateLimitTemplate';
 export default class RateLimit {
     private remaining;
     private resetTimestamp;
     private limit;
-    expires: number | undefined;
+    expires: number;
     private template;
     private allowHeaderOverride;
     constructor({ remaining, resetTimestamp, limit }: RateLimitState, template: RateLimitTemplate);

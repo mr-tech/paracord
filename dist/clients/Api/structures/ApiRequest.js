@@ -7,10 +7,13 @@ const BaseRequest_1 = __importDefault(require("./BaseRequest"));
 class Request extends BaseRequest_1.default {
     constructor(method, url, options = {}) {
         super(method, url);
-        const { data, headers, allowQueue, } = options;
+        const { data, headers, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, } = options;
         this.data = data;
         this.headers = headers;
-        this.allowQueue = allowQueue !== null && allowQueue !== void 0 ? allowQueue : true;
+        this.returnOnRateLimit = returnOnRateLimit !== null && returnOnRateLimit !== void 0 ? returnOnRateLimit : false;
+        this.returnOnGlobalRateLimit = returnOnGlobalRateLimit !== null && returnOnGlobalRateLimit !== void 0 ? returnOnGlobalRateLimit : false;
+        this.retriesLeft = maxRateLimitRetry;
+        this.running = false;
     }
     get sendData() {
         return {

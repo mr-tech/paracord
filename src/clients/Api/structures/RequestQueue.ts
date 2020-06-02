@@ -12,8 +12,9 @@
 
 // TODO(lando): Do some logging on this in prod to make sure it doesn't memory leak.
 
+import { ApiRequest, RateLimitCache } from '.';
+import { RPC_CLOSE_CODES } from '../../../constants';
 import Api from '../Api';
-import { RateLimitCache, ApiRequest } from '.';
 
 /** A queue for rate limited requests waiting to be sent. */
 export default class RequestQueue {
@@ -46,9 +47,13 @@ export default class RequestQueue {
     this.apiClient = apiClient;
   }
 
-  /** @type The length of the queue. */
+  /** The length of the queue. */
   private get length(): number {
     return this._length;
+  }
+
+  public startQueue(interval: number): NodeJS.Timer {
+    return setInterval(this.process.bind(this), interval);
   }
 
   /**
@@ -89,7 +94,7 @@ export default class RequestQueue {
   }
 
   /** Iterates over the queue, sending any requests that are no longer rate limited. */
-  public async process(): Promise<void> {
+  private process(): void {
     if (this.length === 0 || this.processing) return;
 
     try {
@@ -99,7 +104,9 @@ export default class RequestQueue {
       const removedIndices: Array<number | null> = [];
 
       for (let queueIdx = 0; queueIdx < this.length; ++queueIdx) {
-        await this.processIteration(queueIdx, removedIndices);
+        if (this.processIteration(queueIdx)) {
+          removedIndices.push(queueIdx);
+        }
       }
 
       this.spliceMany(removedIndices);
@@ -113,29 +120,34 @@ export default class RequestQueue {
    * @param queueIdx Index of the current place in the queue.
    * @param processedIndices The indices of requests to remove from th queue.
    */
-  private async processIteration(queueIdx: number, removedIndices: Array<number | null>): Promise<void> {
+  private processIteration(queueIdx: number): boolean {
     const request = this.queue[queueIdx];
 
     if (request === null) {
-      return;
+      return false;
+    }
+    if (request.running) {
+      return false;
+    }
+    if (request.response !== undefined) {
+      console.log('pong');
+      return true;
     }
     if (request.waitUntil !== undefined && request.waitUntil > new Date().getTime()) {
-      return;
+      return false;
     }
 
-    try {
-      // if (request.timeout <= new Date().getTime()) {
-      //   removedIndices.push(queueIdx);
-      // } else
-      if (await this.apiClient.returnOkToMakeRequest(request)) {
-        request.response = this.apiClient.sendQueuedRequest(request);
+    console.log('ping');
 
-        removedIndices.push(queueIdx);
-      }
-    } catch (err) {
-      if (err.code === 14) {
-        removedIndices.push(queueIdx);
-      }
+    this.sendRequest(request);
+
+    return false;
+  }
+
+  private async sendRequest(request: ApiRequest): Promise<void> {
+    const { response } = await this.apiClient.sendRequest(request, true);
+    if (response !== undefined) {
+      request.response = response;
     }
   }
 }

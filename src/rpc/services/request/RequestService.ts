@@ -24,12 +24,12 @@ export default class RequestService extends definition.RequestService {
    */
   public constructor(options: Partial<IServerOptions>) {
     const {
-      host, port, channel, protoOptions, allowFallback,
-    } = mergeOptionsWithDefaults(options || {});
+      host, port, channel, allowFallback,
+    } = mergeOptionsWithDefaults(options ?? {});
 
     const dest = `${host}:${port}`;
 
-    super(dest, channel, protoOptions);
+    super(dest, channel);
 
     this.target = dest;
     this.allowFallback = allowFallback || false;
@@ -41,7 +41,7 @@ export default class RequestService extends definition.RequestService {
 
     return new Promise((resolve, reject) => {
       super.request(message, (err: ServiceError, res?: ResponseProto) => {
-        if (err === null) {
+        if (err !== null) {
           reject(err);
         } else if (res === undefined) {
           reject(Error('no message'));

@@ -1,4 +1,5 @@
 
+import { ChannelCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import { UserEvents } from '../../common';
 import type { ApiRequest } from './structures';
@@ -21,12 +22,18 @@ export interface IRequestOptions {
   local?: boolean;
   /** Whether or not to return the response data with camelCased keys. */
   keepCase?: boolean;
-  /** Set to false to not allow the request to be put on the rate limit queue. */
-  allowQueue?: false;
+  /** Set to true to not retry the request on a bucket 429 rate limit. */
+  returnOnRateLimit?: false;
+  /** Set to true to not retry the request on a global rate limit. */
+  returnOnGlobalRateLimit?: false;
+  /**
+   * The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides both "returnOn" options.
+   * Leave `undefined` for indefinite retries. `0` is effectively `returnOnRateLimit = true` and `returnOnGlobalRateLimit = true`.
+   */
+  maxRateLimitRetry?: number;
   /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
   transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
 }
-
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
 export type WrappedRequest = (request: ApiRequest) => Promise<IApiResponse>;
@@ -47,7 +54,7 @@ export type RateLimitState = {
 export interface IServiceOptions {
   host?: string;
   port?: string | number;
-  channel?: import('@grpc/grpc-js').ChannelCredentials;
+  channel?: ChannelCredentials;
   allowFallback?: boolean;
 }
 
@@ -60,5 +67,14 @@ export interface IApiResponse {
   /** The data returned by Discord. */
   data: Record<string, unknown>;
 
-  headers: Record<string, string>;
+  headers: Record<string, unknown>;
+}
+
+export type IRateLimitState = {
+  resetAfter: number;
+  global?: boolean;
+}
+
+export type IResponseState = IRateLimitState & {
+  response?: IApiResponse
 }

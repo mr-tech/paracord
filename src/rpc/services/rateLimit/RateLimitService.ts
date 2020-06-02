@@ -24,12 +24,12 @@ export default class RateLimitService extends definition.RateLimitService {
    */
   public constructor(options: Partial<IServerOptions>) {
     const {
-      host, port, channel, protoOptions, allowFallback,
-    } = mergeOptionsWithDefaults(options || {});
+      host, port, channel, allowFallback,
+    } = mergeOptionsWithDefaults(options ?? {});
 
     const dest = `${host}:${port}`;
 
-    super(dest, channel, protoOptions);
+    super(dest, channel);
 
     this.target = dest;
     this.allowFallback = allowFallback || false;
@@ -43,10 +43,9 @@ export default class RateLimitService extends definition.RateLimitService {
     const { method, url } = request;
 
     const message = new RequestMetaMessage(method, url).proto;
-
     return new Promise((resolve, reject) => {
-      super.request(message, (err: ServiceError, res?: AuthorizationProto) => {
-        if (err === null) {
+      super.authorize(message, (err: ServiceError, res?: AuthorizationProto) => {
+        if (err !== null) {
           reject(err);
         } else if (res === undefined) {
           reject(Error('no message'));
@@ -61,7 +60,7 @@ export default class RateLimitService extends definition.RateLimitService {
    * Sends rate limit headers to server so that it can update the cache.
    * @param request The request being authorized.
    */
-  public update(request: ApiRequest, global: boolean, bucket: string, limit: number, remaining: number, resetAfter: number): Promise<void> {
+  public update(request: ApiRequest, global: boolean, bucket: string | undefined, limit: number, remaining: number, resetAfter: number): Promise<void> {
     const { method, url } = request;
     const requestMeta = new RequestMetaMessage(method, url);
     const message = new RateLimitStateMessage(
@@ -74,8 +73,8 @@ export default class RateLimitService extends definition.RateLimitService {
     ).proto;
 
     return new Promise((resolve, reject) => {
-      super.request(message, (err: ServiceError) => {
-        if (err === null) {
+      super.update(message, (err: ServiceError) => {
+        if (err !== null) {
           reject(err);
         } else {
           resolve();

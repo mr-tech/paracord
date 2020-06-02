@@ -15,6 +15,6 @@ __exportStar(require("./emoji"), exports);
 __exportStar(require("./gateway"), exports);
 __exportStar(require("./guild"), exports);
 __exportStar(require("./permissions"), exports);
-__exportStar(require("./types"), exports);
+__exportStar(require("./custom"), exports);
 __exportStar(require("./user"), exports);
 __exportStar(require("./voice"), exports);

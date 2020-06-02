@@ -1,8 +1,8 @@
 import { AxiosInstance } from 'axios';
 import type { ApiRequest } from '.';
 import { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
-import { millisecondsFromNow } from '../../../Utils';
-import { IApiResponse, WrappedRequest } from '../types';
+import { millisecondsFromNow } from '../../../utils';
+import { IApiResponse, IRateLimitState, WrappedRequest } from '../types';
 import BaseRequest from './BaseRequest';
 import RateLimit from './RateLimit';
 import RateLimitHeaders from './RateLimitHeaders';
@@ -122,29 +122,32 @@ export default class RateLimitCache {
    * @param {BaseRequest} request Request's rate limit key formed in BaseRequest.
    * @returns {number} Until when the client should wait before asking to authorize this request again.
    */
-  public authorizeRequestFromClient(request: BaseRequest): number {
+  public authorizeRequestFromClient(request: BaseRequest): IRateLimitState {
     const { isGloballyRateLimited } = this;
     const rateLimit = this.getRateLimitFromCache(request);
 
     if (isGloballyRateLimited) {
       if (rateLimit !== undefined && this.returnIsRateLimited(request)) {
-        return RateLimitCache.returnStricterResetTimestamp(this.globalRateLimitResetAfter, rateLimit.resetAfter);
+        return {
+          resetAfter: RateLimitCache.returnStricterResetTimestamp(this.globalRateLimitResetAfter, rateLimit.resetAfter),
+          global: true,
+        };
       }
 
-      return this.globalRateLimitResetAfter;
+      return { resetAfter: this.globalRateLimitResetAfter, global: true };
     }
 
     if (rateLimit === undefined) {
-      return 0;
+      return { resetAfter: 0 };
     }
 
     if (!this.returnIsRateLimited(request)) {
       rateLimit.decrementRemaining();
       this.decrementGlobalRemaining();
-      return 0;
+      return { resetAfter: 0 };
     }
 
-    return rateLimit.resetAfter;
+    return { resetAfter: rateLimit.resetAfter };
   }
 
   /**
@@ -157,9 +160,11 @@ export default class RateLimitCache {
     const { requestRouteMeta, rateLimitKey } = request;
     const { bucket } = rateLimitHeaders;
 
-    this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
-    const template = this.rateLimitTemplateMap.upsert(rateLimitHeaders);
-    this.rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+    if (bucket !== undefined) {
+      this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
+      const template = this.rateLimitTemplateMap.upsert(bucket, rateLimitHeaders);
+      this.rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+    }
   }
 
   /**
@@ -168,17 +173,17 @@ export default class RateLimitCache {
    * @param request The request to reference when checking the rate limit state.
    * @returns `true` if rate limit would get triggered.
    */
-  public returnIsRateLimited(request: BaseRequest | ApiRequest): boolean {
+  public returnIsRateLimited(request: BaseRequest | ApiRequest): IRateLimitState {
     if (this.isGloballyRateLimited) {
-      return true;
+      return { resetAfter: this.globalRateLimitResetAfter, global: true };
     }
 
     const rateLimit = this.getRateLimitFromCache(request);
-    if (rateLimit !== undefined) {
-      return rateLimit.isRateLimited;
+    if (rateLimit?.isRateLimited) {
+      return { resetAfter: rateLimit.resetAfter };
     }
 
-    return false;
+    return { resetAfter: 0 };
   }
 
   /** Sets the remaining requests back to the known limit. */

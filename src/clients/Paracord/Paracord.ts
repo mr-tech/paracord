@@ -6,11 +6,12 @@ import {
 } from '../../constants';
 import { RemoteApiResponse } from '../../rpc/types';
 import {
-  EventFunction, EventFunctions, GuildMap, GuildMember, Identify, Message, PresenceMap, RawGuild, RawGuildMember, RawPresence, RawUser, ReadyEventFields, Snowflake, User, UserMap,
+  Identify, Message, RawGuild, RawGuildMember, RawPresence, RawUser, ReadyEventFields,
 } from '../../types';
 import {
-  clone, coerceTokenToBotLike, objectKeysSnakeToCamel, timestampFromSnowflake,
-} from '../../Utils';
+  EventFunction, EventFunctions, GuildMap, GuildMember, PresenceMap, Snowflake, User, UserMap,
+} from '../../types/custom';
+import { clone, coerceTokenToBotLike, timestampFromSnowflake } from '../../utils';
 import Api from '../Api/Api';
 import { IApiOptions, IApiResponse } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
@@ -21,98 +22,100 @@ import { GatewayMap, ParacordLoginOptions, ParacordOptions } from './types';
 
 const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
 
+// TODO: handle emitting of events before emitter is initialized in constructor... somehow.
+
 /* "Start up" refers to logging in to the gateway and waiting for all the guilds to be returned. By default, events will be suppressed during start up. */
 
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 export default class Paracord extends EventEmitter {
   /** Discord bot token. */
-  token: string;
+  readonly token: string;
 
   /** Whether or not the `init()` function has already been called. */
-  initialized: boolean;
+  private initialized: boolean;
 
   /** User details given by Discord in the "Ready" event form the gateway. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
-  user!: User;
+  public user!: User;
 
   /** During a shard's start up, how many guilds may be unavailable before forcing ready. */
-  unavailableGuildTolerance?: number;
+  private unavailableGuildTolerance?: number;
 
   /** During a shard's start up, time in seconds to wait from the last GUILD_CREATE to force ready. */
-  unavailableGuildWait?: number;
+  private unavailableGuildWait?: number;
 
   /** Interval that will force shards as ready when within set thresholds. */
-  startWithUnavailableGuildsInterval?: NodeJS.Timer
+  private startWithUnavailableGuildsInterval?: NodeJS.Timer
 
   /* Internal clients. */
   /** Client through which to make REST API calls to Discord. */
-  api!: Api;
+  private _api!: Api;
 
   /** Gateway clients keyed to their shard #. */
-  gateways: GatewayMap;
+  readonly gateways: GatewayMap;
 
   /** Gateways queue to log in. */
-  gatewayLoginQueue: Gateway[];
+  public gatewayLoginQueue: Gateway[];
 
   /** Identify lock service options passed to the gateway shards. */
-  gatewayLockServiceOptions?: {
+  private gatewayLockServiceOptions?: {
     mainServerOptions: ILockServiceOptions,
     serverOptions: ILockServiceOptions[],
   };
 
-  apiOptions: Partial<IApiOptions>;
+  private apiOptions: Partial<IApiOptions>;
 
-  gatewayOptions: Partial<GatewayOptions>;
+  private gatewayOptions: Partial<GatewayOptions>;
 
   /* State that tracks the start up process. */
   /** Timestamp of the last gateway identify. */
-  safeGatewayIdentifyTimestamp?: number;
+  public safeGatewayIdentifyTimestamp: number;
 
   /** Gateways left to login on start up before emitting `PARACORD_STARTUP_COMPLETE` event. */
-  gatewayWaitCount?: number;
+  private gatewayWaitCount: number;
 
   /** Shard currently in the initial phases of the gateway connection in progress. */
-  startingGateway: Gateway | undefined;
+  public startingGateway: Gateway | undefined;
 
   /** Guilds left to ingest on start up before emitting `PARACORD_STARTUP_COMPLETE` event. */
-  guildWaitCount?: number;
+  private guildWaitCount: number;
 
   /** Timestamp of last GUILD_CREATE event on start up for the current `startingGateway`. */
-  lastGuildTimestamp?: number;
+  private lastGuildTimestamp?: number;
 
   /* Client caches. */
   /** Guild cache. */
-  guilds: GuildMap;
+  public guilds: GuildMap;
 
   /** User cache. */
-  users: UserMap;
+  public users: UserMap;
 
-  presences: PresenceMap;
+  public presences: PresenceMap;
 
   /** Interval that coordinates gateway logins. */
-  processGatewayQueueInterval?: NodeJS.Timer;
+  private processGatewayQueueInterval?: NodeJS.Timer;
 
   /** Interval that removes objects from the presence and user caches. */
-  sweepCachesInterval?:NodeJS.Timer;
+  private sweepCachesInterval?:NodeJS.Timer;
 
   /** Interval that removes object from the redundant presence update cache. */
-  sweepRecentPresenceUpdatesInterval?: NodeJS.Timer;
+  private sweepRecentPresenceUpdatesInterval?: NodeJS.Timer;
 
   /* User-defined event handling behavior. */
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
-  events?: UserEvents;
+  private events?: UserEvents;
 
   /** During startup, if events should be emitted before `PARACORD_STARTUP_COMPLETE` is emitted. `GUILD_CREATE` events will never be emitted during start up. */
-  allowEventsDuringStartup: boolean;
+  private allowEventsDuringStartup: boolean;
 
-  preventLogin: boolean;
+  public preventLogin: boolean;
 
-  request!: Api['request'];
+  public request!: Api['request'];
 
-  addRateLimitService!: Api['addRateLimitService'];
+  public addRateLimitService!: Api['addRateLimitService'];
 
-  addRequestService!: Api['addRequestService'];
+  public addRequestService!: Api['addRequestService'];
 
-  gatewayEvents: EventFunctions;
+  private gatewayEvents: EventFunctions;
 
   /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
   private static validateParams(token: string): void {
@@ -139,10 +142,12 @@ export default class Paracord extends EventEmitter {
     this.gateways = new Map();
     this.gatewayLoginQueue = [];
     this.guildWaitCount = 0;
+    this.gatewayWaitCount = 0;
     this.allowEventsDuringStartup = false;
     this.preventLogin = false;
     this.apiOptions = {};
     this.gatewayOptions = {};
+    this.safeGatewayIdentifyTimestamp = 0;
 
     Object.assign(this, options);
 
@@ -158,9 +163,14 @@ export default class Paracord extends EventEmitter {
     return this.gateways;
   }
 
-  /** @type Whether or not there are gateways currently starting up. */
+  /** Whether or not there are gateways currently starting up. */
   public get connecting(): boolean {
     return this.gatewayLoginQueue.length !== 0 || this.startingGateway !== undefined;
+  }
+
+  /** The api client of this Paracord client. */
+  public get api(): Api {
+    return this._api;
   }
 
   /*
@@ -200,7 +210,7 @@ export default class Paracord extends EventEmitter {
    * @param shard Shard id of the gateway that emitted this event.
    */
   public eventHandler(eventType: string, data: unknown, shard: number): unknown {
-    let emit = data ?? typeof data === 'object' ? objectKeysSnakeToCamel(<Record<string, unknown>>data) : data;
+    let emit = data;
 
     /** Method defined in ParacordEvents.ts */
     const paracordEvent = <EventFunction | undefined> this.gatewayEvents[eventType];
@@ -298,22 +308,22 @@ export default class Paracord extends EventEmitter {
     const {
       preventLogin, gatewayLoginQueue, startingGateway, safeGatewayIdentifyTimestamp, unavailableGuildTolerance, unavailableGuildWait,
     } = this;
+    const now = new Date().getTime();
 
     if (
       !preventLogin
         && gatewayLoginQueue.length
         && startingGateway === undefined
-        && safeGatewayIdentifyTimestamp !== undefined
-        && new Date().getTime() > safeGatewayIdentifyTimestamp
+        && now > safeGatewayIdentifyTimestamp
     ) {
       const gateway = <Gateway> this.gatewayLoginQueue.shift();
-      this.safeGatewayIdentifyTimestamp = 10 * SECOND_IN_MILLISECONDS; // arbitrary buffer
+      this.safeGatewayIdentifyTimestamp = now + 10 * SECOND_IN_MILLISECONDS; // arbitrary buffer to allow previous to finish
 
       this.startingGateway = gateway;
       try {
         await gateway.login();
 
-        if (unavailableGuildTolerance && unavailableGuildWait) {
+        if (unavailableGuildTolerance !== undefined && unavailableGuildWait !== undefined) {
           this.startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3);
         }
       } catch (err) {
@@ -344,25 +354,33 @@ export default class Paracord extends EventEmitter {
    */
   private async enqueueGateways(options: ParacordLoginOptions): Promise<void> {
     const { identity } = options;
-    const { shards, shardCount } = options;
-    if (shards !== undefined && shardCount !== undefined) {
-      shards.forEach((s) => {
-        if (s + 1 > <number> shardCount) {
-          throw Error(`shard id ${s} exceeds max shard id of ${<number> shardCount - 1}`);
-        }
-      });
-    }
+    let { shards, shardCount } = options;
+    let wsUrl: string | undefined;
 
-    const { shards: spawnShards, shardCount: spawnCount } = await this.computeShards(shards, shardCount);
-
-    if (spawnShards === undefined || spawnCount === undefined) {
-      throw Error(`shards ids or shard count are invalid - ids ${spawnShards} , count: ${spawnCount}`);
+    if (identity && Array.isArray(identity.shard)) {
+      const identityCopy = clone(identity);
+      this.addNewGateway(<Identify>identityCopy);
     } else {
-      spawnShards.forEach((shard) => {
-        const identityCopy = clone(identity || {});
-        identityCopy.shard = [shard, spawnCount];
-        this.addNewGateway(identityCopy);
-      });
+      if (shards !== undefined && shardCount !== undefined) {
+        shards.forEach((s) => {
+          if (s + 1 > <number>shardCount) {
+            throw Error(`shard id ${s} exceeds max shard id of ${<number>shardCount - 1}`);
+          }
+        });
+      } else {
+        ({ shards, shardCount, wsUrl } = await this.computeShards(shards, shardCount));
+      }
+
+      if (shards === undefined || shardCount === undefined) {
+        throw Error(`shards ids or shard count are invalid - ids ${shards} , count: ${shardCount}`);
+      } else {
+        shards.forEach((shard) => {
+          const identityCopy = clone(identity ?? {});
+          identityCopy.token = this.token;
+          identityCopy.shard = [shard, shardCount];
+          this.addNewGateway(<Identify>identityCopy, wsUrl);
+        });
+      }
     }
   }
 
@@ -373,16 +391,18 @@ export default class Paracord extends EventEmitter {
    */
   private async computeShards(
     shards: number[] | undefined, shardCount: number | undefined,
-  ): Promise<{shards: number[] | undefined, shardCount: number | undefined}> {
+  ): Promise<{shards: number[] | undefined, shardCount: number | undefined, wsUrl: string | undefined}> {
     if (shards !== undefined && shardCount === undefined) {
       throw Error('shards defined with no shardCount.');
     }
 
+    let wsUrl;
     if (shardCount === undefined) {
-      const { status, data: { shards: recommendedShards } } = <GatewayBotResponse> await this.api.request(
+      const { status, data: { url, shards: recommendedShards } } = <GatewayBotResponse> await this.api.request(
         'get',
         'gateway/bot',
       );
+      wsUrl = url;
       if (status === 200) {
         shardCount = recommendedShards;
       }
@@ -395,23 +415,23 @@ export default class Paracord extends EventEmitter {
       }
     }
 
-    return { shards, shardCount };
+    return { shards, shardCount, wsUrl };
   }
 
   /**
    * Creates gateway and pushes it into cache and login queue.
    * @param identity An object containing information for identifying with the gateway. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure
    */
-  private addNewGateway(identity: Partial<Identify>): void {
+  private addNewGateway(identity: Identify, wsUrl?: string | undefined): void {
     const gatewayOptions = {
-      identity, api: this.api, emitter: this, events: this.events,
+      identity, api: this.api, emitter: this, events: this.events, wsUrl,
     };
     const gateway = this.setUpGateway(this.token, gatewayOptions);
     if (this.gateways.get(gateway.id) !== undefined) {
       throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
     }
 
-    this.gatewayWaitCount && ++this.gatewayWaitCount;
+    ++this.gatewayWaitCount;
     this.gateways.set(gateway.id, gateway);
     this.gatewayLoginQueue.push(gateway);
   }
@@ -421,7 +441,7 @@ export default class Paracord extends EventEmitter {
     if (this.initialized) {
       throw Error('Client has already been initialized.');
     }
-    this.api = this.setUpApi(this.token, this.apiOptions);
+    this._api = this.setUpApi(this.token, this.apiOptions);
     this.selfAssignHandlerFunctions();
     this.initialized = true;
   }
@@ -460,7 +480,7 @@ export default class Paracord extends EventEmitter {
    * @param token Discord token. Will be coerced to bot token.
    * @param options
    */
-  private setUpGateway(token: string, options: Partial<GatewayOptions>): Gateway {
+  private setUpGateway(token: string, options: GatewayOptions): Gateway {
     const gateway = new Gateway(token, {
       ...options,
       emitter: this,
@@ -508,11 +528,16 @@ export default class Paracord extends EventEmitter {
     const { user, guilds } = data;
 
     this.guildWaitCount = guilds.length;
-    guilds.forEach((g) => this.guilds.set(g.id, new Guild(g, this, shard)));
 
-    user.tag = () => `${user.username}#${user.discriminator}`;
-    this.user = user;
-    this.log('INFO', `Logged in as ${user.tag}.`);
+    this.user = {
+      ...user,
+      get tag(): string {
+        return `${user.username}#${user.discriminator}`;
+      },
+    };
+    this.log('INFO', `Logged in as ${this.user.tag}.`);
+
+    guilds.forEach((g) => this.guilds.set(g.id, new Guild(g, this, shard)));
 
     const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
     this.log('INFO', message);
@@ -529,13 +554,13 @@ export default class Paracord extends EventEmitter {
    * @param emptyShard Whether or not the shard started with no guilds.
    */
   private checkIfDoneStarting(forced?: boolean): void {
-    const { startingGateway, guildWaitCount, gatewayWaitCount } = this;
+    const { startingGateway, guildWaitCount } = this;
 
-    if (startingGateway !== undefined && gatewayWaitCount !== undefined) {
+    if (startingGateway !== undefined) {
       if (forced || guildWaitCount === 0) {
         this.completeShardStartup(startingGateway, forced);
 
-        this.gatewayWaitCount !== undefined && --this.gatewayWaitCount === 0 && this.completeStartup();
+        --this.gatewayWaitCount === 0 && this.completeStartup();
       } else if (guildWaitCount !== undefined && guildWaitCount < 0) {
         const message = `Shard ${startingGateway.id} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${this.guildWaitCount}`;
         this.log('WARNING', message);
@@ -560,14 +585,13 @@ export default class Paracord extends EventEmitter {
     const shard = this.startingGateway;
 
     this.clearStartingShardState();
-
     this.emit('SHARD_STARTUP_COMPLETE', { shard, forced });
   }
 
   public clearStartingShardState(): void {
     this.startingGateway = undefined;
     this.lastGuildTimestamp = undefined;
-    this.guildWaitCount = undefined;
+    this.guildWaitCount = 0;
     this.startWithUnavailableGuildsInterval && clearInterval(this.startWithUnavailableGuildsInterval);
   }
 
@@ -618,8 +642,12 @@ export default class Paracord extends EventEmitter {
    */
   public upsertUser(user: User | RawUser): User {
     let cachedUser = this.users.get(user.id) || <User>{};
-    cachedUser.tag = () => `${user.username}#${user.discriminator}`;
-    cachedUser = Object.assign(cachedUser, user);
+    cachedUser = Object.assign(cachedUser, {
+      ...user,
+      get tag(): string {
+        return `${user.username}#${user.discriminator}`;
+      },
+    });
 
     this.users.set(cachedUser.id, cachedUser);
 

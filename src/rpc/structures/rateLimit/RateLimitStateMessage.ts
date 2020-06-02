@@ -10,7 +10,7 @@ export default class RateLimitStateMessage {
   public global: boolean;
 
   /** From Discord - Id of the rate limit bucket. */
-  public bucket: string;
+  public bucket: string | undefined;
 
   /** From Discord - Number of requests that can be made between rate limit triggers. */
   public limit: number;
@@ -116,7 +116,7 @@ export default class RateLimitStateMessage {
   public constructor(
     requestMeta:RequestMetaMessage,
     global: boolean,
-    bucket: string,
+    bucket: string | undefined,
     limit: number,
     remaining: number,
     resetAfter: number,

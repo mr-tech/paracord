@@ -3,7 +3,7 @@ export declare type RawVoiceState = {
     guildId?: Snowflake;
     channelId: Snowflake | null;
     userId: Snowflake;
-    member: RawGuildMember;
+    member?: RawGuildMember;
     sessionId: string;
     deaf: boolean;
     mute: boolean;

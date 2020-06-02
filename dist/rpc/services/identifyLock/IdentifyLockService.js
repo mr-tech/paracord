@@ -6,9 +6,9 @@ const DEFAULT_LOCK_DURATION = 6e3;
 const definition = common_1.loadProtoDefinition('identify_lock');
 class IdentifyLockService extends definition.LockService {
     constructor(options) {
-        const { host, port, channel, protoOptions, allowFallback, } = common_1.mergeOptionsWithDefaults(options || {});
+        const { host, port, channel, allowFallback, } = common_1.mergeOptionsWithDefaults(options !== null && options !== void 0 ? options : {});
         const dest = `${host}:${port}`;
-        super(dest, channel, protoOptions);
+        super(dest, channel);
         this.target = dest;
         this.allowFallback = allowFallback;
         this.duration = options.duration || DEFAULT_LOCK_DURATION;
@@ -23,7 +23,7 @@ class IdentifyLockService extends definition.LockService {
         const message = new structures_1.LockRequestMessage(this.duration, this.token).proto;
         return new Promise((resolve, reject) => {
             super.acquire(message, (err, res) => {
-                if (err === null) {
+                if (err !== null) {
                     reject(err);
                 }
                 else if (res === undefined) {
@@ -43,7 +43,7 @@ class IdentifyLockService extends definition.LockService {
         const message = new structures_1.TokenMessage(this.token).proto;
         return new Promise((resolve, reject) => {
             super.release(message, (err, res) => {
-                if (err === null) {
+                if (err !== null) {
                     reject(err);
                 }
                 else if (res === undefined) {

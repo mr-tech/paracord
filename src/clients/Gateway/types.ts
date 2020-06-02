@@ -6,15 +6,17 @@ import { IApiResponse } from '../Api/types';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
-  identity: Partial<Identify>;
+  identity: Identify;
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventEmitter;
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
-  events: UserEvents;
+  events?: UserEvents;
   /** Paracord rest API handler. */
   api: Api;
-  /** Whether or not to keep all properties on Discord objects in their original snake case. */
-  keepCase: false;
+  // /** Whether or not to keep all properties on Discord objects in their original snake case. */
+  // keepCase: false;
+  /** Websocket url to connect to. */
+  wsUrl?: string;
 }
 
 type ErrorResponse = {
@@ -24,14 +26,16 @@ type ErrorResponse = {
   code: number;
 }
 
+export type Heartbeat = number;
+
 export interface GatewayBotResponse extends IApiResponse {
   data: {
     /** websocket url */
     url: string;
-    /** state of the limits for this period of time */
-    sessionStartLimit: SessionLimitData;
     /** recommended shard count */
     shards: number;
+    /** state of the limits for this period of time */
+    sessionStartLimit: SessionLimitData;
   } & ErrorResponse
 }
 

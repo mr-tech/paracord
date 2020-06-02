@@ -6,7 +6,6 @@ export declare function READY(this: Paracord, data: ReadyEventFields, shard: num
 export declare function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence | RawPresence;
 export declare function USER_UPDATE(this: Paracord, data: RawUser): User;
 export declare function MESSAGE_CREATE(this: Paracord, data: Message): Message;
-export declare const MESSAGE_UPDATE: typeof MESSAGE_CREATE;
 export declare function VOICE_STATE_UPDATE(this: Paracord, data: RawVoiceState): GuildVoiceState | RawVoiceState;
 export declare function GUILD_MEMBER_ADD(this: Paracord, data: RawGuildMember & GuildMemberAddExtraFields): (RawGuildMember & GuildMemberAddExtraFields) | GuildMember;
 export declare function GUILD_MEMBER_UPDATE(this: Paracord, data: GuildMemberUpdateEventFields): GuildMember | GuildMemberUpdateEventFields;

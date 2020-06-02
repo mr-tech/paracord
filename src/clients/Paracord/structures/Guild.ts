@@ -1,10 +1,8 @@
 import { PERMISSIONS } from '../../../constants';
 import {
-  DefaultMessageNotificationLevel, EmojiMap, ExplicitContentFilterLevel, GuildChannel, GuildChannelMap, GuildEmoji, GuildFeature, GuildMember, GuildMemberMap, GuildMemberUpdateEventFields,
-  GuildRole, GuildVoiceState, ISO8601timestamp, MFALevel, PremiumTier, PresenceMap, RawChannel, RawEmoji, RawGuild, RawGuildMember, RawPresence, RawRole, RawVoiceState, RoleMap, Snowflake,
-  SystemChannelFlags, VerificationLevel, VoiceRegion, VoiceStateMap,
+  DefaultMessageNotificationLevel, EmojiMap, ExplicitContentFilterLevel, GuildChannel, GuildChannelMap, GuildEmoji, GuildFeature, GuildMember, GuildMemberMap, GuildMemberUpdateEventFields, GuildRole, GuildVoiceState, ISO8601timestamp, MFALevel, PremiumTier, PresenceMap, RawChannel, RawEmoji, RawGuild, RawGuildMember, RawPresence, RawRole, RawVoiceState, RoleMap, Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion, VoiceStateMap,
 } from '../../../types';
-import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../Utils';
+import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../utils';
 import Paracord from '../Paracord';
 
 /** A Discord guild. */
@@ -167,12 +165,12 @@ export default class Guild {
 
     this.mergeGuildData(guildCreate, client);
 
-    if (this.members !== undefined && this.me === undefined) {
+    if (this.unavailable === false && this.members !== undefined && this.me === undefined) {
       this.me = this.members.get(client.user.id);
       if (this.me === undefined) {
         /* eslint-disable-next-line no-console */
         console.log(
-          'This message is intentional and is made to appear when a guild is created but the bot user was not included in the initial member list.',
+          'This message is intentional and is made to appear when am available guild is created but the bot user was not included in the initial member list.',
         );
         // Guild.lazyLoadGuildMe(client);
       }
@@ -309,13 +307,16 @@ export default class Guild {
    * Add a role with some additional information to a map of roles.
    * @param emoji https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
    */
-  private upsertEmoji(emoji: RawEmoji): GuildEmoji {
+  private upsertEmoji(emoji: RawEmoji): RawEmoji | GuildEmoji {
+    const { id } = emoji;
     const { emojis } = this;
 
-    const cachedEmoji = <GuildEmoji>Object.assign(emojis.get(emoji.id) || {}, emoji);
-    emojis.set(emoji.id, cachedEmoji);
+    if (id !== null) {
+      emoji = <GuildEmoji>Object.assign(emojis.get(id) || {}, emoji);
+      emojis.set(id, emoji);
+    }
 
-    return cachedEmoji;
+    return emoji;
   }
 
   /**
@@ -355,11 +356,16 @@ export default class Guild {
    * @param client
    */
   public upsertVoiceState(voiceState: RawVoiceState, client: Paracord): GuildVoiceState {
-    const member = this.members.get(voiceState.userId) ?? this.upsertMember(voiceState.member, client);
+    const { userId, member } = voiceState;
 
-    voiceState.member = member;
+    const cachedMember = this.members.get(userId) ?? (member !== undefined ? this.upsertMember(member, client) : undefined);
+
+    if (cachedMember !== undefined) {
+      voiceState.member = cachedMember;
+    }
+
     const { voiceStates } = this;
-    voiceStates.set(voiceState.userId, <GuildVoiceState>voiceState);
+    voiceStates.set(userId, <GuildVoiceState>voiceState);
 
     return <GuildVoiceState>voiceState;
   }

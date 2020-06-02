@@ -8,9 +8,9 @@ class RpcServer extends grpc.Server {
     constructor(options = {}) {
         super();
         const { host, port, channel, emitter, apiClient, identifyLock, } = options;
-        this.host = host || '127.0.0.1';
-        this.port = port || '50051';
-        this.channel = channel || grpc.ServerCredentials.createInsecure();
+        this.host = host !== null && host !== void 0 ? host : '127.0.0.1';
+        this.port = port !== null && port !== void 0 ? port : '50051';
+        this.channel = channel !== null && channel !== void 0 ? channel : grpc.ServerCredentials.createInsecure();
         this.emitter = emitter;
         this.apiClient = apiClient;
         this.identifyLock = identifyLock;

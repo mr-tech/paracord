@@ -16,23 +16,27 @@ const events_1 = require("events");
 const ws_1 = __importDefault(require("ws"));
 const constants_1 = require("../../constants");
 const services_1 = require("../../rpc/services");
-const Utils_1 = require("../../Utils");
+const utils_1 = require("../../utils");
 const Api_1 = __importDefault(require("../Api/Api"));
 const Identify_1 = __importDefault(require("./structures/Identify"));
 class Gateway {
-    constructor(token, options = {}) {
-        var _a;
+    constructor(token, options) {
         this.identifyLocks = [];
+        const { emitter, identity, identity: { shard }, api, wsUrl, } = options;
+        if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
+            throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
+        }
         this.heartbeatAck = false;
         this.online = false;
         this.wsRateLimitCache = {
             remainingRequests: constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE,
             resetTimestamp: 0,
         };
-        this.keepCase = options.keepCase || false;
-        this.emitter = (_a = options.emitter) !== null && _a !== void 0 ? _a : new events_1.EventEmitter();
-        this.identity = new Identify_1.default(Utils_1.coerceTokenToBotLike(token), options.identity);
-        this.api = options.api;
+        this.emitter = emitter !== null && emitter !== void 0 ? emitter : new events_1.EventEmitter();
+        this.identity = new Identify_1.default(utils_1.coerceTokenToBotLike(token), identity);
+        this.api = api;
+        this.wsUrl = wsUrl;
+        this.rpcServiceOptions = [];
         this.wsUrlRetryWait = constants_1.DEFAULT_GATEWAY_BOT_WAIT;
         this.bindTimerFunctions();
     }
@@ -77,19 +81,20 @@ class Gateway {
             this.emitter.emit(type, data, this.id);
         }
     }
-    addIdentifyLockServices(mainServerOptions, ...serverOptions) {
+    addIdentifyLockServices(mainServiceOptions, ...serviceOptions) {
         const usedHostPorts = {};
-        if (mainServerOptions !== null) {
-            let { port } = mainServerOptions;
+        if (mainServiceOptions !== null) {
+            let { port } = mainServiceOptions;
             if (typeof port === 'string') {
                 port = Number(port);
             }
-            const { host } = mainServerOptions;
+            const { host } = mainServiceOptions;
             usedHostPorts[host !== null && host !== void 0 ? host : '127.0.0.1'] = port !== null && port !== void 0 ? port : 50051;
-            this.mainIdentifyLock = this.configureLockService(mainServerOptions);
+            this.mainIdentifyLock = this.configureLockService(mainServiceOptions);
         }
-        if (serverOptions.length) {
-            serverOptions.forEach((options) => {
+        if (serviceOptions.length) {
+            this.rpcServiceOptions = serviceOptions;
+            serviceOptions.forEach((options) => {
                 const { host } = options;
                 let { port } = options;
                 if (typeof port === 'string') {
@@ -102,20 +107,30 @@ class Gateway {
                 this.identifyLocks.push(this.configureLockService(options));
             });
         }
+        this.mainRpcServiceOptions = mainServiceOptions;
     }
-    configureLockService(serverOptions) {
-        Gateway.validateLockOptions(serverOptions);
-        const identifyLock = new services_1.IdentifyLockService(serverOptions);
-        const message = `Rpc service created for identify coordination. Connected to: ${identifyLock.target}. Default duration of lock: ${identifyLock.duration}`;
-        this.log('INFO', message);
+    configureLockService(serviceOptions) {
+        Gateway.validateLockOptions(serviceOptions);
+        const identifyLock = new services_1.IdentifyLockService(serviceOptions);
+        if (this.mainRpcServiceOptions === undefined) {
+            const message = `Rpc service created for identify coordination. Connected to: ${identifyLock.target}. Default duration of lock: ${identifyLock.duration}`;
+            this.log('INFO', message);
+        }
         return identifyLock;
+    }
+    recreateRpcService() {
+        if (this.mainRpcServiceOptions !== undefined && this.rpcServiceOptions !== undefined) {
+            this.mainIdentifyLock = undefined;
+            this.identifyLocks = [];
+            this.addIdentifyLockServices(this.mainRpcServiceOptions, ...this.rpcServiceOptions);
+        }
     }
     requestGuildMembers(guildId, options = {}) {
         const sendOptions = {
             limit: 0, query: '', presences: false, userIds: [],
         };
         Object.assign(sendOptions, options);
-        return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, Object.assign({ guild_id: guildId }, Utils_1.objectKeysCamelToSnake(options)));
+        return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, utils_1.objectKeysCamelToSnake(Object.assign({ guildId }, options)));
     }
     checkLocksPromise(resolve) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -363,11 +378,12 @@ class Gateway {
     }
     handleMessage(p) {
         var _a;
-        const { t: type, s: sequence, op: opCode, d, } = p;
+        const { t: type, s: sequence, op: opCode, d: data, } = p;
+        const d = typeof data === 'object' && (data === null || data === void 0 ? void 0 : data.constructor.name) === 'Object' ? utils_1.objectKeysSnakeToCamel(data) : data;
         switch (opCode) {
             case constants_1.GATEWAY_OP_CODES.DISPATCH:
                 if (type === 'READY') {
-                    this.handleReady(Utils_1.objectKeysSnakeToCamel(d));
+                    this.handleReady(d);
                 }
                 else if (type === 'RESUMED') {
                     this.handleResumed();
@@ -380,7 +396,7 @@ class Gateway {
                 }
                 break;
             case constants_1.GATEWAY_OP_CODES.HELLO:
-                this.handleHello(Utils_1.objectKeysSnakeToCamel(d));
+                this.handleHello(d);
                 break;
             case constants_1.GATEWAY_OP_CODES.HEARTBEAT_ACK:
                 this.handleHeartbeatAck();
@@ -475,7 +491,7 @@ class Gateway {
     }
     resume() {
         var _a;
-        const message = `Attempting to resume connection. Session_id: ${this.sessionId}. Sequence: ${this.sequence}`;
+        const message = `Attempting to resume connection. Session Id: ${this.sessionId}. Sequence: ${this.sequence}`;
         this.log('INFO', message);
         const { identity: { token }, sequence, sessionId } = this;
         if (sessionId !== undefined && sequence !== undefined) {
@@ -488,7 +504,7 @@ class Gateway {
             this.send(constants_1.GATEWAY_OP_CODES.RESUME, payload);
         }
         else {
-            this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - sessionId: ${sessionId}, sequence: ${sequence}`);
+            this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionI d: ${sessionId}, sequence: ${sequence}`);
             (_a = this.ws) === null || _a === void 0 ? void 0 : _a.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
     }
@@ -498,7 +514,7 @@ class Gateway {
             const [shardId, shardCount] = (_a = this.shard) !== null && _a !== void 0 ? _a : [0, 1];
             this.log('INFO', `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`);
             yield this.handleEvent('GATEWAY_IDENTIFY', this);
-            this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this);
+            this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this.identity);
         });
     }
     acquireLocks() {
@@ -551,8 +567,9 @@ class Gateway {
                 return true;
             }
             catch (err) {
-                if (err.code === 14 && lock.allowFallback) {
-                    this.log('WARNING', `Was not able to connect to lock server to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
+                if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION && lock.allowFallback) {
+                    this.recreateRpcService();
+                    this.log('WARNING', `Was not able to connect to lock serviceOptions to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
                     return true;
                 }
                 if (err !== undefined) {
@@ -572,7 +589,10 @@ class Gateway {
                 }
             }
             catch (err) {
-                this.log('WARNING', `Was not able to connect to lock server to release lock: ${lock.target}.}`);
+                if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION) {
+                    this.recreateRpcService();
+                }
+                this.log('WARNING', `Was not able to connect to lock serviceOptions to release lock: ${lock.target}.}`);
                 if (err.code !== constants_1.RPC_CLOSE_CODES.LOST_CONNECTION) {
                     throw err;
                 }
@@ -584,7 +604,7 @@ class Gateway {
         const payload = { op, d: data };
         if (this.canSendPacket(op)
             && ((_a = this.ws) === null || _a === void 0 ? void 0 : _a.readyState) === ws_1.default.OPEN) {
-            const packet = JSON.stringify(payload);
+            const packet = JSON.stringify(typeof payload === 'object' ? utils_1.objectKeysCamelToSnake(payload) : payload);
             this.ws.send(packet);
             this.updateWsRateLimit();
             this.log('DEBUG', 'Sent payload.', { payload });

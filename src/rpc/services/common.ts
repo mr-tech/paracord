@@ -36,12 +36,12 @@ export function loadProtoDefinition(proto: string): GrpcObject {
  * @param options
  */
 export function mergeOptionsWithDefaults(options: Partial<IServerOptions>): IServerOptions {
-  const host = options.host || '127.0.0.1';
-  const port = options.port || '50051';
-  const channel = options.channel || grpc.ChannelCredentials.createInsecure();
-  const allowFallback = options.allowFallback || false;
+  const host = options.host ?? '127.0.0.1';
+  const port = options.port ?? '50051';
+  const channel = options.channel ?? grpc.ChannelCredentials.createInsecure();
+  const allowFallback = options.allowFallback ?? false;
 
   return {
-    host, port, channel, allowFallback, protoOptions: { keepCase: true },
+    host, port, channel, allowFallback,
   };
 }

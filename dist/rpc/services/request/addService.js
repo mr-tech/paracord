@@ -18,11 +18,12 @@ const structures_1 = require("../../structures");
 const common_1 = require("../common");
 const requestProto = common_1.loadProto('request');
 exports.default = (server, token, apiOptions = {}) => {
-    apiOptions.requestOptions = apiOptions.requestOptions || {};
+    var _a;
+    apiOptions.requestOptions = (_a = apiOptions.requestOptions) !== null && _a !== void 0 ? _a : {};
     apiOptions.requestOptions.transformResponse = (data) => data;
     server.apiClient = new Api_1.default(token, apiOptions);
     server.apiClient.startQueue();
-    server.addService(requestProto.LockService, {
+    server.addService(requestProto.RequestService, {
         request: request.bind(server),
     });
     server.emit('DEBUG', {

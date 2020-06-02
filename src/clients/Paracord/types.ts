@@ -16,8 +16,8 @@ export type ParacordOptions = {
 }
 
 export interface ParacordLoginOptions {
-  identity?: Partial<Identify>;
-  shards?: Identify['shard'];
+  identity?: Identify;
+  shards?: number[];
   shardCount?: number;
   unavailableGuildTolerance?: number;
   unavailableGuildWait?: number;
@@ -30,9 +30,9 @@ export interface ShardLauncherOptions{
   /* Discord token. Used to find recommended shard count when no `shardIds` provided. Will be coerced into a bot token. */
   token?: string;
   /* Ids of the shards to start internally. Ignored if `shardChunks` is defined. */
-  shardIds?: InternalShardIds[];
+  shardIds?: InternalShardIds;
   /* Arrays of shard Ids to launch. Each item will spawn a pm2 process with the designated shards internally. */
-  shardChunks?: InternalShardIds[][];
+  shardChunks?: InternalShardIds[];
   /* Total number of shards this app will be running across all instances. */
   shardCount?: number;
   /* Name that will appear beside the shard number in pm2. */

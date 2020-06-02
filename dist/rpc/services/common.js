@@ -15,12 +15,13 @@ function loadProtoDefinition(proto) {
 }
 exports.loadProtoDefinition = loadProtoDefinition;
 function mergeOptionsWithDefaults(options) {
-    const host = options.host || '127.0.0.1';
-    const port = options.port || '50051';
-    const channel = options.channel || grpc.ChannelCredentials.createInsecure();
-    const allowFallback = options.allowFallback || false;
+    var _a, _b, _c, _d;
+    const host = (_a = options.host) !== null && _a !== void 0 ? _a : '127.0.0.1';
+    const port = (_b = options.port) !== null && _b !== void 0 ? _b : '50051';
+    const channel = (_c = options.channel) !== null && _c !== void 0 ? _c : grpc.ChannelCredentials.createInsecure();
+    const allowFallback = (_d = options.allowFallback) !== null && _d !== void 0 ? _d : false;
     return {
-        host, port, channel, allowFallback, protoOptions: { keepCase: true },
+        host, port, channel, allowFallback,
     };
 }
 exports.mergeOptionsWithDefaults = mergeOptionsWithDefaults;

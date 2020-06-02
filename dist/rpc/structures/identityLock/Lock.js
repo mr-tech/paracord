@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
-const Utils_1 = require("../../../Utils");
+const utils_1 = require("../../../utils");
 const StatusMessage_1 = __importDefault(require("./StatusMessage"));
 class Lock {
     constructor(emitter) {
@@ -16,7 +16,7 @@ class Lock {
         let success = false;
         let message;
         if (this.token === undefined) {
-            token = Utils_1.createUnsafeUuid();
+            token = utils_1.createUnsafeUuid();
             this.lock(timeOut, token);
             success = true;
         }

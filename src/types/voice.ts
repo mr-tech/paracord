@@ -8,7 +8,7 @@ export type RawVoiceState = {
   /** the user id this voice state is for */
   userId: Snowflake;
   /** the guild member this voice state is for */
-  member: RawGuildMember;
+  member?: RawGuildMember;
   /** the session id for this voice state */
   sessionId: string;
   /** whether this user is deafened by the server */

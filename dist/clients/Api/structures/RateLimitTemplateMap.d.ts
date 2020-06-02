@@ -3,7 +3,7 @@ import RateLimit from './RateLimit';
 import RateLimitTemplate from './RateLimitTemplate';
 declare const _default: {
     new (entries?: readonly (readonly [string, RateLimitTemplate])[] | null | undefined): {
-        upsert(state: RateLimitHeaders): RateLimitTemplate;
+        upsert(bucket: string, state: RateLimitHeaders): RateLimitTemplate;
         createAssumedRateLimit(bucket: string): RateLimit | undefined;
         clear(): void;
         delete(key: string): boolean;
@@ -19,7 +19,7 @@ declare const _default: {
         readonly [Symbol.toStringTag]: string;
     };
     new (iterable: Iterable<readonly [string, RateLimitTemplate]>): {
-        upsert(state: RateLimitHeaders): RateLimitTemplate;
+        upsert(bucket: string, state: RateLimitHeaders): RateLimitTemplate;
         createAssumedRateLimit(bucket: string): RateLimit | undefined;
         clear(): void;
         delete(key: string): boolean;

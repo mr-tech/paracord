@@ -1,12 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 class AuthorizationMessage {
-    constructor(resetAfter) {
+    constructor(resetAfter, global) {
         this.resetAfter = resetAfter;
+        this.global = global;
     }
     static fromProto(message) {
         AuthorizationMessage.validateIncoming(message);
-        return new AuthorizationMessage(message.reset_after);
+        return new AuthorizationMessage(message.reset_after, message.global);
     }
     static validateOutgoing(authorization) {
         if (authorization.resetAfter === undefined) {
@@ -20,7 +21,7 @@ class AuthorizationMessage {
     }
     get proto() {
         AuthorizationMessage.validateOutgoing(this);
-        return { reset_after: this.resetAfter };
+        return { reset_after: this.resetAfter, global: this.global };
     }
 }
 exports.default = AuthorizationMessage;

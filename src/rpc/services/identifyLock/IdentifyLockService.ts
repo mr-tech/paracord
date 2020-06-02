@@ -31,12 +31,12 @@ export default class IdentifyLockService extends definition.LockService {
    */
   public constructor(options: Partial<ILockServiceOptions>) {
     const {
-      host, port, channel, protoOptions, allowFallback,
-    } = mergeOptionsWithDefaults(options || {});
+      host, port, channel, allowFallback,
+    } = mergeOptionsWithDefaults(options ?? {});
 
     const dest = `${host}:${port}`;
 
-    super(dest, channel, protoOptions);
+    super(dest, channel);
     this.target = dest;
     this.allowFallback = allowFallback;
     this.duration = options.duration || DEFAULT_LOCK_DURATION;
@@ -56,7 +56,7 @@ export default class IdentifyLockService extends definition.LockService {
 
     return new Promise((resolve, reject) => {
       super.acquire(message, (err: ServiceError, res?: StatusProto) => {
-        if (err === null) {
+        if (err !== null) {
           reject(err);
         } else if (res === undefined) {
           reject(Error('no message'));
@@ -77,7 +77,7 @@ export default class IdentifyLockService extends definition.LockService {
 
     return new Promise((resolve, reject) => {
       super.release(message, (err: ServiceError, res?: StatusProto) => {
-        if (err === null) {
+        if (err !== null) {
           reject(err);
         } else if (res === undefined) {
           reject(Error('no message'));
