@@ -309,9 +309,17 @@ export default class Api {
     }
 
     if (response === undefined) {
-      return {
-        status: 429, statusText: 'Too Many Requests', data: { ...rateLimitState }, headers: { _paracord: true, 'x-ratelimit-global': true },
+      const customResponse = {
+        status: 429,
+        statusText: 'Too Many Requests',
+        'retry-after': rateLimitState.resetAfter,
+        data: { ...rateLimitState },
+        headers: {
+          _paracord: true,
+          'x-ratelimit-global': rateLimitState.global ?? false,
+        },
       };
+      return customResponse;
     }
 
     return response;
