@@ -11,12 +11,9 @@ class RateLimitHeaders {
         this.resetTimestamp = new Date().getTime() + this.resetAfter;
     }
     static extractRateLimitFromHeaders(headers) {
-        if (headers['x-ratelimit-bucket'] === undefined) {
-            return undefined;
-        }
-        const { 'x-ratelimit-bucket': bucket, 'x-ratelimit-limit': limit, 'x-ratelimit-remaining': remaining, 'x-ratelimit-reset-after': resetAfter, } = headers;
-        const global = Object.prototype.hasOwnProperty.call(headers, 'x-ratelimit-global');
-        return new RateLimitHeaders(global, bucket, Number(limit), Number(remaining), Number(resetAfter) * constants_1.SECOND_IN_MILLISECONDS);
+        var _a;
+        const { 'x-ratelimit-global': global, 'x-ratelimit-bucket': bucket, 'x-ratelimit-limit': limit, 'x-ratelimit-remaining': remaining, 'x-ratelimit-reset-after': resetAfter, } = headers;
+        return new RateLimitHeaders((_a = global) !== null && _a !== void 0 ? _a : false, bucket, Number(limit), Number(remaining), Number(resetAfter) * constants_1.SECOND_IN_MILLISECONDS);
     }
     get hasState() {
         return this.bucket !== undefined;

@@ -17,7 +17,7 @@ export default (server: RpcServer): void => {
 
   /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
   // @ts-ignore: interface can in fact be extended
-  server.addService(rateLimitProto.LockService, {
+  server.addService(rateLimitProto.RateLimitService, {
     authorize: authorize.bind(server),
     update: update.bind(server),
   });
@@ -37,7 +37,7 @@ function authorize(
   try {
     const { method, url } = RequestMetaMessage.fromProto(call.request);
     const request = new BaseRequest(method, url);
-    const resetAfter = this.rateLimitCache.authorizeRequestFromClient(request);
+    const { resetAfter, global } = this.rateLimitCache.authorizeRequestFromClient(request);
 
     if (resetAfter === 0) {
       const message = `Request approved. ${method} ${url}`;
@@ -47,7 +47,7 @@ function authorize(
       this.log('DEBUG', message);
     }
 
-    const message = new AuthorizationMessage(resetAfter).proto;
+    const message = new AuthorizationMessage(resetAfter, global ?? false).proto;
 
     callback(null, message);
   } catch (err) {

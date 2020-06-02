@@ -4,7 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
-const Utils_1 = require("../../../Utils");
+const utils_1 = require("../../../utils");
 const RateLimitMap_1 = __importDefault(require("./RateLimitMap"));
 const RateLimitTemplateMap_1 = __importDefault(require("./RateLimitTemplateMap"));
 class RateLimitCache {
@@ -38,7 +38,7 @@ class RateLimitCache {
         return this.globalRateLimitState.remaining > 0;
     }
     get globalRateLimitResetAfter() {
-        const resetAfter = Utils_1.millisecondsFromNow(this.globalRateLimitState.resetTimestamp);
+        const resetAfter = utils_1.millisecondsFromNow(this.globalRateLimitState.resetTimestamp);
         return resetAfter > 0 ? resetAfter : 0;
     }
     startSweepInterval() {
@@ -67,36 +67,41 @@ class RateLimitCache {
         const rateLimit = this.getRateLimitFromCache(request);
         if (isGloballyRateLimited) {
             if (rateLimit !== undefined && this.returnIsRateLimited(request)) {
-                return RateLimitCache.returnStricterResetTimestamp(this.globalRateLimitResetAfter, rateLimit.resetAfter);
+                return {
+                    resetAfter: RateLimitCache.returnStricterResetTimestamp(this.globalRateLimitResetAfter, rateLimit.resetAfter),
+                    global: true,
+                };
             }
-            return this.globalRateLimitResetAfter;
+            return { resetAfter: this.globalRateLimitResetAfter, global: true };
         }
         if (rateLimit === undefined) {
-            return 0;
+            return { resetAfter: 0 };
         }
         if (!this.returnIsRateLimited(request)) {
             rateLimit.decrementRemaining();
             this.decrementGlobalRemaining();
-            return 0;
+            return { resetAfter: 0 };
         }
-        return rateLimit.resetAfter;
+        return { resetAfter: rateLimit.resetAfter };
     }
     update(request, rateLimitHeaders) {
         const { requestRouteMeta, rateLimitKey } = request;
         const { bucket } = rateLimitHeaders;
-        this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
-        const template = this.rateLimitTemplateMap.upsert(rateLimitHeaders);
-        this.rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+        if (bucket !== undefined) {
+            this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
+            const template = this.rateLimitTemplateMap.upsert(bucket, rateLimitHeaders);
+            this.rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+        }
     }
     returnIsRateLimited(request) {
         if (this.isGloballyRateLimited) {
-            return true;
+            return { resetAfter: this.globalRateLimitResetAfter, global: true };
         }
         const rateLimit = this.getRateLimitFromCache(request);
-        if (rateLimit !== undefined) {
-            return rateLimit.isRateLimited;
+        if (rateLimit === null || rateLimit === void 0 ? void 0 : rateLimit.isRateLimited) {
+            return { resetAfter: rateLimit.resetAfter };
         }
-        return false;
+        return { resetAfter: 0 };
     }
     resetGlobalRateLimit() {
         this.globalRateLimitState.resetTimestamp = 0;

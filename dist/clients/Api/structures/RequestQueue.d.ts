@@ -1,5 +1,6 @@
+/// <reference types="node" />
+import { ApiRequest, RateLimitCache } from '.';
 import Api from '../Api';
-import { RateLimitCache, ApiRequest } from '.';
 export default class RequestQueue {
     private rateLimitCache;
     private processing;
@@ -8,8 +9,10 @@ export default class RequestQueue {
     private apiClient;
     constructor(rateLimitCache: RateLimitCache, apiClient: Api);
     private get length();
+    startQueue(interval: number): NodeJS.Timer;
     push(...items: ApiRequest[]): void;
     private spliceMany;
-    process(): Promise<void>;
+    private process;
     private processIteration;
+    private sendRequest;
 }

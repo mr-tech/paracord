@@ -6,7 +6,7 @@ export declare type Snowflake = string;
 export declare type ISO8601timestamp = string;
 export declare type User = RawUser & {
     createdOn: () => number;
-    tag: () => string;
+    tag: string;
     presence: RawPresence | undefined;
 };
 export declare type UnavailableGuild = {
@@ -18,20 +18,20 @@ export declare type GuildChannel = RawChannel & {
     permissionOverwrites: Overwrite[];
 };
 export declare type GuildRole = RawRole & {
-    guildId: Guild['id'];
+    guildId: Snowflake;
 };
 export declare type GuildEmoji = RawEmoji & {};
 export declare type GuildMember = RawGuildMember & {
     user: User;
 };
 export declare type GuildVoiceState = RawVoiceState & {};
-export declare type UserMap = Map<User['id'], User>;
-export declare type GuildMap = Map<Guild['id'], Guild>;
-export declare type RoleMap = Map<GuildRole['id'], GuildRole>;
-export declare type EmojiMap = Map<GuildEmoji['id'], GuildEmoji>;
-export declare type VoiceStateMap = Map<GuildVoiceState['member']['user']['id'], Partial<GuildVoiceState>>;
-export declare type PresenceMap = Map<RawPresence['user']['id'], RawPresence>;
-export declare type GuildChannelMap = Map<GuildChannel['id'], GuildChannel>;
-export declare type GuildMemberMap = Map<GuildMember['user']['id'], GuildMember>;
+export declare type UserMap = Map<Snowflake, User>;
+export declare type GuildMap = Map<Snowflake, Guild>;
+export declare type RoleMap = Map<Snowflake, GuildRole>;
+export declare type EmojiMap = Map<Snowflake, GuildEmoji>;
+export declare type VoiceStateMap = Map<Snowflake, Partial<GuildVoiceState>>;
+export declare type PresenceMap = Map<Snowflake, RawPresence>;
+export declare type GuildChannelMap = Map<Snowflake, GuildChannel>;
+export declare type GuildMemberMap = Map<Snowflake, GuildMember>;
 export declare type EventFunctions = Record<string, EventFunction>;
 export declare type EventFunction = (...any: unknown[]) => unknown;

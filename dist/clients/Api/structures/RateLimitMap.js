@@ -11,12 +11,13 @@ class RateLimitMap extends Map {
         this.sweepInterval = undefined;
     }
     upsert(rateLimitKey, { remaining, limit, resetTimestamp, resetAfter, }, template) {
-        const rateLimit = this.get(rateLimitKey);
         const state = {
             remaining, limit, resetTimestamp, resetAfter,
         };
+        let rateLimit = this.get(rateLimitKey);
         if (rateLimit === undefined) {
-            this.set(rateLimitKey, new RateLimit_1.default(state, template));
+            rateLimit = new RateLimit_1.default(state, template);
+            this.set(rateLimitKey, rateLimit);
         }
         else {
             rateLimit.assignIfStricter(state);

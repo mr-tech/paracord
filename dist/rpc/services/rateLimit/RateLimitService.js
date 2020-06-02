@@ -5,9 +5,9 @@ const common_1 = require("../common");
 const definition = common_1.loadProtoDefinition('rate_limit');
 class RateLimitService extends definition.RateLimitService {
     constructor(options) {
-        const { host, port, channel, protoOptions, allowFallback, } = common_1.mergeOptionsWithDefaults(options || {});
+        const { host, port, channel, allowFallback, } = common_1.mergeOptionsWithDefaults(options !== null && options !== void 0 ? options : {});
         const dest = `${host}:${port}`;
-        super(dest, channel, protoOptions);
+        super(dest, channel);
         this.target = dest;
         this.allowFallback = allowFallback || false;
     }
@@ -15,8 +15,8 @@ class RateLimitService extends definition.RateLimitService {
         const { method, url } = request;
         const message = new structures_1.RequestMetaMessage(method, url).proto;
         return new Promise((resolve, reject) => {
-            super.request(message, (err, res) => {
-                if (err === null) {
+            super.authorize(message, (err, res) => {
+                if (err !== null) {
                     reject(err);
                 }
                 else if (res === undefined) {
@@ -33,8 +33,8 @@ class RateLimitService extends definition.RateLimitService {
         const requestMeta = new structures_1.RequestMetaMessage(method, url);
         const message = new structures_1.RateLimitStateMessage(requestMeta, global, bucket, limit, remaining, resetAfter).proto;
         return new Promise((resolve, reject) => {
-            super.request(message, (err) => {
-                if (err === null) {
+            super.update(message, (err) => {
+                if (err !== null) {
                     reject(err);
                 }
                 else {

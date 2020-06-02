@@ -1,7 +1,7 @@
 
 import type { EventEmitter } from 'events';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
-import { createUnsafeUuid } from '../../../Utils';
+import { createUnsafeUuid } from '../../../utils';
 import StatusMessage from './StatusMessage';
 
 /**

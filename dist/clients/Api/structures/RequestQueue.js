@@ -20,6 +20,9 @@ class RequestQueue {
     get length() {
         return this._length;
     }
+    startQueue(interval) {
+        return setInterval(this.process.bind(this), interval);
+    }
     push(...items) {
         items.forEach((i) => {
             this.queue[++this._length - 1] = i;
@@ -44,41 +47,46 @@ class RequestQueue {
         }
     }
     process() {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (this.length === 0 || this.processing)
-                return;
-            try {
-                this.processing = true;
-                const removedIndices = [];
-                for (let queueIdx = 0; queueIdx < this.length; ++queueIdx) {
-                    yield this.processIteration(queueIdx, removedIndices);
+        if (this.length === 0 || this.processing)
+            return;
+        try {
+            this.processing = true;
+            const removedIndices = [];
+            for (let queueIdx = 0; queueIdx < this.length; ++queueIdx) {
+                if (this.processIteration(queueIdx)) {
+                    removedIndices.push(queueIdx);
                 }
-                this.spliceMany(removedIndices);
             }
-            finally {
-                this.processing = false;
-            }
-        });
+            this.spliceMany(removedIndices);
+        }
+        finally {
+            this.processing = false;
+        }
     }
-    processIteration(queueIdx, removedIndices) {
+    processIteration(queueIdx) {
+        const request = this.queue[queueIdx];
+        if (request === null) {
+            return false;
+        }
+        if (request.running) {
+            return false;
+        }
+        if (request.response !== undefined) {
+            console.log('pong');
+            return true;
+        }
+        if (request.waitUntil !== undefined && request.waitUntil > new Date().getTime()) {
+            return false;
+        }
+        console.log('ping');
+        this.sendRequest(request);
+        return false;
+    }
+    sendRequest(request) {
         return __awaiter(this, void 0, void 0, function* () {
-            const request = this.queue[queueIdx];
-            if (request === null) {
-                return;
-            }
-            if (request.waitUntil !== undefined && request.waitUntil > new Date().getTime()) {
-                return;
-            }
-            try {
-                if (yield this.apiClient.returnOkToMakeRequest(request)) {
-                    request.response = this.apiClient.sendQueuedRequest(request);
-                    removedIndices.push(queueIdx);
-                }
-            }
-            catch (err) {
-                if (err.code === 14) {
-                    removedIndices.push(queueIdx);
-                }
+            const { response } = yield this.apiClient.sendRequest(request, true);
+            if (response !== undefined) {
+                request.response = response;
             }
         });
     }

@@ -1,5 +1,6 @@
-import { SECOND_IN_MILLISECONDS } from '../../../constants';
 import { RpcArguments } from '../../../common';
+import { SECOND_IN_MILLISECONDS } from '../../../constants';
+import { IApiResponse } from '../types';
 
 /** Representation of rate limit values from the header of a response from Discord. */
 export default class RateLimitHeaders {
@@ -7,7 +8,7 @@ export default class RateLimitHeaders {
   public global: boolean;
 
   /** From Discord - Id of the rate limit bucket. */
-  public bucket: string;
+  public bucket: string | undefined;
 
   /** From Discord - Number of requests that can be made between rate limit triggers. */
   public limit: number;
@@ -26,23 +27,18 @@ export default class RateLimitHeaders {
    * @param headers Headers from a response.
    * @returns Rate limit state with the bucket id; or `undefined` if there is no rate limit information.
    */
-  public static extractRateLimitFromHeaders(headers: Record<string, string>): RateLimitHeaders | undefined {
-    if (headers['x-ratelimit-bucket'] === undefined) {
-      return undefined;
-    }
-
+  public static extractRateLimitFromHeaders(headers: IApiResponse['headers']): RateLimitHeaders {
     const {
+      'x-ratelimit-global': global,
       'x-ratelimit-bucket': bucket,
       'x-ratelimit-limit': limit,
       'x-ratelimit-remaining': remaining,
       'x-ratelimit-reset-after': resetAfter,
     } = headers;
 
-    const global = Object.prototype.hasOwnProperty.call(headers, 'x-ratelimit-global');
-
     return new RateLimitHeaders(
-      global,
-      bucket,
+      <boolean | undefined> global ?? false,
+      <string | undefined> bucket,
       Number(limit),
       Number(remaining),
       Number(resetAfter) * SECOND_IN_MILLISECONDS,
@@ -58,7 +54,7 @@ export default class RateLimitHeaders {
    * @param remaining From Discord - Number of requests available before hitting rate limit.
    * @param resetAfter A localized timestamp of when the rate limit resets.
    */
-  public constructor(global: boolean, bucket: string, limit: number, remaining: number, resetAfter: number) {
+  public constructor(global: boolean, bucket: string | undefined, limit: number, remaining: number, resetAfter: number) {
     this.global = global || false;
     this.bucket = bucket;
     this.limit = limit;

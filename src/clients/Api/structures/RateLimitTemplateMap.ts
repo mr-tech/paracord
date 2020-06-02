@@ -8,9 +8,7 @@ export = class RateLimitTemplateMap extends Map<string, RateLimitTemplate> {
    * Insert or updates rate limit template using state.
    * @param state Incoming rate limit state.
    */
-  public upsert(state: RateLimitHeaders): RateLimitTemplate {
-    const { bucket } = state;
-
+  public upsert(bucket: string, state: RateLimitHeaders): RateLimitTemplate {
     let rateLimitTemplate = this.get(bucket);
 
     if (rateLimitTemplate === undefined) {

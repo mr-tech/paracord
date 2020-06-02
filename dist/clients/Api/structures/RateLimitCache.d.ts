@@ -1,6 +1,6 @@
 import { AxiosInstance } from 'axios';
 import type { ApiRequest } from '.';
-import { WrappedRequest } from '../types';
+import { IRateLimitState, WrappedRequest } from '../types';
 import BaseRequest from './BaseRequest';
 import RateLimitHeaders from './RateLimitHeaders';
 export default class RateLimitCache {
@@ -17,9 +17,9 @@ export default class RateLimitCache {
     startSweepInterval(): void;
     wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest;
     decrementGlobalRemaining(): void;
-    authorizeRequestFromClient(request: BaseRequest): number;
+    authorizeRequestFromClient(request: BaseRequest): IRateLimitState;
     update(request: BaseRequest | ApiRequest, rateLimitHeaders: RateLimitHeaders): void;
-    returnIsRateLimited(request: BaseRequest | ApiRequest): boolean;
+    returnIsRateLimited(request: BaseRequest | ApiRequest): IRateLimitState;
     private resetGlobalRateLimit;
     private getRateLimitFromCache;
     private rateLimitFromTemplate;

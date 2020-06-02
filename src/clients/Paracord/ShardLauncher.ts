@@ -2,8 +2,8 @@
 
 import pm2, { StartOptions } from 'pm2';
 import Api from '../Api/Api';
-import { InternalShardIds, ShardLauncherOptions } from './types';
 import { GatewayBotResponse } from '../Gateway/types';
+import { InternalShardIds, ShardLauncherOptions } from './types';
 
 function validateShard(shard: number, shardCount: number): void {
   if (shard > shardCount - 1) {
@@ -68,12 +68,12 @@ export default class ShardLauncher {
     if (shardChunks && shardCount) {
       shardChunks.forEach((c) => {
         c.forEach((s) => {
-          s.forEach((id) => validateShard(id, shardCount));
+          validateShard(s, shardCount);
         });
       });
     } else if (shardIds && shardCount) {
       shardIds.forEach((s) => {
-        s.forEach((id) => validateShard(id, shardCount));
+        validateShard(s, shardCount);
       });
     }
   }
@@ -169,7 +169,7 @@ export default class ShardLauncher {
       name: `${this.appName} - Shards ${shardIdsCsv}`,
       script: this.main,
       env: {
-        ...(this.env || {}),
+        ...(this.env ?? {}),
         ...paracordEnv,
       },
       ...pm2Options,

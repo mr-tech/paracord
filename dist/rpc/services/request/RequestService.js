@@ -5,9 +5,9 @@ const common_1 = require("../common");
 const definition = common_1.loadProtoDefinition('request');
 class RequestService extends definition.RequestService {
     constructor(options) {
-        const { host, port, channel, protoOptions, allowFallback, } = common_1.mergeOptionsWithDefaults(options || {});
+        const { host, port, channel, allowFallback, } = common_1.mergeOptionsWithDefaults(options !== null && options !== void 0 ? options : {});
         const dest = `${host}:${port}`;
-        super(dest, channel, protoOptions);
+        super(dest, channel);
         this.target = dest;
         this.allowFallback = allowFallback || false;
     }
@@ -15,7 +15,7 @@ class RequestService extends definition.RequestService {
         const message = new structures_1.RequestMessage(apiRequest).proto;
         return new Promise((resolve, reject) => {
             super.request(message, (err, res) => {
-                if (err === null) {
+                if (err !== null) {
                     reject(err);
                 }
                 else if (res === undefined) {

@@ -5,14 +5,17 @@ export default class AuthorizationMessage {
   /** How long in ms the client should wait before attempting to authorize this request. */
   public resetAfter: number
 
+  /** When rate limited, if the rate limit is global. */
+  public global: boolean;
+
   /**
    * Translates the rpc message into an instance of this class.
-   * @param {AuthorizationProto} message Message received by client.
+   * @param message Message received by client.
    */
   public static fromProto(message: AuthorizationProto): AuthorizationMessage {
     AuthorizationMessage.validateIncoming(message);
 
-    return new AuthorizationMessage(message.reset_after);
+    return new AuthorizationMessage(message.reset_after, message.global);
   }
 
   /**
@@ -39,14 +42,15 @@ export default class AuthorizationMessage {
    * Creates a new AuthorizationMessage sent from client to server.
    * @param resetAfter How long in ms the client should wait before attempting to authorize this request.
    */
-  public constructor(resetAfter: number) {
+  public constructor(resetAfter: number, global: boolean) {
     this.resetAfter = resetAfter;
+    this.global = global;
   }
 
   /** The properties of this message formatted for sending over rpc. */
   public get proto(): AuthorizationProto {
     AuthorizationMessage.validateOutgoing(this);
 
-    return { reset_after: this.resetAfter };
+    return { reset_after: this.resetAfter, global: this.global };
   }
 }

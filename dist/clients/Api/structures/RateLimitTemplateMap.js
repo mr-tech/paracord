@@ -5,8 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 const RateLimit_1 = __importDefault(require("./RateLimit"));
 const RateLimitTemplate_1 = __importDefault(require("./RateLimitTemplate"));
 module.exports = class RateLimitTemplateMap extends Map {
-    upsert(state) {
-        const { bucket } = state;
+    upsert(bucket, state) {
         let rateLimitTemplate = this.get(bucket);
         if (rateLimitTemplate === undefined) {
             rateLimitTemplate = new RateLimitTemplate_1.default(state);

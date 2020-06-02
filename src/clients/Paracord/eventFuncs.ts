@@ -51,12 +51,6 @@ export function MESSAGE_CREATE(this: Paracord, data: Message): Message {
   return data;
 }
 
-export const MESSAGE_UPDATE = MESSAGE_CREATE;
-
-// export function MESSAGE_DELETE(this: Paracord, data: MessageDeleteEventFields): MessageDeleteEventFields {
-//   return data;
-// }
-
 export function VOICE_STATE_UPDATE(this: Paracord, data: RawVoiceState): GuildVoiceState | RawVoiceState {
   const {
     guildId, member, userId, channelId,

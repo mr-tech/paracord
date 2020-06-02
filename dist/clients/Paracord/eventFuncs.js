@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GATEWAY_CLOSE = exports.GATEWAY_IDENTIFY = exports.GUILD_DELETE = exports.GUILD_UPDATE = exports.GUILD_CREATE = exports.GUILD_ROLE_DELETE = exports.GUILD_ROLE_UPDATE = exports.GUILD_ROLE_CREATE = exports.CHANNEL_DELETE = exports.CHANNEL_UPDATE = exports.CHANNEL_CREATE = exports.GUILD_MEMBERS_CHUNK = exports.GUILD_MEMBER_REMOVE = exports.GUILD_MEMBER_UPDATE = exports.GUILD_MEMBER_ADD = exports.VOICE_STATE_UPDATE = exports.MESSAGE_UPDATE = exports.MESSAGE_CREATE = exports.USER_UPDATE = exports.PRESENCE_UPDATE = exports.READY = void 0;
+exports.GATEWAY_CLOSE = exports.GATEWAY_IDENTIFY = exports.GUILD_DELETE = exports.GUILD_UPDATE = exports.GUILD_CREATE = exports.GUILD_ROLE_DELETE = exports.GUILD_ROLE_UPDATE = exports.GUILD_ROLE_CREATE = exports.CHANNEL_DELETE = exports.CHANNEL_UPDATE = exports.CHANNEL_CREATE = exports.GUILD_MEMBERS_CHUNK = exports.GUILD_MEMBER_REMOVE = exports.GUILD_MEMBER_UPDATE = exports.GUILD_MEMBER_ADD = exports.VOICE_STATE_UPDATE = exports.MESSAGE_CREATE = exports.USER_UPDATE = exports.PRESENCE_UPDATE = exports.READY = void 0;
 const constants_1 = require("../../constants");
 const { DM, GROUP_DM } = constants_1.CHANNEL_TYPES;
 function READY(data, shard) {
@@ -41,7 +41,6 @@ function MESSAGE_CREATE(data) {
     return data;
 }
 exports.MESSAGE_CREATE = MESSAGE_CREATE;
-exports.MESSAGE_UPDATE = MESSAGE_CREATE;
 function VOICE_STATE_UPDATE(data) {
     const { guildId, member, userId, channelId, } = data;
     if (guildId === undefined)

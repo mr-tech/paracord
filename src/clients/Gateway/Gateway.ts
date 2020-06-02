@@ -9,12 +9,13 @@ import { IdentifyLockService } from '../../rpc/services';
 import {
   GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
 } from '../../types';
-import { coerceTokenToBotLike, objectKeysCamelToSnake, objectKeysSnakeToCamel } from '../../Utils';
+import { coerceTokenToBotLike, objectKeysCamelToSnake, objectKeysSnakeToCamel } from '../../utils';
 import Api from '../Api/Api';
 import Identify from './structures/Identify';
 import {
-  GatewayBotResponse, GatewayOptions, SessionLimitData, WebsocketRateLimitCache,
+  GatewayBotResponse, GatewayOptions, Heartbeat, SessionLimitData, WebsocketRateLimitCache,
 } from './types';
+import { IServiceOptions } from '../Api/types';
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
@@ -71,8 +72,8 @@ export default class Gateway {
   /** Object passed to Discord when identifying. */
   private identity: Identify;
 
-  /** Whether or not to keep all properties on Discord objects in their original snake case. */
-  private keepCase: false;
+  // /** Whether or not to keep all properties on Discord objects in their original snake case. */
+  // private keepCase: false;
 
   // /** Minimum time to wait between gateway identifies in ms. */
   // private retryWait: number;
@@ -82,6 +83,10 @@ export default class Gateway {
 
   /** Amount of identifies reported by the last call to /gateway/bot. */
   public lastKnownSessionLimitData?: SessionLimitData;
+
+  private mainRpcServiceOptions?: IServiceOptions | null;
+
+  private rpcServiceOptions?: IServiceOptions[];
 
   /** Verifies parameters to set lock are valid. */
   private static validateLockOptions(options: Partial<ILockServiceOptions>): void {
@@ -96,17 +101,26 @@ export default class Gateway {
    * @param token Discord token. Will be coerced into a bot token.
    * @param options Optional parameters for this handler.
    */
-  public constructor(token: string, options: Partial<GatewayOptions> = {}) {
+  public constructor(token: string, options: GatewayOptions) {
+    const {
+      emitter, identity, identity: { shard }, api, wsUrl,
+    } = options;
+
+    if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
+      throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
+    }
     this.heartbeatAck = false;
     this.online = false;
     this.wsRateLimitCache = {
       remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
       resetTimestamp: 0,
     };
-    this.keepCase = options.keepCase || false;
-    this.emitter = options.emitter ?? new EventEmitter();
-    this.identity = new Identify(coerceTokenToBotLike(token), options.identity);
-    this.api = options.api;
+    // this.keepCase = options.keepCase || false;
+    this.emitter = emitter ?? new EventEmitter();
+    this.identity = new Identify(coerceTokenToBotLike(token), identity);
+    this.api = api;
+    this.wsUrl = wsUrl;
+    this.rpcServiceOptions = [];
 
     this.wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.bindTimerFunctions();
@@ -128,7 +142,7 @@ export default class Gateway {
   }
 
   /** Whether or not the client is connected to the gateway. */
-  private get connected(): boolean {
+  public get connected(): boolean {
     return this.ws !== undefined;
   }
 
@@ -184,27 +198,28 @@ export default class Gateway {
    */
 
   /**
-   * Adds the service that will acquire a lock from a server(s) before identifying.
-   * @param mainServerOptions Options for connecting this service to the identify lock server. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
-   * @param serverOptions Options for connecting this service to the identify lock server. Will be acquired and released in order.
+   * Adds the service that will acquire a lock from a serviceOptions(s) before identifying.
+   * @param mainServiceOptions Options for connecting this service to the identify lock serviceOptions. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
+   * @param serviceOptions Options for connecting this service to the identify lock serviceOptions. Will be acquired and released in order.
    */
-  public addIdentifyLockServices(mainServerOptions: null | Partial<ILockServiceOptions>, ...serverOptions: Partial<ILockServiceOptions>[]): void {
+  public addIdentifyLockServices(mainServiceOptions: null | Partial<ILockServiceOptions>, ...serviceOptions: Partial<ILockServiceOptions>[]): void {
     const usedHostPorts: Record<string, number> = {};
 
-    if (mainServerOptions !== null) {
-      let { port } = mainServerOptions;
+    if (mainServiceOptions !== null) {
+      let { port } = mainServiceOptions;
       if (typeof port === 'string') {
         port = Number(port);
       }
 
-      const { host } = mainServerOptions;
+      const { host } = mainServiceOptions;
       usedHostPorts[host ?? '127.0.0.1'] = port ?? 50051; // TODO: move port to constant
 
-      this.mainIdentifyLock = this.configureLockService(mainServerOptions);
+      this.mainIdentifyLock = this.configureLockService(mainServiceOptions);
     }
 
-    if (serverOptions.length) {
-      serverOptions.forEach((options) => {
+    if (serviceOptions.length) {
+      this.rpcServiceOptions = serviceOptions;
+      serviceOptions.forEach((options) => {
         const { host } = options;
         let { port } = options;
         if (typeof port === 'string') {
@@ -219,17 +234,31 @@ export default class Gateway {
         this.identifyLocks.push(this.configureLockService(options));
       });
     }
+
+    this.mainRpcServiceOptions = mainServiceOptions;
   }
 
-  private configureLockService(serverOptions: Partial<ILockServiceOptions>): IdentifyLockService {
-    Gateway.validateLockOptions(serverOptions);
-    const identifyLock = new IdentifyLockService(serverOptions);
+  private configureLockService(serviceOptions: Partial<ILockServiceOptions>): IdentifyLockService {
+    Gateway.validateLockOptions(serviceOptions);
+    const identifyLock = new IdentifyLockService(serviceOptions);
 
-    const message = `Rpc service created for identify coordination. Connected to: ${identifyLock.target}. Default duration of lock: ${identifyLock.duration}`;
-    this.log('INFO', message);
+    if (this.mainRpcServiceOptions === undefined) {
+      const message = `Rpc service created for identify coordination. Connected to: ${identifyLock.target}. Default duration of lock: ${identifyLock.duration}`;
+      this.log('INFO', message);
+    }
 
     return identifyLock;
   }
+
+  // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
+  private recreateRpcService(): void {
+    if (this.mainRpcServiceOptions !== undefined && this.rpcServiceOptions !== undefined) {
+      this.mainIdentifyLock = undefined;
+      this.identifyLocks = [];
+      this.addIdentifyLockServices(this.mainRpcServiceOptions, ...this.rpcServiceOptions);
+    }
+  }
+
 
   /*
    ********************************
@@ -249,10 +278,8 @@ export default class Gateway {
 
     Object.assign(sendOptions, options);
 
-    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, {
-      guild_id: guildId,
-      ...objectKeysCamelToSnake(options),
-    });
+    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS,
+      <GuildRequestMembers> objectKeysCamelToSnake({ guildId, ...options }));
   }
 
   private async checkLocksPromise(resolve: () => void): Promise<void> {
@@ -641,13 +668,15 @@ export default class Gateway {
    */
   private handleMessage(p: GatewayPayload): void {
     const {
-      t: type, s: sequence, op: opCode, d,
+      t: type, s: sequence, op: opCode, d: data,
     } = p;
+
+    const d = typeof data === 'object' && data?.constructor.name === 'Object' ? objectKeysSnakeToCamel(<Record<string, unknown>>data) : data;
 
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
-          this.handleReady(<ReadyEventFields>objectKeysSnakeToCamel(<Record<string, unknown>>d));
+          this.handleReady(<ReadyEventFields>d);
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
@@ -658,7 +687,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.HELLO:
-        this.handleHello(<Hello>objectKeysSnakeToCamel(<Record<string, unknown>>d));
+        this.handleHello(<Hello>d);
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT_ACK:
@@ -666,7 +695,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT:
-        this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
+        this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.sequence);
         break;
 
       case GATEWAY_OP_CODES.INVALID_SESSION:
@@ -738,7 +767,7 @@ export default class Gateway {
       this.ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
       this.heartbeatAck = false;
-      this.send(GATEWAY_OP_CODES.HEARTBEAT, this.sequence);
+      this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.sequence);
 
       const now = new Date().getTime();
       this.lastHeartbeatTimestamp = now;
@@ -785,7 +814,7 @@ export default class Gateway {
 
   /** Sends a "Resume" payload to Discord's gateway. */
   private resume(): void {
-    const message = `Attempting to resume connection. Session_id: ${this.sessionId}. Sequence: ${this.sequence}`;
+    const message = `Attempting to resume connection. Session Id: ${this.sessionId}. Sequence: ${this.sequence}`;
     this.log('INFO', message);
 
     const { identity: { token }, sequence, sessionId } = this;
@@ -801,7 +830,7 @@ export default class Gateway {
 
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
-      this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - sessionId: ${sessionId}, sequence: ${sequence}`);
+      this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionI d: ${sessionId}, sequence: ${sequence}`);
       this.ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
@@ -816,7 +845,7 @@ export default class Gateway {
 
     await this.handleEvent('GATEWAY_IDENTIFY', this);
 
-    this.send(GATEWAY_OP_CODES.IDENTIFY, this);
+    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.identity);
   }
 
   /**
@@ -885,8 +914,9 @@ export default class Gateway {
 
       return true;
     } catch (err) {
-      if (err.code === 14 && lock.allowFallback) {
-        this.log('WARNING', `Was not able to connect to lock server to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
+      if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && lock.allowFallback) {
+        this.recreateRpcService();
+        this.log('WARNING', `Was not able to connect to lock serviceOptions to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
         return true;
       }
 
@@ -912,7 +942,11 @@ export default class Gateway {
         this.log('DEBUG', `Was not able to release lock. Message: ${err}`);
       }
     } catch (err) {
-      this.log('WARNING', `Was not able to connect to lock server to release lock: ${lock.target}.}`);
+      if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
+        this.recreateRpcService();
+      }
+
+      this.log('WARNING', `Was not able to connect to lock serviceOptions to release lock: ${lock.target}.}`);
 
       if (err.code !== RPC_CLOSE_CODES.LOST_CONNECTION) {
         throw err;
@@ -926,14 +960,14 @@ export default class Gateway {
    * @param data Data of the message.
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
-  private send(op: number, data: unknown): boolean {
+  private send(op: number, data: Heartbeat | Identify | GuildRequestMembers | Resume): boolean {
     const payload = { op, d: data };
 
     if (
       this.canSendPacket(op)
       && this.ws?.readyState === ws.OPEN
     ) {
-      const packet = JSON.stringify(payload);
+      const packet = JSON.stringify(typeof payload === 'object' ? objectKeysCamelToSnake(payload) : payload);
       this.ws.send(packet);
 
       this.updateWsRateLimit();

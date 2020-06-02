@@ -14,7 +14,7 @@ const requestProto = loadProto('request');
  * @param server
  */
 export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}): void => {
-  apiOptions.requestOptions = apiOptions.requestOptions || {};
+  apiOptions.requestOptions = apiOptions.requestOptions ?? {};
   apiOptions.requestOptions.transformResponse = (data) => data;
 
   server.apiClient = new Api(token, apiOptions);
@@ -22,7 +22,7 @@ export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}):
 
   /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
   // @ts-ignore: interface can in fact be extended
-  server.addService(requestProto.LockService, {
+  server.addService(requestProto.RequestService, {
     request: request.bind(server),
   });
 

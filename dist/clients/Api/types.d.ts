@@ -1,4 +1,5 @@
 /// <reference types="node" />
+import { ChannelCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import { UserEvents } from '../../common';
 import type { ApiRequest } from './structures';
@@ -12,7 +13,9 @@ export interface IRequestOptions {
     headers?: Record<string, unknown> | undefined;
     local?: boolean;
     keepCase?: boolean;
-    allowQueue?: false;
+    returnOnRateLimit?: false;
+    returnOnGlobalRateLimit?: false;
+    maxRateLimitRetry?: number;
     transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
 }
 export declare type WrappedRequest = (request: ApiRequest) => Promise<IApiResponse>;
@@ -25,12 +28,19 @@ export declare type RateLimitState = {
 export interface IServiceOptions {
     host?: string;
     port?: string | number;
-    channel?: import('@grpc/grpc-js').ChannelCredentials;
+    channel?: ChannelCredentials;
     allowFallback?: boolean;
 }
 export interface IApiResponse {
     status: number;
     statusText: string;
     data: Record<string, unknown>;
-    headers: Record<string, string>;
+    headers: Record<string, unknown>;
 }
+export declare type IRateLimitState = {
+    resetAfter: number;
+    global?: boolean;
+};
+export declare type IResponseState = IRateLimitState & {
+    response?: IApiResponse;
+};

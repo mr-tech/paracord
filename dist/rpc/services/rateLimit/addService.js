@@ -7,7 +7,7 @@ const common_1 = require("../common");
 const rateLimitProto = common_1.loadProto('rate_limit');
 exports.default = (server) => {
     server.rateLimitCache.startSweepInterval();
-    server.addService(rateLimitProto.LockService, {
+    server.addService(rateLimitProto.RateLimitService, {
         authorize: authorize.bind(server),
         update: update.bind(server),
     });
@@ -21,7 +21,7 @@ function authorize(call, callback) {
     try {
         const { method, url } = structures_2.RequestMetaMessage.fromProto(call.request);
         const request = new structures_1.BaseRequest(method, url);
-        const resetAfter = this.rateLimitCache.authorizeRequestFromClient(request);
+        const { resetAfter, global } = this.rateLimitCache.authorizeRequestFromClient(request);
         if (resetAfter === 0) {
             const message = `Request approved. ${method} ${url}`;
             this.log('DEBUG', message);
@@ -30,7 +30,7 @@ function authorize(call, callback) {
             const message = `Request denied. ${method} ${url}`;
             this.log('DEBUG', message);
         }
-        const message = new structures_2.AuthorizationMessage(resetAfter).proto;
+        const message = new structures_2.AuthorizationMessage(resetAfter, global !== null && global !== void 0 ? global : false).proto;
         callback(null, message);
     }
     catch (err) {

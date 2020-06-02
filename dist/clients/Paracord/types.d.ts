@@ -11,8 +11,8 @@ export declare type ParacordOptions = {
     autoInit?: boolean;
 };
 export interface ParacordLoginOptions {
-    identity?: Partial<Identify>;
-    shards?: Identify['shard'];
+    identity?: Identify;
+    shards?: number[];
     shardCount?: number;
     unavailableGuildTolerance?: number;
     unavailableGuildWait?: number;
@@ -21,8 +21,8 @@ export interface ParacordLoginOptions {
 export declare type InternalShardIds = number[];
 export interface ShardLauncherOptions {
     token?: string;
-    shardIds?: InternalShardIds[];
-    shardChunks?: InternalShardIds[][];
+    shardIds?: InternalShardIds;
+    shardChunks?: InternalShardIds[];
     shardCount?: number;
     appName?: string;
     env?: Record<string, unknown>;

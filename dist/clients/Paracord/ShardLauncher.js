@@ -50,13 +50,13 @@ class ShardLauncher {
         if (shardChunks && shardCount) {
             shardChunks.forEach((c) => {
                 c.forEach((s) => {
-                    s.forEach((id) => validateShard(id, shardCount));
+                    validateShard(s, shardCount);
                 });
             });
         }
         else if (shardIds && shardCount) {
             shardIds.forEach((s) => {
-                s.forEach((id) => validateShard(id, shardCount));
+                validateShard(s, shardCount);
             });
         }
     }
@@ -111,13 +111,14 @@ class ShardLauncher {
         });
     }
     launchShard(shardIds, shardCount, pm2Options) {
+        var _a;
         const shardIdsCsv = shardIds.join(',');
         const paracordEnv = {
             PARACORD_TOKEN: this.token,
             PARACORD_SHARD_COUNT: shardCount,
             PARACORD_SHARD_IDS: shardIdsCsv,
         };
-        const pm2Config = Object.assign({ name: `${this.appName} - Shards ${shardIdsCsv}`, script: this.main, env: Object.assign(Object.assign({}, (this.env || {})), paracordEnv) }, pm2Options);
+        const pm2Config = Object.assign({ name: `${this.appName} - Shards ${shardIdsCsv}`, script: this.main, env: Object.assign(Object.assign({}, ((_a = this.env) !== null && _a !== void 0 ? _a : {})), paracordEnv) }, pm2Options);
         pm2_1.default.start(pm2Config, this.detach);
     }
     getRecommendedShards() {

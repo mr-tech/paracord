@@ -1,13 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const Utils_1 = require("../../../Utils");
 const constants_1 = require("../../../constants");
+const utils_1 = require("../../../utils");
 class RateLimit {
     constructor({ remaining, resetTimestamp, limit }, template) {
         this.remaining = remaining;
         this.resetTimestamp = resetTimestamp !== null && resetTimestamp !== void 0 ? resetTimestamp : -1;
         this.limit = limit;
-        this.expires = undefined;
+        this.expires;
         this.template = template;
         this.allowHeaderOverride = true;
         this.refreshExpire();
@@ -30,7 +30,7 @@ class RateLimit {
         return this.remaining > 0;
     }
     get resetAfter() {
-        const resetAfter = Utils_1.millisecondsFromNow(this.resetTimestamp);
+        const resetAfter = utils_1.millisecondsFromNow(this.resetTimestamp);
         return resetAfter > 0 ? resetAfter : 0;
     }
     refreshExpire() {

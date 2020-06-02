@@ -33,7 +33,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
 const constants_1 = require("../../constants");
-const Utils_1 = require("../../Utils");
+const utils_1 = require("../../utils");
 const Api_1 = __importDefault(require("../Api/Api"));
 const Gateway_1 = __importDefault(require("../Gateway/Gateway"));
 const eventFuncs = __importStar(require("./eventFuncs"));
@@ -43,7 +43,7 @@ class Paracord extends events_1.EventEmitter {
     constructor(token, options = {}) {
         super();
         Paracord.validateParams(token);
-        this.token = Utils_1.coerceTokenToBotLike(token);
+        this.token = utils_1.coerceTokenToBotLike(token);
         this.initialized = false;
         this.guilds = new Map();
         this.users = new Map();
@@ -51,10 +51,12 @@ class Paracord extends events_1.EventEmitter {
         this.gateways = new Map();
         this.gatewayLoginQueue = [];
         this.guildWaitCount = 0;
+        this.gatewayWaitCount = 0;
         this.allowEventsDuringStartup = false;
         this.preventLogin = false;
         this.apiOptions = {};
         this.gatewayOptions = {};
+        this.safeGatewayIdentifyTimestamp = 0;
         Object.assign(this, options);
         if (options.autoInit !== false) {
             this.init();
@@ -73,6 +75,9 @@ class Paracord extends events_1.EventEmitter {
     get connecting() {
         return this.gatewayLoginQueue.length !== 0 || this.startingGateway !== undefined;
     }
+    get api() {
+        return this._api;
+    }
     bindEventFunctions() {
         const funcs = {};
         for (const prop of Object.getOwnPropertyNames(eventFuncs)) {
@@ -88,7 +93,7 @@ class Paracord extends events_1.EventEmitter {
     }
     eventHandler(eventType, data, shard) {
         var _a;
-        let emit = (data !== null && data !== void 0 ? data : typeof data === 'object') ? Utils_1.objectKeysSnakeToCamel(data) : data;
+        let emit = data;
         const paracordEvent = this.gatewayEvents[eventType];
         if (paracordEvent !== undefined) {
             emit = paracordEvent(data, shard);
@@ -143,17 +148,17 @@ class Paracord extends events_1.EventEmitter {
     processGatewayQueue() {
         return __awaiter(this, void 0, void 0, function* () {
             const { preventLogin, gatewayLoginQueue, startingGateway, safeGatewayIdentifyTimestamp, unavailableGuildTolerance, unavailableGuildWait, } = this;
+            const now = new Date().getTime();
             if (!preventLogin
                 && gatewayLoginQueue.length
                 && startingGateway === undefined
-                && safeGatewayIdentifyTimestamp !== undefined
-                && new Date().getTime() > safeGatewayIdentifyTimestamp) {
+                && now > safeGatewayIdentifyTimestamp) {
                 const gateway = this.gatewayLoginQueue.shift();
-                this.safeGatewayIdentifyTimestamp = 10 * constants_1.SECOND_IN_MILLISECONDS;
+                this.safeGatewayIdentifyTimestamp = now + 10 * constants_1.SECOND_IN_MILLISECONDS;
                 this.startingGateway = gateway;
                 try {
                     yield gateway.login();
-                    if (unavailableGuildTolerance && unavailableGuildWait) {
+                    if (unavailableGuildTolerance !== undefined && unavailableGuildWait !== undefined) {
                         this.startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3);
                     }
                 }
@@ -178,24 +183,34 @@ class Paracord extends events_1.EventEmitter {
     enqueueGateways(options) {
         return __awaiter(this, void 0, void 0, function* () {
             const { identity } = options;
-            const { shards, shardCount } = options;
-            if (shards !== undefined && shardCount !== undefined) {
-                shards.forEach((s) => {
-                    if (s + 1 > shardCount) {
-                        throw Error(`shard id ${s} exceeds max shard id of ${shardCount - 1}`);
-                    }
-                });
-            }
-            const { shards: spawnShards, shardCount: spawnCount } = yield this.computeShards(shards, shardCount);
-            if (spawnShards === undefined || spawnCount === undefined) {
-                throw Error(`shards ids or shard count are invalid - ids ${spawnShards} , count: ${spawnCount}`);
+            let { shards, shardCount } = options;
+            let wsUrl;
+            if (identity && Array.isArray(identity.shard)) {
+                const identityCopy = utils_1.clone(identity);
+                this.addNewGateway(identityCopy);
             }
             else {
-                spawnShards.forEach((shard) => {
-                    const identityCopy = Utils_1.clone(identity || {});
-                    identityCopy.shard = [shard, spawnCount];
-                    this.addNewGateway(identityCopy);
-                });
+                if (shards !== undefined && shardCount !== undefined) {
+                    shards.forEach((s) => {
+                        if (s + 1 > shardCount) {
+                            throw Error(`shard id ${s} exceeds max shard id of ${shardCount - 1}`);
+                        }
+                    });
+                }
+                else {
+                    ({ shards, shardCount, wsUrl } = yield this.computeShards(shards, shardCount));
+                }
+                if (shards === undefined || shardCount === undefined) {
+                    throw Error(`shards ids or shard count are invalid - ids ${shards} , count: ${shardCount}`);
+                }
+                else {
+                    shards.forEach((shard) => {
+                        const identityCopy = utils_1.clone(identity !== null && identity !== void 0 ? identity : {});
+                        identityCopy.token = this.token;
+                        identityCopy.shard = [shard, shardCount];
+                        this.addNewGateway(identityCopy, wsUrl);
+                    });
+                }
             }
         });
     }
@@ -204,8 +219,10 @@ class Paracord extends events_1.EventEmitter {
             if (shards !== undefined && shardCount === undefined) {
                 throw Error('shards defined with no shardCount.');
             }
+            let wsUrl;
             if (shardCount === undefined) {
-                const { status, data: { shards: recommendedShards } } = yield this.api.request('get', 'gateway/bot');
+                const { status, data: { url, shards: recommendedShards } } = yield this.api.request('get', 'gateway/bot');
+                wsUrl = url;
                 if (status === 200) {
                     shardCount = recommendedShards;
                 }
@@ -216,18 +233,18 @@ class Paracord extends events_1.EventEmitter {
                     shards.push(i);
                 }
             }
-            return { shards, shardCount };
+            return { shards, shardCount, wsUrl };
         });
     }
-    addNewGateway(identity) {
+    addNewGateway(identity, wsUrl) {
         const gatewayOptions = {
-            identity, api: this.api, emitter: this, events: this.events,
+            identity, api: this.api, emitter: this, events: this.events, wsUrl,
         };
         const gateway = this.setUpGateway(this.token, gatewayOptions);
         if (this.gateways.get(gateway.id) !== undefined) {
             throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
         }
-        this.gatewayWaitCount && ++this.gatewayWaitCount;
+        ++this.gatewayWaitCount;
         this.gateways.set(gateway.id, gateway);
         this.gatewayLoginQueue.push(gateway);
     }
@@ -235,7 +252,7 @@ class Paracord extends events_1.EventEmitter {
         if (this.initialized) {
             throw Error('Client has already been initialized.');
         }
-        this.api = this.setUpApi(this.token, this.apiOptions);
+        this._api = this.setUpApi(this.token, this.apiOptions);
         this.selfAssignHandlerFunctions();
         this.initialized = true;
     }
@@ -271,10 +288,11 @@ class Paracord extends events_1.EventEmitter {
     handleReady(data, shard) {
         const { user, guilds } = data;
         this.guildWaitCount = guilds.length;
+        this.user = Object.assign(Object.assign({}, user), { get tag() {
+                return `${user.username}#${user.discriminator}`;
+            } });
+        this.log('INFO', `Logged in as ${this.user.tag}.`);
         guilds.forEach((g) => this.guilds.set(g.id, new Guild_1.default(g, this, shard)));
-        user.tag = () => `${user.username}#${user.discriminator}`;
-        this.user = user;
-        this.log('INFO', `Logged in as ${user.tag}.`);
         const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
         this.log('INFO', message);
         if (guilds.length === 0) {
@@ -285,11 +303,11 @@ class Paracord extends events_1.EventEmitter {
         }
     }
     checkIfDoneStarting(forced) {
-        const { startingGateway, guildWaitCount, gatewayWaitCount } = this;
-        if (startingGateway !== undefined && gatewayWaitCount !== undefined) {
+        const { startingGateway, guildWaitCount } = this;
+        if (startingGateway !== undefined) {
             if (forced || guildWaitCount === 0) {
                 this.completeShardStartup(startingGateway, forced);
-                this.gatewayWaitCount !== undefined && --this.gatewayWaitCount === 0 && this.completeStartup();
+                --this.gatewayWaitCount === 0 && this.completeStartup();
             }
             else if (guildWaitCount !== undefined && guildWaitCount < 0) {
                 const message = `Shard ${startingGateway.id} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${this.guildWaitCount}`;
@@ -319,7 +337,7 @@ class Paracord extends events_1.EventEmitter {
     clearStartingShardState() {
         this.startingGateway = undefined;
         this.lastGuildTimestamp = undefined;
-        this.guildWaitCount = undefined;
+        this.guildWaitCount = 0;
         this.startWithUnavailableGuildsInterval && clearInterval(this.startWithUnavailableGuildsInterval);
     }
     completeStartup(reason) {
@@ -344,10 +362,11 @@ class Paracord extends events_1.EventEmitter {
     }
     upsertUser(user) {
         let cachedUser = this.users.get(user.id) || {};
-        cachedUser.tag = () => `${user.username}#${user.discriminator}`;
-        cachedUser = Object.assign(cachedUser, user);
+        cachedUser = Object.assign(cachedUser, Object.assign(Object.assign({}, user), { get tag() {
+                return `${user.username}#${user.discriminator}`;
+            } }));
         this.users.set(cachedUser.id, cachedUser);
-        cachedUser.createdOn = () => Utils_1.timestampFromSnowflake(cachedUser.id);
+        cachedUser.createdOn = () => utils_1.timestampFromSnowflake(cachedUser.id);
         this.circularAssignCachedPresence(cachedUser);
         return cachedUser;
     }
