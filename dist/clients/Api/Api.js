@@ -174,21 +174,26 @@ class Api {
         });
     }
     handleRequestLocal(request) {
+        var _a;
         return __awaiter(this, void 0, void 0, function* () {
             if (this.requestQueueProcessInterval === undefined) {
                 const message = 'Making a request with a local Api client without a running request queue. Please invoke `startQueue()` on this client so that rate limits may be handled.';
                 this.log('WARNING', message);
             }
-            let _a = yield this.sendRequest(request), { response } = _a, rateLimitState = __rest(_a, ["response"]);
+            let _b = yield this.sendRequest(request), { response } = _b, rateLimitState = __rest(_b, ["response"]);
             if (response !== undefined) {
                 response = yield this.handleResponse(request, response);
             }
             if (response === undefined) {
-                return {
-                    status: 429, statusText: 'Too Many Requests',
+                const customResponse = {
+                    status: 429,
+                    statusText: 'Too Many Requests',
+                    'retry-after': rateLimitState.resetAfter,
                     data: Object.assign({}, rateLimitState),
-                    headers: { _paracord: true, 'x-ratelimit-global': true },
+                    headers: { _paracord: true },
+                    'x-ratelimit-global': (_a = rateLimitState.global) !== null && _a !== void 0 ? _a : false,
                 };
+                return customResponse;
             }
             return response;
         });
