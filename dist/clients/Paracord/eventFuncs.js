@@ -102,7 +102,7 @@ exports.GUILD_MEMBERS_CHUNK = GUILD_MEMBERS_CHUNK;
 function CHANNEL_CREATE(data) {
     var _a;
     const { type, guildId } = data;
-    if (type !== DM || type !== GROUP_DM || guildId === undefined)
+    if (type === DM || type === GROUP_DM || guildId === undefined)
         return data;
     const guild = this.guilds.get(guildId);
     return (_a = guild === null || guild === void 0 ? void 0 : guild.upsertChannel(data)) !== null && _a !== void 0 ? _a : data;
@@ -111,7 +111,7 @@ exports.CHANNEL_CREATE = CHANNEL_CREATE;
 function CHANNEL_UPDATE(data) {
     var _a;
     const { type, guildId } = data;
-    if (type !== DM || type !== GROUP_DM || guildId === undefined)
+    if (type === DM || type === GROUP_DM || guildId === undefined)
         return data;
     const guild = this.guilds.get(guildId);
     return (_a = guild === null || guild === void 0 ? void 0 : guild.upsertChannel(data)) !== null && _a !== void 0 ? _a : data;
@@ -120,13 +120,13 @@ exports.CHANNEL_UPDATE = CHANNEL_UPDATE;
 function CHANNEL_DELETE(data) {
     var _a;
     const { type, guildId } = data;
-    if (type !== DM || type !== GROUP_DM || guildId === undefined)
+    if (type === DM || type === GROUP_DM || guildId === undefined)
         return data;
     let channel = data;
     const guild = this.guilds.get(guildId);
     if (guild !== undefined) {
-        channel = (_a = guild.channels.get(guildId)) !== null && _a !== void 0 ? _a : channel;
-        guild.channels.delete(guildId);
+        channel = (_a = guild.channels.get(channel.id)) !== null && _a !== void 0 ? _a : channel;
+        guild.channels.delete(channel.id);
     }
     else {
         this.log('WARNING', `CHANNEL_DELETE received without guild in cache. guildId: ${guildId} | channel.id: ${channel.id}`);

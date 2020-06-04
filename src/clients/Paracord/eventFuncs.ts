@@ -128,7 +128,8 @@ export function GUILD_MEMBERS_CHUNK(this: Paracord, data: GuildMembersChunkEvent
 
 export function CHANNEL_CREATE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
   const { type, guildId } = data;
-  if (type !== DM || type !== GROUP_DM || guildId === undefined) return data;
+
+  if (type === DM || type === GROUP_DM || guildId === undefined) return data;
 
   const guild = this.guilds.get(guildId);
   return guild?.upsertChannel(data) ?? data;
@@ -136,7 +137,7 @@ export function CHANNEL_CREATE(this: Paracord, data: RawChannel): GuildChannel |
 
 export function CHANNEL_UPDATE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
   const { type, guildId } = data;
-  if (type !== DM || type !== GROUP_DM || guildId === undefined) return data;
+  if (type === DM || type === GROUP_DM || guildId === undefined) return data;
 
   const guild = this.guilds.get(guildId);
   return guild?.upsertChannel(data) ?? data;
@@ -144,7 +145,7 @@ export function CHANNEL_UPDATE(this: Paracord, data: RawChannel): GuildChannel |
 
 export function CHANNEL_DELETE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
   const { type, guildId } = data;
-  if (type !== DM || type !== GROUP_DM || guildId === undefined) return data;
+  if (type === DM || type === GROUP_DM || guildId === undefined) return data;
 
   let channel: RawChannel | GuildChannel = data;
   const guild = this.guilds.get(guildId);
