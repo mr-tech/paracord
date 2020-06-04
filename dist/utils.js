@@ -47,8 +47,10 @@ exports.computeChannelPerms = computeChannelPerms;
 function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }) {
     const { roles: guildRoles } = guild;
     const { roles: memberRoles } = member;
-    if (guildRoles === undefined || memberRoles === undefined)
+    if (guildRoles === undefined)
         throw Error('roles not cached for this guild');
+    if (memberRoles === undefined)
+        throw Error('no roles on member object');
     if (stopOnOwnerAdmin && guild.ownerId === member.user.id) {
         return constants_1.PERMISSIONS.ADMINISTRATOR;
     }

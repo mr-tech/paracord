@@ -30,7 +30,7 @@ export default class Api {
     handleRequestLocal(request: ApiRequest): Promise<IApiResponse>;
     private handleRequestRemote;
     sendRequest(request: ApiRequest, fromQueue?: true): Promise<IResponseState>;
-    authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState>;
+    authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState | undefined>;
     private handleResponse;
     private handleRateLimitedRequest;
     private updateRateLimitCache;

@@ -380,9 +380,7 @@ export default class Api {
       }
 
       const { waitUntil } = request;
-      if (waitUntil === undefined) {
-        request.assignIfStricterWait(new Date().getTime() + resetAfter);
-      }
+      request.assignIfStricterWait(new Date().getTime() + resetAfter);
 
       if (!fromQueue) {
         const message = `Enqueuing request: ${request.method} ${request.url}`;
@@ -403,7 +401,7 @@ export default class Api {
    * Gets authorization from the server to make the request.
    * @param request ApiRequest being made.
    */
-  public async authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState> {
+  public async authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState | undefined> {
     try {
       const authorizationMessage = await (<RateLimitService> this.rpcRateLimitService).authorize(request);
 
@@ -418,8 +416,7 @@ export default class Api {
         this.recreateRpcService();
         const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
         this.log('ERROR', message);
-
-        return { resetAfter: 0 };
+        return undefined;
       }
       throw err;
     }

@@ -99,8 +99,6 @@ export default class Lock {
     });
 
     this.lockTimeout && clearTimeout(this.lockTimeout);
-    console.log('lock');
-    console.log(token);
 
     this.token = token;
     this.lockTimeout = setTimeout(() => {
@@ -116,7 +114,6 @@ export default class Lock {
 
   /** Makes the lock available and clears the expire timer. */
   private unlock(): void {
-    console.log('unlock');
     this.lockTimeout && clearTimeout(this.lockTimeout);
     this.lockTimeout = undefined;
     this.token = undefined;

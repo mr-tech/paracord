@@ -243,9 +243,7 @@ class Api {
                     return rateLimitState;
                 }
                 const { waitUntil } = request;
-                if (waitUntil === undefined) {
-                    request.assignIfStricterWait(new Date().getTime() + resetAfter);
-                }
+                request.assignIfStricterWait(new Date().getTime() + resetAfter);
                 if (!fromQueue) {
                     const message = `Enqueuing request: ${request.method} ${request.url}`;
                     this.log('DEBUG', message, request);
@@ -275,7 +273,7 @@ class Api {
                     this.recreateRpcService();
                     const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
                     this.log('ERROR', message);
-                    return { resetAfter: 0 };
+                    return undefined;
                 }
                 throw err;
             }
