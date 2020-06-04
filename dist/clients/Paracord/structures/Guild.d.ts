@@ -44,7 +44,7 @@ export default class Guild {
     readonly publicUpdatesChannelId: Snowflake | null;
     readonly maxVideoChannelUsers?: number;
     owner?: GuildMember;
-    readonly me?: GuildMember;
+    me: GuildMember;
     readonly shard: number;
     constructor(guildCreate: Partial<RawGuild>, client: Paracord, shard: number);
     get createdOn(): number;

@@ -275,8 +275,10 @@ export function objectKeysCamelToSnake(obj: Record<string, unknown>): Record<str
   const snakedObj: Record<string, unknown> = {};
   /* eslint-disable-next-line prefer-const */
   for (let [key, value] of Object.entries(obj)) {
-    if (typeof value === 'object' && value?.constructor.name === 'Object') {
+    if (isObject(value)) {
       value = objectKeysCamelToSnake(<Record<string, unknown>>value);
+    } else if (Array.isArray(value) && isObject(value[0])) {
+      value = value.map(objectKeysCamelToSnake);
     }
     snakedObj[camelToSnake(key)] = value;
   }
@@ -298,11 +300,17 @@ export function objectKeysSnakeToCamel(obj: Record<string, unknown>): Record<str
   const camelObj: Record<string, unknown> = {};
   /* eslint-disable-next-line prefer-const */
   for (let [key, value] of Object.entries(obj)) {
-    if (typeof value === 'object' && value?.constructor.name === 'Object') {
+    if (isObject(value)) {
       value = objectKeysSnakeToCamel(<Record<string, unknown>>value);
+    } else if (Array.isArray(value) && isObject(value[0])) {
+      value = value.map(objectKeysSnakeToCamel);
     }
     camelObj[snakeToCamel(key)] = value;
   }
 
   return camelObj;
+}
+
+function isObject(v: unknown): boolean {
+  return typeof v === 'object' && v?.constructor.name === 'Object';
 }

@@ -142,7 +142,7 @@ export default class Guild {
   public owner?: GuildMember;
 
   /** The bot's member object. */
-  public readonly me?: GuildMember;
+  public me!: GuildMember;
 
   /** Shard id of the gateway connection this guild originated from. */
   public readonly shard: number;
@@ -164,17 +164,6 @@ export default class Guild {
     this.shard = shard;
 
     this.mergeGuildData(guildCreate, client);
-
-    if (this.unavailable === false && this.members !== undefined && this.me === undefined) {
-      this.me = this.members.get(client.user.id);
-      if (this.me === undefined) {
-        /* eslint-disable-next-line no-console */
-        console.log(
-          'This message is intentional and is made to appear when am available guild is created but the bot user was not included in the initial member list.',
-        );
-        // Guild.lazyLoadGuildMe(client);
-      }
-    }
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
@@ -345,6 +334,9 @@ export default class Guild {
 
     if (this.ownerId === user.id) {
       this.owner = cachedMember;
+    }
+    if (client.user.id === user.id) {
+      this.me = cachedMember;
     }
 
     return <GuildMember>member;

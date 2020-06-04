@@ -145,8 +145,11 @@ exports.camelToSnake = camelToSnake;
 function objectKeysCamelToSnake(obj) {
     const snakedObj = {};
     for (let [key, value] of Object.entries(obj)) {
-        if (typeof value === 'object' && (value === null || value === void 0 ? void 0 : value.constructor.name) === 'Object') {
+        if (isObject(value)) {
             value = objectKeysCamelToSnake(value);
+        }
+        else if (Array.isArray(value) && isObject(value[0])) {
+            value = value.map(objectKeysCamelToSnake);
         }
         snakedObj[camelToSnake(key)] = value;
     }
@@ -163,11 +166,17 @@ exports.snakeToCamel = snakeToCamel;
 function objectKeysSnakeToCamel(obj) {
     const camelObj = {};
     for (let [key, value] of Object.entries(obj)) {
-        if (typeof value === 'object' && (value === null || value === void 0 ? void 0 : value.constructor.name) === 'Object') {
+        if (isObject(value)) {
             value = objectKeysSnakeToCamel(value);
+        }
+        else if (Array.isArray(value) && isObject(value[0])) {
+            value = value.map(objectKeysSnakeToCamel);
         }
         camelObj[snakeToCamel(key)] = value;
     }
     return camelObj;
 }
 exports.objectKeysSnakeToCamel = objectKeysSnakeToCamel;
+function isObject(v) {
+    return typeof v === 'object' && (v === null || v === void 0 ? void 0 : v.constructor.name) === 'Object';
+}

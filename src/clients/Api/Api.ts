@@ -383,9 +383,6 @@ export default class Api {
         request.assignIfStricterWait(new Date().getTime() + resetAfter);
       }
 
-      console.log('waitUntil', request.waitUntil);
-      console.log('resetAfter', resetAfter);
-
       if (!fromQueue) {
         const message = `Enqueuing request: ${request.method} ${request.url}`;
         this.log('DEBUG', message, request);
@@ -461,8 +458,6 @@ export default class Api {
       message = `Request rate limited: ${request.method} ${request.url}`;
     }
     this.log('DEBUG', message, rateLimitHeaders);
-
-    console.log('RateLimitHeaders', rateLimitHeaders);
 
     this.updateRateLimitCache(request, rateLimitHeaders);
 
