@@ -150,8 +150,8 @@ function GUILD_ROLE_DELETE({ guildId, roleId }) {
     const guild = this.guilds.get(guildId);
     let role;
     if (guild !== undefined) {
-        role = guild.roles.get(guildId);
-        guild.roles.delete(guildId);
+        role = guild.roles.get(roleId);
+        guild.roles.delete(roleId);
     }
     else {
         this.log('WARNING', `GUILD_ROLE_DELETE received without guild in cache. guildId: ${guildId} | roleId: ${roleId}`);

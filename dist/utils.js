@@ -35,8 +35,10 @@ exports.coerceTokenToBotLike = coerceTokenToBotLike;
 function computeChannelPerms({ member, guild, channel, stopOnOwnerAdmin = false, }) {
     const { roles: guildRoles } = guild;
     const { roles: memberRoles } = member;
-    if (guildRoles === undefined || memberRoles === undefined)
+    if (guildRoles === undefined)
         throw Error('roles not cached for this guild');
+    if (memberRoles === undefined)
+        throw Error('no roles on member object');
     const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
     if (stopOnOwnerAdmin && guildPerms & constants_1.PERMISSIONS.ADMINISTRATOR) {
         return constants_1.PERMISSIONS.ADMINISTRATOR;
@@ -56,7 +58,7 @@ function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }) {
     }
     const everyone = guildRoles.get(guild.id);
     if (everyone === undefined)
-        throw Error('roles not cached for this guild');
+        throw Error('no everyone role for this guild');
     let perms = everyone.permissions;
     for (const roleId of memberRoles) {
         const role = guildRoles.get(roleId);

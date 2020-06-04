@@ -183,7 +183,7 @@ export default class Guild {
    * @param client Paracord client.
    */
   public mergeGuildData(guildData: Partial<RawGuild>, client: Paracord): Guild {
-    if (guildData.channels !== undefined && this.channels !== undefined) {
+    if (guildData.channels !== undefined) {
       guildData.channels.forEach((c) => this.upsertChannel(c));
       delete guildData.channels;
     }
@@ -330,7 +330,6 @@ export default class Guild {
     const { members } = this;
     const cachedMember = <GuildMember>Object.assign(members.get(user.id) || {}, member);
     members.set(user.id, cachedMember);
-
 
     if (this.ownerId === user.id) {
       this.owner = cachedMember;

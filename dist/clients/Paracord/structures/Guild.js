@@ -19,7 +19,7 @@ class Guild {
         return utils_1.timestampFromSnowflake(this.id);
     }
     mergeGuildData(guildData, client) {
-        if (guildData.channels !== undefined && this.channels !== undefined) {
+        if (guildData.channels !== undefined) {
             guildData.channels.forEach((c) => this.upsertChannel(c));
             delete guildData.channels;
         }

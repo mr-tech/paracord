@@ -80,7 +80,8 @@ export function computeChannelPerms({
 }: { member: GuildMember; guild: Guild; channel: GuildChannel; stopOnOwnerAdmin?: boolean; }): number {
   const { roles: guildRoles } = guild;
   const { roles: memberRoles } = member;
-  if (guildRoles === undefined || memberRoles === undefined) throw Error('roles not cached for this guild');
+  if (guildRoles === undefined) throw Error('roles not cached for this guild');
+  if (memberRoles === undefined) throw Error('no roles on member object');
 
   const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
 
@@ -110,7 +111,7 @@ export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: {
 
   const everyone = guildRoles.get(guild.id);
 
-  if (everyone === undefined) throw Error('roles not cached for this guild');
+  if (everyone === undefined) throw Error('no everyone role for this guild');
 
   // start with @everyone perms
   let perms: number = everyone.permissions;

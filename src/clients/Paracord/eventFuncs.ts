@@ -149,8 +149,8 @@ export function CHANNEL_DELETE(this: Paracord, data: RawChannel): GuildChannel |
   let channel: RawChannel | GuildChannel = data;
   const guild = this.guilds.get(guildId);
   if (guild !== undefined) {
-    channel = guild.channels.get(guildId) ?? channel;
-    guild.channels.delete(guildId);
+    channel = guild.channels.get(channel.id) ?? channel;
+    guild.channels.delete(channel.id);
   } else { // TODO: fallback to periodically scanning cache for channel
     this.log('WARNING', `CHANNEL_DELETE received without guild in cache. guildId: ${guildId} | channel.id: ${channel.id}`);
   }
@@ -178,8 +178,8 @@ export function GUILD_ROLE_DELETE(
   const guild = this.guilds.get(guildId);
   let role;
   if (guild !== undefined) {
-    role = guild.roles.get(guildId);
-    guild.roles.delete(guildId);
+    role = guild.roles.get(roleId);
+    guild.roles.delete(roleId);
   } else {
     this.log('WARNING', `GUILD_ROLE_DELETE received without guild in cache. guildId: ${guildId} | roleId: ${roleId}`);
   }
