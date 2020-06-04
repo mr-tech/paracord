@@ -62,6 +62,8 @@ class Lock {
             message,
         });
         this.lockTimeout && clearTimeout(this.lockTimeout);
+        console.log('lock');
+        console.log(token);
         this.token = token;
         this.lockTimeout = setTimeout(() => {
             this.release(token);
@@ -73,6 +75,7 @@ class Lock {
         }, timeOut);
     }
     unlock() {
+        console.log('unlock');
         this.lockTimeout && clearTimeout(this.lockTimeout);
         this.lockTimeout = undefined;
         this.token = undefined;

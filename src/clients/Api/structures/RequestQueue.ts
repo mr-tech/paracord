@@ -13,7 +13,6 @@
 // TODO(lando): Do some logging on this in prod to make sure it doesn't memory leak.
 
 import { ApiRequest, RateLimitCache } from '.';
-import { RPC_CLOSE_CODES } from '../../../constants';
 import Api from '../Api';
 
 /** A queue for rate limited requests waiting to be sent. */
