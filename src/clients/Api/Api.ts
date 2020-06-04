@@ -373,6 +373,7 @@ export default class Api {
         this.log('DEBUG', message, request);
         return { response: await this.wrappedAxiosInstance(request), resetAfter: 0 };
       }
+      request.running = false;
 
       if (!Api.shouldQueueRequest(request, global ?? false)) {
         return rateLimitState;
