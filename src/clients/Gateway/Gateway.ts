@@ -412,7 +412,7 @@ export default class Gateway {
       data = await this.emitter.eventHandler(type, data, this.id);
     }
 
-    data ?? this.emit(type, data);
+    data && this.emit(type, data);
   }
 
   // /**

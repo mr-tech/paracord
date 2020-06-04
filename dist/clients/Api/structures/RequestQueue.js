@@ -72,13 +72,11 @@ class RequestQueue {
             return false;
         }
         if (request.response !== undefined) {
-            console.log('pong');
             return true;
         }
         if (request.waitUntil !== undefined && request.waitUntil > new Date().getTime()) {
             return false;
         }
-        console.log('ping');
         this.sendRequest(request);
         return false;
     }

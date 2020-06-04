@@ -224,7 +224,7 @@ class Gateway {
             if (this.emitter.eventHandler !== undefined) {
                 data = yield this.emitter.eventHandler(type, data, this.id);
             }
-            data !== null && data !== void 0 ? data : this.emit(type, data);
+            data && this.emit(type, data);
         });
     }
     _onopen() {
