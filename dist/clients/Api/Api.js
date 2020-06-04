@@ -238,6 +238,7 @@ class Api {
                     this.log('DEBUG', message, request);
                     return { response: yield this.wrappedAxiosInstance(request), resetAfter: 0 };
                 }
+                request.running = false;
                 if (!Api.shouldQueueRequest(request, global !== null && global !== void 0 ? global : false)) {
                     return rateLimitState;
                 }

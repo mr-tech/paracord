@@ -141,7 +141,9 @@ export default class RateLimitCache {
       return { resetAfter: 0 };
     }
 
-    if (!this.returnIsRateLimited(request)) {
+
+    const { resetAfter } = this.returnIsRateLimited(request);
+    if (resetAfter === 0) {
       rateLimit.decrementRemaining();
       this.decrementGlobalRemaining();
       return { resetAfter: 0 };

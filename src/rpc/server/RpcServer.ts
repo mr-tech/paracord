@@ -28,7 +28,7 @@ export default class RpcServer extends grpc.Server {
   public rateLimitCache: RateLimitCache;
 
   /** Lock instance when the "identify lock" service is added. */
-  public identifyLock?: Lock;
+  public identifyLock: Lock;
 
   /** Destination host. */
   private host: string;
@@ -54,7 +54,7 @@ export default class RpcServer extends grpc.Server {
     this.channel = channel ?? grpc.ServerCredentials.createInsecure();
     this.emitter = emitter;
     this.apiClient = apiClient;
-    this.identifyLock = identifyLock;
+    this.identifyLock = identifyLock ?? new Lock(this.emitter);
     this.rateLimitCache = new RateLimitCache(false);
   }
 

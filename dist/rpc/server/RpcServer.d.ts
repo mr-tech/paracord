@@ -11,7 +11,7 @@ export default class RpcServer extends grpc.Server {
     emitter?: EventEmitter;
     apiClient?: Api;
     rateLimitCache: RateLimitCache;
-    identifyLock?: Lock;
+    identifyLock: Lock;
     private host;
     private port;
     private channel;

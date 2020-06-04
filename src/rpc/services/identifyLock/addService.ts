@@ -32,8 +32,6 @@ function acquire(
   call: { request: LockRequestProto },
   callback: (a: TServiceCallbackError, b?: StatusProto) => void,
 ) {
-  this.identifyLock = new Lock(this.emitter);
-
   try {
     const { timeOut, token } = LockRequestMessage.fromProto(call.request);
 

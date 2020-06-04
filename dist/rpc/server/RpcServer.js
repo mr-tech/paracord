@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const structures_1 = require("../../clients/Api/structures");
 const constants_1 = require("../../constants");
 const services_1 = require("../services");
+const structures_2 = require("../structures");
 const grpc = require('@grpc/grpc-js');
 class RpcServer extends grpc.Server {
     constructor(options = {}) {
@@ -13,7 +14,7 @@ class RpcServer extends grpc.Server {
         this.channel = channel !== null && channel !== void 0 ? channel : grpc.ServerCredentials.createInsecure();
         this.emitter = emitter;
         this.apiClient = apiClient;
-        this.identifyLock = identifyLock;
+        this.identifyLock = identifyLock !== null && identifyLock !== void 0 ? identifyLock : new structures_2.Lock(this.emitter);
         this.rateLimitCache = new structures_1.RateLimitCache(false);
     }
     get bindArgs() {
