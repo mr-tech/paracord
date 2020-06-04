@@ -1,5 +1,6 @@
 import { IApiResponse, IRequestOptions } from '../types';
 import BaseRequest from './BaseRequest';
+import { objectKeysCamelToSnake } from '../../../utils';
 
 /**
  * A request that will be made to Discord's REST API.
@@ -43,6 +44,7 @@ export default class Request extends BaseRequest {
       data, headers, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
     } = options;
 
+    // this.data = data !== undefined ? objectKeysCamelToSnake(data) : data;
     this.data = data;
     this.headers = headers;
     this.returnOnRateLimit = returnOnRateLimit ?? false;

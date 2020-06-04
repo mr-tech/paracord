@@ -14,12 +14,6 @@ class Guild {
         this.unavailable = (_a = guildCreate.unavailable) !== null && _a !== void 0 ? _a : false;
         this.shard = shard;
         this.mergeGuildData(guildCreate, client);
-        if (this.unavailable === false && this.members !== undefined && this.me === undefined) {
-            this.me = this.members.get(client.user.id);
-            if (this.me === undefined) {
-                console.log('This message is intentional and is made to appear when am available guild is created but the bot user was not included in the initial member list.');
-            }
-        }
     }
     get createdOn() {
         return utils_1.timestampFromSnowflake(this.id);
@@ -112,6 +106,9 @@ class Guild {
         members.set(user.id, cachedMember);
         if (this.ownerId === user.id) {
             this.owner = cachedMember;
+        }
+        if (client.user.id === user.id) {
+            this.me = cachedMember;
         }
         return member;
     }

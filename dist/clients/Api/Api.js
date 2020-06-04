@@ -190,8 +190,10 @@ class Api {
                     statusText: 'Too Many Requests',
                     'retry-after': rateLimitState.resetAfter,
                     data: Object.assign({}, rateLimitState),
-                    headers: { _paracord: true },
-                    'x-ratelimit-global': (_a = rateLimitState.global) !== null && _a !== void 0 ? _a : false,
+                    headers: {
+                        _paracord: true,
+                        'x-ratelimit-global': (_a = rateLimitState.global) !== null && _a !== void 0 ? _a : false,
+                    },
                 };
                 return customResponse;
             }
@@ -243,8 +245,6 @@ class Api {
                 if (waitUntil === undefined) {
                     request.assignIfStricterWait(new Date().getTime() + resetAfter);
                 }
-                console.log('waitUntil', request.waitUntil);
-                console.log('resetAfter', resetAfter);
                 if (!fromQueue) {
                     const message = `Enqueuing request: ${request.method} ${request.url}`;
                     this.log('DEBUG', message, request);
@@ -307,7 +307,6 @@ class Api {
             message = `Request rate limited: ${request.method} ${request.url}`;
         }
         this.log('DEBUG', message, rateLimitHeaders);
-        console.log('RateLimitHeaders', rateLimitHeaders);
         this.updateRateLimitCache(request, rateLimitHeaders);
         const { resetAfter } = rateLimitHeaders;
         const { waitUntil } = request;
