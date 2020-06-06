@@ -249,9 +249,9 @@ export function constructGuildIcon(guild: Guild, fileType = ''): string | undefi
 // }
 
 /**
-   * Generates a unique Id.
-   * https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
-   */
+ * Generates a unique Id.
+ * https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+ */
 export function createUnsafeUuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
@@ -261,9 +261,9 @@ export function createUnsafeUuid(): string {
 }
 
 /**
-   * Assigns to a Discord object's the timestamp of when it was created.
-   * @param obj Discord object with a snowflake ID.
-   */
+ * Assigns to a Discord object's the timestamp of when it was created.
+ * @param obj Discord object with a snowflake ID.
+ */
 export function returnCreatedOn(resource: Record<'id', Snowflake>): number {
   return timestampFromSnowflake(resource.id);
 }

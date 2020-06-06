@@ -5,7 +5,7 @@ import { RawVoiceState } from './voice';
 export declare type Snowflake = string;
 export declare type ISO8601timestamp = string;
 export declare type User = RawUser & {
-    createdOn: () => number;
+    createdOn: number;
     tag: string;
     presence: RawPresence | undefined;
 };

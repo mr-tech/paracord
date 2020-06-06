@@ -362,11 +362,11 @@ class Paracord extends events_1.EventEmitter {
     }
     upsertUser(user) {
         let cachedUser = this.users.get(user.id) || {};
-        cachedUser = Object.assign(cachedUser, Object.assign(Object.assign({}, user), { get tag() {
-                return `${user.username}#${user.discriminator}`;
-            } }));
+        cachedUser = Object.assign(cachedUser, Object.assign(Object.assign({}, user), { tag: `${user.username}#${user.discriminator}` }));
+        if (cachedUser.createdOn === undefined) {
+            cachedUser.createdOn = utils_1.timestampFromSnowflake(user.id);
+        }
         this.users.set(cachedUser.id, cachedUser);
-        cachedUser.createdOn = () => utils_1.timestampFromSnowflake(cachedUser.id);
         this.circularAssignCachedPresence(cachedUser);
         return cachedUser;
     }

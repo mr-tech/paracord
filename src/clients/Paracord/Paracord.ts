@@ -644,14 +644,14 @@ export default class Paracord extends EventEmitter {
     let cachedUser = this.users.get(user.id) || <User>{};
     cachedUser = Object.assign(cachedUser, {
       ...user,
-      get tag(): string {
-        return `${user.username}#${user.discriminator}`;
-      },
+      tag: `${user.username}#${user.discriminator}`,
     });
 
-    this.users.set(cachedUser.id, cachedUser);
+    if (cachedUser.createdOn === undefined) {
+      cachedUser.createdOn = timestampFromSnowflake(user.id);
+    }
 
-    cachedUser.createdOn = () => timestampFromSnowflake(cachedUser.id);
+    this.users.set(cachedUser.id, cachedUser);
 
     this.circularAssignCachedPresence(cachedUser);
 

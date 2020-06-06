@@ -10,7 +10,7 @@ export type Snowflake = string;
 export type ISO8601timestamp = string;
 
 export type User = RawUser & {
-  createdOn: () => number;
+  createdOn: number;
   tag: string;
   presence: RawPresence | undefined;
 }
