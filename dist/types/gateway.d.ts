@@ -228,7 +228,7 @@ export declare type ActivitySecrets = {
     spectate?: string;
     match?: string;
 };
-export declare enum ActivityFlags {
+export declare const enum ActivityFlags {
     INSTANCE = 1,
     JOIN = 2,
     SPECTATE = 4,

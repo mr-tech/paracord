@@ -31,7 +31,7 @@ export type RawUser = {
 
 // ========================================================================
 
-export enum UserFlags {
+export const enum UserFlags {
   None = 0,
   DiscordEmployee = 1 << 0,
   DiscordPartner = 1 << 1,

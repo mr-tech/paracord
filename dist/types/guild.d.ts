@@ -52,7 +52,7 @@ export declare type ExplicitContentFilterLevel = [0 | 1 | 2];
 export declare type MFALevel = [0 | 1];
 export declare type VerificationLevel = [0 | 1 | 2 | 3 | 4];
 export declare type PremiumTier = [0 | 1 | 2 | 3];
-export declare enum SystemChannelFlags {
+export declare const enum SystemChannelFlags {
     SUPPRESS_JOIN_NOTIFICATIONS = 1,
     SUPPRESS_PREMIUM_SUBSCRIPTIONS = 2
 }

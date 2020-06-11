@@ -9,35 +9,35 @@ export default class Identify {
     readonly token: string;
 
     /** information about the client and how it's connecting */
-    private properties?: IdentifyConnectionProperties;
+    #properties?: IdentifyConnectionProperties;
 
     /** whether this connection supports compression of packets */
-    private compress?: boolean; // false
+    #compress?: boolean; // false
 
     /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
-    private largeThreshold?: number; // 50
+    #largeThreshold?: number; // 50
 
     /** presence structure for initial presence information */
-    private presence?: GatewayStatusUpdate;
+    #presence?: GatewayStatusUpdate;
 
     /** enables dispatching of guild subscription events (presence and typing events) */
-    private guildSubscriptions?: boolean; // true
+    #guildSubscriptions?: boolean; // true
 
     /** the Gateway Intents you wish to receive */
-    private intents?: number;
+    #intents?: number;
 
     /**
    * Creates a new Identity object for use with the gateway.
    * @param identity Properties to add to this identity.
    */
     public constructor(token: string, identity: Partial<Identify>) {
-      this.properties = {
+      this.#properties = {
         $os: process.platform,
         $browser: 'Paracord',
         $device: 'Paracord',
       };
 
-      this.presence = {
+      this.#presence = {
         status: 'online',
         afk: false,
         game: null,

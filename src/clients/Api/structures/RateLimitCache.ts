@@ -15,16 +15,16 @@ type RateLimitBucketUid = string;
 /** Stores the state of all known rate limits this client has encountered. */
 export default class RateLimitCache {
   /** Request meta values to their associated rate limit bucket, if one exists. */
-  private requestRouteMetaToBucket: Map<BaseRequest['requestRouteMeta'], RateLimitBucketUid>;
+  #requestRouteMetaToBucket: Map<BaseRequest['requestRouteMeta'], RateLimitBucketUid>;
 
   /** Rate limit keys to their associate rate limit */
-  private rateLimitMap: RateLimitMap;
+  #rateLimitMap: RateLimitMap;
 
   /** Bucket Ids to saved rate limits state to create new rate limits from known constraints. */
-  private rateLimitTemplateMap: RateLimitTemplateMap;
+  #rateLimitTemplateMap: RateLimitTemplateMap;
 
   /** Assumed state of the global rate limit. */
-  private globalRateLimitState: {
+  #globalRateLimitState: {
     /** How many requests remaining before checking to see if global rate limit should trigger. */
     remaining: number;
     /** Epoch timestamp of when the global rate limit expires. */
@@ -41,15 +41,15 @@ export default class RateLimitCache {
    * @param autoStartSweep Specify false to not start the sweep interval.
    */
   public constructor(autoStartSweep = true) {
-    this.requestRouteMetaToBucket = new Map();
-    this.rateLimitMap = new RateLimitMap();
-    this.rateLimitTemplateMap = new RateLimitTemplateMap();
-    this.globalRateLimitState = {
+    this.#requestRouteMetaToBucket = new Map();
+    this.#rateLimitMap = new RateLimitMap();
+    this.#rateLimitTemplateMap = new RateLimitTemplateMap();
+    this.#globalRateLimitState = {
       remaining: 0,
       resetTimestamp: 0,
     };
 
-    autoStartSweep && this.rateLimitMap.startSweepInterval();
+    autoStartSweep && this.#rateLimitMap.startSweepInterval();
   }
 
   /**
@@ -71,23 +71,23 @@ export default class RateLimitCache {
 
   /** If it is past the time Discord said the rate limit would reset. */
   private get globalRateLimitHasReset(): boolean {
-    return this.globalRateLimitState.resetTimestamp <= new Date().getTime();
+    return this.#globalRateLimitState.resetTimestamp <= new Date().getTime();
   }
 
   /** If a request can be made without triggering a Discord rate limit. */
   private get globalRateLimitHasRemainingUses(): boolean {
-    return this.globalRateLimitState.remaining > 0;
+    return this.#globalRateLimitState.remaining > 0;
   }
 
   /** How long until the rate limit resets in ms. */
   private get globalRateLimitResetAfter(): number {
-    const resetAfter = millisecondsFromNow(this.globalRateLimitState.resetTimestamp);
+    const resetAfter = millisecondsFromNow(this.#globalRateLimitState.resetTimestamp);
     return resetAfter > 0 ? resetAfter : 0;
   }
 
   /** Begins timer for sweeping cache of old rate limits. */
   public startSweepInterval(): void {
-    this.rateLimitMap.startSweepInterval();
+    this.#rateLimitMap.startSweepInterval();
   }
 
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
@@ -110,10 +110,10 @@ export default class RateLimitCache {
 
   public decrementGlobalRemaining(): void {
     if (this.globalRateLimitResetAfter === 0) {
-      this.globalRateLimitState.resetTimestamp = new Date().getTime() + API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS;
+      this.#globalRateLimitState.resetTimestamp = new Date().getTime() + API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS;
     }
 
-    --this.globalRateLimitState.remaining;
+    --this.#globalRateLimitState.remaining;
   }
 
   /**
@@ -163,9 +163,9 @@ export default class RateLimitCache {
     const { bucket } = rateLimitHeaders;
 
     if (bucket !== undefined) {
-      this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
-      const template = this.rateLimitTemplateMap.upsert(bucket, rateLimitHeaders);
-      this.rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+      this.#requestRouteMetaToBucket.set(requestRouteMeta, bucket);
+      const template = this.#rateLimitTemplateMap.upsert(bucket, rateLimitHeaders);
+      this.#rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
     }
   }
 
@@ -190,8 +190,8 @@ export default class RateLimitCache {
 
   /** Sets the remaining requests back to the known limit. */
   private resetGlobalRateLimit(): void {
-    this.globalRateLimitState.resetTimestamp = 0;
-    this.globalRateLimitState.remaining = API_GLOBAL_RATE_LIMIT;
+    this.#globalRateLimitState.resetTimestamp = 0;
+    this.#globalRateLimitState.remaining = API_GLOBAL_RATE_LIMIT;
   }
 
   /**
@@ -203,9 +203,9 @@ export default class RateLimitCache {
   private getRateLimitFromCache(request: BaseRequest | ApiRequest): RateLimit | undefined {
     const { requestRouteMeta, rateLimitKey } = request;
 
-    const bucket = this.requestRouteMetaToBucket.get(requestRouteMeta);
+    const bucket = this.#requestRouteMetaToBucket.get(requestRouteMeta);
     if (bucket !== undefined) {
-      return this.rateLimitMap.get(rateLimitKey) || this.rateLimitFromTemplate(request, bucket);
+      return this.#rateLimitMap.get(rateLimitKey) || this.rateLimitFromTemplate(request, bucket);
     }
 
     return undefined;
@@ -220,9 +220,9 @@ export default class RateLimitCache {
   private rateLimitFromTemplate(request: BaseRequest | ApiRequest, bucketUid: string): RateLimit | undefined {
     const { rateLimitKey } = request;
 
-    const rateLimit = this.rateLimitTemplateMap.createAssumedRateLimit(bucketUid);
+    const rateLimit = this.#rateLimitTemplateMap.createAssumedRateLimit(bucketUid);
     if (rateLimit !== undefined) {
-      this.rateLimitMap.set(rateLimitKey, rateLimit);
+      this.#rateLimitMap.set(rateLimitKey, rateLimit);
       return rateLimit;
     }
 

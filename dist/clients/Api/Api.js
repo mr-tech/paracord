@@ -8,6 +8,19 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
 var __rest = (this && this.__rest) || function (s, e) {
     var t = {};
     for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
@@ -22,6 +35,7 @@ var __rest = (this && this.__rest) || function (s, e) {
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _rateLimitCache, _requestQueue, _requestQueueProcessInterval, _rpcRateLimitService, _allowFallback, _emitter, _wrappedAxiosInstance, _rpcServiceOptions;
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
 const constants_1 = require("../../constants");
@@ -30,18 +44,26 @@ const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 class Api {
     constructor(token, options = {}) {
+        _rateLimitCache.set(this, void 0);
+        _requestQueue.set(this, void 0);
+        _requestQueueProcessInterval.set(this, void 0);
+        _rpcRateLimitService.set(this, void 0);
+        _allowFallback.set(this, void 0);
+        _emitter.set(this, void 0);
+        _wrappedAxiosInstance.set(this, void 0);
+        _rpcServiceOptions.set(this, void 0);
         Api.validateParams(token);
-        this.rateLimitCache = new structures_1.RateLimitCache();
-        this.requestQueue = new structures_1.RequestQueue(this.rateLimitCache, this);
-        this.requestQueueProcessInterval;
+        __classPrivateFieldSet(this, _rateLimitCache, new structures_1.RateLimitCache());
+        __classPrivateFieldSet(this, _requestQueue, new structures_1.RequestQueue(this));
+        __classPrivateFieldGet(this, _requestQueueProcessInterval);
         const { emitter, events, requestOptions } = options;
-        this.emitter = emitter;
+        __classPrivateFieldSet(this, _emitter, emitter);
         this.events = events;
         this.rpcRequestService;
-        this.rpcRateLimitService;
-        this.allowFallback = false;
+        __classPrivateFieldGet(this, _rpcRateLimitService);
+        __classPrivateFieldSet(this, _allowFallback, false);
         const botToken = utils_1.coerceTokenToBotLike(token);
-        this.wrappedAxiosInstance = Api.createWrappedAxiosInstance(this.rateLimitCache, botToken, requestOptions);
+        __classPrivateFieldSet(this, _wrappedAxiosInstance, Api.createWrappedAxiosInstance(__classPrivateFieldGet(this, _rateLimitCache), botToken, requestOptions));
     }
     static shouldQueueRequest(request, globalRateLimited) {
         const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
@@ -72,7 +94,7 @@ class Api {
         return rateLimitCache.wrapRequest(instance.request);
     }
     get hasRateLimitService() {
-        return this.rpcRateLimitService !== undefined;
+        return __classPrivateFieldGet(this, _rpcRateLimitService) !== undefined;
     }
     get hasRequestService() {
         return this.rpcRequestService !== undefined;
@@ -86,8 +108,8 @@ class Api {
         });
     }
     emit(type, data) {
-        if (this.emitter !== undefined) {
-            this.emitter.emit(type, data);
+        if (__classPrivateFieldGet(this, _emitter) !== undefined) {
+            __classPrivateFieldGet(this, _emitter).emit(type, data);
         }
     }
     addRequestService(serviceOptions = {}) {
@@ -96,62 +118,62 @@ class Api {
             throw Error('An rpc service has already been defined for this client. Only one may be added.');
         }
         this.rpcRequestService = new services_1.RequestService(serviceOptions);
-        this.allowFallback = this.rpcRequestService.allowFallback;
-        if (this.rpcServiceOptions === undefined) {
+        __classPrivateFieldSet(this, _allowFallback, this.rpcRequestService.allowFallback);
+        if (__classPrivateFieldGet(this, _rpcServiceOptions) === undefined) {
             {
                 const message = `Rpc service created for sending requests remotely. Connected to: ${this.rpcRequestService.target}`;
                 this.log('INFO', message);
             }
-            if (!this.allowFallback) {
+            if (!__classPrivateFieldGet(this, _allowFallback)) {
                 const message = '`allowFallback` option is not true. Requests will fail when unable to connect to the Rpc server.';
                 this.log('WARNING', message);
             }
         }
-        this.rpcServiceOptions = serviceOptions;
+        __classPrivateFieldSet(this, _rpcServiceOptions, serviceOptions);
     }
     addRateLimitService(serviceOptions = {}) {
         if (this.hasRateLimitService
             || this.hasRequestService) {
             throw Error('A rpc service has already been defined for this client. Only one may be added.');
         }
-        this.rpcRateLimitService = new services_1.RateLimitService(serviceOptions);
-        this.allowFallback = serviceOptions.allowFallback !== false;
-        if (this.rpcServiceOptions === undefined) {
+        __classPrivateFieldSet(this, _rpcRateLimitService, new services_1.RateLimitService(serviceOptions));
+        __classPrivateFieldSet(this, _allowFallback, serviceOptions.allowFallback !== false);
+        if (__classPrivateFieldGet(this, _rpcServiceOptions) === undefined) {
             {
-                const message = `Rpc service created for handling rate limits remotely. Connected to: ${this.rpcRateLimitService.target}`;
+                const message = `Rpc service created for handling rate limits remotely. Connected to: ${__classPrivateFieldGet(this, _rpcRateLimitService).target}`;
                 this.log('INFO', message);
             }
-            if (!this.allowFallback) {
+            if (!__classPrivateFieldGet(this, _allowFallback)) {
                 const message = '`allowFallback` option is not true. Requests will fail when unable to connect to the Rpc server.';
                 this.log('WARNING', message);
             }
         }
-        this.rpcServiceOptions = serviceOptions;
+        __classPrivateFieldSet(this, _rpcServiceOptions, serviceOptions);
     }
     recreateRpcService() {
         if (this.hasRateLimitService) {
-            this.rpcRateLimitService = undefined;
-            this.addRateLimitService(this.rpcServiceOptions);
+            __classPrivateFieldSet(this, _rpcRateLimitService, undefined);
+            this.addRateLimitService(__classPrivateFieldGet(this, _rpcServiceOptions));
         }
         else {
             this.rpcRequestService = undefined;
-            this.addRequestService(this.rpcServiceOptions);
+            this.addRequestService(__classPrivateFieldGet(this, _rpcServiceOptions));
         }
     }
     startQueue(interval = 100) {
-        if (this.requestQueueProcessInterval === undefined) {
+        if (__classPrivateFieldGet(this, _requestQueueProcessInterval) === undefined) {
             this.log('INFO', 'Starting request queue.');
-            this.requestQueueProcessInterval = this.requestQueue.startQueue(interval);
+            __classPrivateFieldSet(this, _requestQueueProcessInterval, __classPrivateFieldGet(this, _requestQueue).startQueue(interval));
         }
         else {
             throw Error('request queue already started');
         }
     }
     stopQueue() {
-        if (this.requestQueueProcessInterval !== undefined) {
+        if (__classPrivateFieldGet(this, _requestQueueProcessInterval) !== undefined) {
             this.log('INFO', 'Stopping request queue.');
-            clearInterval(this.requestQueueProcessInterval);
-            this.requestQueueProcessInterval = undefined;
+            clearInterval(__classPrivateFieldGet(this, _requestQueueProcessInterval));
+            __classPrivateFieldSet(this, _requestQueueProcessInterval, undefined);
         }
     }
     request(method, url, options = {}) {
@@ -176,7 +198,7 @@ class Api {
     handleRequestLocal(request) {
         var _a;
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.requestQueueProcessInterval === undefined) {
+            if (__classPrivateFieldGet(this, _requestQueueProcessInterval) === undefined) {
                 const message = 'Making a request with a local Api client without a running request queue. Please invoke `startQueue()` on this client so that rate limits may be handled.';
                 this.log('WARNING', message);
             }
@@ -211,7 +233,7 @@ class Api {
                 return yield rpcRequestService.request(request);
             }
             catch (err) {
-                if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION && this.allowFallback) {
+                if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION && __classPrivateFieldGet(this, _allowFallback)) {
                     this.recreateRpcService();
                     const message = 'Could not reach RPC server. Falling back to handling request locally.';
                     this.log('ERROR', message);
@@ -230,19 +252,18 @@ class Api {
                     rateLimitState = yield this.authorizeRequestWithServer(request);
                 }
                 if (rateLimitState === undefined) {
-                    rateLimitState = this.rateLimitCache.returnIsRateLimited(request);
+                    rateLimitState = __classPrivateFieldGet(this, _rateLimitCache).returnIsRateLimited(request);
                 }
                 const { resetAfter, global } = rateLimitState;
                 if (resetAfter === 0) {
                     const message = `Sending request: ${request.method} ${request.url}`;
                     this.log('DEBUG', message, request);
-                    return { response: yield this.wrappedAxiosInstance(request), resetAfter: 0 };
+                    return { response: yield __classPrivateFieldGet(this, _wrappedAxiosInstance).call(this, request), resetAfter: 0 };
                 }
                 request.running = false;
                 if (!Api.shouldQueueRequest(request, global !== null && global !== void 0 ? global : false)) {
                     return rateLimitState;
                 }
-                const { waitUntil } = request;
                 request.assignIfStricterWait(new Date().getTime() + resetAfter);
                 if (!fromQueue) {
                     const message = `Enqueuing request: ${request.method} ${request.url}`;
@@ -261,7 +282,7 @@ class Api {
     authorizeRequestWithServer(request) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
-                const authorizationMessage = yield this.rpcRateLimitService.authorize(request);
+                const authorizationMessage = yield __classPrivateFieldGet(this, _rpcRateLimitService).authorize(request);
                 const { resetAfter, global } = authorizationMessage;
                 if (resetAfter === 0) {
                     return { resetAfter };
@@ -269,7 +290,7 @@ class Api {
                 return { resetAfter, global };
             }
             catch (err) {
-                if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION && this.allowFallback) {
+                if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION && __classPrivateFieldGet(this, _allowFallback)) {
                     this.recreateRpcService();
                     const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
                     this.log('ERROR', message);
@@ -285,7 +306,7 @@ class Api {
             let rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
             let allowQueue = Api.shouldQueueRequest(request, (_a = rateLimitHeaders.global) !== null && _a !== void 0 ? _a : false);
             while (response.status === 429 && allowQueue) {
-                if (this.requestQueueProcessInterval === undefined) {
+                if (__classPrivateFieldGet(this, _requestQueueProcessInterval) === undefined) {
                     const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
                     this.log('WARNING', message);
                 }
@@ -315,15 +336,15 @@ class Api {
         return this.enqueueRequest(request);
     }
     updateRateLimitCache(request, rateLimitHeaders) {
-        this.rateLimitCache.update(request, rateLimitHeaders);
+        __classPrivateFieldGet(this, _rateLimitCache).update(request, rateLimitHeaders);
         this.updateRpcCache(request, rateLimitHeaders);
     }
     updateRpcCache(request, rateLimitHeaders) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (this.rpcRateLimitService !== undefined) {
+            if (__classPrivateFieldGet(this, _rpcRateLimitService) !== undefined) {
                 try {
                     const [global, bucket, limit, remaining, resetAfter] = rateLimitHeaders.rpcArgs;
-                    yield this.rpcRateLimitService.update(request, global, bucket, limit, remaining, resetAfter);
+                    yield __classPrivateFieldGet(this, _rpcRateLimitService).update(request, global, bucket, limit, remaining, resetAfter);
                 }
                 catch (err) {
                     if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION) {
@@ -337,7 +358,7 @@ class Api {
         });
     }
     enqueueRequest(request) {
-        this.requestQueue.push(request);
+        __classPrivateFieldGet(this, _requestQueue).push(request);
         request.response = undefined;
         function checkRequest(resolve) {
             const { response } = request;
@@ -352,3 +373,4 @@ class Api {
     }
 }
 exports.default = Api;
+_rateLimitCache = new WeakMap(), _requestQueue = new WeakMap(), _requestQueueProcessInterval = new WeakMap(), _rpcRateLimitService = new WeakMap(), _allowFallback = new WeakMap(), _emitter = new WeakMap(), _wrappedAxiosInstance = new WeakMap(), _rpcServiceOptions = new WeakMap();

@@ -2,7 +2,6 @@
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import RpcServer from '../../server/RpcServer';
 import { LockRequestMessage, TokenMessage } from '../../structures';
-import Lock from '../../structures/identityLock/Lock';
 import { LockRequestProto, StatusProto, TServiceCallbackError } from '../../types';
 import { loadProto } from '../common';
 
@@ -13,8 +12,6 @@ const lockProto = loadProto('identify_lock');
  * @param server
  */
 export default (server: RpcServer): void => {
-  /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-  // @ts-ignore: interface can in fact be extended
   server.addService(lockProto.LockService, {
     acquire: acquire.bind(server),
     release: release.bind(server),

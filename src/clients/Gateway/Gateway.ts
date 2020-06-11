@@ -19,74 +19,76 @@ import { IServiceOptions } from '../Api/types';
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
-  /** Client through which to make REST api calls to Discord. */
-  private api?: Api;
-
-  /** @ Rpc service through which to coordinate identifies with other shards. Will not be released except by time out. Best used for global minimum wait time. */
-  private mainIdentifyLock?: IdentifyLockService;
-
-  /** Rpc service through which to coordinate identifies with other shards. */
-  private identifyLocks: IdentifyLockService[] = [];
-
   /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
   public online: boolean;
 
+  #loggingIn: boolean;
+
+  /** Client through which to make REST api calls to Discord. */
+  #api?: Api;
+
+  /** @ Rpc service through which to coordinate identifies with other shards. Will not be released except by time out. Best used for global minimum wait time. */
+  #mainIdentifyLock?: IdentifyLockService;
+
+  /** Rpc service through which to coordinate identifies with other shards. */
+  #identifyLocks: IdentifyLockService[] = [];
+
   /** Websocket used to connect to gateway. */
-  private ws?: ws;
+  #ws?: ws;
 
   /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
-  private wsUrl?: string;
+  #wsUrl?: string;
 
   /** Time to wait between this client's attempts to connect to the gateway in seconds. */
-  private wsUrlRetryWait: number;
+  #wsUrlRetryWait: number;
 
-  private wsRateLimitCache: WebsocketRateLimitCache;
+  #wsRateLimitCache: WebsocketRateLimitCache;
 
   /** From Discord - Most recent event sequence id received. https://discordapp.com/developers/docs/topics/gateway#payloads */
-  private sequence?: number;
+  #sequence?: number;
 
   /** From Discord - Id of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
-  private sessionId?: string;
+  #sessionId?: string;
 
   /** If the last heartbeat packet sent to Discord received an ACK. */
-  private heartbeatAck: boolean;
+  #heartbeatAck: boolean;
 
   /** Time when last heartbeat packet was sent in ms. */
-  private lastHeartbeatTimestamp?: number;
+  #lastHeartbeatTimestamp?: number;
 
   /** Time when the next heartbeat packet should be sent in ms. */
-  private nextHeartbeatTimestamp?:number;
+  #nextHeartbeatTimestamp?:number;
 
   /** Node timeout for the next heartbeat. */
-  private heartbeatTimeout?: NodeJS.Timer;
+  #heartbeatTimeout?: NodeJS.Timer;
 
   /** From Discord - Time between heartbeats. */
-  private heartbeatIntervalTime?: number;
+  #heartbeatIntervalTime?: number;
 
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
-  private emitter: ExtendedEmitter;
+  #emitter: ExtendedEmitter;
 
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted value. */
-  private events?: Record<string, string>;
+  #events?: Record<string, string>;
 
   /** Object passed to Discord when identifying. */
-  private identity: Identify;
+  #identity: Identify;
 
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
-  // private keepCase: false;
+  // #keepCase: false;
 
   // /** Minimum time to wait between gateway identifies in ms. */
-  // private retryWait: number;
+  // #retryWait: number;
 
   // /** Time that the shard's identify mutex will be locked for in ms. */
-  // private remoteLoginWait: number;
+  // #remoteLoginWait: number;
 
   /** Amount of identifies reported by the last call to /gateway/bot. */
   public lastKnownSessionLimitData?: SessionLimitData;
 
-  private mainRpcServiceOptions?: IServiceOptions | null;
+  #mainRpcServiceOptions?: IServiceOptions | null;
 
-  private rpcServiceOptions?: IServiceOptions[];
+  #rpcServiceOptions?: IServiceOptions[];
 
   /** Verifies parameters to set lock are valid. */
   private static validateLockOptions(options: Partial<ILockServiceOptions>): void {
@@ -109,41 +111,42 @@ export default class Gateway {
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
       throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
     }
-    this.heartbeatAck = false;
+    this.#heartbeatAck = false;
     this.online = false;
-    this.wsRateLimitCache = {
+    this.#loggingIn = false;
+    this.#wsRateLimitCache = {
       remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
       resetTimestamp: 0,
     };
     // this.keepCase = options.keepCase || false;
-    this.emitter = emitter ?? new EventEmitter();
-    this.identity = new Identify(coerceTokenToBotLike(token), identity);
-    this.api = api;
-    this.wsUrl = wsUrl;
-    this.rpcServiceOptions = [];
+    this.#emitter = emitter ?? new EventEmitter();
+    this.#identity = new Identify(coerceTokenToBotLike(token), identity);
+    this.#api = api;
+    this.#wsUrl = wsUrl;
+    this.#rpcServiceOptions = [];
 
-    this.wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
+    this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.bindTimerFunctions();
   }
 
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
   public get resumable(): boolean {
-    return this.sessionId !== undefined && this.sequence !== null;
+    return this.#sessionId !== undefined && this.#sequence !== null;
   }
 
   /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
   private get shard(): Identify['shard'] {
-    return this.identity.shard !== undefined ? this.identity.shard : undefined;
+    return this.#identity.shard !== undefined ? this.#identity.shard : undefined;
   }
 
   /** The shard id that this gateway is connected to. */
   public get id(): number {
-    return this.identity.shard !== undefined ? this.identity.shard[0] : 0;
+    return this.#identity.shard !== undefined ? this.#identity.shard[0] : 0;
   }
 
   /** Whether or not the client is connected to the gateway. */
   public get connected(): boolean {
-    return this.ws !== undefined;
+    return this.#ws !== undefined;
   }
 
   /** Binds `this` to certain methods so that they are able to be called in `setInterval()` and `setTimeout()`. */
@@ -176,18 +179,18 @@ export default class Gateway {
   }
 
   /**
-   * Emits various events through `this.emitter`, both Discord and Api. Will emit all events if `this.events` is undefined; otherwise will only emit those defined as keys in the `this.events` object.
+   * Emits various events through `this.#emitter`, both Discord and Api. Will emit all events if `this.#events` is undefined; otherwise will only emit those defined as keys in the `this.#events` object.
    * @param type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
    * @param data Data to send with the event.
    */
   private emit(type: string, data?: unknown): void {
-    if (this.emitter !== undefined) {
-      if (this.events !== undefined) {
-        const userType = this.events[type];
+    if (this.#emitter !== undefined) {
+      if (this.#events !== undefined) {
+        const userType = this.#events[type];
         type = userType ?? type;
       }
 
-      this.emitter.emit(type, data, this.id);
+      this.#emitter.emit(type, data, this.id);
     }
   }
 
@@ -214,11 +217,11 @@ export default class Gateway {
       const { host } = mainServiceOptions;
       usedHostPorts[host ?? '127.0.0.1'] = port ?? 50051; // TODO: move port to constant
 
-      this.mainIdentifyLock = this.configureLockService(mainServiceOptions);
+      this.#mainIdentifyLock = this.configureLockService(mainServiceOptions);
     }
 
     if (serviceOptions.length) {
-      this.rpcServiceOptions = serviceOptions;
+      this.#rpcServiceOptions = serviceOptions;
       serviceOptions.forEach((options) => {
         const { host } = options;
         let { port } = options;
@@ -231,18 +234,18 @@ export default class Gateway {
         }
 
         usedHostPorts[host ?? '127.0.0.1'] = port ?? 50051; // TODO: move port to constant
-        this.identifyLocks.push(this.configureLockService(options));
+        this.#identifyLocks.push(this.configureLockService(options));
       });
     }
 
-    this.mainRpcServiceOptions = mainServiceOptions;
+    this.#mainRpcServiceOptions = mainServiceOptions;
   }
 
   private configureLockService(serviceOptions: Partial<ILockServiceOptions>): IdentifyLockService {
     Gateway.validateLockOptions(serviceOptions);
     const identifyLock = new IdentifyLockService(serviceOptions);
 
-    if (this.mainRpcServiceOptions === undefined) {
+    if (this.#mainRpcServiceOptions === undefined) {
       const message = `Rpc service created for identify coordination. Connected to: ${identifyLock.target}. Default duration of lock: ${identifyLock.duration}`;
       this.log('INFO', message);
     }
@@ -252,10 +255,10 @@ export default class Gateway {
 
   // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
   private recreateRpcService(): void {
-    if (this.mainRpcServiceOptions !== undefined && this.rpcServiceOptions !== undefined) {
-      this.mainIdentifyLock = undefined;
-      this.identifyLocks = [];
-      this.addIdentifyLockServices(this.mainRpcServiceOptions, ...this.rpcServiceOptions);
+    if (this.#mainRpcServiceOptions !== undefined && this.#rpcServiceOptions !== undefined) {
+      this.#mainIdentifyLock = undefined;
+      this.#identifyLocks = [];
+      this.addIdentifyLockServices(this.#mainRpcServiceOptions, ...this.#rpcServiceOptions);
     }
   }
 
@@ -300,21 +303,31 @@ export default class Gateway {
    * @param _Websocket Ignore. For unittest dependency injection only.
    */
   public async login(_websocket = ws): Promise<void> {
-    if (this.ws !== undefined) {
+    if (this.#ws !== undefined) {
       throw Error('Client is already connected.');
     }
 
+    if (this.#loggingIn) {
+      throw Error('Already logging in.');
+    }
+
     try {
-      if (this.wsUrl === undefined) {
-        this.wsUrl = await this.getWebsocketUrl();
+      this.#loggingIn = true;
+
+      if (!this.resumable) {
+        await this.loginWaitForLocks();
       }
 
-      if (this.wsUrl !== undefined) {
-        this.log('DEBUG', `Connecting to url: ${this.wsUrl}`);
+      if (this.#wsUrl === undefined) {
+        this.#wsUrl = await this.getWebsocketUrl();
+      }
 
-        this.ws = new _websocket(this.wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+      if (this.#wsUrl !== undefined) {
+        this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
 
-        this.assignWebsocketMethods(this.ws);
+        this.#ws = new _websocket(this.#wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+
+        this.assignWebsocketMethods(this.#ws);
       }
     } catch (err) {
       if (err.response) {
@@ -325,16 +338,18 @@ export default class Gateway {
         console.error(err); // TODO: emit
       }
 
-      if (this.ws !== undefined) {
-        this.ws = undefined;
+      if (this.#ws !== undefined) {
+        this.#ws = undefined;
       }
+    } finally {
+      this.#loggingIn = false;
     }
   }
 
   /** Releases all non-main identity locks. */
   public async releaseIdentifyLocks(): Promise<void> {
-    if (this.identifyLocks.length) {
-      this.identifyLocks.forEach((l) => {
+    if (this.#identifyLocks.length) {
+      this.#identifyLocks.forEach((l) => {
         if (l.token !== undefined) this.releaseIdentifyLock(l);
       });
     }
@@ -345,12 +360,12 @@ export default class Gateway {
    * @returns Url if status === 200; or undefined if status !== 200.
    */
   private async getWebsocketUrl(): Promise<string | undefined> {
-    if (this.api === undefined) {
-      this.api = new Api(this.identity.token);
-      this.api.startQueue();
+    if (this.#api === undefined) {
+      this.#api = new Api(this.#identity.token);
+      this.#api.startQueue();
     }
 
-    const { status, statusText, data } = <GatewayBotResponse> await this.api.request(
+    const { status, statusText, data } = <GatewayBotResponse> await this.#api.request(
       'get',
       'gateway/bot',
     );
@@ -383,10 +398,10 @@ export default class Gateway {
     let message = `Failed to get websocket information from API. Status ${status}. Status text: ${statusText}. Discord code: ${dataCode}. Discord message: ${dataMessage}.`;
 
     if (status !== 401) {
-      message += ` Trying again in ${this.wsUrlRetryWait} seconds.`;
+      message += ` Trying again in ${this.#wsUrlRetryWait} seconds.`;
       this.log('WARNING', message);
 
-      setTimeout(this.login, this.wsUrlRetryWait);
+      setTimeout(this.login, this.#wsUrlRetryWait);
     } else {
       // 401 is bad token, unable to continue.
       message += ' Please check your token.';
@@ -403,13 +418,13 @@ export default class Gateway {
   }
 
   /**
-   * Handles emitting events from Discord. Will first pass through `this.emitter.eventHandler` function if one exists.
+   * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
    * @param type Type of event. (e.g. CHANNEL_CREATE) https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events
    * @param data Data of the event from Discord.
    */
   private async handleEvent(type: string, data: unknown): Promise<void> {
-    if (this.emitter.eventHandler !== undefined) {
-      data = await this.emitter.eventHandler(type, data, this.id);
+    if (this.#emitter.eventHandler !== undefined) {
+      data = await this.#emitter.eventHandler(type, data, this.id);
     }
 
     data && this.emit(type, data);
@@ -420,7 +435,7 @@ export default class Gateway {
   //  * @param option `resume` to reconnect and attempt resume. `reconnect` to reconnect with a new session. Blank to not reconnect.
   //  */
   // private terminate(option?: string): void {
-  //   if (this.ws !== undefined) {
+  //   if (this.#ws !== undefined) {
   //     const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = GATEWAY_CLOSE_CODES;
 
   //     let code = USER_TERMINATE;
@@ -430,7 +445,7 @@ export default class Gateway {
   //       code = USER_TERMINATE_RECONNECT;
   //     }
 
-  //     this.ws.close(code);
+  //     this.#ws.close(code);
   //   } else {
   //     /* eslint-disable-next-line no-console */
   //     console.warn('websocket not open');
@@ -447,7 +462,7 @@ export default class Gateway {
   private _onopen(): void {
     this.log('DEBUG', 'Websocket open.');
 
-    this.wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
+    this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
     this.handleEvent('GATEWAY_OPEN', this);
   }
 
@@ -472,12 +487,12 @@ export default class Gateway {
    * @param event Object containing information about the close.
    */
   private _onclose(event: ws.CloseEvent): void {
-    this.ws = undefined;
+    this.#ws = undefined;
     this.online = false;
     this.clearHeartbeat();
     const shouldReconnect = this.handleCloseCode(event.code);
 
-    this.wsRateLimitCache = {
+    this.#wsRateLimitCache = {
       remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
       resetTimestamp: 0,
     };
@@ -558,7 +573,7 @@ export default class Gateway {
       case ALREADY_AUTHENTICATED:
         level = 'ERROR';
         message = 'Sent more than one identify payload. Stahp. (Terminating login.)';
-        shouldReconnect = false;
+        this.clearSession();
         break;
       case SESSION_NO_LONGER_VALID:
         message = 'Session is no longer valid. (Reconnecting with new session.)'; // Also occurs when trying to resume with a bad or mismatched token (different than identified with).
@@ -639,17 +654,18 @@ export default class Gateway {
 
   /** Removes current session information. */
   private clearSession(): void {
-    this.sessionId = undefined;
-    this.sequence = undefined;
-    this.wsUrl = undefined;
+    this.#sessionId = undefined;
+    this.#sequence = undefined;
+    this.#wsUrl = undefined;
   }
 
   /** Clears heartbeat values and clears the heartbeatTimeout. */
   private clearHeartbeat(): void {
-    this.heartbeatTimeout && clearTimeout(this.heartbeatTimeout);
-    this.heartbeatTimeout = undefined;
-    this.heartbeatIntervalTime = undefined;
-    this.heartbeatAck = false;
+    this.#heartbeatTimeout && clearTimeout(this.#heartbeatTimeout);
+    this.#heartbeatTimeout = undefined;
+    this.#heartbeatIntervalTime = undefined;
+    this.#heartbeatAck = false;
+    this.#nextHeartbeatTimestamp = undefined;
   }
 
   /*
@@ -695,7 +711,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT:
-        this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.sequence);
+        this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.#sequence);
         break;
 
       case GATEWAY_OP_CODES.INVALID_SESSION:
@@ -703,7 +719,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
-        this.ws?.close(GATEWAY_CLOSE_CODES.RECONNECT);
+        this.#ws?.close(GATEWAY_CLOSE_CODES.RECONNECT);
         break;
 
       default:
@@ -721,7 +737,7 @@ export default class Gateway {
   private handleReady(data: ReadyEventFields): void {
     this.log('INFO', `Received Ready. Session ID: ${data.sessionId}.`);
 
-    this.sessionId = data.sessionId;
+    this.#sessionId = data.sessionId;
     this.online = true;
 
     this.handleEvent('READY', data);
@@ -752,53 +768,53 @@ export default class Gateway {
    * @param heartbeatInterval From Discord - Number of ms to wait between sending heartbeats.
    */
   private startHeartbeat(heartbeatInterval: number): void {
-    this.heartbeatAck = true;
-    this.heartbeatIntervalTime = heartbeatInterval;
+    this.#heartbeatAck = true;
+    this.#heartbeatIntervalTime = heartbeatInterval;
 
     const now = new Date().getTime();
-    this.nextHeartbeatTimestamp = now + this.heartbeatIntervalTime;
-    this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartbeatTimestamp - now);
+    this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
+    this.#heartbeatTimeout = setTimeout(this.heartbeat, this.#nextHeartbeatTimestamp - now);
   }
 
   /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
   private heartbeat() {
-    if (this.heartbeatAck === false) {
+    if (this.#heartbeatAck === false) {
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
-      this.ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
-      this.heartbeatAck = false;
-      this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.sequence);
+      this.#heartbeatAck = false;
+      this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.#sequence);
 
       const now = new Date().getTime();
-      this.lastHeartbeatTimestamp = now;
+      this.#lastHeartbeatTimestamp = now;
 
 
-      if (this.heartbeatIntervalTime !== undefined) {
-        const message = this.nextHeartbeatTimestamp !== undefined
-          ? `Heartbeat sent ${now - this.nextHeartbeatTimestamp}ms after scheduled time.`
+      if (this.#heartbeatIntervalTime !== undefined) {
+        const message = this.#nextHeartbeatTimestamp !== undefined
+          ? `Heartbeat sent ${now - this.#nextHeartbeatTimestamp}ms after scheduled time.`
           : 'nextHeartbeatTimestamp is undefined.';
-        this.nextHeartbeatTimestamp = now + this.heartbeatIntervalTime;
-        this.heartbeatTimeout = setTimeout(this.heartbeat, this.nextHeartbeatTimestamp - now);
+        this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
+        this.#heartbeatTimeout = setTimeout(this.heartbeat, this.#nextHeartbeatTimestamp - now);
         this.log('DEBUG', message);
       } else {
         this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
-        this.ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+        this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
       }
     }
   }
 
   /** Handles "Heartbeat ACK" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#heartbeating */
   private handleHeartbeatAck(): void {
-    this.heartbeatAck = true;
+    this.#heartbeatAck = true;
     this.handleEvent('HEARTBEAT_ACK', null);
 
-    if (this.lastHeartbeatTimestamp !== undefined) {
+    if (this.#lastHeartbeatTimestamp !== undefined) {
       const message = `Heartbeat acknowledged. Latency: ${new Date().getTime()
-      - this.lastHeartbeatTimestamp}ms`;
+      - this.#lastHeartbeatTimestamp}ms`;
       this.log('DEBUG', message);
     } else {
       this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
-      this.ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
 
@@ -807,17 +823,18 @@ export default class Gateway {
     if (resume) {
       this.resume();
     } else {
-      await this.loginWaitForLocks();
       this.identify();
     }
   }
 
   /** Sends a "Resume" payload to Discord's gateway. */
   private resume(): void {
-    const message = `Attempting to resume connection. Session Id: ${this.sessionId}. Sequence: ${this.sequence}`;
+    const message = `Attempting to resume connection. Session Id: ${this.#sessionId}. Sequence: ${this.#sequence}`;
     this.log('INFO', message);
 
-    const { identity: { token }, sequence, sessionId } = this;
+    const { token } = this.#identity;
+    const sequence = this.#sequence;
+    const sessionId = this.#sessionId;
 
     if (sessionId !== undefined && sequence !== undefined) {
       const payload: Resume = {
@@ -831,7 +848,7 @@ export default class Gateway {
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
       this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionI d: ${sessionId}, sequence: ${sequence}`);
-      this.ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
 
@@ -845,7 +862,7 @@ export default class Gateway {
 
     await this.handleEvent('GATEWAY_IDENTIFY', this);
 
-    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.identity);
+    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.#identity);
   }
 
   /**
@@ -853,18 +870,18 @@ export default class Gateway {
    * @returns `true` if acquired locks; `false` if not.
    */
   private async acquireLocks(): Promise<boolean> {
-    if (this.identifyLocks !== undefined) {
+    if (this.#identifyLocks !== undefined) {
       const acquiredLocks = await this.acquireIdentifyLocks();
       if (!acquiredLocks) {
         return false;
       }
     }
 
-    if (this.mainIdentifyLock !== undefined) {
-      const acquiredLock = await this.acquireIdentifyLock(this.mainIdentifyLock);
+    if (this.#mainIdentifyLock !== undefined) {
+      const acquiredLock = await this.acquireIdentifyLock(this.#mainIdentifyLock);
       if (!acquiredLock) {
-        if (this.identifyLocks !== undefined) {
-          this.identifyLocks.forEach(this.releaseIdentifyLock);
+        if (this.#identifyLocks !== undefined) {
+          this.#identifyLocks.forEach(this.releaseIdentifyLock);
         }
 
         return false;
@@ -879,11 +896,11 @@ export default class Gateway {
    * @returns `true` if acquired locks; `false` if not.
    */
   private async acquireIdentifyLocks(): Promise<boolean> {
-    if (this.identifyLocks !== undefined) {
+    if (this.#identifyLocks !== undefined) {
       const acquiredLocks: IdentifyLockService[] = [];
 
-      for (let i = 0; i < this.identifyLocks.length; ++i) {
-        const lock = this.identifyLocks[i]; // for intellisense
+      for (let i = 0; i < this.#identifyLocks.length; ++i) {
+        const lock = this.#identifyLocks[i]; // for intellisense
 
         const acquiredLock = await this.acquireIdentifyLock(lock);
         if (acquiredLock) {
@@ -965,10 +982,10 @@ export default class Gateway {
 
     if (
       this.canSendPacket(op)
-      && this.ws?.readyState === ws.OPEN
+      && this.#ws?.readyState === ws.OPEN
     ) {
       const packet = JSON.stringify(typeof payload === 'object' ? objectKeysCamelToSnake(payload) : payload);
-      this.ws.send(packet);
+      this.#ws.send(packet);
 
       this.updateWsRateLimit();
 
@@ -990,17 +1007,17 @@ export default class Gateway {
   private canSendPacket(op: number): boolean {
     const now = new Date().getTime();
 
-    if (now >= this.wsRateLimitCache.resetTimestamp) {
-      this.wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
+    if (now >= this.#wsRateLimitCache.resetTimestamp) {
+      this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
       return true;
     }
 
-    if (this.wsRateLimitCache.remainingRequests >= GATEWAY_REQUEST_BUFFER) {
+    if (this.#wsRateLimitCache.remainingRequests >= GATEWAY_REQUEST_BUFFER) {
       return true;
     }
 
     if (
-      this.wsRateLimitCache.remainingRequests <= GATEWAY_REQUEST_BUFFER
+      this.#wsRateLimitCache.remainingRequests <= GATEWAY_REQUEST_BUFFER
       && (op === GATEWAY_OP_CODES.HEARTBEAT || op === GATEWAY_OP_CODES.RECONNECT)
     ) {
       return true;
@@ -1011,12 +1028,12 @@ export default class Gateway {
   /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
   private updateWsRateLimit(): void {
     if (
-      this.wsRateLimitCache.remainingRequests === GATEWAY_MAX_REQUESTS_PER_MINUTE
+      this.#wsRateLimitCache.remainingRequests === GATEWAY_MAX_REQUESTS_PER_MINUTE
     ) {
-      this.wsRateLimitCache.resetTimestamp = new Date().getTime() + MINUTE_IN_MILLISECONDS;
+      this.#wsRateLimitCache.resetTimestamp = new Date().getTime() + MINUTE_IN_MILLISECONDS;
     }
 
-    --this.wsRateLimitCache.remainingRequests;
+    --this.#wsRateLimitCache.remainingRequests;
   }
 
   /**
@@ -1032,9 +1049,9 @@ export default class Gateway {
 
 
     if (!resumable) {
-      this.ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
     } else {
-      this.ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
     }
 
     this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
@@ -1045,18 +1062,18 @@ export default class Gateway {
    * @param s Sequence value from Discord.
    */
   private updateSequence(s: number | null): void {
-    if (this.sequence === undefined) {
-      this.sequence = s ?? undefined;
+    if (this.#sequence === undefined) {
+      this.#sequence = s ?? undefined;
     } else if (s !== null) {
-      if (s > this.sequence + 1) {
+      if (s > this.#sequence + 1) {
         this.log(
           'WARNING',
-          `Non-consecutive sequence (${this.sequence} -> ${s})`,
+          `Non-consecutive sequence (${this.#sequence} -> ${s})`,
         );
       }
 
-      if (s > this.sequence) {
-        this.sequence = s;
+      if (s > this.#sequence) {
+        this.#sequence = s;
       }
     }
   }

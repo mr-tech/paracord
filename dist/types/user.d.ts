@@ -14,7 +14,7 @@ export declare type RawUser = {
     premiumType?: number;
     publicFlags?: number;
 };
-export declare enum UserFlags {
+export declare const enum UserFlags {
     None = 0,
     DiscordEmployee = 1,
     DiscordPartner = 2,

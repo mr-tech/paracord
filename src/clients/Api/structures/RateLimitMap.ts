@@ -2,17 +2,16 @@ import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
 import { RateLimitState } from '../types';
 import RateLimit from './RateLimit';
 import RateLimitTemplate from './RateLimitTemplate';
-import { RateLimitHeaders } from '.';
 
 /** Rate limit keys to their associated state. */
 export default class RateLimitMap extends Map<string, RateLimit> {
   /** Interval for sweeping old rate limits from the cache. */
-  private sweepInterval: NodeJS.Timer | undefined;
+  #sweepInterval: NodeJS.Timer | undefined;
 
   public constructor() {
     super();
 
-    this.sweepInterval = undefined;
+    this.#sweepInterval = undefined;
   }
 
   /**
@@ -51,7 +50,7 @@ export default class RateLimitMap extends Map<string, RateLimit> {
 
   /** Begins timer for sweeping cache of old rate limits. */
   public startSweepInterval(): void {
-    this.sweepInterval = setInterval(
+    this.#sweepInterval = setInterval(
       this.sweepExpiredRateLimits.bind(this),
       API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS,
     );

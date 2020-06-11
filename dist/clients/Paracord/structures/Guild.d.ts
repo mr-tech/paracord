@@ -46,9 +46,9 @@ export default class Guild {
     owner?: GuildMember;
     me: GuildMember;
     readonly shard: number;
-    constructor(guildCreate: Partial<RawGuild>, client: Paracord, shard: number);
+    constructor(guildData: Partial<RawGuild>, client: Paracord, shard: number);
     get createdOn(): number;
-    mergeGuildData(guildData: Partial<RawGuild>, client: Paracord): Guild;
+    update(guildData: Partial<RawGuild>, client: Paracord): Guild;
     hasPermission(permission: number, member: GuildMember, adminOverride?: boolean): boolean;
     hasChannelPermission(permission: number, member: GuildMember, channel: GuildChannel | Snowflake, stopOnOwnerAdmin?: boolean): boolean;
     upsertChannel(channel: RawChannel): GuildChannel;

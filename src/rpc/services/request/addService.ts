@@ -20,8 +20,6 @@ export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}):
   server.apiClient = new Api(token, apiOptions);
   server.apiClient.startQueue();
 
-  /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-  // @ts-ignore: interface can in fact be extended
   server.addService(requestProto.RequestService, {
     request: request.bind(server),
   });

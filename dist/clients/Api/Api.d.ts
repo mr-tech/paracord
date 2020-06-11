@@ -3,16 +3,9 @@ import { RemoteApiResponse } from '../../rpc/types';
 import { ApiRequest } from './structures';
 import { IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState, IServiceOptions } from './types';
 export default class Api {
-    private rateLimitCache;
-    private requestQueue;
-    private requestQueueProcessInterval?;
+    #private;
     rpcRequestService?: RequestService;
-    private rpcRateLimitService?;
-    private allowFallback;
     events?: Record<string, string>;
-    private emitter?;
-    private wrappedAxiosInstance;
-    private rpcServiceOptions?;
     private static shouldQueueRequest;
     private static validateParams;
     private static createWrappedAxiosInstance;

@@ -27,9 +27,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _initialized, _unavailableGuildTolerance, _unavailableGuildWait, _startWithUnavailableGuildsInterval, _api, _gateways, _gatewayLockServiceOptions, _apiOptions, _gatewayOptions, _gatewayWaitCount, _guildWaitCount, _lastGuildTimestamp, _processGatewayQueueInterval, _sweepCachesInterval, _sweepRecentPresenceUpdatesInterval, _events, _allowEventsDuringStartup, _preventLogin, _gatewayEvents;
 Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
 const constants_1 = require("../../constants");
@@ -42,27 +56,46 @@ const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
 class Paracord extends events_1.EventEmitter {
     constructor(token, options = {}) {
         super();
+        _initialized.set(this, void 0);
+        _unavailableGuildTolerance.set(this, void 0);
+        _unavailableGuildWait.set(this, void 0);
+        _startWithUnavailableGuildsInterval.set(this, void 0);
+        _api.set(this, void 0);
+        _gateways.set(this, void 0);
+        _gatewayLockServiceOptions.set(this, void 0);
+        _apiOptions.set(this, void 0);
+        _gatewayOptions.set(this, void 0);
+        _gatewayWaitCount.set(this, void 0);
+        _guildWaitCount.set(this, void 0);
+        _lastGuildTimestamp.set(this, void 0);
+        _processGatewayQueueInterval.set(this, void 0);
+        _sweepCachesInterval.set(this, void 0);
+        _sweepRecentPresenceUpdatesInterval.set(this, void 0);
+        _events.set(this, void 0);
+        _allowEventsDuringStartup.set(this, void 0);
+        _preventLogin.set(this, void 0);
+        _gatewayEvents.set(this, void 0);
         Paracord.validateParams(token);
         this.token = utils_1.coerceTokenToBotLike(token);
-        this.initialized = false;
+        __classPrivateFieldSet(this, _initialized, false);
         this.guilds = new Map();
         this.users = new Map();
         this.presences = new Map();
-        this.gateways = new Map();
+        __classPrivateFieldSet(this, _gateways, new Map());
         this.gatewayLoginQueue = [];
-        this.guildWaitCount = 0;
-        this.gatewayWaitCount = 0;
-        this.allowEventsDuringStartup = false;
-        this.preventLogin = false;
-        this.apiOptions = {};
-        this.gatewayOptions = {};
+        __classPrivateFieldSet(this, _guildWaitCount, 0);
+        __classPrivateFieldSet(this, _gatewayWaitCount, 0);
+        __classPrivateFieldSet(this, _allowEventsDuringStartup, false);
+        __classPrivateFieldSet(this, _preventLogin, false);
+        __classPrivateFieldSet(this, _apiOptions, {});
+        __classPrivateFieldSet(this, _gatewayOptions, {});
         this.safeGatewayIdentifyTimestamp = 0;
         Object.assign(this, options);
         if (options.autoInit !== false) {
             this.init();
         }
         this.bindTimerFunction();
-        this.gatewayEvents = this.bindEventFunctions();
+        __classPrivateFieldSet(this, _gatewayEvents, this.bindEventFunctions());
     }
     static validateParams(token) {
         if (token === undefined) {
@@ -70,13 +103,13 @@ class Paracord extends events_1.EventEmitter {
         }
     }
     get shards() {
-        return this.gateways;
+        return __classPrivateFieldGet(this, _gateways);
     }
     get connecting() {
         return this.gatewayLoginQueue.length !== 0 || this.startingGateway !== undefined;
     }
     get api() {
-        return this._api;
+        return __classPrivateFieldGet(this, _api);
     }
     bindEventFunctions() {
         const funcs = {};
@@ -94,17 +127,17 @@ class Paracord extends events_1.EventEmitter {
     eventHandler(eventType, data, shard) {
         var _a;
         let emit = data;
-        const paracordEvent = this.gatewayEvents[eventType];
+        const paracordEvent = __classPrivateFieldGet(this, _gatewayEvents)[eventType];
         if (paracordEvent !== undefined) {
             emit = paracordEvent(data, shard);
         }
-        if (((_a = this.startingGateway) === null || _a === void 0 ? void 0 : _a.id) === shard && this.guildWaitCount !== undefined) {
+        if (((_a = this.startingGateway) === null || _a === void 0 ? void 0 : _a.id) === shard && __classPrivateFieldGet(this, _guildWaitCount) !== undefined) {
             if (eventType === 'GUILD_CREATE') {
-                --this.guildWaitCount;
+                __classPrivateFieldSet(this, _guildWaitCount, +__classPrivateFieldGet(this, _guildWaitCount) - 1);
                 this.checkIfDoneStarting();
                 return undefined;
             }
-            return this.allowEventsDuringStartup ? data : undefined;
+            return __classPrivateFieldGet(this, _allowEventsDuringStartup) ? data : undefined;
         }
         return emit;
     }
@@ -117,19 +150,19 @@ class Paracord extends events_1.EventEmitter {
         });
     }
     emit(event, ...args) {
-        if (this.events === undefined || this.events[event] === undefined) {
+        if (__classPrivateFieldGet(this, _events) === undefined || __classPrivateFieldGet(this, _events)[event] === undefined) {
             return super.emit(event, ...args);
         }
-        return super.emit(this.events[event], ...args);
+        return super.emit(__classPrivateFieldGet(this, _events)[event], ...args);
     }
     login(options = {}) {
         return __awaiter(this, void 0, void 0, function* () {
             const { unavailableGuildTolerance, unavailableGuildWait, allowEventsDuringStartup, } = options;
-            if (!this.initialized) {
+            if (!__classPrivateFieldGet(this, _initialized)) {
                 this.init();
             }
-            this.unavailableGuildTolerance = unavailableGuildTolerance;
-            this.unavailableGuildWait = unavailableGuildWait;
+            __classPrivateFieldSet(this, _unavailableGuildTolerance, unavailableGuildTolerance);
+            __classPrivateFieldSet(this, _unavailableGuildWait, unavailableGuildWait);
             if (PARACORD_SHARD_IDS !== undefined) {
                 options.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
                 options.shardCount = Number(PARACORD_SHARD_COUNT);
@@ -138,16 +171,19 @@ class Paracord extends events_1.EventEmitter {
             }
             this.startGatewayLoginInterval();
             yield this.enqueueGateways(options);
-            this.allowEventsDuringStartup = allowEventsDuringStartup || false;
+            __classPrivateFieldSet(this, _allowEventsDuringStartup, allowEventsDuringStartup || false);
             this.startSweepInterval();
         });
     }
     startGatewayLoginInterval() {
-        this.processGatewayQueueInterval = setInterval(this.processGatewayQueue, constants_1.SECOND_IN_MILLISECONDS);
+        __classPrivateFieldSet(this, _processGatewayQueueInterval, setInterval(this.processGatewayQueue, constants_1.SECOND_IN_MILLISECONDS));
     }
     processGatewayQueue() {
         return __awaiter(this, void 0, void 0, function* () {
-            const { preventLogin, gatewayLoginQueue, startingGateway, safeGatewayIdentifyTimestamp, unavailableGuildTolerance, unavailableGuildWait, } = this;
+            const preventLogin = __classPrivateFieldGet(this, _preventLogin);
+            const { gatewayLoginQueue, startingGateway, safeGatewayIdentifyTimestamp, } = this;
+            const unavailableGuildTolerance = __classPrivateFieldGet(this, _unavailableGuildTolerance);
+            const unavailableGuildWait = __classPrivateFieldGet(this, _unavailableGuildWait);
             const now = new Date().getTime();
             if (!preventLogin
                 && gatewayLoginQueue.length
@@ -159,7 +195,7 @@ class Paracord extends events_1.EventEmitter {
                 try {
                     yield gateway.login();
                     if (unavailableGuildTolerance !== undefined && unavailableGuildWait !== undefined) {
-                        this.startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3);
+                        __classPrivateFieldSet(this, _startWithUnavailableGuildsInterval, setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3));
                     }
                 }
                 catch (err) {
@@ -171,11 +207,14 @@ class Paracord extends events_1.EventEmitter {
         });
     }
     startWithUnavailableGuilds(gateway) {
-        const { unavailableGuildTolerance, guildWaitCount, unavailableGuildWait, lastGuildTimestamp, } = this;
+        const unavailableGuildTolerance = __classPrivateFieldGet(this, _unavailableGuildTolerance);
+        const guildWaitCount = __classPrivateFieldGet(this, _guildWaitCount);
+        const unavailableGuildWait = __classPrivateFieldGet(this, _unavailableGuildWait);
+        const lastGuildTimestamp = __classPrivateFieldGet(this, _lastGuildTimestamp);
         const withinTolerance = guildWaitCount !== undefined && guildWaitCount <= unavailableGuildTolerance;
         const timedOut = lastGuildTimestamp !== undefined && lastGuildTimestamp + unavailableGuildWait * 1e3 < new Date().getTime();
         if (this.startingGateway === gateway && withinTolerance && timedOut) {
-            const message = `Forcing startup complete for shard ${this.startingGateway.id} with ${this.guildWaitCount} unavailable guilds.`;
+            const message = `Forcing startup complete for shard ${this.startingGateway.id} with ${__classPrivateFieldGet(this, _guildWaitCount)} unavailable guilds.`;
             this.log('WARNING', message);
             this.checkIfDoneStarting(true);
         }
@@ -238,26 +277,28 @@ class Paracord extends events_1.EventEmitter {
     }
     addNewGateway(identity, wsUrl) {
         const gatewayOptions = {
-            identity, api: this.api, emitter: this, events: this.events, wsUrl,
+            identity, api: this.api, emitter: this,
+            events: __classPrivateFieldGet(this, _events),
+            wsUrl,
         };
         const gateway = this.setUpGateway(this.token, gatewayOptions);
-        if (this.gateways.get(gateway.id) !== undefined) {
+        if (__classPrivateFieldGet(this, _gateways).get(gateway.id) !== undefined) {
             throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
         }
-        ++this.gatewayWaitCount;
-        this.gateways.set(gateway.id, gateway);
+        __classPrivateFieldSet(this, _gatewayWaitCount, +__classPrivateFieldGet(this, _gatewayWaitCount) + 1);
+        __classPrivateFieldGet(this, _gateways).set(gateway.id, gateway);
         this.gatewayLoginQueue.push(gateway);
     }
     init() {
-        if (this.initialized) {
+        if (__classPrivateFieldGet(this, _initialized)) {
             throw Error('Client has already been initialized.');
         }
-        this._api = this.setUpApi(this.token, this.apiOptions);
+        __classPrivateFieldSet(this, _api, this.setUpApi(this.token, __classPrivateFieldGet(this, _apiOptions)));
         this.selfAssignHandlerFunctions();
-        this.initialized = true;
+        __classPrivateFieldSet(this, _initialized, true);
     }
     startSweepInterval() {
-        this.sweepCachesInterval = setInterval(this.sweepCaches, 60 * constants_1.MINUTE_IN_MILLISECONDS);
+        __classPrivateFieldSet(this, _sweepCachesInterval, setInterval(this.sweepCaches, 60 * constants_1.MINUTE_IN_MILLISECONDS));
     }
     setUpApi(token, options) {
         const api = new Api_1.default(token, Object.assign(Object.assign({}, options), { emitter: this }));
@@ -268,8 +309,8 @@ class Paracord extends events_1.EventEmitter {
     }
     setUpGateway(token, options) {
         const gateway = new Gateway_1.default(token, Object.assign(Object.assign({}, options), { emitter: this, api: this.api }));
-        if (this.gatewayLockServiceOptions) {
-            const { mainServerOptions, serverOptions } = this.gatewayLockServiceOptions;
+        if (__classPrivateFieldGet(this, _gatewayLockServiceOptions)) {
+            const { mainServerOptions, serverOptions } = __classPrivateFieldGet(this, _gatewayLockServiceOptions);
             gateway.addIdentifyLockServices(mainServerOptions, ...serverOptions);
         }
         return gateway;
@@ -280,14 +321,14 @@ class Paracord extends events_1.EventEmitter {
         this.addRequestService = this.api.addRequestService.bind(this.api);
     }
     addIdentifyLockServices(mainServerOptions, ...serverOptions) {
-        this.gatewayLockServiceOptions = {
+        __classPrivateFieldSet(this, _gatewayLockServiceOptions, {
             mainServerOptions,
             serverOptions,
-        };
+        });
     }
     handleReady(data, shard) {
         const { user, guilds } = data;
-        this.guildWaitCount = guilds.length;
+        __classPrivateFieldSet(this, _guildWaitCount, guilds.length);
         this.user = Object.assign(Object.assign({}, user), { get tag() {
                 return `${user.username}#${user.discriminator}`;
             } });
@@ -299,22 +340,23 @@ class Paracord extends events_1.EventEmitter {
             this.checkIfDoneStarting();
         }
         else {
-            this.lastGuildTimestamp = new Date().getTime();
+            __classPrivateFieldSet(this, _lastGuildTimestamp, new Date().getTime());
         }
     }
     checkIfDoneStarting(forced) {
-        const { startingGateway, guildWaitCount } = this;
+        const { startingGateway } = this;
+        const guildWaitCount = __classPrivateFieldGet(this, _guildWaitCount);
         if (startingGateway !== undefined) {
             if (forced || guildWaitCount === 0) {
                 this.completeShardStartup(startingGateway, forced);
-                --this.gatewayWaitCount === 0 && this.completeStartup();
+                __classPrivateFieldSet(this, _gatewayWaitCount, +__classPrivateFieldGet(this, _gatewayWaitCount) - 1) === 0 && this.completeStartup();
             }
             else if (guildWaitCount !== undefined && guildWaitCount < 0) {
-                const message = `Shard ${startingGateway.id} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${this.guildWaitCount}`;
+                const message = `Shard ${startingGateway.id} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${__classPrivateFieldGet(this, _guildWaitCount)}`;
                 this.log('WARNING', message);
             }
             else {
-                this.lastGuildTimestamp = new Date().getTime();
+                __classPrivateFieldSet(this, _lastGuildTimestamp, new Date().getTime());
                 const message = `Shard ${startingGateway.id} - ${guildWaitCount} guilds left in start up.`;
                 this.log('INFO', message);
             }
@@ -336,9 +378,9 @@ class Paracord extends events_1.EventEmitter {
     }
     clearStartingShardState() {
         this.startingGateway = undefined;
-        this.lastGuildTimestamp = undefined;
-        this.guildWaitCount = 0;
-        this.startWithUnavailableGuildsInterval && clearInterval(this.startWithUnavailableGuildsInterval);
+        __classPrivateFieldSet(this, _lastGuildTimestamp, undefined);
+        __classPrivateFieldSet(this, _guildWaitCount, 0);
+        __classPrivateFieldGet(this, _startWithUnavailableGuildsInterval) && clearInterval(__classPrivateFieldGet(this, _startWithUnavailableGuildsInterval));
     }
     completeStartup(reason) {
         let message = 'Paracord start up complete.';
@@ -351,7 +393,7 @@ class Paracord extends events_1.EventEmitter {
     upsertGuild(data, shard, GuildConstructor = Guild_1.default) {
         const cachedGuild = this.guilds.get(data.id);
         if (cachedGuild !== undefined) {
-            return cachedGuild.mergeGuildData(data, this);
+            return cachedGuild.update(data, this);
         }
         if (shard !== undefined) {
             const guild = new GuildConstructor(data, this, shard);
@@ -518,3 +560,4 @@ class Paracord extends events_1.EventEmitter {
     }
 }
 exports.default = Paracord;
+_initialized = new WeakMap(), _unavailableGuildTolerance = new WeakMap(), _unavailableGuildWait = new WeakMap(), _startWithUnavailableGuildsInterval = new WeakMap(), _api = new WeakMap(), _gateways = new WeakMap(), _gatewayLockServiceOptions = new WeakMap(), _apiOptions = new WeakMap(), _gatewayOptions = new WeakMap(), _gatewayWaitCount = new WeakMap(), _guildWaitCount = new WeakMap(), _lastGuildTimestamp = new WeakMap(), _processGatewayQueueInterval = new WeakMap(), _sweepCachesInterval = new WeakMap(), _sweepRecentPresenceUpdatesInterval = new WeakMap(), _events = new WeakMap(), _allowEventsDuringStartup = new WeakMap(), _preventLogin = new WeakMap(), _gatewayEvents = new WeakMap();

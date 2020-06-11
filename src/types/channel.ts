@@ -179,7 +179,7 @@ export type MessageActivityTypes = [
 
 // ========================================================================
 
-export enum MessageFlags {
+export const enum MessageFlags {
   CROSSPOSTED = 1 << 0,
   IS_CROSSPOST = 1 << 1,
   SUPPRESS_EMBEDS = 1 << 2,

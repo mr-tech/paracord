@@ -37,7 +37,12 @@
     ],
     "max-len": "off",
     "camelcase": "warn",
-    "prefer-const": "warn",
+    "prefer-const": [
+      "error",
+      {
+        "destructuring": "all"
+      }
+    ],
     "no-await-in-loop": "off",
     "import/extensions": [
       "error",

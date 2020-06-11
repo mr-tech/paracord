@@ -1,15 +1,33 @@
 "use strict";
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
+var _remaining, _resetTimestamp, _limit, _template, _allowHeaderOverride;
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
 class RateLimit {
     constructor({ remaining, resetTimestamp, limit }, template) {
-        this.remaining = remaining;
-        this.resetTimestamp = resetTimestamp !== null && resetTimestamp !== void 0 ? resetTimestamp : -1;
-        this.limit = limit;
-        this.expires;
-        this.template = template;
-        this.allowHeaderOverride = true;
+        _remaining.set(this, void 0);
+        _resetTimestamp.set(this, void 0);
+        _limit.set(this, void 0);
+        _template.set(this, void 0);
+        _allowHeaderOverride.set(this, void 0);
+        __classPrivateFieldSet(this, _remaining, remaining);
+        __classPrivateFieldSet(this, _resetTimestamp, resetTimestamp !== null && resetTimestamp !== void 0 ? resetTimestamp : -1);
+        __classPrivateFieldSet(this, _limit, limit);
+        __classPrivateFieldSet(this, _template, template);
+        __classPrivateFieldSet(this, _allowHeaderOverride, true);
         this.refreshExpire();
     }
     get isRateLimited() {
@@ -24,13 +42,13 @@ class RateLimit {
         return true;
     }
     get rateLimitHasReset() {
-        return this.resetTimestamp <= new Date().getTime();
+        return __classPrivateFieldGet(this, _resetTimestamp) <= new Date().getTime();
     }
     get hasRemainingUses() {
-        return this.remaining > 0;
+        return __classPrivateFieldGet(this, _remaining) > 0;
     }
     get resetAfter() {
-        const resetAfter = utils_1.millisecondsFromNow(this.resetTimestamp);
+        const resetAfter = utils_1.millisecondsFromNow(__classPrivateFieldGet(this, _resetTimestamp));
         return resetAfter > 0 ? resetAfter : 0;
     }
     refreshExpire() {
@@ -38,24 +56,25 @@ class RateLimit {
     }
     decrementRemaining() {
         this.refreshExpire();
-        --this.remaining;
+        __classPrivateFieldSet(this, _remaining, +__classPrivateFieldGet(this, _remaining) - 1);
     }
     assignIfStricter({ remaining, resetTimestamp, limit }) {
-        if (resetTimestamp !== undefined && (this.allowHeaderOverride || remaining < this.remaining)) {
-            this.remaining = remaining;
+        if (resetTimestamp !== undefined && (__classPrivateFieldGet(this, _allowHeaderOverride) || remaining < __classPrivateFieldGet(this, _remaining))) {
+            __classPrivateFieldSet(this, _remaining, remaining);
         }
-        if (resetTimestamp !== undefined && (this.allowHeaderOverride || resetTimestamp > this.resetTimestamp)) {
-            this.resetTimestamp = resetTimestamp;
+        if (resetTimestamp !== undefined && (__classPrivateFieldGet(this, _allowHeaderOverride) || resetTimestamp > __classPrivateFieldGet(this, _resetTimestamp))) {
+            __classPrivateFieldSet(this, _resetTimestamp, resetTimestamp);
         }
-        if (resetTimestamp !== undefined && (this.allowHeaderOverride || limit < this.limit)) {
-            this.limit = limit;
+        if (resetTimestamp !== undefined && (__classPrivateFieldGet(this, _allowHeaderOverride) || limit < __classPrivateFieldGet(this, _limit))) {
+            __classPrivateFieldSet(this, _limit, limit);
         }
-        this.allowHeaderOverride = false;
+        __classPrivateFieldSet(this, _allowHeaderOverride, false);
     }
     resetRemaining() {
-        this.remaining = this.limit;
-        this.resetTimestamp = new Date().getTime() + this.template.resetAfter;
-        this.allowHeaderOverride = true;
+        __classPrivateFieldSet(this, _remaining, __classPrivateFieldGet(this, _limit));
+        __classPrivateFieldSet(this, _resetTimestamp, new Date().getTime() + __classPrivateFieldGet(this, _template).resetAfter);
+        __classPrivateFieldSet(this, _allowHeaderOverride, true);
     }
 }
 exports.default = RateLimit;
+_remaining = new WeakMap(), _resetTimestamp = new WeakMap(), _limit = new WeakMap(), _template = new WeakMap(), _allowHeaderOverride = new WeakMap();

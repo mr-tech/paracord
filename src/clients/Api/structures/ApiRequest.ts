@@ -1,6 +1,5 @@
 import { IApiResponse, IRequestOptions } from '../types';
 import BaseRequest from './BaseRequest';
-import { objectKeysCamelToSnake } from '../../../utils';
 
 /**
  * A request that will be made to Discord's REST API.

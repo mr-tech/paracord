@@ -1,26 +1,43 @@
 "use strict";
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _token, _lockTimeout, _emitter;
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
 const StatusMessage_1 = __importDefault(require("./StatusMessage"));
 class Lock {
     constructor(emitter) {
-        this.token;
-        this.lockTimeout;
-        this.emitter = emitter;
+        _token.set(this, void 0);
+        _lockTimeout.set(this, void 0);
+        _emitter.set(this, void 0);
+        __classPrivateFieldGet(this, _token);
+        __classPrivateFieldGet(this, _lockTimeout);
+        __classPrivateFieldSet(this, _emitter, emitter);
     }
     acquire(timeOut, token) {
         let success = false;
         let message;
-        if (this.token === undefined) {
+        if (__classPrivateFieldGet(this, _token) === undefined) {
             token = utils_1.createUnsafeUuid();
             this.lock(timeOut, token);
             success = true;
         }
-        else if (this.token === token) {
+        else if (__classPrivateFieldGet(this, _token) === token) {
             this.lock(timeOut, token);
             success = true;
         }
@@ -33,13 +50,13 @@ class Lock {
     release(token) {
         let success = false;
         let message;
-        if (this.token === undefined) {
+        if (__classPrivateFieldGet(this, _token) === undefined) {
             success = true;
         }
         else if (token === undefined) {
             message = 'No token provided.';
         }
-        else if (this.token === token) {
+        else if (__classPrivateFieldGet(this, _token) === token) {
             this.unlock();
             success = true;
         }
@@ -50,32 +67,33 @@ class Lock {
     }
     lock(timeOut, token) {
         let message;
-        if (this.lockTimeout === undefined) {
+        if (__classPrivateFieldGet(this, _lockTimeout) === undefined) {
             message = `Lock acquired. Timeout: ${timeOut}ms. Token: ${token}`;
         }
         else {
             message = `Lock refreshed. Token: ${token}`;
         }
-        this.emitter && this.emitter.emit('DEBUG', {
+        __classPrivateFieldGet(this, _emitter) && __classPrivateFieldGet(this, _emitter).emit('DEBUG', {
             source: constants_1.LOG_SOURCES.RPC,
             level: constants_1.LOG_LEVELS.DEBUG,
             message,
         });
-        this.lockTimeout && clearTimeout(this.lockTimeout);
-        this.token = token;
-        this.lockTimeout = setTimeout(() => {
+        __classPrivateFieldGet(this, _lockTimeout) && clearTimeout(__classPrivateFieldGet(this, _lockTimeout));
+        __classPrivateFieldSet(this, _token, token);
+        __classPrivateFieldSet(this, _lockTimeout, setTimeout(() => {
             this.release(token);
-            this.emitter && this.emitter.emit('DEBUG', {
+            __classPrivateFieldGet(this, _emitter) && __classPrivateFieldGet(this, _emitter).emit('DEBUG', {
                 source: constants_1.LOG_SOURCES.RPC,
                 level: constants_1.LOG_LEVELS.DEBUG,
                 message: `Lock expired after ${timeOut}ms. Token: ${token}`,
             });
-        }, timeOut);
+        }, timeOut));
     }
     unlock() {
-        this.lockTimeout && clearTimeout(this.lockTimeout);
-        this.lockTimeout = undefined;
-        this.token = undefined;
+        __classPrivateFieldGet(this, _lockTimeout) && clearTimeout(__classPrivateFieldGet(this, _lockTimeout));
+        __classPrivateFieldSet(this, _lockTimeout, undefined);
+        __classPrivateFieldSet(this, _token, undefined);
     }
 }
 exports.default = Lock;
+_token = new WeakMap(), _lockTimeout = new WeakMap(), _emitter = new WeakMap();

@@ -2,9 +2,7 @@
 import type { EventEmitter } from 'events';
 import StatusMessage from './StatusMessage';
 export default class Lock {
-    private token?;
-    private lockTimeout?;
-    private emitter?;
+    #private;
     constructor(emitter?: EventEmitter);
     acquire(timeOut: number, token?: string): StatusMessage;
     release(token: string): StatusMessage;

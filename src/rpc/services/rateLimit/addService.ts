@@ -14,9 +14,6 @@ const rateLimitProto = loadProto('rate_limit');
  */
 export default (server: RpcServer): void => {
   server.rateLimitCache.startSweepInterval();
-
-  /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-  // @ts-ignore: interface can in fact be extended
   server.addService(rateLimitProto.RateLimitService, {
     authorize: authorize.bind(server),
     update: update.bind(server),

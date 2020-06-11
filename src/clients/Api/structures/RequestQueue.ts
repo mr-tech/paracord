@@ -12,43 +12,38 @@
 
 // TODO(lando): Do some logging on this in prod to make sure it doesn't memory leak.
 
-import { ApiRequest, RateLimitCache } from '.';
+import { ApiRequest } from '.';
 import Api from '../Api';
 
 /** A queue for rate limited requests waiting to be sent. */
 export default class RequestQueue {
-  /** The cache used to check the state of rate limits. */
-  private rateLimitCache: RateLimitCache;
-
   /** Whether or not the `process()` method is already executing. */
-  private processing: boolean;
+  #processing: boolean;
 
   /** The queue. */
-  private queue: Array<ApiRequest | null>;
+  #queue: Array<ApiRequest | null>;
 
   /** The internal value of the length of the queue. */
-  private _length: number;
+  #length: number;
 
   /** Api client through which to emit events. */
-  private apiClient: Api;
+  #apiClient: Api;
 
   /**
    * Creates a new requests queue for rate limits requests.
    *
-   * @param rateLimitCache The cache used to check the state of rate limits.
    * @param apiClient Api client through which to emit events.
    */
-  public constructor(rateLimitCache: RateLimitCache, apiClient: Api) {
-    this.rateLimitCache = rateLimitCache;
-    this.processing = false;
-    this.queue = [];
-    this._length = 0;
-    this.apiClient = apiClient;
+  public constructor(apiClient: Api) {
+    this.#processing = false;
+    this.#queue = [];
+    this.#length = 0;
+    this.#apiClient = apiClient;
   }
 
   /** The length of the queue. */
   private get length(): number {
-    return this._length;
+    return this.#length;
   }
 
   public startQueue(interval: number): NodeJS.Timer {
@@ -61,7 +56,7 @@ export default class RequestQueue {
    */
   public push(...items: ApiRequest[]): void {
     items.forEach((i) => {
-      this.queue[++this._length - 1] = i;
+      this.#queue[++this.#length - 1] = i;
     });
   }
 
@@ -72,32 +67,32 @@ export default class RequestQueue {
   private spliceMany(indices: Array<number | null>): void {
     if (indices.length === 0) return;
 
-    this._length = 0;
+    this.#length = 0;
 
     // Re-assign values to array indexes, shifting up all remaining requests when an index should be skipped.
-    for (let idx = 0; idx < this.queue.length; ++idx) {
+    for (let idx = 0; idx < this.#queue.length; ++idx) {
       // undefined = past end of array; null = past end of requests in array (rest are null)
-      if (this.queue[idx] === undefined || this.queue[idx] === null) break;
+      if (this.#queue[idx] === undefined || this.#queue[idx] === null) break;
       if (!indices.includes(idx)) {
-        this.queue[this._length] = this.queue[idx];
-        ++this._length;
+        this.#queue[this.#length] = this.#queue[idx];
+        ++this.#length;
       }
     }
 
     // Assigns `null` to the remaining indices.
-    for (let idx = this._length; idx < this.queue.length; ++idx) {
-      if (this.queue[idx] === undefined || this.queue[idx] === null) break;
+    for (let idx = this.#length; idx < this.#queue.length; ++idx) {
+      if (this.#queue[idx] === undefined || this.#queue[idx] === null) break;
 
-      this.queue[idx] = null;
+      this.#queue[idx] = null;
     }
   }
 
   /** Iterates over the queue, sending any requests that are no longer rate limited. */
   private process(): void {
-    if (this.length === 0 || this.processing) return;
+    if (this.length === 0 || this.#processing) return;
 
     try {
-      this.processing = true;
+      this.#processing = true;
 
       /* Following lines are the quintessential premature micro-optimization. */
       const removedIndices: Array<number | null> = [];
@@ -110,7 +105,7 @@ export default class RequestQueue {
 
       this.spliceMany(removedIndices);
     } finally {
-      this.processing = false;
+      this.#processing = false;
     }
   }
 
@@ -120,7 +115,7 @@ export default class RequestQueue {
    * @param processedIndices The indices of requests to remove from th queue.
    */
   private processIteration(queueIdx: number): boolean {
-    const request = this.queue[queueIdx];
+    const request = this.#queue[queueIdx];
 
     if (request === null) {
       return false;
@@ -141,7 +136,7 @@ export default class RequestQueue {
   }
 
   private async sendRequest(request: ApiRequest): Promise<void> {
-    const { response } = await this.apiClient.sendRequest(request, true);
+    const { response } = await this.#apiClient.sendRequest(request, true);
     if (response !== undefined) {
       request.response = response;
     }

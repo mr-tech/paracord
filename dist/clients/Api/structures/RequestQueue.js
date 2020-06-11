@@ -8,49 +8,66 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
+var _processing, _queue, _length, _apiClient;
 Object.defineProperty(exports, "__esModule", { value: true });
 class RequestQueue {
-    constructor(rateLimitCache, apiClient) {
-        this.rateLimitCache = rateLimitCache;
-        this.processing = false;
-        this.queue = [];
-        this._length = 0;
-        this.apiClient = apiClient;
+    constructor(apiClient) {
+        _processing.set(this, void 0);
+        _queue.set(this, void 0);
+        _length.set(this, void 0);
+        _apiClient.set(this, void 0);
+        __classPrivateFieldSet(this, _processing, false);
+        __classPrivateFieldSet(this, _queue, []);
+        __classPrivateFieldSet(this, _length, 0);
+        __classPrivateFieldSet(this, _apiClient, apiClient);
     }
     get length() {
-        return this._length;
+        return __classPrivateFieldGet(this, _length);
     }
     startQueue(interval) {
         return setInterval(this.process.bind(this), interval);
     }
     push(...items) {
         items.forEach((i) => {
-            this.queue[++this._length - 1] = i;
+            __classPrivateFieldGet(this, _queue)[__classPrivateFieldSet(this, _length, +__classPrivateFieldGet(this, _length) + 1) - 1] = i;
         });
     }
     spliceMany(indices) {
         if (indices.length === 0)
             return;
-        this._length = 0;
-        for (let idx = 0; idx < this.queue.length; ++idx) {
-            if (this.queue[idx] === undefined || this.queue[idx] === null)
+        __classPrivateFieldSet(this, _length, 0);
+        for (let idx = 0; idx < __classPrivateFieldGet(this, _queue).length; ++idx) {
+            if (__classPrivateFieldGet(this, _queue)[idx] === undefined || __classPrivateFieldGet(this, _queue)[idx] === null)
                 break;
             if (!indices.includes(idx)) {
-                this.queue[this._length] = this.queue[idx];
-                ++this._length;
+                __classPrivateFieldGet(this, _queue)[__classPrivateFieldGet(this, _length)] = __classPrivateFieldGet(this, _queue)[idx];
+                __classPrivateFieldSet(this, _length, +__classPrivateFieldGet(this, _length) + 1);
             }
         }
-        for (let idx = this._length; idx < this.queue.length; ++idx) {
-            if (this.queue[idx] === undefined || this.queue[idx] === null)
+        for (let idx = __classPrivateFieldGet(this, _length); idx < __classPrivateFieldGet(this, _queue).length; ++idx) {
+            if (__classPrivateFieldGet(this, _queue)[idx] === undefined || __classPrivateFieldGet(this, _queue)[idx] === null)
                 break;
-            this.queue[idx] = null;
+            __classPrivateFieldGet(this, _queue)[idx] = null;
         }
     }
     process() {
-        if (this.length === 0 || this.processing)
+        if (this.length === 0 || __classPrivateFieldGet(this, _processing))
             return;
         try {
-            this.processing = true;
+            __classPrivateFieldSet(this, _processing, true);
             const removedIndices = [];
             for (let queueIdx = 0; queueIdx < this.length; ++queueIdx) {
                 if (this.processIteration(queueIdx)) {
@@ -60,11 +77,11 @@ class RequestQueue {
             this.spliceMany(removedIndices);
         }
         finally {
-            this.processing = false;
+            __classPrivateFieldSet(this, _processing, false);
         }
     }
     processIteration(queueIdx) {
-        const request = this.queue[queueIdx];
+        const request = __classPrivateFieldGet(this, _queue)[queueIdx];
         if (request === null) {
             return false;
         }
@@ -82,7 +99,7 @@ class RequestQueue {
     }
     sendRequest(request) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { response } = yield this.apiClient.sendRequest(request, true);
+            const { response } = yield __classPrivateFieldGet(this, _apiClient).sendRequest(request, true);
             if (response !== undefined) {
                 request.response = response;
             }
@@ -90,3 +107,4 @@ class RequestQueue {
     }
 }
 exports.default = RequestQueue;
+_processing = new WeakMap(), _queue = new WeakMap(), _length = new WeakMap(), _apiClient = new WeakMap();

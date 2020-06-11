@@ -1,7 +1,21 @@
 "use strict";
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _requestRouteMetaToBucket, _rateLimitMap, _rateLimitTemplateMap, _globalRateLimitState;
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
@@ -9,14 +23,18 @@ const RateLimitMap_1 = __importDefault(require("./RateLimitMap"));
 const RateLimitTemplateMap_1 = __importDefault(require("./RateLimitTemplateMap"));
 class RateLimitCache {
     constructor(autoStartSweep = true) {
-        this.requestRouteMetaToBucket = new Map();
-        this.rateLimitMap = new RateLimitMap_1.default();
-        this.rateLimitTemplateMap = new RateLimitTemplateMap_1.default();
-        this.globalRateLimitState = {
+        _requestRouteMetaToBucket.set(this, void 0);
+        _rateLimitMap.set(this, void 0);
+        _rateLimitTemplateMap.set(this, void 0);
+        _globalRateLimitState.set(this, void 0);
+        __classPrivateFieldSet(this, _requestRouteMetaToBucket, new Map());
+        __classPrivateFieldSet(this, _rateLimitMap, new RateLimitMap_1.default());
+        __classPrivateFieldSet(this, _rateLimitTemplateMap, new RateLimitTemplateMap_1.default());
+        __classPrivateFieldSet(this, _globalRateLimitState, {
             remaining: 0,
             resetTimestamp: 0,
-        };
-        autoStartSweep && this.rateLimitMap.startSweepInterval();
+        });
+        autoStartSweep && __classPrivateFieldGet(this, _rateLimitMap).startSweepInterval();
     }
     static returnStricterResetTimestamp(globalResetAfter, rateLimitResetAfter) {
         return globalResetAfter > rateLimitResetAfter ? globalResetAfter : rateLimitResetAfter;
@@ -32,17 +50,17 @@ class RateLimitCache {
         return true;
     }
     get globalRateLimitHasReset() {
-        return this.globalRateLimitState.resetTimestamp <= new Date().getTime();
+        return __classPrivateFieldGet(this, _globalRateLimitState).resetTimestamp <= new Date().getTime();
     }
     get globalRateLimitHasRemainingUses() {
-        return this.globalRateLimitState.remaining > 0;
+        return __classPrivateFieldGet(this, _globalRateLimitState).remaining > 0;
     }
     get globalRateLimitResetAfter() {
-        const resetAfter = utils_1.millisecondsFromNow(this.globalRateLimitState.resetTimestamp);
+        const resetAfter = utils_1.millisecondsFromNow(__classPrivateFieldGet(this, _globalRateLimitState).resetTimestamp);
         return resetAfter > 0 ? resetAfter : 0;
     }
     startSweepInterval() {
-        this.rateLimitMap.startSweepInterval();
+        __classPrivateFieldGet(this, _rateLimitMap).startSweepInterval();
     }
     wrapRequest(requestFunc) {
         const wrappedRequest = (request) => {
@@ -58,9 +76,9 @@ class RateLimitCache {
     }
     decrementGlobalRemaining() {
         if (this.globalRateLimitResetAfter === 0) {
-            this.globalRateLimitState.resetTimestamp = new Date().getTime() + constants_1.API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS;
+            __classPrivateFieldGet(this, _globalRateLimitState).resetTimestamp = new Date().getTime() + constants_1.API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS;
         }
-        --this.globalRateLimitState.remaining;
+        --__classPrivateFieldGet(this, _globalRateLimitState).remaining;
     }
     authorizeRequestFromClient(request) {
         const { isGloballyRateLimited } = this;
@@ -89,9 +107,9 @@ class RateLimitCache {
         const { requestRouteMeta, rateLimitKey } = request;
         const { bucket } = rateLimitHeaders;
         if (bucket !== undefined) {
-            this.requestRouteMetaToBucket.set(requestRouteMeta, bucket);
-            const template = this.rateLimitTemplateMap.upsert(bucket, rateLimitHeaders);
-            this.rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+            __classPrivateFieldGet(this, _requestRouteMetaToBucket).set(requestRouteMeta, bucket);
+            const template = __classPrivateFieldGet(this, _rateLimitTemplateMap).upsert(bucket, rateLimitHeaders);
+            __classPrivateFieldGet(this, _rateLimitMap).upsert(rateLimitKey, rateLimitHeaders, template);
         }
     }
     returnIsRateLimited(request) {
@@ -105,25 +123,26 @@ class RateLimitCache {
         return { resetAfter: 0 };
     }
     resetGlobalRateLimit() {
-        this.globalRateLimitState.resetTimestamp = 0;
-        this.globalRateLimitState.remaining = constants_1.API_GLOBAL_RATE_LIMIT;
+        __classPrivateFieldGet(this, _globalRateLimitState).resetTimestamp = 0;
+        __classPrivateFieldGet(this, _globalRateLimitState).remaining = constants_1.API_GLOBAL_RATE_LIMIT;
     }
     getRateLimitFromCache(request) {
         const { requestRouteMeta, rateLimitKey } = request;
-        const bucket = this.requestRouteMetaToBucket.get(requestRouteMeta);
+        const bucket = __classPrivateFieldGet(this, _requestRouteMetaToBucket).get(requestRouteMeta);
         if (bucket !== undefined) {
-            return this.rateLimitMap.get(rateLimitKey) || this.rateLimitFromTemplate(request, bucket);
+            return __classPrivateFieldGet(this, _rateLimitMap).get(rateLimitKey) || this.rateLimitFromTemplate(request, bucket);
         }
         return undefined;
     }
     rateLimitFromTemplate(request, bucketUid) {
         const { rateLimitKey } = request;
-        const rateLimit = this.rateLimitTemplateMap.createAssumedRateLimit(bucketUid);
+        const rateLimit = __classPrivateFieldGet(this, _rateLimitTemplateMap).createAssumedRateLimit(bucketUid);
         if (rateLimit !== undefined) {
-            this.rateLimitMap.set(rateLimitKey, rateLimit);
+            __classPrivateFieldGet(this, _rateLimitMap).set(rateLimitKey, rateLimit);
             return rateLimit;
         }
         return undefined;
     }
 }
 exports.default = RateLimitCache;
+_requestRouteMetaToBucket = new WeakMap(), _rateLimitMap = new WeakMap(), _rateLimitTemplateMap = new WeakMap(), _globalRateLimitState = new WeakMap();

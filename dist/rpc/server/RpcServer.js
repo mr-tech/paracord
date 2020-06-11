@@ -1,4 +1,12 @@
 "use strict";
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
+var _host, _port, _channel;
 Object.defineProperty(exports, "__esModule", { value: true });
 const structures_1 = require("../../clients/Api/structures");
 const constants_1 = require("../../constants");
@@ -8,10 +16,13 @@ const grpc = require('@grpc/grpc-js');
 class RpcServer extends grpc.Server {
     constructor(options = {}) {
         super();
+        _host.set(this, void 0);
+        _port.set(this, void 0);
+        _channel.set(this, void 0);
         const { host, port, channel, emitter, apiClient, identifyLock, } = options;
-        this.host = host !== null && host !== void 0 ? host : '127.0.0.1';
-        this.port = port !== null && port !== void 0 ? port : '50051';
-        this.channel = channel !== null && channel !== void 0 ? channel : grpc.ServerCredentials.createInsecure();
+        __classPrivateFieldSet(this, _host, host !== null && host !== void 0 ? host : '127.0.0.1');
+        __classPrivateFieldSet(this, _port, port !== null && port !== void 0 ? port : '50051');
+        __classPrivateFieldSet(this, _channel, channel !== null && channel !== void 0 ? channel : grpc.ServerCredentials.createInsecure());
         this.emitter = emitter;
         this.apiClient = apiClient;
         this.identifyLock = identifyLock !== null && identifyLock !== void 0 ? identifyLock : new structures_2.Lock(this.emitter);
@@ -70,3 +81,4 @@ class RpcServer extends grpc.Server {
     }
 }
 exports.default = RpcServer;
+_host = new WeakMap(), _port = new WeakMap(), _channel = new WeakMap();

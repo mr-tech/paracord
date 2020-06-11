@@ -14,28 +14,28 @@ function validateShard(shard: number, shardCount: number): void {
 /** A script that spawns shards into pm2, injecting shard information into the Paracord client. */
 export default class ShardLauncher {
   /** Relative location of the app's entry point. */
-  main: string;
+  #main: string;
 
   /** Ids of the shards to start internally. Ignored if `shardChunks` is defined. */
-  shardIds!: InternalShardIds;
+  #shardIds!: InternalShardIds;
 
   /** Arrays of shard Ids to launch. Each item will spawn a pm2 process with the designated shards internally. */
-  shardChunks?: InternalShardIds[];
+  #shardChunks?: InternalShardIds[];
 
   /** Total number of shards this app will be running across all instances. */
-  shardCount!: number;
+  #shardCount!: number;
 
   /** Additional environment variables to load into the app. */
-  env?: Record<string, unknown>;
+  #env?: Record<string, unknown>;
 
   /** Name that will appear beside the shard number in pm2. */
-  appName?: string;
+  #appName?: string;
 
   /** Discord token. Used to find recommended shard count. Will be coerced into a bot token. */
-  token!: string;
+  #token!: string;
 
   /** Number of shards to be launched. */
-  launchCount!: number;
+  #launchCount!: number;
 
   /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
   private static validateParams(main: string, options: ShardLauncherOptions): void {
@@ -85,8 +85,8 @@ export default class ShardLauncher {
    */
   public constructor(main: string, options: ShardLauncherOptions) {
     ShardLauncher.validateParams(main, options);
-    this.main = main;
-    this.appName = options.appName !== undefined ? options.appName : 'Discord Bot';
+    this.#main = main;
+    this.#appName = options.appName !== undefined ? options.appName : 'Discord Bot';
 
     Object.assign(this, options);
 
@@ -103,8 +103,12 @@ export default class ShardLauncher {
    * pm2Options
    */
   public async launch(pm2Options: StartOptions = {}): Promise<void> {
-    const { shardChunks } = this;
-    let { shardCount, shardIds } = this;
+    const shardChunks = this.#shardChunks;
+    let shardCount = this.#shardCount;
+    let shardIds = this.#shardIds;
+
+    // const { #shardChunks: shardChunks } = this;
+    // let { #shardCount: shardCount, #shardIds: shardIds } = this;
 
     if (shardChunks === undefined && shardCount === undefined) {
       ({ shardCount, shardIds } = await this.getShardInfo());
@@ -124,12 +128,12 @@ export default class ShardLauncher {
         }
 
         if (shardChunks !== undefined) {
-          this.launchCount = shardChunks.length;
+          this.#launchCount = shardChunks.length;
           shardChunks.forEach((s) => {
             this.launchShard(s, shardCount, pm2Options);
           });
         } else {
-          this.launchCount = 1;
+          this.#launchCount = 1;
           this.launchShard(shardIds, shardCount, pm2Options);
         }
       });
@@ -160,16 +164,16 @@ export default class ShardLauncher {
   public launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): void {
     const shardIdsCsv = shardIds.join(',');
     const paracordEnv = {
-      PARACORD_TOKEN: this.token,
+      PARACORD_TOKEN: this.#token,
       PARACORD_SHARD_COUNT: shardCount,
       PARACORD_SHARD_IDS: shardIdsCsv,
     };
 
     const pm2Config = <StartOptions>{
-      name: `${this.appName} - Shards ${shardIdsCsv}`,
-      script: this.main,
+      name: `${this.#appName} - Shards ${shardIdsCsv}`,
+      script: this.#main,
       env: {
-        ...(this.env ?? {}),
+        ...(this.#env ?? {}),
         ...paracordEnv,
       },
       ...pm2Options,
@@ -180,7 +184,7 @@ export default class ShardLauncher {
 
   /** Gets the recommended shard count from Discord. */
   private async getRecommendedShards(): Promise<number> {
-    const api = new Api(this.token);
+    const api = new Api(this.#token);
     const { status, statusText, data } = <GatewayBotResponse> await api.request(
       'get',
       'gateway/bot',
@@ -196,7 +200,7 @@ export default class ShardLauncher {
 
   /** Disconnects from pm2 when all chunks have been launched. */
   private detach(err: Error) {
-    if (--this.launchCount === 0) {
+    if (--this.#launchCount === 0) {
       console.log('All shards launched. Disconnecting from pm2.');
       pm2.disconnect();
     }

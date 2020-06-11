@@ -153,17 +153,17 @@ export default class Guild {
    * @param client Paracord client.
    * @param shard Shard id of the gateway connection this guild originated from.
    */
-  public constructor(guildCreate: Partial<RawGuild>, client: Paracord, shard: number) {
+  public constructor(guildData: Partial<RawGuild>, client: Paracord, shard: number) {
     this.members = new Map();
     this.channels = new Map();
     this.presences = new Map();
     this.voiceStates = new Map();
     this.roles = new Map();
     this.emojis = new Map();
-    this.unavailable = guildCreate.unavailable ?? false;
+    this.unavailable = guildData.unavailable ?? false;
     this.shard = shard;
 
-    this.mergeGuildData(guildCreate, client);
+    this.update(guildData, client);
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
@@ -182,7 +182,7 @@ export default class Guild {
    * @param guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
    * @param client Paracord client.
    */
-  public mergeGuildData(guildData: Partial<RawGuild>, client: Paracord): Guild {
+  public update(guildData: Partial<RawGuild>, client: Paracord): Guild {
     if (guildData.channels !== undefined) {
       guildData.channels.forEach((c) => this.upsertChannel(c));
       delete guildData.channels;

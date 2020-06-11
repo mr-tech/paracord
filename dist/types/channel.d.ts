@@ -63,7 +63,7 @@ export declare type MessageReference = {
     guildId?: Snowflake;
 };
 export declare type MessageActivityTypes = [1 | 2 | 3 | 5];
-export declare enum MessageFlags {
+export declare const enum MessageFlags {
     CROSSPOSTED = 1,
     IS_CROSSPOST = 2,
     SUPPRESS_EMBEDS = 4,

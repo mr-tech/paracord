@@ -4,10 +4,7 @@ import { IRateLimitState, WrappedRequest } from '../types';
 import BaseRequest from './BaseRequest';
 import RateLimitHeaders from './RateLimitHeaders';
 export default class RateLimitCache {
-    private requestRouteMetaToBucket;
-    private rateLimitMap;
-    private rateLimitTemplateMap;
-    private globalRateLimitState;
+    #private;
     private static returnStricterResetTimestamp;
     constructor(autoStartSweep?: boolean);
     private get isGloballyRateLimited();

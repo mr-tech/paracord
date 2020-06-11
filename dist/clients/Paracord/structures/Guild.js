@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
 class Guild {
-    constructor(guildCreate, client, shard) {
+    constructor(guildData, client, shard) {
         var _a;
         this.members = new Map();
         this.channels = new Map();
@@ -11,14 +11,14 @@ class Guild {
         this.voiceStates = new Map();
         this.roles = new Map();
         this.emojis = new Map();
-        this.unavailable = (_a = guildCreate.unavailable) !== null && _a !== void 0 ? _a : false;
+        this.unavailable = (_a = guildData.unavailable) !== null && _a !== void 0 ? _a : false;
         this.shard = shard;
-        this.mergeGuildData(guildCreate, client);
+        this.update(guildData, client);
     }
     get createdOn() {
         return utils_1.timestampFromSnowflake(this.id);
     }
-    mergeGuildData(guildData, client) {
+    update(guildData, client) {
         if (guildData.channels !== undefined) {
             guildData.channels.forEach((c) => this.upsertChannel(c));
             delete guildData.channels;

@@ -8,9 +8,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __classPrivateFieldSet = (this && this.__classPrivateFieldSet) || function (receiver, privateMap, value) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to set private field on non-instance");
+    }
+    privateMap.set(receiver, value);
+    return value;
+};
+var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (receiver, privateMap) {
+    if (!privateMap.has(receiver)) {
+        throw new TypeError("attempted to get private field on non-instance");
+    }
+    return privateMap.get(receiver);
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
+var _main, _shardIds, _shardChunks, _shardCount, _env, _appName, _token, _launchCount;
 Object.defineProperty(exports, "__esModule", { value: true });
 const pm2_1 = __importDefault(require("pm2"));
 const Api_1 = __importDefault(require("../Api/Api"));
@@ -21,9 +35,17 @@ function validateShard(shard, shardCount) {
 }
 class ShardLauncher {
     constructor(main, options) {
+        _main.set(this, void 0);
+        _shardIds.set(this, void 0);
+        _shardChunks.set(this, void 0);
+        _shardCount.set(this, void 0);
+        _env.set(this, void 0);
+        _appName.set(this, void 0);
+        _token.set(this, void 0);
+        _launchCount.set(this, void 0);
         ShardLauncher.validateParams(main, options);
-        this.main = main;
-        this.appName = options.appName !== undefined ? options.appName : 'Discord Bot';
+        __classPrivateFieldSet(this, _main, main);
+        __classPrivateFieldSet(this, _appName, options.appName !== undefined ? options.appName : 'Discord Bot');
         Object.assign(this, options);
         this.bindCallbackFunctions();
     }
@@ -65,8 +87,9 @@ class ShardLauncher {
     }
     launch(pm2Options = {}) {
         return __awaiter(this, void 0, void 0, function* () {
-            const { shardChunks } = this;
-            let { shardCount, shardIds } = this;
+            const shardChunks = __classPrivateFieldGet(this, _shardChunks);
+            let shardCount = __classPrivateFieldGet(this, _shardCount);
+            let shardIds = __classPrivateFieldGet(this, _shardIds);
             if (shardChunks === undefined && shardCount === undefined) {
                 ({ shardCount, shardIds } = yield this.getShardInfo());
             }
@@ -82,13 +105,13 @@ class ShardLauncher {
                         process.exit(2);
                     }
                     if (shardChunks !== undefined) {
-                        this.launchCount = shardChunks.length;
+                        __classPrivateFieldSet(this, _launchCount, shardChunks.length);
                         shardChunks.forEach((s) => {
                             this.launchShard(s, shardCount, pm2Options);
                         });
                     }
                     else {
-                        this.launchCount = 1;
+                        __classPrivateFieldSet(this, _launchCount, 1);
                         this.launchShard(shardIds, shardCount, pm2Options);
                     }
                 });
@@ -114,16 +137,16 @@ class ShardLauncher {
         var _a;
         const shardIdsCsv = shardIds.join(',');
         const paracordEnv = {
-            PARACORD_TOKEN: this.token,
+            PARACORD_TOKEN: __classPrivateFieldGet(this, _token),
             PARACORD_SHARD_COUNT: shardCount,
             PARACORD_SHARD_IDS: shardIdsCsv,
         };
-        const pm2Config = Object.assign({ name: `${this.appName} - Shards ${shardIdsCsv}`, script: this.main, env: Object.assign(Object.assign({}, ((_a = this.env) !== null && _a !== void 0 ? _a : {})), paracordEnv) }, pm2Options);
+        const pm2Config = Object.assign({ name: `${__classPrivateFieldGet(this, _appName)} - Shards ${shardIdsCsv}`, script: __classPrivateFieldGet(this, _main), env: Object.assign(Object.assign({}, ((_a = __classPrivateFieldGet(this, _env)) !== null && _a !== void 0 ? _a : {})), paracordEnv) }, pm2Options);
         pm2_1.default.start(pm2Config, this.detach);
     }
     getRecommendedShards() {
         return __awaiter(this, void 0, void 0, function* () {
-            const api = new Api_1.default(this.token);
+            const api = new Api_1.default(__classPrivateFieldGet(this, _token));
             const { status, statusText, data } = yield api.request('get', 'gateway/bot');
             if (status === 200) {
                 return data.shards;
@@ -132,7 +155,7 @@ class ShardLauncher {
         });
     }
     detach(err) {
-        if (--this.launchCount === 0) {
+        if (__classPrivateFieldSet(this, _launchCount, +__classPrivateFieldGet(this, _launchCount) - 1) === 0) {
             console.log('All shards launched. Disconnecting from pm2.');
             pm2_1.default.disconnect();
         }
@@ -141,3 +164,4 @@ class ShardLauncher {
     }
 }
 exports.default = ShardLauncher;
+_main = new WeakMap(), _shardIds = new WeakMap(), _shardChunks = new WeakMap(), _shardCount = new WeakMap(), _env = new WeakMap(), _appName = new WeakMap(), _token = new WeakMap(), _launchCount = new WeakMap();

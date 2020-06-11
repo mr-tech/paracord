@@ -11,25 +11,23 @@ import StatusMessage from './StatusMessage';
  * refresh the timeout).
  */
 export default class Lock {
-  /**
-   * A unique id given to the client who currently has the lock. `undefined` indicates that the lock is available.
-   */
-  private token?: string | undefined;
+  /* A unique id given to the client who currently has the lock. `undefined` indicates that the lock is available. */
+  #token?: string | undefined;
 
   /** The timeout that will unlock the lock after a time specified by the client. */
-  private lockTimeout?: NodeJS.Timeout;
+  #lockTimeout?: NodeJS.Timeout;
 
   /** Emitter for logging. */
-  private emitter?: EventEmitter;
+  #emitter?: EventEmitter;
 
   /**
    * Creates a new lock.
    * @param  emitter Emitter for log events.
    */
   public constructor(emitter?: EventEmitter) {
-    this.token;
-    this.lockTimeout;
-    this.emitter = emitter;
+    this.#token;
+    this.#lockTimeout;
+    this.#emitter = emitter;
   }
 
   /**
@@ -41,11 +39,11 @@ export default class Lock {
     let success = false;
     let message;
 
-    if (this.token === undefined) {
+    if (this.#token === undefined) {
       token = createUnsafeUuid();
       this.lock(timeOut, token);
       success = true;
-    } else if (this.token === token) {
+    } else if (this.#token === token) {
       this.lock(timeOut, token);
       success = true;
     } else {
@@ -64,11 +62,11 @@ export default class Lock {
     let success = false;
     let message;
 
-    if (this.token === undefined) {
+    if (this.#token === undefined) {
       success = true;
     } else if (token === undefined) {
       message = 'No token provided.';
-    } else if (this.token === token) {
+    } else if (this.#token === token) {
       this.unlock();
       success = true;
     } else {
@@ -86,25 +84,25 @@ export default class Lock {
    */
   private lock(timeOut: number, token: string): void {
     let message;
-    if (this.lockTimeout === undefined) {
+    if (this.#lockTimeout === undefined) {
       message = `Lock acquired. Timeout: ${timeOut}ms. Token: ${token}`;
     } else {
       message = `Lock refreshed. Token: ${token}`;
     }
 
-    this.emitter && this.emitter.emit('DEBUG', {
+    this.#emitter && this.#emitter.emit('DEBUG', {
       source: LOG_SOURCES.RPC,
       level: LOG_LEVELS.DEBUG,
       message,
     });
 
-    this.lockTimeout && clearTimeout(this.lockTimeout);
+    this.#lockTimeout && clearTimeout(this.#lockTimeout);
 
-    this.token = token;
-    this.lockTimeout = setTimeout(() => {
+    this.#token = token;
+    this.#lockTimeout = setTimeout(() => {
       this.release(token);
 
-      this.emitter && this.emitter.emit('DEBUG', {
+      this.#emitter && this.#emitter.emit('DEBUG', {
         source: LOG_SOURCES.RPC,
         level: LOG_LEVELS.DEBUG,
         message: `Lock expired after ${timeOut}ms. Token: ${token}`,
@@ -114,8 +112,8 @@ export default class Lock {
 
   /** Makes the lock available and clears the expire timer. */
   private unlock(): void {
-    this.lockTimeout && clearTimeout(this.lockTimeout);
-    this.lockTimeout = undefined;
-    this.token = undefined;
+    this.#lockTimeout && clearTimeout(this.#lockTimeout);
+    this.#lockTimeout = undefined;
+    this.#token = undefined;
   }
 }

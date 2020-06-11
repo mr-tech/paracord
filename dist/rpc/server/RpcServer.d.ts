@@ -8,13 +8,11 @@ import { Lock } from '../structures';
 import { IDebugEvent, RpcServerOptions } from '../types';
 declare const grpc: any;
 export default class RpcServer extends grpc.Server {
+    #private;
     emitter?: EventEmitter;
     apiClient?: Api;
     rateLimitCache: RateLimitCache;
     identifyLock: Lock;
-    private host;
-    private port;
-    private channel;
     constructor(options?: RpcServerOptions);
     private get bindArgs();
     addRequestService(token: string, apiOptions?: IApiOptions): void;

@@ -523,7 +523,7 @@ export type ActivitySecrets = {
 
 // ========================================================================
 
-export enum ActivityFlags {
+export const enum ActivityFlags {
   INSTANCE = 1 << 0,
   JOIN = 1 << 1,
   SPECTATE = 1 << 2,

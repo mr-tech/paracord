@@ -31,13 +31,13 @@ export default class RpcServer extends grpc.Server {
   public identifyLock: Lock;
 
   /** Destination host. */
-  private host: string;
+  #host: string;
 
   /** Destination port. */
-  private port: string | number;
+  #port: string | number;
 
   /** GRPC channel to receive connections with. */
-  private channel: ServerCredentials;
+  #channel: ServerCredentials;
 
   /**
    * Creates a new rpc Server.
@@ -49,9 +49,9 @@ export default class RpcServer extends grpc.Server {
       host, port, channel, emitter, apiClient, identifyLock,
     } = options;
 
-    this.host = host ?? '127.0.0.1';
-    this.port = port ?? '50051';
-    this.channel = channel ?? grpc.ServerCredentials.createInsecure();
+    this.#host = host ?? '127.0.0.1';
+    this.#port = port ?? '50051';
+    this.#channel = channel ?? grpc.ServerCredentials.createInsecure();
     this.emitter = emitter;
     this.apiClient = apiClient;
     this.identifyLock = identifyLock ?? new Lock(this.emitter);
