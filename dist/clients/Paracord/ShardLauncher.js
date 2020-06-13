@@ -46,7 +46,11 @@ class ShardLauncher {
         ShardLauncher.validateParams(main, options);
         __classPrivateFieldSet(this, _main, main);
         __classPrivateFieldSet(this, _appName, options.appName !== undefined ? options.appName : 'Discord Bot');
-        Object.assign(this, options);
+        __classPrivateFieldSet(this, _shardIds, options.shardIds);
+        __classPrivateFieldSet(this, _shardChunks, options.shardChunks);
+        __classPrivateFieldSet(this, _shardCount, options.shardCount);
+        __classPrivateFieldSet(this, _env, options.env);
+        __classPrivateFieldSet(this, _token, options.token);
         this.bindCallbackFunctions();
     }
     static validateParams(main, options) {
@@ -146,6 +150,8 @@ class ShardLauncher {
     }
     getRecommendedShards() {
         return __awaiter(this, void 0, void 0, function* () {
+            if (__classPrivateFieldGet(this, _token) === undefined)
+                throw Error('token required when shardChunks and shardCount are not provided');
             const api = new Api_1.default(__classPrivateFieldGet(this, _token));
             const { status, statusText, data } = yield api.request('get', 'gateway/bot');
             if (status === 200) {
@@ -155,7 +161,7 @@ class ShardLauncher {
         });
     }
     detach(err) {
-        if (__classPrivateFieldSet(this, _launchCount, +__classPrivateFieldGet(this, _launchCount) - 1) === 0) {
+        if (__classPrivateFieldGet(this, _launchCount) && __classPrivateFieldSet(this, _launchCount, +__classPrivateFieldGet(this, _launchCount) - 1) === 0) {
             console.log('All shards launched. Disconnecting from pm2.');
             pm2_1.default.disconnect();
         }

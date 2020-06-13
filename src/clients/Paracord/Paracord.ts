@@ -62,9 +62,9 @@ export default class Paracord extends EventEmitter {
     serverOptions: ILockServiceOptions[],
   };
 
-  #apiOptions: Partial<IApiOptions>;
+  #apiOptions: Partial<IApiOptions> | undefined;
 
-  #gatewayOptions: Partial<GatewayOptions>;
+  #gatewayOptions: Partial<GatewayOptions> | undefined;
 
   /* State that tracks the start up process. */
   /** Timestamp of the last gateway identify. */
@@ -145,11 +145,10 @@ export default class Paracord extends EventEmitter {
     this.#gatewayWaitCount = 0;
     this.#allowEventsDuringStartup = false;
     this.#preventLogin = false;
-    this.#apiOptions = {};
-    this.#gatewayOptions = {};
     this.safeGatewayIdentifyTimestamp = 0;
-
-    Object.assign(this, options);
+    this.#events = options.events;
+    this.#apiOptions = options.apiOptions;
+    this.#gatewayOptions = options.gatewayOptions;
 
     if (options.autoInit !== false) {
       this.init();
@@ -445,7 +444,7 @@ export default class Paracord extends EventEmitter {
     if (this.#initialized) {
       throw Error('Client has already been initialized.');
     }
-    this.#api = this.setUpApi(this.token, this.#apiOptions);
+    this.#api = this.setUpApi(this.token, this.#apiOptions ?? {});
     this.selfAssignHandlerFunctions();
     this.#initialized = true;
   }

@@ -87,10 +87,10 @@ class Paracord extends events_1.EventEmitter {
         __classPrivateFieldSet(this, _gatewayWaitCount, 0);
         __classPrivateFieldSet(this, _allowEventsDuringStartup, false);
         __classPrivateFieldSet(this, _preventLogin, false);
-        __classPrivateFieldSet(this, _apiOptions, {});
-        __classPrivateFieldSet(this, _gatewayOptions, {});
         this.safeGatewayIdentifyTimestamp = 0;
-        Object.assign(this, options);
+        __classPrivateFieldSet(this, _events, options.events);
+        __classPrivateFieldSet(this, _apiOptions, options.apiOptions);
+        __classPrivateFieldSet(this, _gatewayOptions, options.gatewayOptions);
         if (options.autoInit !== false) {
             this.init();
         }
@@ -290,10 +290,11 @@ class Paracord extends events_1.EventEmitter {
         this.gatewayLoginQueue.push(gateway);
     }
     init() {
+        var _a;
         if (__classPrivateFieldGet(this, _initialized)) {
             throw Error('Client has already been initialized.');
         }
-        __classPrivateFieldSet(this, _api, this.setUpApi(this.token, __classPrivateFieldGet(this, _apiOptions)));
+        __classPrivateFieldSet(this, _api, this.setUpApi(this.token, (_a = __classPrivateFieldGet(this, _apiOptions)) !== null && _a !== void 0 ? _a : {}));
         this.selfAssignHandlerFunctions();
         __classPrivateFieldSet(this, _initialized, true);
     }

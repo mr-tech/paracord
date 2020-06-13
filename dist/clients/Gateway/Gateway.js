@@ -55,7 +55,7 @@ class Gateway {
         _identity.set(this, void 0);
         _mainRpcServiceOptions.set(this, void 0);
         _rpcServiceOptions.set(this, void 0);
-        const { emitter, identity, identity: { shard }, api, wsUrl, } = options;
+        const { emitter, identity, identity: { shard }, api, wsUrl, events, } = options;
         if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
             throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
         }
@@ -71,6 +71,7 @@ class Gateway {
         __classPrivateFieldSet(this, _api, api);
         __classPrivateFieldSet(this, _wsUrl, wsUrl);
         __classPrivateFieldSet(this, _rpcServiceOptions, []);
+        __classPrivateFieldSet(this, _events, events);
         __classPrivateFieldSet(this, _wsUrlRetryWait, constants_1.DEFAULT_GATEWAY_BOT_WAIT);
         this.bindTimerFunctions();
     }

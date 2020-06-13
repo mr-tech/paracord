@@ -105,7 +105,7 @@ export default class Gateway {
    */
   public constructor(token: string, options: GatewayOptions) {
     const {
-      emitter, identity, identity: { shard }, api, wsUrl,
+      emitter, identity, identity: { shard }, api, wsUrl, events,
     } = options;
 
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
@@ -124,6 +124,7 @@ export default class Gateway {
     this.#api = api;
     this.#wsUrl = wsUrl;
     this.#rpcServiceOptions = [];
+    this.#events = events;
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.bindTimerFunctions();
@@ -1046,7 +1047,6 @@ export default class Gateway {
       'INFO',
       `Received Invalid Session packet. Resumable: ${resumable}`,
     );
-
 
     if (!resumable) {
       this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);

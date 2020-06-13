@@ -1,8 +1,8 @@
 import { EventEmitter } from 'events';
 import { UserEvents } from '../../common';
-import { Identify } from '../../types';
 import Api from '../Api/Api';
 import { IApiResponse } from '../Api/types';
+import { Identify, IdentifyConnectionProperties, GatewayStatusUpdate } from '../../types';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
@@ -56,4 +56,31 @@ export type WebsocketRateLimitCache = {
   resetTimestamp: number;
   /** How many more requests will be allowed. */
   remainingRequests: number;
+}
+
+
+export type IdentityOptions = {
+  /** authentication token */
+  token: string;
+
+  /** used for Guild Sharding */
+  shard?: [number, number]; // (shardId, numShards);
+
+  /** information about the client and how it's connecting */
+  properties?: IdentifyConnectionProperties;
+
+  /** whether this connection supports compression of packets */
+  compress?: boolean; // false
+
+  /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
+  largeThreshold?: number; // 50
+
+  /** presence structure for initial presence information */
+  presence?: GatewayStatusUpdate;
+
+  /** enables dispatching of guild subscription events (presence and typing events) */
+  guildSubscriptions?: boolean; // true
+
+  /** the Gateway Intents you wish to receive */
+  intents?: number;
 }
