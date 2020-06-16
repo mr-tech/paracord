@@ -280,10 +280,7 @@ export default class Gateway {
       limit: 0, query: '', presences: false, userIds: [],
     };
 
-    Object.assign(sendOptions, options);
-
-    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS,
-      <GuildRequestMembers> objectKeysCamelToSnake({ guildId, ...options }));
+    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guildId, ...Object.assign(sendOptions, options) });
   }
 
   private async checkLocksPromise(resolve: () => void): Promise<void> {

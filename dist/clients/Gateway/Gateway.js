@@ -164,8 +164,7 @@ class Gateway {
         const sendOptions = {
             limit: 0, query: '', presences: false, userIds: [],
         };
-        Object.assign(sendOptions, options);
-        return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, utils_1.objectKeysCamelToSnake(Object.assign({ guildId }, options)));
+        return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, Object.assign({ guildId }, Object.assign(sendOptions, options)));
     }
     checkLocksPromise(resolve) {
         return __awaiter(this, void 0, void 0, function* () {
