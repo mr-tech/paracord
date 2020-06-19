@@ -1,4 +1,5 @@
 import { Integration, Snowflake } from '.';
+import { RawPresence } from './gateway';
 
 export type RawUser = {
   /** the user's id */
@@ -27,6 +28,7 @@ export type RawUser = {
   premiumType?: number; // identify
   /** the public flags on a user's account */
   publicFlags?: number; // identify
+  presence: RawPresence | undefined;
 };
 
 // ========================================================================

@@ -1,14 +1,57 @@
+/* eslint-disable max-classes-per-file */
+
 import { PERMISSIONS } from '../../../constants';
 import {
-  DefaultMessageNotificationLevel, EmojiMap, ExplicitContentFilterLevel, GuildChannel, GuildChannelMap, GuildEmoji, GuildFeature, GuildMember, GuildMemberMap, GuildMemberUpdateEventFields, GuildRole, GuildVoiceState, ISO8601timestamp, MFALevel, PremiumTier, PresenceMap, RawChannel, RawEmoji, RawGuild, RawGuildMember, RawPresence, RawRole, RawVoiceState, RoleMap, Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion, VoiceStateMap,
+  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawPresence, RawRole, RawUser, Snowflake, SystemChannelFlags, UnavailableGuild, VerificationLevel, VoiceRegion, GuildMemberUpdateEventFields,
 } from '../../../types';
 import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../utils';
 import Paracord from '../Paracord';
+import {
+  EmojiMap, GuildChannel, GuildChannelMap, GuildEmoji, GuildMember, GuildMemberMap, GuildRole, GuildVoiceState, Presence, PresenceMap, RoleMap, VoiceStateMap,
+} from '../types';
+import Base from './Base';
+
+// const props: GuildPropFilter = ['name', 'icon', 'splash', 'discoverySplash', 'ownerId', 'region', 'afkChannelId',
+//   'afkTimeout', 'embedEnabled', 'embedChannelId', 'verificationLevel', 'defaultMessageNotifications',
+//   'explicitContentFilter', 'features', 'mfaLevel', 'applicationId', 'widgetEnabled', 'widgetChannelId',
+//   'systemChannelId', 'systemChannelFlags', 'rulesChannelId', 'joinedAt', 'large', 'unavailable',
+//   'memberCount', 'maxPresences', 'vanityUrlCode', 'description', 'banner', 'premiumTier',
+//   'premiumSubscriptionCount', 'preferredLocale', 'publicUpdatesChannelId', 'maxVideoChannelUsers',
+//   'owner', 'me', 'roles', 'emojiIds', 'channelIds', 'memberIds', 'presenceIds', 'voiceStateIds'];
+// const caches: GuildCacheFilter = ['roles', 'emojis', 'channels', 'members', 'presences', 'voiceStates'];
+
+type WildCardCache = GuildChannel | GuildMember | GuildRole | GuildEmoji | GuildVoiceState | Presence | undefined
 
 /** A Discord guild. */
-export default class Guild {
+export default class Guild extends Base {
+  #client: Paracord;
+
+  /** channels in the guild */
+  #channels: GuildChannelMap | undefined;
+
+  /** users in the guild */
+  #members: GuildMemberMap | undefined;
+
+  /** roles in the guild */
+  #roles: RoleMap | undefined;
+
+  /** custom guild emojis */
+  #emojis: EmojiMap | undefined;
+
+  /** states of members currently in voice channels; lacks the `guild_id` key */
+  #voiceStates: VoiceStateMap | undefined;
+
+  /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
+  #presences: PresenceMap | undefined;
+
+  /** true if this guild is unavailable due to an outage */
+  public unavailable: boolean;
+
+  /** total number of members in this guild */
+  public memberCount?: number;
+
   /** guild id */
-  public readonly id!: Snowflake;
+  public readonly id: Snowflake;
 
   /** guild name (2-100 characters, excluding trailing and leading whitespace) */
   public readonly name!: string;
@@ -23,12 +66,7 @@ export default class Guild {
   public readonly discoverySplash!: string | null;
 
   /** id of owner */
-  public readonly ownerId!: Snowflake;
-
-  // /** total permissions for the user in the guild (excludes overrides) */
-  // public get permissions(): number {
-  //   return this.hasPermission;
-  // }
+  public ownerId!: Snowflake;
 
   /** voice region id for the guild */
   public readonly region!: VoiceRegion;
@@ -36,14 +74,10 @@ export default class Guild {
   /** id of afk channel */
   public readonly afkChannelId!: Snowflake | null;
 
+  public afkChannel: GuildChannel | undefined;
+
   /** afk timeout in seconds */
   public readonly afkTimeout!: number;
-
-  /** true if the server widget is enabled (deprecated, replaced with `widget_enabled`) */
-  public readonly embedEnabled?: boolean;
-
-  /** the channel id that the widget will generate an invite to, or `null` if set to no invite (deprecated, replaced with `widget_channel_id`) */
-  public readonly embedChannelId?: Snowflake | null;
 
   /** verification level required for the guild */
   public readonly verificationLevel!: VerificationLevel;
@@ -53,12 +87,6 @@ export default class Guild {
 
   /** explicit content filter level */
   public readonly explicitContentFilter!: ExplicitContentFilterLevel;
-
-  /** roles in the guild */
-  public readonly roles: RoleMap;
-
-  /** custom guild emojis */
-  public readonly emojis: EmojiMap;
 
   /** enabled guild features */
   public readonly features!: GuildFeature[];
@@ -75,8 +103,12 @@ export default class Guild {
   /** the channel id that the widget will generate an invite to, or `null` if set to no invite */
   public readonly widgetChannelId?: Snowflake | null;
 
+  public widgetChannel: GuildChannel | undefined;
+
   /** the id of the channel where guild notices such as welcome messages and boost events are posted */
   public readonly systemChannelId!: Snowflake | null;
+
+  public systemChannel: GuildChannel | undefined;
 
   /** system channel flags */
   public readonly systemChannelFlags!: SystemChannelFlags;
@@ -84,29 +116,13 @@ export default class Guild {
   /** the id of the channel where guilds with the "PUBLIC" feature can display rules and/or guidelines */
   public readonly rulesChannelId!: Snowflake | null;
 
+  public rulesChannel: GuildChannel | undefined;
+
   /** when this guild was joined at */
   public readonly joinedAt!: ISO8601timestamp;
 
   /** true if this is considered a large guild */
   public readonly large?: boolean;
-
-  /** true if this guild is unavailable due to an outage */
-  public unavailable: boolean;
-
-  /** total number of members in this guild */
-  public memberCount?: number;
-
-  /** states of members currently in voice channels; lacks the `guild_id` key */
-  public readonly voiceStates: VoiceStateMap;
-
-  /** users in the guild */
-  public readonly members: GuildMemberMap;
-
-  /** channels in the guild */
-  public readonly channels: GuildChannelMap;
-
-  /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
-  public readonly presences: PresenceMap;
 
   /** the maximum number of presences for the guild (the default value, currently 25000, is in effect when `null` is returned) */
   public readonly maxPresences?: number | null;
@@ -135,17 +151,26 @@ export default class Guild {
   /** the id of the channel where admins and moderators of guilds with the "PUBLIC" feature receive notices from Discord */
   public readonly publicUpdatesChannelId!: Snowflake | null;
 
+  public publicUpdatesChannel: GuildChannel | undefined;
+
   /** the maximum amount of users in a video channel */
   public readonly maxVideoChannelUsers?: number;
 
-  /** The guild owner's member object if cached. */
-  public owner?: GuildMember;
-
-  /** The bot's member object. */
-  public me!: GuildMember;
-
   /** Shard id of the gateway connection this guild originated from. */
   public readonly shard: number;
+
+  // Paracord Properties
+
+  /** The guild owner's member object if cached. */
+  public owner: GuildMember | undefined;
+
+  /** The bot's member object. */
+  public me: GuildMember | undefined;
+
+  // /** total permissions for the user in the guild (excludes overrides) */
+  // public get permissions(): number {
+  //   return this.hasPermission;
+  // }
 
   /**
    * Creates a new guild object.
@@ -153,17 +178,77 @@ export default class Guild {
    * @param client Paracord client.
    * @param shard Shard id of the gateway connection this guild originated from.
    */
-  public constructor(guildData: Partial<RawGuild>, client: Paracord, shard: number) {
-    this.members = new Map();
-    this.channels = new Map();
-    this.presences = new Map();
-    this.voiceStates = new Map();
-    this.roles = new Map();
-    this.emojis = new Map();
-    this.unavailable = guildData.unavailable ?? false;
+  public constructor(guildData: AugmentedRawGuild | UnavailableGuild, client: Paracord, shard: number) {
+    super(); // TODO
+
+    this.#client = client;
     this.shard = shard;
 
-    this.update(guildData, client);
+    ({ id: this.id } = guildData);
+    this.unavailable = guildData.unavailable ?? false;
+
+    // TODO initialize caches from config
+
+    this.update(guildData);
+  }
+
+  public get client(): Paracord {
+    return this.#client;
+  }
+
+  public get channels(): GuildChannelMap {
+    const channels = this.#channels;
+    if (channels === undefined) throw Error('channels are not cached');
+    return channels;
+  }
+
+  public get members(): GuildMemberMap {
+    if (this.#members === undefined) throw Error('members are not cached');
+    return this.#members;
+  }
+
+  public get presences(): PresenceMap {
+    if (this.#presences === undefined) throw Error('presences are not cached');
+    return this.#presences;
+  }
+
+  public get voiceStates(): VoiceStateMap {
+    if (this.#voiceStates === undefined) throw Error('voiceStates are not cached');
+    return this.#voiceStates;
+  }
+
+  public get roles(): RoleMap {
+    if (this.#roles === undefined) throw Error('roles are not cached');
+    return this.#roles;
+  }
+
+  public get emojis(): EmojiMap {
+    if (this.#emojis === undefined) throw Error('emojis are not cached');
+    return this.#emojis;
+  }
+
+  public get unsafe_channels(): GuildChannelMap | undefined {
+    return this.#channels;
+  }
+
+  public get unsafe_members(): GuildMemberMap | undefined {
+    return this.#members;
+  }
+
+  public get unsafe_presences(): PresenceMap | undefined {
+    return this.#presences;
+  }
+
+  public get unsafe_voiceStates(): VoiceStateMap | undefined {
+    return this.#voiceStates;
+  }
+
+  public get unsafe_roles(): RoleMap | undefined {
+    return this.#roles;
+  }
+
+  public get unsafe_emojis(): EmojiMap | undefined {
+    return this.#emojis;
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
@@ -182,38 +267,36 @@ export default class Guild {
    * @param guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
    * @param client Paracord client.
    */
-  public update(guildData: Partial<RawGuild>, client: Paracord): Guild {
-    if (guildData.channels !== undefined) {
-      guildData.channels.forEach((c) => this.upsertChannel(c));
-      delete guildData.channels;
+  public update(guildData: Partial<AugmentedRawGuild>): Guild {
+    const {
+      channels, roles, emojis, members, voice_states, presences, ...rest
+    } = guildData;
+
+    if (channels !== undefined && this.#channels !== undefined) {
+      channels.forEach((c) => this.insertChannel(c));
     }
 
-    if (guildData.roles !== undefined) {
-      guildData.roles.forEach((r) => this.upsertRole(r));
-      delete guildData.roles;
+    if (members !== undefined && this.#members !== undefined) {
+      members.forEach((m) => this.insertMember(m));
     }
 
-    if (guildData.emojis !== undefined) {
-      guildData.emojis.forEach((e) => this.upsertEmoji(e));
-      delete guildData.emojis;
+    if (roles !== undefined && this.#roles !== undefined) {
+      roles.forEach((r) => this.insertRole(r));
     }
 
-    if (guildData.members !== undefined) {
-      guildData.members.forEach((m) => this.upsertMember(m, client));
-      delete guildData.members;
+    if (presences !== undefined && this.#presences !== undefined) {
+      presences.forEach((p) => this.insertPresence(p));
     }
 
-    if (guildData.voiceStates !== undefined) {
-      guildData.voiceStates.forEach((v) => this.upsertVoiceState(v, client));
-      delete guildData.voiceStates;
+    if (voice_states !== undefined && this.#voiceStates !== undefined) {
+      voice_states.forEach((v) => this.insertVoiceState(v));
     }
 
-    if (guildData.presences !== undefined) {
-      guildData.presences.forEach((p) => this.upsertPresence(p, client));
-      delete guildData.presences;
+    if (emojis !== undefined && this.#emojis !== undefined) {
+      this.updateEmojiCache(emojis);
     }
 
-    Object.assign(this, guildData);
+    super.update(rest);
 
     return this;
   }
@@ -229,6 +312,8 @@ export default class Guild {
    * @returns `true` if member has the permission.
    */
   public hasPermission(permission: number, member: GuildMember, adminOverride = true): boolean {
+    if (this.#roles === undefined) throw Error('roles are not cached');
+
     const perms = computeGuildPerms({ member, guild: this, stopOnOwnerAdmin: adminOverride });
 
     if (perms & PERMISSIONS.ADMINISTRATOR && adminOverride) {
@@ -242,8 +327,11 @@ export default class Guild {
    * @returns `true` if member has the permission.
    */
   public hasChannelPermission(permission: number, member: GuildMember, channel: GuildChannel | Snowflake, stopOnOwnerAdmin = true): boolean {
+    if (this.#roles === undefined) throw Error('roles are not cached');
+    if (this.#channels === undefined) throw Error('channels are not cached');
+
     if (typeof channel === 'string') {
-      channel = this.channels.get(channel) ?? channel;
+      channel = this.#channels.get(channel) ?? channel;
     }
 
     if (typeof channel === 'string') {
@@ -266,46 +354,56 @@ export default class Guild {
    ********************************
    */
 
+  // private static removeFromCache(cache: Map<string, WildCardCache> | undefined, idCache: Snowflake[] | undefined, id: Snowflake): WildCardCache | undefined {
+  private static removeFromCache(cache: Map<string, WildCardCache> | undefined, id: Snowflake): WildCardCache | undefined {
+    if (cache === undefined) return undefined;
+
+    const resource = cache.get(id);
+    cache.delete(id);
+    return resource;
+  }
+
   /**
    * Add a channel with some additional information to a map of channels.
    * @param channel https://discordapp.com/developers/docs/resources/channel#channel-object-channel-structure
    */
-  public upsertChannel(channel: RawChannel): GuildChannel {
-    const { channels } = this;
-    const cachedChannel = <GuildChannel>Object.assign(channels.get(channel.id) || {}, channel);
-    channels.set(channel.id, cachedChannel);
-    cachedChannel.guildId = this.id;
+  // TODO: NO
+  public insertChannel(channel: RawChannel): GuildChannel | undefined {
+    const channels = this.#channels;
+    if (channels === undefined) return undefined;
 
-    return cachedChannel;
+    const { id } = channel;
+    const guildChannel = this.cacheChannel(channels, id, channel);
+    if ((this.afkChannelId ?? false) && id === this.afkChannelId) this.afkChannel = guildChannel;
+    if ((this.rulesChannelId ?? false) && id === this.rulesChannelId) this.rulesChannel = guildChannel;
+    if ((this.systemChannelId ?? false) && id === this.systemChannelId) this.systemChannel = guildChannel;
+    if ((this.widgetChannelId ?? false) && id === this.widgetChannelId) this.widgetChannel = guildChannel;
+    if ((this.publicUpdatesChannelId ?? false) && id === this.publicUpdatesChannelId) this.publicUpdatesChannel = guildChannel;
+    return guildChannel;
   }
 
-  /**
-   * Add a role with some additional information to a map of roles.
-   * @param role https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
-   */
-  public upsertRole(role: RawRole): GuildRole {
-    const { roles } = this;
+  public updateChannel(channel: RawChannel): GuildChannel | undefined {
+    const channels = this.#channels;
+    if (channels === undefined) return undefined;
 
-    const cachedRole = <GuildRole>Object.assign(roles.get(role.id) || {}, role);
-    roles.set(role.id, cachedRole);
-
-    return cachedRole;
-  }
-
-  /**
-   * Add a role with some additional information to a map of roles.
-   * @param emoji https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
-   */
-  private upsertEmoji(emoji: RawEmoji): RawEmoji | GuildEmoji {
-    const { id } = emoji;
-    const { emojis } = this;
-
-    if (id !== null) {
-      emoji = <GuildEmoji>Object.assign(emojis.get(id) || {}, emoji);
-      emojis.set(id, emoji);
+    const { id } = channel;
+    const cachedChannel = channels.get(id);
+    if (cachedChannel === undefined) {
+      return this.cacheChannel(channels, id, channel);
     }
 
-    return emoji;
+    return <GuildChannel>Object.assign(cachedChannel, channel);
+  }
+
+  private cacheChannel(channels: GuildChannelMap, id: RawChannel['id'], channel: RawChannel): GuildChannel {
+    (<GuildChannel>channel).guild = this;
+    channels.set(id, <GuildChannel>channel);
+
+    return <GuildChannel>channel;
+  }
+
+  public removeChannel(id: RawChannel['id']): GuildChannel | undefined {
+    return <GuildChannel | undefined>Guild.removeFromCache(this.#channels, id);
   }
 
   /**
@@ -313,32 +411,142 @@ export default class Guild {
    * @param member https://discordapp.com/developers/docs/resources/guild#guild-member-object
    * @param client
    */
-  public upsertMember(member: RawGuildMember | GuildMemberUpdateEventFields, client: Paracord): GuildMember {
-    const { user } = member;
+  public insertMember(member: AugmentedRawGuildMember): GuildMember | undefined {
+    const members = this.#members;
+    if (members === undefined) return undefined;
 
+    const { user, user: { id } } = member;
+    const cachedMember = this.cacheMember(members, id, member, user);
+
+    if (this.owner === undefined && this.ownerId === id) {
+      this.owner = cachedMember;
+      this.ownerId = id;
+    }
+    if (this.me === undefined && this.#client.user.id === id) {
+      this.me = cachedMember;
+      user.id = this.#client.user.id;
+    }
+
+    return cachedMember;
+  }
+
+  public updateMember(member: AugmentedRawGuildMember | GuildMemberUpdateEventFields): GuildMember | undefined {
+    const members = this.#members;
+    if (members === undefined) return undefined;
+
+    const { user, user: { id } } = member;
+    const cachedMember = members.get(id);
+    if (cachedMember === undefined) {
+      return (<AugmentedRawGuildMember>member).joined_at !== undefined
+        ? this.cacheMember(members, id, (<AugmentedRawGuildMember>member), user)
+        : undefined;
+    }
+
+    member.user = this.#client.upsertUser(user);
+    return <GuildMember>Object.assign(cachedMember, member);
+  }
+
+  private cacheMember(members: GuildMemberMap, id: AugmentedRawGuildMember['user']['id'], member: AugmentedRawGuildMember, user: RawUser): GuildMember {
     const now = new Date().getTime();
     const readOnly = {
-      get cachedTimestamp() {
+      _lastAccessedTimestamp: 0,
+      updateAccessTimestamp(): void {
+        this._lastAccessedTimestamp = new Date().getTime();
+      },
+      get lastAccessedTimestamp(): number {
+        return this._lastAccessedTimestamp;
+      },
+      get cachedTimestamp(): number {
         return now;
       },
     };
 
-    member = { ...member, ...readOnly };
-
-    member.user = client.upsertUser(user);
-
-    const { members } = this;
-    const cachedMember = <GuildMember>Object.assign(members.get(user.id) || {}, member);
-    members.set(user.id, cachedMember);
-
-    if (this.ownerId === user.id) {
-      this.owner = cachedMember;
-    }
-    if (client.user.id === user.id) {
-      this.me = cachedMember;
-    }
+    member.user = this.#client.upsertUser(user);
+    (<GuildMember>member).guild = this;
+    members.set(id, Object.assign(<GuildMember>member, readOnly));
 
     return <GuildMember>member;
+  }
+
+  public incrementMemberCount(): void{
+    this.memberCount !== undefined && ++this.memberCount;
+  }
+
+  public decrementMemberCount(): void{
+    this.memberCount !== undefined && --this.memberCount;
+  }
+
+  public removeMember(id: AugmentedRawGuildMember['user']['id']): GuildMember | undefined {
+    const presences = this.#presences;
+    if (presences !== undefined) this.presences.delete(id);
+    return <GuildMember | undefined>Guild.removeFromCache(this.#members, id);
+  }
+
+  /**
+   * Add a role with some additional information to a map of roles.
+   * @param role https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
+   */
+  public insertRole(role: RawRole): GuildRole | undefined {
+    const roles = this.#roles;
+    if (roles === undefined) return undefined;
+
+    const { id } = role;
+    return this.cacheRole(roles, id, role);
+  }
+
+  public updateRole(role: RawRole): GuildRole | undefined {
+    const roles = this.#roles;
+    if (roles === undefined) return undefined;
+
+    const { id } = role;
+    const cachedRole = roles.get(id);
+    if (cachedRole === undefined) {
+      return this.cacheRole(roles, id, role);
+    }
+
+    return <GuildRole>Object.assign(cachedRole, role);
+  }
+
+  private cacheRole(roles: RoleMap, id: RawRole['id'], role: RawRole): GuildRole {
+    (<GuildRole>role).guild = this;
+    roles.set(id, <GuildRole>role);
+
+    return <GuildRole>role;
+  }
+
+  public removeRole(id: RawRole['id']): GuildRole | undefined {
+    return <GuildRole | undefined>Guild.removeFromCache(this.#roles, id);
+  }
+
+  /**
+   * Add a role with some additional information to a map of roles.
+   * @param emoji https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
+   */
+  public updateEmojiCache(emojis: GuildEmoji[]): [GuildEmoji[], GuildEmoji[]] | undefined {
+    const emojiCache = this.#emojis;
+    if (emojiCache === undefined) return undefined;
+
+    const removedEmojis = Array.from(emojiCache.values());
+    const newEmojis: GuildEmoji[] = [];
+    while (emojis.length) {
+      const emoji = <GuildEmoji>emojis.shift();
+      const { id } = emoji;
+      const cachedEmoji = emojiCache.get(id);
+      if (cachedEmoji !== undefined) {
+        removedEmojis.splice(removedEmojis.indexOf(emoji), 1);
+      } else {
+        newEmojis.push(<GuildEmoji> this.cacheEmoji(emojiCache, id, emoji));
+      }
+    }
+    removedEmojis.forEach(({ id }) => emojiCache.delete(id));
+    return [newEmojis, removedEmojis];
+  }
+
+  private cacheEmoji(emojis: EmojiMap, id: GuildEmoji['id'], emoji: GuildEmoji): GuildEmoji {
+    (<GuildEmoji>emoji).guild = this;
+    emojis.set(id, <GuildEmoji>emoji);
+
+    return <GuildEmoji>emoji;
   }
 
   /**
@@ -346,16 +554,20 @@ export default class Guild {
    * @param voiceState https://discordapp.com/developers/docs/resources/voice
    * @param client
    */
-  public upsertVoiceState(voiceState: RawVoiceState, client: Paracord): GuildVoiceState {
-    const { userId, member } = voiceState;
+  public insertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
+    const voiceStates = this.#voiceStates;
+    if (voiceStates === undefined) return undefined;
 
-    const cachedMember = this.members.get(userId) ?? (member !== undefined ? this.upsertMember(member, client) : undefined);
+    const { user_id: userId, member } = voiceState;
 
-    if (cachedMember !== undefined) {
-      voiceState.member = cachedMember;
+    const members = this.#members;
+    if (members !== undefined) {
+      const cachedMember = members.get(userId) ?? this.updateMember(member);
+      if (cachedMember !== undefined) {
+        voiceState.member = cachedMember;
+      }
     }
 
-    const { voiceStates } = this;
     voiceStates.set(userId, <GuildVoiceState>voiceState);
 
     return <GuildVoiceState>voiceState;
@@ -366,10 +578,11 @@ export default class Guild {
    * @param presence https://discordapp.com/developers/docs/topics/gateway#presence-update-presence-update-event-fields
    * @param client
    */
-  private upsertPresence(presence: RawPresence, client: Paracord): RawPresence {
-    const { presences } = this;
+  private insertPresence(presence: RawPresence): RawPresence | undefined {
+    const presences = this.#presences;
+    if (presences === undefined) return undefined;
 
-    const cachedPresence = <RawPresence | undefined>client.updatePresences(presence);
+    const cachedPresence = <RawPresence | undefined> this.#client.updatePresences(presence);
     if (cachedPresence !== undefined) {
       presences.set(cachedPresence.user.id, cachedPresence);
     }
@@ -382,15 +595,17 @@ export default class Guild {
    * @param presence
    */
   public setPresence(presence: RawPresence): void {
-    this.presences.set(presence.user.id, presence);
+    const presences = this.#presences;
+    if (presences !== undefined) presences.set(presence.user.id, presence);
   }
 
   /**
    * Remove a presence from this guild's presence cache.
    * @param userId
    */
-  public deletePresence(userId: Snowflake): void {
-    this.presences.delete(userId);
+  public deletePresence(userId: RawUser['id']): void {
+    const presences = this.#presences;
+    if (presences !== undefined) presences.delete(userId);
   }
 
   // /**

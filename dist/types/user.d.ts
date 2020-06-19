@@ -1,4 +1,5 @@
 import { Integration, Snowflake } from '.';
+import { RawPresence } from './gateway';
 export declare type RawUser = {
     id: Snowflake;
     username: string;
@@ -13,6 +14,7 @@ export declare type RawUser = {
     flags?: number;
     premiumType?: number;
     publicFlags?: number;
+    presence: RawPresence | undefined;
 };
 export declare const enum UserFlags {
     None = 0,

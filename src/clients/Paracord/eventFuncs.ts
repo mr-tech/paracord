@@ -1,12 +1,13 @@
-import { CHANNEL_TYPES, SECOND_IN_MILLISECONDS } from '../../constants';
+import { SECOND_IN_MILLISECONDS } from '../../constants';
 import {
-  GuildChannel, GuildMember, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMembersChunkEventFields, GuildMemberUpdateEventFields, GuildRole, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, GuildVoiceState, Message, RawChannel, RawGuild, RawGuildMember, RawPresence, RawRole, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild, User,
+  AugmentedGuildMembersChunkEventFields, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawMessage, AugmentedRawVoiceState, GuildEmojisUpdateEventFields, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMembersChunkEventFields, GuildMemberUpdateEventFields, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, RawChannel, RawGuildMember, RawPresence, RawRole, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild, RawEmoji,
 } from '../../types';
 import Gateway from '../Gateway/Gateway';
 import Paracord from './Paracord';
 import Guild from './structures/Guild';
-
-const { DM, GROUP_DM } = CHANNEL_TYPES;
+import {
+  GuildChannel, GuildEmoji, GuildMember, GuildRole, GuildVoiceState, User, GuildMembersChunk,
+} from './types';
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
@@ -14,202 +15,6 @@ export function READY(this: Paracord, data: ReadyEventFields, shard: number): Re
   this.handleReady(data, shard);
 
   return data;
-}
-
-export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence | RawPresence {
-  const { guildId } = data;
-  if (guildId !== undefined) {
-    const guild = this.guilds.get(guildId);
-    this.handlePresence({ guild, presence: data });
-  }
-
-  return data;
-}
-
-export function USER_UPDATE(this: Paracord, data: RawUser): User {
-  return this.upsertUser(data);
-}
-
-export function MESSAGE_CREATE(this: Paracord, data: Message): Message {
-  const { guildId, member, author } = data;
-  if (guildId !== undefined) {
-    const guild = this.guilds.get(guildId);
-
-    if (guild !== undefined && member !== undefined) {
-      member.user = data.author;
-      data.member = this.cacheMemberFromEvent(guild, member);
-      data.author = member.user;
-    }
-    this.users.get(author.id);
-  } else {
-    const user = this.users.get(author.id);
-    if (user !== undefined) {
-      data.author = user;
-    }
-  }
-
-  return data;
-}
-
-export function VOICE_STATE_UPDATE(this: Paracord, data: RawVoiceState): GuildVoiceState | RawVoiceState {
-  const {
-    guildId, member, userId, channelId,
-  } = data;
-  if (guildId === undefined) return data;
-
-  const guild = this.guilds.get(guildId);
-  if (guild !== undefined) {
-    member !== undefined && this.cacheMemberFromEvent(guild, member);
-
-    if (channelId !== null) {
-      return guild.upsertVoiceState(data, this);
-    }
-
-    guild.voiceStates.delete(userId);
-  }
-
-  return data;
-}
-
-export function GUILD_MEMBER_ADD(
-  this: Paracord, data: RawGuildMember & GuildMemberAddExtraFields,
-): (RawGuildMember & GuildMemberAddExtraFields) | GuildMember {
-  const guild = this.guilds.get(data.guildId);
-  if (guild) {
-    guild.memberCount !== undefined && ++guild.memberCount;
-    return guild.upsertMember(data, this);
-  }
-
-  return data;
-}
-
-export function GUILD_MEMBER_UPDATE(
-  this: Paracord, data: GuildMemberUpdateEventFields,
-): GuildMember | GuildMemberUpdateEventFields {
-  const { guildId } = data;
-  const guild = this.guilds.get(guildId);
-  if (guild) {
-    return guild.upsertMember(data, this);
-  }
-
-  return data;
-}
-
-export function GUILD_MEMBER_REMOVE(
-  this: Paracord, { guildId, user }: GuildMemberRemoveEventFields,
-): GuildMember | { user: RawUser } {
-  const guild = this.guilds.get(guildId);
-  let member: { user: RawUser } | GuildMember = { user };
-  if (guild) {
-    guild.memberCount !== undefined && --guild.memberCount;
-    member = guild.members.get(user.id) || member;
-    guild.members.delete(user.id);
-    guild.presences.delete(user.id);
-  }
-
-  return member;
-}
-
-export function GUILD_MEMBERS_CHUNK(this: Paracord, data: GuildMembersChunkEventFields): GuildMembersChunkEventFields {
-  const {
-    notFound, guildId, presences, members,
-  } = data;
-  if (notFound) return data;
-
-  const guild = this.guilds.get(guildId);
-
-  if (presences !== undefined) data.presences = presences.map((p) => this.handlePresence({ guild, presence: p }));
-  if (guild !== undefined) {
-    data.members = members.map((m) => this.cacheMemberFromEvent(guild, m));
-  }
-
-  return data;
-}
-
-export function CHANNEL_CREATE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
-  const { type, guildId } = data;
-
-  if (type === DM || type === GROUP_DM || guildId === undefined) return data;
-
-  const guild = this.guilds.get(guildId);
-  return guild?.upsertChannel(data) ?? data;
-}
-
-export function CHANNEL_UPDATE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
-  const { type, guildId } = data;
-  if (type === DM || type === GROUP_DM || guildId === undefined) return data;
-
-  const guild = this.guilds.get(guildId);
-  return guild?.upsertChannel(data) ?? data;
-}
-
-export function CHANNEL_DELETE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
-  const { type, guildId } = data;
-  if (type === DM || type === GROUP_DM || guildId === undefined) return data;
-
-  let channel: RawChannel | GuildChannel = data;
-  const guild = this.guilds.get(guildId);
-  if (guild !== undefined) {
-    channel = guild.channels.get(channel.id) ?? channel;
-    guild.channels.delete(channel.id);
-  } else { // TODO: fallback to periodically scanning cache for channel
-    this.log('WARNING', `CHANNEL_DELETE received without guild in cache. guildId: ${guildId} | channel.id: ${channel.id}`);
-  }
-
-  return channel;
-}
-
-export function GUILD_ROLE_CREATE(
-  this: Paracord, { guildId, role: data }: GuildRoleCreateEventFields,
-): GuildRole | RawRole {
-  const guild = this.guilds.get(guildId);
-  return guild?.upsertRole(data) ?? data;
-}
-
-export function GUILD_ROLE_UPDATE(
-  this: Paracord, { guildId, role: data }: GuildRoleUpdateEventFields,
-): GuildRole | RawRole {
-  const guild = this.guilds.get(guildId);
-  return guild?.upsertRole(data) ?? data;
-}
-
-export function GUILD_ROLE_DELETE(
-  this: Paracord, { guildId, roleId }: GuildRoleDeleteEventFields,
-): GuildRole | undefined {
-  const guild = this.guilds.get(guildId);
-  let role;
-  if (guild !== undefined) {
-    role = guild.roles.get(roleId);
-    guild.roles.delete(roleId);
-  } else {
-    this.log('WARNING', `GUILD_ROLE_DELETE received without guild in cache. guildId: ${guildId} | roleId: ${roleId}`);
-  }
-
-  return role;
-}
-
-export function GUILD_CREATE(this: Paracord, data: RawGuild, shard: number): Guild | undefined {
-  return this.upsertGuild(data, shard);
-}
-
-export function GUILD_UPDATE(this: Paracord, data: RawGuild): Guild | undefined {
-  return this.upsertGuild(data);
-}
-
-export function GUILD_DELETE(this: Paracord, data: UnavailableGuild): Guild | UnavailableGuild | undefined {
-  const guild = this.guilds.get(data.id);
-  if (guild !== undefined) {
-    if (!data.unavailable) {
-      this.guilds.delete(data.id);
-      return guild;
-    }
-
-    guild.unavailable = true;
-    return guild;
-  }
-
-  this.log('WARNING', `Received GUILD_DELETE event for uncached guild. Id: ${data.id}`);
-  return undefined;
 }
 
 /**
@@ -242,4 +47,202 @@ export function GATEWAY_CLOSE(
       this.gatewayLoginQueue.push(gateway);
     }
   }
+}
+
+export function GUILD_CREATE(this: Paracord, data: AugmentedRawGuild, shard: number): Guild | AugmentedRawGuild {
+  return this.upsertGuild(data, shard) ?? data;
+}
+
+export function GUILD_UPDATE(this: Paracord, data: AugmentedRawGuild): Guild | AugmentedRawGuild {
+  return this.upsertGuild(data) ?? data;
+}
+
+export function GUILD_DELETE(this: Paracord, data: UnavailableGuild): Guild | UnavailableGuild {
+  const guild = this.guilds.get(data.id);
+  if (guild === undefined) {
+    this.log('WARNING', `Received GUILD_DELETE event for uncached guild. Id: ${data.id}`);
+    return data;
+  }
+
+  if (!data.unavailable) {
+    this.guilds.delete(data.id);
+    return guild;
+  }
+
+  guild.unavailable = true;
+  return guild;
+}
+
+export function USER_UPDATE(this: Paracord, data: RawUser): User {
+  return this.upsertUser(data);
+}
+
+export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence | RawPresence {
+  const { guild_id: guildId } = data;
+
+  const guild = guildId ? this.guilds.get(guildId) : undefined;
+  this.handlePresence(data, guild);
+
+  return data;
+}
+
+export function MESSAGE_CREATE(this: Paracord, data: AugmentedRawMessage): AugmentedRawMessage {
+  const { guild_id: guildId, author, member } = data;
+  if (guildId !== undefined) {
+    const guild = this.guilds.get(guildId);
+
+    if (guild !== undefined && member !== undefined) {
+      member.user = data.author;
+      data.member = cacheMemberFromEvent(guild, member);
+      data.author = member.user;
+    }
+    this.users.get(author.id);
+  } else {
+    const user = this.users.get(author.id);
+    if (user !== undefined) {
+      data.author = user;
+    }
+  }
+
+  return data;
+}
+
+export function VOICE_STATE_UPDATE(this: Paracord, data: AugmentedRawVoiceState): GuildVoiceState | RawVoiceState {
+  const {
+    guild_id: guildId, user_id: userId, channel_id: channelId,
+  } = data;
+  if (guildId === undefined) return data;
+
+  const guild = this.guilds.get(guildId);
+  if (guild !== undefined) {
+    if (channelId !== null) {
+      return guild.insertVoiceState(data) ?? data;
+    }
+
+    guild.voiceStates.delete(userId);
+  }
+
+  return data;
+}
+
+export function CHANNEL_CREATE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
+  const { guild_id: guildId } = data;
+
+  if (guildId === undefined) return data;
+
+  const guild = this.guilds.get(guildId);
+  return guild?.insertChannel(data) ?? data;
+}
+
+export function CHANNEL_UPDATE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
+  const { guild_id: guildId } = data;
+  if (guildId === undefined) return data;
+
+  const guild = this.guilds.get(guildId);
+  return guild?.updateChannel(data) ?? data;
+}
+
+export function CHANNEL_DELETE(this: Paracord, data: RawChannel): GuildChannel | RawChannel {
+  const { guild_id: guildId, id } = data;
+  if (guildId === undefined) return data;
+
+  const guild = this.guilds.get(guildId);
+
+  let channel;
+  if (guild !== undefined) {
+    channel = guild.removeChannel(id);
+  }
+
+  return channel ?? data;
+}
+
+export function GUILD_MEMBER_ADD(
+  this: Paracord, data: AugmentedRawGuildMember & GuildMemberAddExtraFields,
+): (RawGuildMember & GuildMemberAddExtraFields) | GuildMember {
+  const guild = this.guilds.get(data.guild_id);
+  if (guild !== undefined) {
+    guild.incrementMemberCount();
+    return guild.insertMember(data) ?? data;
+  }
+
+  return data;
+}
+
+export function GUILD_MEMBER_UPDATE(
+  this: Paracord, data: GuildMemberUpdateEventFields,
+): GuildMember | GuildMemberUpdateEventFields {
+  const { guild_id: guildId } = data;
+  const guild = this.guilds.get(guildId);
+  return guild?.updateMember(data) ?? data;
+}
+
+export function GUILD_MEMBER_REMOVE(
+  this: Paracord, data: GuildMemberRemoveEventFields,
+): GuildMember | { user: RawUser } {
+  const { guild_id: guildId, user } = data;
+  const guild = this.guilds.get(guildId);
+  if (guild !== undefined) {
+    guild.decrementMemberCount();
+    return guild.removeMember(user.id) ?? data;
+  }
+
+  return data;
+}
+
+export function GUILD_MEMBERS_CHUNK(this: Paracord, data: AugmentedGuildMembersChunkEventFields): GuildMembersChunk | AugmentedGuildMembersChunkEventFields {
+  const {
+    not_found: notFound, guild_id: guildId, presences, members,
+  } = data;
+  if (notFound) return data;
+
+  const guild = this.guilds.get(guildId);
+
+  if (presences !== undefined) data.presences = presences.map((p) => this.handlePresence(p, guild));
+  if (guild !== undefined) {
+    data.members = members.map((m) => cacheMemberFromEvent(guild, m));
+  }
+
+  return data;
+}
+
+export function GUILD_ROLE_CREATE(
+  this: Paracord, data: GuildRoleCreateEventFields,
+): GuildRole | GuildRoleCreateEventFields {
+  const { guild_id: guildId, role } = data;
+  const guild = this.guilds.get(guildId);
+  return guild?.insertRole(role) ?? data;
+}
+
+export function GUILD_ROLE_UPDATE(
+  this: Paracord, data: GuildRoleUpdateEventFields,
+): GuildRole | GuildRoleUpdateEventFields {
+  const { guild_id: guildId, role } = data;
+  const guild = this.guilds.get(guildId);
+  return guild?.updateRole(role) ?? data;
+}
+
+export function GUILD_ROLE_DELETE(
+  this: Paracord, data: GuildRoleDeleteEventFields,
+): GuildRole | GuildRoleDeleteEventFields {
+  const { guild_id: guildId, role_id: roleId } = data;
+  const guild = this.guilds.get(guildId);
+  return guild?.removeRole(roleId) ?? data;
+}
+
+export function GUILE_EMOJIS_UPDATE(
+  this: Paracord, data: GuildEmojisUpdateEventFields,
+): [GuildEmoji[], GuildEmoji[]] | GuildEmojisUpdateEventFields {
+  const { guild_id: guildId, emojis } = data;
+  const guild = this.guilds.get(guildId);
+  return guild?.updateEmojiCache(emojis) ?? data;
+}
+
+/**
+ * Processes a member object (e.g. from MESSAGE_CREATE, VOICE_STATE_UPDATE, etc.)
+ * @param guild Paracord guild.
+ * @param member From Discord. More information on a particular payload can be found in the official docs. https://discordapp.com/developers/docs/resources/guild#guild-member-object
+ */
+function cacheMemberFromEvent(guild: Guild, member: GuildMember | AugmentedRawGuildMember): GuildMember | AugmentedRawGuildMember {
+  const cachedMember = guild.members.get(member.user.id) ?? guild.updateMember(member);
+  return cachedMember ?? member;
 }

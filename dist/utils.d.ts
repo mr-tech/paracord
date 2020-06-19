@@ -1,5 +1,6 @@
-import type { GuildChannel, GuildMember, Snowflake, User } from './types';
+import type { Snowflake } from './types';
 import Guild from './clients/Paracord/structures/Guild';
+import { GuildMember, GuildChannel, User } from './clients/Paracord/types';
 export declare function clone(object: Record<string, unknown>): Record<string, unknown>;
 export declare function timestampNSecondsInFuture(seconds: number): number;
 export declare function timestampNMillisecondsInFuture(milliseconds: number): number;
@@ -25,4 +26,5 @@ export declare function returnCreatedOn(resource: Record<'id', Snowflake>): numb
 export declare function camelToSnake(str: string): string;
 export declare function objectKeysCamelToSnake(obj: Record<string, unknown>): Record<string, unknown>;
 export declare function snakeToCamel(str: string): string;
-export declare function objectKeysSnakeToCamel(obj: Record<string, unknown>): Record<string, unknown>;
+export declare function objectKeysSnakeToCamel(obj: Record<string, unknown>, seenObjects?: unknown[]): Record<string, unknown>;
+export declare function isObject(v: unknown): boolean;

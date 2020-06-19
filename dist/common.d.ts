@@ -20,3 +20,6 @@ export interface ExtendedEmitter extends EventEmitter {
 export declare type DeleteEvent = ({ guildId }: {
     guildId: Snowflake;
 }) => unknown;
+export declare type KeysWithType<T, U> = {
+    [K in keyof T]: T[K] extends U ? K : never;
+}[keyof T];

@@ -6,19 +6,22 @@ import {
 } from '../../constants';
 import { RemoteApiResponse } from '../../rpc/types';
 import {
-  Identify, Message, RawGuild, RawGuildMember, RawPresence, RawUser, ReadyEventFields,
+  AugmentedRawGuild, Identify, RawPresence, RawUser, ReadyEventFields, Snowflake,
 } from '../../types';
 import {
-  EventFunction, EventFunctions, GuildMap, GuildMember, PresenceMap, Snowflake, User, UserMap,
-} from '../../types/custom';
-import { clone, coerceTokenToBotLike, timestampFromSnowflake } from '../../utils';
+  clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel, timestampFromSnowflake,
+} from '../../utils';
 import Api from '../Api/Api';
 import { IApiOptions, IApiResponse } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
 import { GatewayBotResponse, GatewayOptions } from '../Gateway/types';
 import * as eventFuncs from './eventFuncs';
+import Base from './structures/Base';
 import Guild from './structures/Guild';
-import { GatewayMap, ParacordLoginOptions, ParacordOptions } from './types';
+import {
+  EventFunction, EventFunctions, GatewayMap, GuildMap, GuildMember, Message, ParacordLoginOptions, ParacordOptions, PresenceMap, User, UserMap, FilterOptions, ParacordCache, Presence,
+} from './types';
+
 
 const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
 
@@ -28,14 +31,34 @@ const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
 
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 export default class Paracord extends EventEmitter {
-  /** Discord bot token. */
-  readonly token: string;
+  public request!: Api['request'];
 
-  /** Whether or not the `init()` function has already been called. */
-  #initialized: boolean;
+  public addRateLimitService!: Api['addRateLimitService'];
+
+  public addRequestService!: Api['addRequestService'];
 
   /** User details given by Discord in the "Ready" event form the gateway. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
   public user!: User;
+
+  /** Discord bot token. */
+  public readonly token: string;
+
+  /** Gateways queue to log in. */
+  public readonly gatewayLoginQueue: Gateway[];
+
+  /* Client caches. */
+  /** Guild cache. */
+  #guilds: GuildMap | undefined;
+
+  /** User cache. */
+  #users: UserMap | undefined;
+
+  #presences: PresenceMap | undefined;
+
+  #filteredProps: FilterOptions | undefined;
+
+  /** Whether or not the `init()` function has already been called. */
+  #initialized: boolean;
 
   /** During a shard's start up, how many guilds may be unavailable before forcing ready. */
   #unavailableGuildTolerance?: number;
@@ -53,9 +76,6 @@ export default class Paracord extends EventEmitter {
   /** Gateway clients keyed to their shard #. */
   #gateways: GatewayMap;
 
-  /** Gateways queue to log in. */
-  readonly gatewayLoginQueue: Gateway[];
-
   /** Identify lock service options passed to the gateway shards. */
   #gatewayLockServiceOptions?: {
     mainServerOptions: ILockServiceOptions,
@@ -64,17 +84,15 @@ export default class Paracord extends EventEmitter {
 
   #apiOptions: Partial<IApiOptions> | undefined;
 
-  #gatewayOptions: Partial<GatewayOptions> | undefined;
-
   /* State that tracks the start up process. */
   /** Timestamp of the last gateway identify. */
   public safeGatewayIdentifyTimestamp: number;
 
-  /** Gateways left to login on start up before emitting `PARACORD_STARTUP_COMPLETE` event. */
-  #gatewayWaitCount: number;
-
   /** Shard currently in the initial phases of the gateway connection in progress. */
   public startingGateway: Gateway | undefined;
+
+  /** Gateways left to login on start up before emitting `PARACORD_STARTUP_COMPLETE` event. */
+  #gatewayWaitCount: number;
 
   /** Guilds left to ingest on start up before emitting `PARACORD_STARTUP_COMPLETE` event. */
   #guildWaitCount: number;
@@ -82,14 +100,6 @@ export default class Paracord extends EventEmitter {
   /** Timestamp of last GUILD_CREATE event on start up for the current `startingGateway`. */
   #lastGuildTimestamp?: number;
 
-  /* Client caches. */
-  /** Guild cache. */
-  readonly guilds: GuildMap;
-
-  /** User cache. */
-  readonly users: UserMap;
-
-  readonly presences: PresenceMap;
 
   /** Interval that coordinates gateway logins. */
   #processGatewayQueueInterval?: NodeJS.Timer;
@@ -109,12 +119,6 @@ export default class Paracord extends EventEmitter {
 
   #preventLogin: boolean;
 
-  public request!: Api['request'];
-
-  public addRateLimitService!: Api['addRateLimitService'];
-
-  public addRequestService!: Api['addRequestService'];
-
   #gatewayEvents: EventFunctions;
 
   /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
@@ -122,6 +126,14 @@ export default class Paracord extends EventEmitter {
     if (token === undefined) {
       throw Error("client requires a 'token'");
     }
+  }
+
+  private static ensureCamelProps(data: Base | unknown): unknown {
+    if (data instanceof Base) {
+      return data;
+    }
+
+    return isObject(data) ? objectKeysSnakeToCamel(<Record<string, unknown>> data) : data;
   }
 
   /**
@@ -136,9 +148,9 @@ export default class Paracord extends EventEmitter {
 
     this.token = coerceTokenToBotLike(token);
     this.#initialized = false;
-    this.guilds = new Map();
-    this.users = new Map();
-    this.presences = new Map();
+    this.#guilds = new Map();
+    this.#users = new Map();
+    this.#presences = new Map();
     this.#gateways = new Map();
     this.gatewayLoginQueue = [];
     this.#guildWaitCount = 0;
@@ -148,7 +160,7 @@ export default class Paracord extends EventEmitter {
     this.safeGatewayIdentifyTimestamp = 0;
     this.#events = options.events;
     this.#apiOptions = options.apiOptions;
-    this.#gatewayOptions = options.gatewayOptions;
+    this.#filteredProps = options.filters;
 
     if (options.autoInit !== false) {
       this.init();
@@ -172,9 +184,36 @@ export default class Paracord extends EventEmitter {
     return this.#api;
   }
 
+  public get guilds(): GuildMap {
+    if (this.#guilds === undefined) throw Error('guilds are not cached');
+    return this.#guilds;
+  }
+
+  public get users(): UserMap {
+    if (this.#users === undefined) throw Error('users are not cached');
+    return this.#users;
+  }
+
+  public get presences(): PresenceMap {
+    if (this.#presences === undefined) throw Error('presences are not cached');
+    return this.#presences;
+  }
+
+  public get unsafe_guilds(): GuildMap | undefined {
+    return this.#guilds;
+  }
+
+  public get unsafe_users(): UserMap | undefined {
+    return this.#users;
+  }
+
+  public get unsafe_presences(): PresenceMap | undefined {
+    return this.#presences;
+  }
+
   /*
    ********************************
-   ********* CONSTRUCTOR **********
+   ******** BIND FUNCTIONS ********
    ********************************
    */
 
@@ -224,7 +263,7 @@ export default class Paracord extends EventEmitter {
         return undefined;
       }
 
-      return this.#allowEventsDuringStartup ? data : undefined;
+      return this.#allowEventsDuringStartup ? emit : undefined;
     }
 
     return emit;
@@ -251,11 +290,13 @@ export default class Paracord extends EventEmitter {
    * @param args Any arguments to send with the emitted event.
    */
   public emit(event: string, ...args: unknown[]): boolean {
-    if (this.#events === undefined || this.#events[event] === undefined) {
-      return super.emit(event, ...args);
+    const type = this.#events && this.#events[event];
+    if (type !== undefined) {
+      args = args.map(Paracord.ensureCamelProps);
+      return super.emit(type, ...args);
     }
 
-    return super.emit(this.#events[event], ...args);
+    return false;
   }
 
   /*
@@ -427,7 +468,7 @@ export default class Paracord extends EventEmitter {
    */
   private addNewGateway(identity: Identify, wsUrl?: string | undefined): void {
     const gatewayOptions = {
-      identity, api: this.api, emitter: this, events: this.#events, wsUrl,
+      identity, api: this.api, emitter: this, wsUrl,
     };
     const gateway = this.setUpGateway(this.token, gatewayOptions);
     if (this.#gateways.get(gateway.id) !== undefined) {
@@ -537,10 +578,16 @@ export default class Paracord extends EventEmitter {
       get tag(): string {
         return `${user.username}#${user.discriminator}`;
       },
+      get createdOn(): number {
+        return 0;
+      },
     };
     this.log('INFO', `Logged in as ${this.user.tag}.`);
 
-    guilds.forEach((g) => this.guilds.set(g.id, new Guild(g, this, shard)));
+    const guildCache = this.#guilds;
+    if (guildCache !== undefined) {
+      guilds.forEach((g) => guildCache.set(g.id, new Guild(g, this, shard)));
+    }
 
     const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
     this.log('INFO', message);
@@ -625,15 +672,18 @@ export default class Paracord extends EventEmitter {
    * @param shard Id of shard that spawned this guild.
    * @param Guild Ignore. For dependency injection.
    */
-  public upsertGuild(data: RawGuild, shard?: number, GuildConstructor = Guild): Guild | undefined {
-    const cachedGuild = this.guilds.get(data.id);
+  protected upsertGuild(data: AugmentedRawGuild, shard?: number, GuildConstructor = Guild): Guild | undefined {
+    const guilds = this.#guilds;
+    if (guilds === undefined) return undefined;
+
+    const cachedGuild = guilds.get(data.id);
     if (cachedGuild !== undefined) {
-      return cachedGuild.update(data, this);
+      return cachedGuild.update(data);
     }
 
-    if (shard !== undefined) {
+    if (shard !== undefined) { // TODO trace logic, when will this occur?
       const guild = new GuildConstructor(data, this, shard);
-      this.guilds.set(data.id, guild);
+      guilds.set(data.id, guild);
       return guild;
     }
 
@@ -645,7 +695,8 @@ export default class Paracord extends EventEmitter {
    * @param user From Discord - https://discordapp.com/developers/docs/resources/user#user-object-user-structure
    */
   public upsertUser(user: User | RawUser): User {
-    let cachedUser = this.users.get(user.id) || <User>{};
+    let cachedUser = this.#users.get(user.id) || <User>{};
+    // TODO: NO
     cachedUser = Object.assign(cachedUser, {
       ...user,
       tag: `${user.username}#${user.discriminator}`,
@@ -655,7 +706,7 @@ export default class Paracord extends EventEmitter {
       cachedUser.createdOn = timestampFromSnowflake(user.id);
     }
 
-    this.users.set(cachedUser.id, cachedUser);
+    this.#users.set(cachedUser.id, cachedUser);
 
     this.circularAssignCachedPresence(cachedUser);
 
@@ -681,11 +732,12 @@ export default class Paracord extends EventEmitter {
    * @param presence From Discord - https://discordapp.com/developers/docs/topics/gateway#presence-update
    */
   private upsertPresence(presence: RawPresence): RawPresence {
-    const cachedPresence = this.presences.get(presence.user.id);
+    const cachedPresence = this.#presences.get(presence.user.id);
     if (cachedPresence !== undefined) {
+      // TODO: NO
       presence = Object.assign(cachedPresence, presence);
     } else {
-      this.presences.set(presence.user.id, presence);
+      this.#presences.set(presence.user.id, presence);
     }
 
     this.circularAssignCachedUser(presence);
@@ -698,7 +750,7 @@ export default class Paracord extends EventEmitter {
    * @param user From Discord - https://discordapp.com/developers/docs/resources/user#user-object
    */
   private circularAssignCachedPresence(user: User): void {
-    const cachedPresence = this.presences.get(user.id);
+    const cachedPresence = this.#presences.get(user.id);
     if (cachedPresence !== undefined) {
       user.presence = cachedPresence;
       user.presence.user = user;
@@ -712,7 +764,7 @@ export default class Paracord extends EventEmitter {
   private circularAssignCachedUser(presence: RawPresence): void {
     let cachedUser;
     if (Object.keys(presence.user).length === 1) { // don't upsert if id is the only property
-      cachedUser = this.users.get(presence.user.id);
+      cachedUser = this.#users.get(presence.user.id);
     } else {
       cachedUser = this.upsertUser(presence.user);
     }
@@ -728,8 +780,8 @@ export default class Paracord extends EventEmitter {
    * @param userId Id of the presence's user.
    */
   private deletePresence(userId: Snowflake): void {
-    this.presences.delete(userId);
-    const user = this.users.get(userId);
+    this.#presences.delete(userId);
+    const user = this.#users.get(userId);
     if (user !== undefined) {
       user.presence = undefined;
     }
@@ -740,7 +792,7 @@ export default class Paracord extends EventEmitter {
    * @param guild Paracord guild.
    * @param presence From Discord. More information on a particular payload can be found in the official docs. https://discordapp.com/developers/docs/topics/gateway#presence-update
    */
-  public handlePresence({ guild, presence }: { guild?: Guild; presence: RawPresence; }): RawPresence {
+  public handlePresence(presence: RawPresence, guild: Guild | undefined): Presence {
     const cachedPresence = this.updatePresences(presence);
 
     if (cachedPresence !== undefined) {
@@ -752,23 +804,13 @@ export default class Paracord extends EventEmitter {
     return cachedPresence;
   }
 
-  /**
-   * Processes a member object (e.g. from MESSAGE_CREATE, VOICE_STATE_UPDATE, etc.)
-   * @param guild Paracord guild.
-   * @param member From Discord. More information on a particular payload can be found in the official docs. https://discordapp.com/developers/docs/resources/guild#guild-member-object
-   */
-  public cacheMemberFromEvent(guild: Guild, member: GuildMember | RawGuildMember): GuildMember {
-    const cachedMember = guild.members.get(member.user.id);
-    return cachedMember === undefined ? guild.upsertMember(member, this) : cachedMember;
-  }
-
   /** Removes from presence and user caches users who are no longer in a cached guild. */
   private sweepCaches(): void {
-    const idsFromPresences = this.presences.keys();
-    const idsFromUsers = this.users.keys();
+    const idsFromPresences = this.#presences.keys();
+    const idsFromUsers = this.#users.keys();
     const deleteIds = Paracord.deDupe(Array.from(idsFromPresences).concat(Array.from(idsFromUsers)));
 
-    Paracord.trimMembersFromDeleteList(deleteIds, this.guilds.values());
+    Paracord.trimMembersFromDeleteList(deleteIds, this.#guilds.values());
 
     let sweptCount = 0;
     for (const id of deleteIds.keys()) {
@@ -823,10 +865,9 @@ export default class Paracord extends EventEmitter {
    * @param id User id.
    */
   private clearUserFromCaches(id: Snowflake) {
-    this.presences.delete(id);
-    this.users.delete(id);
+    this.#presences.delete(id);
+    this.#users.delete(id);
   }
-
 
   /*
    ********************************
@@ -883,11 +924,11 @@ export default class Paracord extends EventEmitter {
     if (res.status === 200) {
       let cacheGuild;
       if (typeof guild === 'string') {
-        cacheGuild = this.guilds.get(guild);
+        cacheGuild = this.#guilds.get(guild);
       }
 
       if (cacheGuild !== undefined) {
-        res.data = cacheGuild.upsertMember(<GuildMember>res.data, this);
+        res.data = cacheGuild.upsertMember(<GuildMember>res.data);
       }
     }
 

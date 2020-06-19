@@ -9,7 +9,7 @@ import { IdentifyLockService } from '../../rpc/services';
 import {
   GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
 } from '../../types';
-import { coerceTokenToBotLike, objectKeysCamelToSnake, objectKeysSnakeToCamel } from '../../utils';
+import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
 import Api from '../Api/Api';
 import Identify from './structures/Identify';
 import {
@@ -277,7 +277,7 @@ export default class Gateway {
    */
   public requestGuildMembers(guildId: string, options: Partial<GuildRequestMembers> = {}): boolean {
     const sendOptions: Partial<GuildRequestMembers> = {
-      limit: 0, query: '', presences: false, userIds: [],
+      limit: 0, query: '', presences: false, user_ids: [],
     };
 
     return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guildId, ...Object.assign(sendOptions, options) });
@@ -685,23 +685,23 @@ export default class Gateway {
       t: type, s: sequence, op: opCode, d: data,
     } = p;
 
-    const d = typeof data === 'object' && data?.constructor.name === 'Object' ? objectKeysSnakeToCamel(<Record<string, unknown>>data) : data;
+    // const d = typeof data === 'object' && data?.constructor.name === 'Object' ? objectKeysSnakeToCamel(<Record<string, unknown>>data) : data;
 
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
-          this.handleReady(<ReadyEventFields>d);
+          this.handleReady(<ReadyEventFields><unknown>data);
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
-          setImmediate(() => this.handleEvent(type, d));
+          setImmediate(() => this.handleEvent(type, data));
         } else {
-          this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
+          this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
         break;
 
       case GATEWAY_OP_CODES.HELLO:
-        this.handleHello(<Hello>d);
+        this.handleHello(<Hello><unknown>data);
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT_ACK:
@@ -713,7 +713,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.INVALID_SESSION:
-        this.handleInvalidSession(<boolean>d);
+        this.handleInvalidSession(<boolean>data);
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
@@ -721,9 +721,8 @@ export default class Gateway {
         break;
 
       default:
-        this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
+        this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
     }
-
 
     this.updateSequence(sequence);
   }
@@ -733,9 +732,9 @@ export default class Gateway {
    * @param data From Discord.
    */
   private handleReady(data: ReadyEventFields): void {
-    this.log('INFO', `Received Ready. Session ID: ${data.sessionId}.`);
+    this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
 
-    this.#sessionId = data.sessionId;
+    this.#sessionId = data.session_id;
     this.online = true;
 
     this.handleEvent('READY', data);
@@ -755,7 +754,7 @@ export default class Gateway {
    */
   private handleHello(data: Hello): void {
     this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
-    this.startHeartbeat(data.heartbeatInterval);
+    this.startHeartbeat(data.heartbeat_interval);
     this.connect(this.resumable);
 
     this.handleEvent('HELLO', data);
@@ -837,7 +836,7 @@ export default class Gateway {
     if (sessionId !== undefined && sequence !== undefined) {
       const payload: Resume = {
         token,
-        sessionId,
+        session_id: sessionId,
         seq: sequence,
       };
 

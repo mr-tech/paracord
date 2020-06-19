@@ -1,7 +1,7 @@
-import { GuildMember, ISO8601timestamp, RawEmoji, RawRole, RawUser, Snowflake, UnavailableGuild, User } from '.';
+import { Snowflake, RawUser, ISO8601timestamp, RawRole, RawGuildMember, RawEmoji, UnavailableGuild } from '.';
 export declare type GatewayPayload = {
     op: number;
-    d: unknown;
+    d: string | number | boolean | null;
     s: number | null;
     t: string | null;
 };
@@ -14,10 +14,10 @@ export declare type Identify = {
     token: string;
     properties: IdentifyConnectionProperties;
     compress?: boolean;
-    largeThreshold?: number;
+    large_threshold?: number;
     shard?: [number, number];
     presence?: GatewayStatusUpdate;
-    guildSubscriptions?: boolean;
+    guild_subscriptions?: boolean;
     intents?: number;
 };
 export declare type IdentifyConnectionProperties = {
@@ -27,159 +27,159 @@ export declare type IdentifyConnectionProperties = {
 };
 export declare type Resume = {
     token: string;
-    sessionId: string;
+    session_id: string;
     seq: number;
 };
 export declare type GuildRequestMembers = {
-    guildId: Snowflake | Snowflake[];
+    guild_id: Snowflake | Snowflake[];
     query?: string;
     limit: number;
     presences?: boolean;
-    userIds?: Snowflake | Snowflake[];
+    user_ids?: Snowflake | Snowflake[];
     nonce?: string;
 };
 export declare type GatewayVoiceStateUpdate = {
-    guildId: Snowflake;
-    channelId: Snowflake | null;
-    selfMute: boolean;
-    selfDeaf: boolean;
+    guild_id: Snowflake;
+    channel_id: Snowflake | null;
+    self_mute: boolean;
+    self_deaf: boolean;
 };
 export declare type GatewayStatusUpdate = {
     since: number | null;
-    game: Activity | null;
+    game: RawActivity | null;
     status: string;
     afk: boolean;
 };
 export declare type StatusTypes = ['online' | 'dnd' | 'idle' | 'invisible' | 'offline'];
 export declare type Hello = {
-    heartbeatInterval: number;
+    heartbeat_interval: number;
 };
 export declare type ReadyEventFields = {
     v: number;
-    user: User;
-    privateChannels: [];
+    user: RawUser;
+    private_channels: [];
     guilds: UnavailableGuild[];
-    sessionId: string;
+    session_id: string;
     shard?: [number, number];
 };
 export declare type ChannelPinsUpdateEventFields = {
-    guildId?: Snowflake;
-    channelId: Snowflake;
-    lastPinTimestamp?: ISO8601timestamp;
+    guild_id?: Snowflake;
+    channel_id: Snowflake;
+    last_pin_timestamp?: ISO8601timestamp;
 };
 export declare type GuildBanAddEventFields = {
-    guildId: Snowflake;
-    user: User;
+    guild_id: Snowflake;
+    user: RawUser;
 };
 export declare type GuildBanRemoveEventFields = {
-    guildId: Snowflake;
-    user: User;
+    guild_id: Snowflake;
+    user: RawUser;
 };
 export declare type GuildEmojisUpdateEventFields = {
-    guildId: Snowflake;
+    guild_id: Snowflake;
     emojis: [];
 };
 export declare type GuildIntegrationsUpdateEventFields = {
-    guildId: Snowflake;
+    guild_id: Snowflake;
 };
 export declare type GuildMemberAddExtraFields = {
-    guildId: Snowflake;
+    guild_id: Snowflake;
 };
 export declare type GuildMemberRemoveEventFields = {
-    guildId: Snowflake;
-    user: User;
+    guild_id: Snowflake;
+    user: RawUser;
 };
 export declare type GuildMemberUpdateEventFields = {
-    guildId: Snowflake;
+    guild_id: Snowflake;
     roles: Snowflake[];
-    user: User;
+    user: RawUser;
     nick?: string | null;
-    premiumSince?: ISO8601timestamp | null;
+    premium_since?: ISO8601timestamp | null;
 };
 export declare type GuildMembersChunkEventFields = {
-    guildId: Snowflake;
-    members: GuildMember[];
-    chunkIndex: number;
-    chunkCount: number;
-    notFound?: [];
+    guild_id: Snowflake;
+    members: RawGuildMember[];
+    chunk_index: number;
+    chunk_count: number;
+    not_found?: [];
     presences?: RawPresence[];
     nonce?: string;
 };
 export declare type GuildRoleCreateEventFields = {
-    guildId: Snowflake;
+    guild_id: Snowflake;
     role: RawRole;
 };
 export declare type GuildRoleUpdateEventFields = {
-    guildId: Snowflake;
+    guild_id: Snowflake;
     role: RawRole;
 };
 export declare type GuildRoleDeleteEventFields = {
-    guildId: Snowflake;
-    roleId: Snowflake;
+    guild_id: Snowflake;
+    role_id: Snowflake;
 };
 export declare type InviteCreateEventFields = {
-    channelId: Snowflake;
+    channel_id: Snowflake;
     code: string;
-    createdAt: number;
-    guildId?: Snowflake;
-    inviter?: User;
-    maxAge: number;
-    maxUses: number;
-    targetUser?: Partial<User>;
-    targetUserType?: number;
+    created_at: number;
+    guild_id?: Snowflake;
+    inviter?: RawUser;
+    max_age: number;
+    max_uses: number;
+    target_user?: Partial<RawUser>;
+    target_user_type?: number;
     temporary: boolean;
     uses: number;
 };
 export declare type InviteDeleteEventFields = {
-    channelId: Snowflake;
-    guildId?: Snowflake;
+    channel_id: Snowflake;
+    guild_id?: Snowflake;
     code: string;
 };
 export declare type MessageDeleteEventFields = {
     id: Snowflake;
-    channelId: Snowflake;
-    guildId?: Snowflake;
+    channel_id: Snowflake;
+    guild_id?: Snowflake;
 };
 export declare type MessageDeleteBulkEventFields = {
     ids: Snowflake[];
-    channelId: Snowflake;
-    guildId?: Snowflake;
+    channel_id: Snowflake;
+    guild_id?: Snowflake;
 };
 export declare type MessageReactionAddEventFields = {
-    userId: Snowflake;
-    channelId: Snowflake;
-    messageId: Snowflake;
-    guildId?: Snowflake;
-    member?: GuildMember;
+    user_id: Snowflake;
+    channel_id: Snowflake;
+    message_id: Snowflake;
+    guild_id?: Snowflake;
+    member?: RawGuildMember;
     emoji: Partial<RawEmoji>;
 };
 export declare type MessageReactionRemoveEventFields = {
-    userId: Snowflake;
-    channelId: Snowflake;
-    messageId: Snowflake;
-    guildId?: Snowflake;
+    user_id: Snowflake;
+    channel_id: Snowflake;
+    message_id: Snowflake;
+    guild_id?: Snowflake;
     emoji: Partial<RawEmoji>;
 };
 export declare type MessageReactionRemoveAllEventFields = {
-    channelId: Snowflake;
-    messageId: Snowflake;
-    guildId?: Snowflake;
+    channel_id: Snowflake;
+    message_id: Snowflake;
+    guild_id?: Snowflake;
 };
 export declare type MessageReactionRemoveEmoji = {
-    channelId: Snowflake;
-    guildId?: Snowflake;
-    messageId: Snowflake;
+    channel_id: Snowflake;
+    guild_id?: Snowflake;
+    message_id: Snowflake;
     emoji: Partial<RawEmoji>;
 };
 export declare type RawPresence = {
     user: RawUser;
-    roles?: Snowflake[];
-    game?: Activity | null;
-    guildId?: Snowflake;
-    status?: string;
-    activities?: Activity[];
-    clientStatus?: ClientStatus;
-    premiumSince?: ISO8601timestamp | null;
+    roles: Snowflake[];
+    game: RawActivity | null;
+    guild_id: Snowflake;
+    status: string;
+    activities: RawActivity[];
+    client_status: ClientStatus;
+    premium_since?: ISO8601timestamp | null;
     nick?: string | null;
 };
 export declare type ClientStatus = {
@@ -187,13 +187,13 @@ export declare type ClientStatus = {
     mobile?: string;
     web?: string;
 };
-export declare type Activity = {
+export declare type RawActivity = {
     name: string;
     type: number;
     url?: string | null;
-    createdAt: number;
+    created_at: number;
     timestamps?: ActivityTimestamps;
-    applicationId?: Snowflake;
+    application_id?: Snowflake;
     details?: string | null;
     state?: string | null;
     emoji?: ActivityEmoji | null;
@@ -218,17 +218,17 @@ export declare type ActivityParty = {
     size?: [number, number];
 };
 export declare type ActivityAssets = {
-    largeImage?: string;
-    largeText?: string;
-    smallImage?: string;
-    smallText?: string;
+    large_image?: string;
+    large_text?: string;
+    small_image?: string;
+    small_text?: string;
 };
 export declare type ActivitySecrets = {
     join?: string;
     spectate?: string;
     match?: string;
 };
-export declare const enum ActivityFlags {
+export declare enum ActivityFlags {
     INSTANCE = 1,
     JOIN = 2,
     SPECTATE = 4,
@@ -237,18 +237,18 @@ export declare const enum ActivityFlags {
     PLAY = 32
 }
 export declare type TypingStartEventFields = {
-    channelId: Snowflake;
-    guildId?: Snowflake;
-    userId: Snowflake;
+    channel_id: Snowflake;
+    guild_id?: Snowflake;
+    user_id: Snowflake;
     timestamp: number;
-    member?: GuildMember;
+    member?: RawGuildMember;
 };
 export declare type VoiceServerUpdateEventFields = {
     token: string;
-    guildId: Snowflake;
+    guild_id: Snowflake;
     endpoint: string;
 };
 export declare type WebhookUpdateEventFields = {
-    guildId: Snowflake;
-    channelId: Snowflake;
+    guild_id: Snowflake;
+    channel_id: Snowflake;
 };

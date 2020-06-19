@@ -162,7 +162,7 @@ class Gateway {
     }
     requestGuildMembers(guildId, options = {}) {
         const sendOptions = {
-            limit: 0, query: '', presences: false, userIds: [],
+            limit: 0, query: '', presences: false, user_ids: [],
         };
         return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, Object.assign({ guildId }, Object.assign(sendOptions, options)));
     }
@@ -424,24 +424,23 @@ class Gateway {
     handleMessage(p) {
         var _a;
         const { t: type, s: sequence, op: opCode, d: data, } = p;
-        const d = typeof data === 'object' && (data === null || data === void 0 ? void 0 : data.constructor.name) === 'Object' ? utils_1.objectKeysSnakeToCamel(data) : data;
         switch (opCode) {
             case constants_1.GATEWAY_OP_CODES.DISPATCH:
                 if (type === 'READY') {
-                    this.handleReady(d);
+                    this.handleReady(data);
                 }
                 else if (type === 'RESUMED') {
                     this.handleResumed();
                 }
                 else if (type !== null) {
-                    setImmediate(() => this.handleEvent(type, d));
+                    setImmediate(() => this.handleEvent(type, data));
                 }
                 else {
-                    this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
+                    this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
                 }
                 break;
             case constants_1.GATEWAY_OP_CODES.HELLO:
-                this.handleHello(d);
+                this.handleHello(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.HEARTBEAT_ACK:
                 this.handleHeartbeatAck();
@@ -450,19 +449,19 @@ class Gateway {
                 this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, __classPrivateFieldGet(this, _sequence));
                 break;
             case constants_1.GATEWAY_OP_CODES.INVALID_SESSION:
-                this.handleInvalidSession(d);
+                this.handleInvalidSession(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.RECONNECT:
                 (_a = __classPrivateFieldGet(this, _ws)) === null || _a === void 0 ? void 0 : _a.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
                 break;
             default:
-                this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${d}`);
+                this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
         this.updateSequence(sequence);
     }
     handleReady(data) {
-        this.log('INFO', `Received Ready. Session ID: ${data.sessionId}.`);
-        __classPrivateFieldSet(this, _sessionId, data.sessionId);
+        this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
+        __classPrivateFieldSet(this, _sessionId, data.session_id);
         this.online = true;
         this.handleEvent('READY', data);
     }
@@ -473,7 +472,7 @@ class Gateway {
     }
     handleHello(data) {
         this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
-        this.startHeartbeat(data.heartbeatInterval);
+        this.startHeartbeat(data.heartbeat_interval);
         this.connect(this.resumable);
         this.handleEvent('HELLO', data);
     }
@@ -543,7 +542,7 @@ class Gateway {
         if (sessionId !== undefined && sequence !== undefined) {
             const payload = {
                 token,
-                sessionId,
+                session_id: sessionId,
                 seq: sequence,
             };
             this.handleEvent('GATEWAY_RESUME', payload);

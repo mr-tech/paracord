@@ -1,15 +1,15 @@
 import { RawGuildMember, Snowflake } from '.';
 export declare type RawVoiceState = {
-    guildId?: Snowflake;
-    channelId: Snowflake | null;
-    userId: Snowflake;
+    guild_id?: Snowflake;
+    channel_id: Snowflake | null;
+    user_id: Snowflake;
     member?: RawGuildMember;
-    sessionId: string;
+    session_id: string;
     deaf: boolean;
     mute: boolean;
-    selfDeaf: boolean;
-    selfMute: boolean;
-    selfStream?: boolean;
+    self_deaf: boolean;
+    self_mute: boolean;
+    self_stream?: boolean;
     suppress: boolean;
 };
 export declare type VoiceRegion = {

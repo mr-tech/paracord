@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.objectKeysSnakeToCamel = exports.snakeToCamel = exports.objectKeysCamelToSnake = exports.camelToSnake = exports.returnCreatedOn = exports.createUnsafeUuid = exports.constructGuildIcon = exports.constructUserAvatarUrl = exports.computeChannelOverwrites = exports.computeGuildPerms = exports.computeChannelPerms = exports.coerceTokenToBotLike = exports.timestampFromSnowflake = exports.millisecondsFromNow = exports.timestampNMillisecondsInFuture = exports.timestampNSecondsInFuture = exports.clone = void 0;
+exports.isObject = exports.objectKeysSnakeToCamel = exports.snakeToCamel = exports.objectKeysCamelToSnake = exports.camelToSnake = exports.returnCreatedOn = exports.createUnsafeUuid = exports.constructGuildIcon = exports.constructUserAvatarUrl = exports.computeChannelOverwrites = exports.computeGuildPerms = exports.computeChannelPerms = exports.coerceTokenToBotLike = exports.timestampFromSnowflake = exports.millisecondsFromNow = exports.timestampNMillisecondsInFuture = exports.timestampNSecondsInFuture = exports.clone = void 0;
 const constants_1 = require("./constants");
 function clone(object) {
     return JSON.parse(JSON.stringify(object));
@@ -167,14 +167,15 @@ function snakeToCamel(str) {
         .replace('_', ''));
 }
 exports.snakeToCamel = snakeToCamel;
-function objectKeysSnakeToCamel(obj) {
+function objectKeysSnakeToCamel(obj, seenObjects = []) {
     const camelObj = {};
     for (let [key, value] of Object.entries(obj)) {
-        if (isObject(value)) {
-            value = objectKeysSnakeToCamel(value);
+        if (isObject(value) && !seenObjects.includes(value)) {
+            seenObjects.push(value);
+            value = objectKeysSnakeToCamel(value, seenObjects);
         }
         else if (Array.isArray(value) && isObject(value[0])) {
-            value = value.map(objectKeysSnakeToCamel);
+            value = value.map((v) => objectKeysSnakeToCamel(v, seenObjects));
         }
         camelObj[snakeToCamel(key)] = value;
     }
@@ -182,5 +183,6 @@ function objectKeysSnakeToCamel(obj) {
 }
 exports.objectKeysSnakeToCamel = objectKeysSnakeToCamel;
 function isObject(v) {
-    return typeof v === 'object' && (v === null || v === void 0 ? void 0 : v.constructor.name) === 'Object';
+    return (v !== null) && (typeof v === 'object') && ((v === null || v === void 0 ? void 0 : v.constructor.name) === 'Object');
 }
+exports.isObject = isObject;

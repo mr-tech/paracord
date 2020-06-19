@@ -2,10 +2,9 @@
 import {
   DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS,
 } from './constants';
-import type {
-  GuildChannel, GuildMember, Overwrite, Snowflake, User,
-} from './types';
+import type { Overwrite, Snowflake } from './types';
 import Guild from './clients/Paracord/structures/Guild';
+import { GuildMember, GuildChannel, User } from './clients/Paracord/types';
 
 /**
  * Returns a new object that is a clone of the original.
@@ -298,14 +297,20 @@ export function snakeToCamel(str: string): string {
   );
 }
 
-export function objectKeysSnakeToCamel(obj: Record<string, unknown>): Record<string, unknown> {
+/**
+ *
+ * @param obj
+ * @param seenObjects avoid circular assignment traps
+ */
+export function objectKeysSnakeToCamel(obj: Record<string, unknown>, seenObjects: unknown[] = []): Record<string, unknown> {
   const camelObj: Record<string, unknown> = {};
   /* eslint-disable-next-line prefer-const */
   for (let [key, value] of Object.entries(obj)) {
-    if (isObject(value)) {
-      value = objectKeysSnakeToCamel(<Record<string, unknown>>value);
+    if (isObject(value) && !seenObjects.includes(value)) {
+      seenObjects.push(value);
+      value = objectKeysSnakeToCamel(<Record<string, unknown>>value, seenObjects);
     } else if (Array.isArray(value) && isObject(value[0])) {
-      value = value.map(objectKeysSnakeToCamel);
+      value = value.map((v) => objectKeysSnakeToCamel(v, seenObjects));
     }
     camelObj[snakeToCamel(key)] = value;
   }
@@ -313,6 +318,6 @@ export function objectKeysSnakeToCamel(obj: Record<string, unknown>): Record<str
   return camelObj;
 }
 
-function isObject(v: unknown): boolean {
-  return typeof v === 'object' && v?.constructor.name === 'Object';
+export function isObject(v: unknown): boolean {
+  return (v !== null) && (typeof v === 'object') && (v?.constructor.name === 'Object');
 }
