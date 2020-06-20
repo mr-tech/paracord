@@ -1,15 +1,15 @@
 import { snakeToCamel } from '../../../utils';
-import { FilteredProps } from '../types';
+import { FilteredProps, Resource } from '../types';
 import { WildCardRaw } from '../../../types';
 
-export default class Base<T> {
-  #filteredProps: FilteredProps<T> | undefined;
+export default class Base<T extends Resource, U extends WildCardRaw> {
+  #filteredProps: FilteredProps<T, U> | undefined;
 
   #lastAccessed: number;
 
   #cachedTimestamp: number;
 
-  public constructor(filteredProps: FilteredProps<T> | undefined) {
+  public constructor(filteredProps: FilteredProps<T, U> | undefined) {
     this.#filteredProps = filteredProps;
     const now = new Date().getTime();
     this.#lastAccessed = now;
@@ -32,7 +32,7 @@ export default class Base<T> {
     this.#lastAccessed = new Date().getTime();
   }
 
-  public update(newObj: WildCardRaw): void {
+  public update(newObj: U): void {
     let i = 0;
     for (const [key, newValue] of Object.entries(newObj)) {
       if (this.#filteredProps?.includes(key) ?? true) {
@@ -45,7 +45,7 @@ export default class Base<T> {
     }
   }
 
-  private initializeProperties(filteredProps: FilteredProps<T>): void {
+  private initializeProperties(filteredProps: FilteredProps<T, U>): void {
     filteredProps.forEach((prop) => {
       if (!Object.prototype.hasOwnProperty.call(this, prop)) {
         (<Record<string, unknown>> this)[prop] = undefined;
@@ -57,7 +57,7 @@ export default class Base<T> {
     const camelKey = snakeToCamel(key);
     const curValue = (<Record<string, unknown>> this)[camelKey];
     if (curValue instanceof Base) {
-      curValue.update(<WildCardRaw>newValue);
+      curValue.update(<U>newValue);
     } else if (curValue !== newValue) { // don't throw away good strings
     // deep compare
       (<Record<string, unknown>> this)[camelKey] = newValue;

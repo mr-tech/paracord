@@ -1,27 +1,27 @@
-import { FilteredProps, GuildTypes as GuildType } from '../types';
+import { FilteredProps, Resource } from '../types';
 import { Snowflake, WildCardRaw } from '../../../types';
 
-interface BaseConstructor<T> {
-  new (value: unknown, filteredProps: Partial<FilteredProps<T>> | undefined, ...args: unknown[]): T;
+interface BaseConstructor<T extends Resource, U extends WildCardRaw> {
+  new (filteredProps: FilteredProps<T, U> | undefined, value: U, ...args: unknown[]): T;
 }
 
-export default class CacheMap<T extends GuildType> extends Map<Snowflake, T> {
-  #filteredProps: Partial<FilteredProps<T>> | undefined;
+export default class CacheMap<T extends Resource, U extends WildCardRaw> extends Map<Snowflake, T> {
+  #filteredProps: FilteredProps<T, U> | undefined;
 
-  #ItemConstructor: BaseConstructor<T>;
+  #ItemConstructor: BaseConstructor<T, U>;
 
-  public constructor(ItemConstructor: BaseConstructor<T>, filteredProps: Partial<FilteredProps<T>>) {
+  public constructor(ItemConstructor: BaseConstructor<T, U>, filteredProps: FilteredProps<T, U>) {
     super();
-    this.#filteredProps = Object.freeze(filteredProps);
+    this.#filteredProps = filteredProps;
     this.#ItemConstructor = ItemConstructor;
   }
 
-  public get filteredProps(): Partial<FilteredProps<T>> | undefined {
+  public get filteredProps(): FilteredProps<T, U> | undefined {
     return this.#filteredProps;
   }
 
-  add(id: Snowflake, value: WildCardRaw, ...args: unknown[]): T {
-    const item = new this.#ItemConstructor(value, this.#filteredProps, ...args);
+  add(id: Snowflake, value: U, ...args: unknown[]): T {
+    const item = new this.#ItemConstructor(this.#filteredProps, value, ...args);
     this.set(id, item);
     return item;
   }

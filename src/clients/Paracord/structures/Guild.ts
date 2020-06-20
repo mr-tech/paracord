@@ -199,8 +199,8 @@ export default class Guild extends Base<Guild> {
     } = client;
     if (filteredCaches.includes('roles')) this.#roles = new CacheMap(role, Role);
     if (filteredCaches.includes('emojis')) this.#emojis = new CacheMap(emoji, Emoji);
-    if (filteredCaches.includes('members')) this.#members = new CacheMap(member, GuildMember);
-    if (filteredCaches.includes('channels')) this.#channels = new CacheMap(channel, GuildChannel);
+    if (filteredCaches.includes('members')) this.#members = new CacheMap(GuildMember, member);
+    if (filteredCaches.includes('channels')) this.#channels = new CacheMap(GuildChannel, channel);
     if (filteredCaches.includes('presences')) this.#presences = new CacheMap(presence, Presence);
     if (filteredCaches.includes('voiceStates')) this.#voiceStates = new CacheMap(voiceState, VoiceState);
     // TODO initialize caches from config

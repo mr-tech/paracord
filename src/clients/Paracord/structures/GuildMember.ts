@@ -6,7 +6,9 @@ import User from './User';
 import Guild from './Guild';
 import Base from './Base';
 
-export default class GuildMember extends Base<GuildMember> {
+type IUpdateTypes = AugmentedRawGuildMember | GuildMemberUpdateEventFields
+
+export default class GuildMember extends Base<GuildMember, IUpdateTypes> {
   #user: User;
 
   #guild: Guild;
@@ -29,7 +31,7 @@ export default class GuildMember extends Base<GuildMember> {
   /** whether the user is muted in voice channels */
   mute: boolean | undefined;
 
-  public constructor(filteredProps: Partial<FilteredProps<GuildMember>> | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
+  public constructor(filteredProps: FilteredProps<GuildMember, IUpdateTypes> | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
     super(filteredProps);
     this.#user = user;
     this.#guild = guild;
@@ -44,7 +46,7 @@ export default class GuildMember extends Base<GuildMember> {
     return this.#guild;
   }
 
-  public update(args: AugmentedRawGuildMember | GuildMemberUpdateEventFields): void{
+  public update(args: IUpdateTypes): void{
     super.update(args);
   }
 

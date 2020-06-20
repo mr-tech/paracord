@@ -3,7 +3,7 @@
 
 import { KeysWithType, UserEvents } from '../../common';
 import {
-  Identify, Overwrite, RawChannel, RawEmoji, RawGuildMember, RawMessage, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, VoiceRegion, AugmentedRawGuildMember, AugmentedGuildMembersChunkEventFields,
+  Identify, Overwrite, RawChannel, RawEmoji, RawGuildMember, RawMessage, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, VoiceRegion, AugmentedRawGuildMember, AugmentedGuildMembersChunkEventFields, WildCardRaw,
 } from '../../types';
 import { IApiOptions } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
@@ -52,7 +52,7 @@ export interface FilterOptions {
   }
 }
 
-export type FilteredProps<T> = Array<(FilterOptions['props'] & keyof Base<T>)[keyof FilterOptions['props'] & keyof Base<T>]>;
+export type FilteredProps<T extends Resource, U extends WildCardRaw> = Array<(FilterOptions['props'] & keyof Base<T, U>)[keyof FilterOptions['props'] & keyof Base<T, U>]>;
 
 type Primitive = string | number | boolean | null | undefined;
 export type ParacordCache = KeysWithType<Paracord, GuildMap>;
@@ -101,10 +101,10 @@ export interface Message extends RawMessage {
   channelId: RawMessage['channel_id'];
 }
 
-export type GuildTypes = GuildMember | GuildChannel
+export type Resource = GuildMember | GuildChannel
 
-export type GuildChannelMap = CacheMap<GuildChannel>;
-export type GuildMemberMap = CacheMap<GuildMember>;
+export type GuildChannelMap = CacheMap<GuildChannel, RawChannel>;
+export type GuildMemberMap = CacheMap<GuildMember, AugmentedRawGuildMember>;
 
 // export type UserMap = CacheMap<User>;
 // export type GuildMap = CacheMap<Guild>;

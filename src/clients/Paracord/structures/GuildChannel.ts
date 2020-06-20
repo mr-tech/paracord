@@ -5,7 +5,7 @@ import Guild from './Guild';
 import Overwrite from './Overview';
 import User from './User';
 
-export default class GuildChannel extends Base<GuildChannel> {
+export default class GuildChannel extends Base<GuildChannel, RawChannel> {
   /** the id of this channel */
   #id: Snowflake | undefined;
 
@@ -62,7 +62,7 @@ export default class GuildChannel extends Base<GuildChannel> {
   /** when the last pinned message was pinned */
   lastPinTimestamp: ISO8601timestamp | undefined;
 
-  public constructor(filteredProps: Partial<FilteredProps<GuildChannel>> | undefined, channel: RawChannel, guild: Guild) {
+  public constructor(filteredProps: FilteredProps<GuildChannel, RawChannel> | undefined, channel: RawChannel, guild: Guild) {
     super(filteredProps);
     this.#guild = guild;
     this.update(channel);
