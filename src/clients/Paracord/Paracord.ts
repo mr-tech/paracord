@@ -9,7 +9,7 @@ import {
   AugmentedRawGuild, Identify, RawPresence, RawUser, ReadyEventFields, Snowflake,
 } from '../../types';
 import {
-  clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel, timestampFromSnowflake,
+  clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
 } from '../../utils';
 import Api from '../Api/Api';
 import { IApiOptions, IApiResponse } from '../Api/types';
@@ -18,10 +18,10 @@ import { GatewayBotResponse, GatewayOptions } from '../Gateway/types';
 import * as eventFuncs from './eventFuncs';
 import Base from './structures/Base';
 import Guild from './structures/Guild';
+import User from './structures/User';
 import {
-  EventFunction, EventFunctions, GatewayMap, GuildMap, GuildMember, Message, ParacordLoginOptions, ParacordOptions, PresenceMap, User, UserMap, FilterOptions, ParacordCache, Presence,
+  EventFunction, EventFunctions, FilterOptions, GatewayMap, GuildMap, Message, ParacordLoginOptions, ParacordOptions, Presence, PresenceMap, UserMap,
 } from './types';
-
 
 const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
 
@@ -51,11 +51,11 @@ export default class Paracord extends EventEmitter {
   #guilds: GuildMap | undefined;
 
   /** User cache. */
-  #users: UserMap | undefined;
+  #users: UserMap;
 
-  #presences: PresenceMap | undefined;
+  #presences: PresenceMap;
 
-  #filteredProps: FilterOptions | undefined;
+  #filteredOptions: FilterOptions | undefined;
 
   /** Whether or not the `init()` function has already been called. */
   #initialized: boolean;
@@ -160,7 +160,7 @@ export default class Paracord extends EventEmitter {
     this.safeGatewayIdentifyTimestamp = 0;
     this.#events = options.events;
     this.#apiOptions = options.apiOptions;
-    this.#filteredProps = options.filters;
+    this.#filteredOptions = options.filters;
 
     if (options.autoInit !== false) {
       this.init();
@@ -570,18 +570,9 @@ export default class Paracord extends EventEmitter {
    */
   public handleReady(data: ReadyEventFields, shard: number): void {
     const { user, guilds } = data;
+    this.user = new User(this.#filteredOptions?.props?.user, user);
 
     this.#guildWaitCount = guilds.length;
-
-    this.user = {
-      ...user,
-      get tag(): string {
-        return `${user.username}#${user.discriminator}`;
-      },
-      get createdOn(): number {
-        return 0;
-      },
-    };
     this.log('INFO', `Logged in as ${this.user.tag}.`);
 
     const guildCache = this.#guilds;
@@ -695,16 +686,7 @@ export default class Paracord extends EventEmitter {
    * @param user From Discord - https://discordapp.com/developers/docs/resources/user#user-object-user-structure
    */
   public upsertUser(user: User | RawUser): User {
-    let cachedUser = this.#users.get(user.id) || <User>{};
-    // TODO: NO
-    cachedUser = Object.assign(cachedUser, {
-      ...user,
-      tag: `${user.username}#${user.discriminator}`,
-    });
-
-    if (cachedUser.createdOn === undefined) {
-      cachedUser.createdOn = timestampFromSnowflake(user.id);
-    }
+    const cachedUser = this.#users.get(user.id) || new User(user);
 
     this.#users.set(cachedUser.id, cachedUser);
 
@@ -912,7 +894,7 @@ export default class Paracord extends EventEmitter {
    * @param guild Guild object or id in which to search for member.
    * @param memberId Id of the member.
    */
-  public async fetchMember(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse | RemoteApiResponse> {
+  public async fetchMember(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse | RemoteApiResponse> { // TODO create cached type
     let guildId;
 
     if (typeof guild !== 'string') {
@@ -922,13 +904,18 @@ export default class Paracord extends EventEmitter {
     const res = await this.request('get', `/guilds/${guildId}/members/${memberId}`);
 
     if (res.status === 200) {
+      const guilds = this.#guilds;
+      if (guilds === undefined) return res;
+
       let cacheGuild;
       if (typeof guild === 'string') {
-        cacheGuild = this.#guilds.get(guild);
+        cacheGuild = guilds.get(guild);
       }
 
       if (cacheGuild !== undefined) {
-        res.data = cacheGuild.upsertMember(<GuildMember>res.data);
+        /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+        // @ts-ignore
+        res.cached = cacheGuild.updateMember(res.data);
       }
     }
 
@@ -944,7 +931,9 @@ export default class Paracord extends EventEmitter {
     const res = await this.request('get', `/users/${userId}`);
 
     if (res.status === 200) {
-      res.data = this.upsertUser(<User>res.data);
+      /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+      // @ts-ignore
+      res.cached = this.upsertUser(res.data);
     }
 
     return res;

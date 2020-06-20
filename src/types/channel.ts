@@ -12,7 +12,7 @@ export type RawChannel = {
   /** sorting position of the channel */
   position?: number;
   /** explicit permission overwrites for members and roles */
-  permission_overwrites?: Overwrite[];
+  permission_overwrites?: RawOverwrite[];
   /** the name of the channel (2-100 characters) */
   name?: string;
   /** the channel topic (0-1024 characters) */
@@ -200,7 +200,7 @@ export type Reaction = {
 
 // ========================================================================
 
-export type Overwrite = {
+export type RawOverwrite = {
   /** role or user id */
   id: Snowflake;
   /** either "role" or "member" */

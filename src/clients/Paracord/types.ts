@@ -10,6 +10,11 @@ import Gateway from '../Gateway/Gateway';
 import { GatewayOptions } from '../Gateway/types';
 import Guild from './structures/Guild';
 import { Paracord } from '../..';
+import User from './structures/User';
+import GuildMember from './structures/GuildMember';
+import Base from './structures/Base';
+import CacheMap from './structures/CacheMap';
+import GuildChannel from './structures/GuildChannel';
 
 export type GatewayMap = Map<number, Gateway>;
 
@@ -18,40 +23,49 @@ export interface ParacordOptions {
   apiOptions?: Partial<IApiOptions>;
   gatewayOptions?: Partial<GatewayOptions>;
   autoInit?: boolean;
+  limits?: Limits
   filters?: FilterOptions;
-  limits?: {
-    members?: {
-      amount?: number;
-      cap?: number;
-      expireAfter?: number;
-      expireFunc: (this: Paracord, member: User) => boolean;
-    },
-    presences?: {
-      amount?: number;
-      cap?: number;
-      expireAfter?: number;
-      expireFunc: (this: Paracord, member: Presence) => boolean;
-    }
-  }
 }
 
-export type ParacordCache = KeysWithType<Paracord, GuildMap | UserMap | PresenceMap>;
-export type ParacordCacheFilter = Array<ParacordCache>;
-export type GuildCache = KeysWithType<Guild, GuildMemberMap | GuildChannelMap | PresenceMap | VoiceStateMap | RoleMap | EmojiMap>;
-export type GuildCacheFilter = Array<GuildCache>;
-export type GuildProp = KeysWithType<Guild, string | number | boolean | Array<unknown> | GuildMember | VoiceRegion | null | undefined>;
-export type GuildPropFilter = Array<GuildProp>;
+export interface Limits {
+  members?: Limit<GuildMember>;
+  presences?: Limit<GuildMember>;
+  users?: Limit<User>;
+}
+
+export interface Limit<T> {
+  amount?: number;
+  cap?: number;
+  expireAfter?: number;
+  expireFunc: (this: Paracord, cache: T[]) => void;
+}
 
 export interface FilterOptions {
-  throwOnAccess?: false;
   caches?:{
-    guild?: GuildCacheFilter;
     paracord?: ParacordCacheFilter;
+    guild?: GuildCacheFilter;
   },
-  props?: {
+  props: {
     guild?: GuildPropFilter;
+    user?: UserPropFilter;
+    guildMember?: GuildMemberPropFilter;
   }
 }
+
+export type FilteredProps<T> = Array<(FilterOptions['props'] & keyof Base<T>)[keyof FilterOptions['props'] & keyof Base<T>]>;
+
+type Primitive = string | number | boolean | null | undefined;
+export type ParacordCache = KeysWithType<Paracord, GuildMap>;
+export type ParacordCacheFilter = Array<ParacordCache>;
+export type GuildCache = KeysWithType<Guild, RoleMap | EmojiMap | GuildMemberMap | GuildChannelMap | PresenceMap | VoiceStateMap >;
+export type GuildCacheFilter = Array<GuildCache>
+export type UserProp = KeysWithType<User, Primitive>;
+export type UserPropFilter = Array<UserProp>;
+export type GuildMemberProp = KeysWithType<GuildMember, Primitive>;
+export type GuildMemberPropFilter = Array<GuildMemberProp>;
+export type GuildProp = KeysWithType<Guild, Primitive | GuildMember | VoiceRegion >;
+export type GuildPropFilter = Array<GuildProp>;
+
 
 export interface ParacordLoginOptions {
   identity?: Identify;
@@ -83,50 +97,21 @@ export interface ShardLauncherOptions{
   env?: Record<string, unknown>;
 }
 
-export interface FilteredProps {
-  props: string[];
-  caches?: string[]
-}
-
-export interface GuildBase {
-  guild: Guild;
-}
-
-export type Presence = RawPresence;
-
-export interface User extends RawUser {
-  createdOn: number;
-  tag: string;
-  presence: RawPresence | undefined;
-}
-export interface GuildChannel extends GuildBase, RawChannel {
-  permissionOverwrites: Overwrite[];
-}
-export interface GuildRole extends GuildBase, RawRole {
-  guildId: Snowflake;
-}
-export interface GuildEmoji extends GuildBase, RawEmoji {
-  id: Snowflake;
-  // roles: RoleMap;
-}
-export interface GuildMember extends GuildBase, RawGuildMember, AugmentedRawGuildMember {
-  user: User;
-  lastAccessedTimestamp: number;
-  // roles: RoleMap;
-}
-export interface GuildVoiceState extends GuildBase, RawVoiceState{}
 export interface Message extends RawMessage {
   channelId: RawMessage['channel_id'];
 }
 
-export type UserMap = Map<Snowflake, User>;
-export type GuildMap = Map<Snowflake, Guild>;
-export type RoleMap = Map<Snowflake, GuildRole>;
-export type EmojiMap = Map<Snowflake, GuildEmoji>;
-export type VoiceStateMap = Map<Snowflake, Partial<GuildVoiceState>>;
-export type PresenceMap = Map<Snowflake, Presence>;
-export type GuildChannelMap = Map<Snowflake, GuildChannel>;
-export type GuildMemberMap = Map<Snowflake, GuildMember>;
+export type GuildTypes = GuildMember | GuildChannel
+
+export type GuildChannelMap = CacheMap<GuildChannel>;
+export type GuildMemberMap = CacheMap<GuildMember>;
+
+// export type UserMap = CacheMap<User>;
+// export type GuildMap = CacheMap<Guild>;
+// export type RoleMap = CacheMap<GuildRole>;
+// export type EmojiMap = CacheMap<GuildEmoji>;
+// export type VoiceStateMap = CacheMap<Partial<GuildVoiceState>>;
+// export type PresenceMap = CacheMap<Presence>;
 
 export type EventFunctions = Record<string, EventFunction>;
 export type EventFunction = (...any: unknown[]) => unknown;

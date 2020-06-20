@@ -1,5 +1,5 @@
 import {
-  GuildMembersChunkEventFields, RawGuild, RawGuildMember, RawMessage, RawPresence, RawUser, RawVoiceState,
+  GuildMembersChunkEventFields, RawGuild, RawGuildMember, RawMessage, RawPresence, RawUser, RawVoiceState, GuildMemberUpdateEventFields, RawChannel,
 } from '.';
 
 export interface AugmentedRawGuildMember extends RawGuildMember {
@@ -23,3 +23,13 @@ export interface AugmentedGuildMembersChunkEventFields extends GuildMembersChunk
 export interface AugmentedRawMessage extends RawMessage {
   member: AugmentedRawGuildMember;
 }
+
+export type WildCardRaw =
+AugmentedRawGuildMember |
+AugmentedRawVoiceState |
+AugmentedGuildMembersChunkEventFields |
+AugmentedRawMessage |
+GuildMemberUpdateEventFields |
+RawUser |
+RawChannel |
+AugmentedRawGuild

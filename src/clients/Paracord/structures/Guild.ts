@@ -2,14 +2,17 @@
 
 import { PERMISSIONS } from '../../../constants';
 import {
-  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawPresence, RawRole, RawUser, Snowflake, SystemChannelFlags, UnavailableGuild, VerificationLevel, VoiceRegion, GuildMemberUpdateEventFields,
+  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, GuildMemberUpdateEventFields, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawPresence, RawRole, RawUser, Snowflake, SystemChannelFlags, UnavailableGuild, VerificationLevel, VoiceRegion,
 } from '../../../types';
 import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../utils';
 import Paracord from '../Paracord';
 import {
-  EmojiMap, GuildChannel, GuildChannelMap, GuildEmoji, GuildMember, GuildMemberMap, GuildRole, GuildVoiceState, Presence, PresenceMap, RoleMap, VoiceStateMap,
+  FilteredProps, GuildCacheFilter, GuildChannelMap, GuildMemberMap,
 } from '../types';
 import Base from './Base';
+import CacheMap from './CacheMap';
+import GuildChannel from './GuildChannel';
+import GuildMember from './GuildMember';
 
 // const props: GuildPropFilter = ['name', 'icon', 'splash', 'discoverySplash', 'ownerId', 'region', 'afkChannelId',
 //   'afkTimeout', 'embedEnabled', 'embedChannelId', 'verificationLevel', 'defaultMessageNotifications',
@@ -23,7 +26,10 @@ import Base from './Base';
 type WildCardCache = GuildChannel | GuildMember | GuildRole | GuildEmoji | GuildVoiceState | Presence | undefined
 
 /** A Discord guild. */
-export default class Guild extends Base {
+export default class Guild extends Base<Guild> {
+  /** guild id */
+  #id: Snowflake;
+
   #client: Paracord;
 
   /** channels in the guild */
@@ -49,9 +55,6 @@ export default class Guild extends Base {
 
   /** total number of members in this guild */
   public memberCount?: number;
-
-  /** guild id */
-  public readonly id: Snowflake;
 
   /** guild name (2-100 characters, excluding trailing and leading whitespace) */
   public readonly name!: string;
@@ -178,18 +181,34 @@ export default class Guild extends Base {
    * @param client Paracord client.
    * @param shard Shard id of the gateway connection this guild originated from.
    */
-  public constructor(guildData: AugmentedRawGuild | UnavailableGuild, client: Paracord, shard: number) {
-    super(); // TODO
+  public constructor(filteredCaches: GuildCacheFilter, filteredProps: Partial<FilteredProps<Guild>> | undefined, guildData: AugmentedRawGuild | UnavailableGuild, client: Paracord, shard: number) {
+    super(filteredProps); // TODO
 
     this.#client = client;
     this.shard = shard;
 
-    ({ id: this.id } = guildData);
-    this.unavailable = guildData.unavailable ?? false;
+    const { id, unavailable } = guildData;
 
+    this.#id = id;
+    this.unavailable = unavailable ?? false;
+
+    const {
+      filteredOptions: {
+        role, emoji, member, channel, presence, voiceState,
+      },
+    } = client;
+    if (filteredCaches.includes('roles')) this.#roles = new CacheMap(role, Role);
+    if (filteredCaches.includes('emojis')) this.#emojis = new CacheMap(emoji, Emoji);
+    if (filteredCaches.includes('members')) this.#members = new CacheMap(member, GuildMember);
+    if (filteredCaches.includes('channels')) this.#channels = new CacheMap(channel, GuildChannel);
+    if (filteredCaches.includes('presences')) this.#presences = new CacheMap(presence, Presence);
+    if (filteredCaches.includes('voiceStates')) this.#voiceStates = new CacheMap(voiceState, VoiceState);
     // TODO initialize caches from config
 
-    this.update(guildData);
+    if (!unavailable) {
+      this.constructCaches(<AugmentedRawGuild>guildData);
+      this.update(<AugmentedRawGuild>guildData);
+    }
   }
 
   public get client(): Paracord {
@@ -262,14 +281,9 @@ export default class Guild extends Base {
    ********************************
    */
 
-  /**
-   * Replace caches with newly received information about a guild.
-   * @param guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
-   * @param client Paracord client.
-   */
-  public update(guildData: Partial<AugmentedRawGuild>): Guild {
+  private constructCaches(guildData: AugmentedRawGuild): void {
     const {
-      channels, roles, emojis, members, voice_states, presences, ...rest
+      channels, roles, emojis, members, voice_states, presences,
     } = guildData;
 
     if (channels !== undefined && this.#channels !== undefined) {
@@ -277,7 +291,7 @@ export default class Guild extends Base {
     }
 
     if (members !== undefined && this.#members !== undefined) {
-      members.forEach((m) => this.insertMember(m));
+      members.forEach((m) => this.upsertMember(m));
     }
 
     if (roles !== undefined && this.#roles !== undefined) {
@@ -295,10 +309,19 @@ export default class Guild extends Base {
     if (emojis !== undefined && this.#emojis !== undefined) {
       this.updateEmojiCache(emojis);
     }
+  }
 
-    super.update(rest);
+  /**
+   * Replace caches with newly received information about a guild.
+   * @param guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
+   * @param client Paracord client.
+   */
+  public update(guildData: AugmentedRawGuild): void {
+    if (!guildData.unavailable && this.unavailable) {
+      this.constructCaches(guildData);
+    }
 
-    return this;
+    super.update(guildData);
   }
 
   // /*
@@ -411,61 +434,38 @@ export default class Guild extends Base {
    * @param member https://discordapp.com/developers/docs/resources/guild#guild-member-object
    * @param client
    */
-  public insertMember(member: AugmentedRawGuildMember): GuildMember | undefined {
+  public upsertMember(member: AugmentedRawGuildMember): GuildMember | undefined {
     const members = this.#members;
     if (members === undefined) return undefined;
 
     const { user, user: { id } } = member;
-    const cachedMember = this.cacheMember(members, id, member, user);
+    const cachedMember = members.add(id, member, user, this);
 
-    if (this.owner === undefined && this.ownerId === id) {
-      this.owner = cachedMember;
-      this.ownerId = id;
-    }
-    if (this.me === undefined && this.#client.user.id === id) {
-      this.me = cachedMember;
-      user.id = this.#client.user.id;
+    if (cachedMember !== undefined) {
+      cachedMember.update(member);
+    } else {
+      if (this.owner === undefined && this.ownerId === id) {
+        this.owner = cachedMember;
+        this.ownerId = id;
+      }
+      if (this.me === undefined && this.#client.user.id === id) {
+        this.me = cachedMember;
+        user.id = this.#client.user.id;
+      }
     }
 
     return cachedMember;
   }
 
-  public updateMember(member: AugmentedRawGuildMember | GuildMemberUpdateEventFields): GuildMember | undefined {
+  public updateMember(member: GuildMemberUpdateEventFields): GuildMember | undefined {
     const members = this.#members;
     if (members === undefined) return undefined;
 
-    const { user, user: { id } } = member;
-    const cachedMember = members.get(id);
-    if (cachedMember === undefined) {
-      return (<AugmentedRawGuildMember>member).joined_at !== undefined
-        ? this.cacheMember(members, id, (<AugmentedRawGuildMember>member), user)
-        : undefined;
-    }
+    const cachedMember = members.get(member.user.id);
+    if (cachedMember === undefined) return undefined;
 
-    member.user = this.#client.upsertUser(user);
-    return <GuildMember>Object.assign(cachedMember, member);
-  }
-
-  private cacheMember(members: GuildMemberMap, id: AugmentedRawGuildMember['user']['id'], member: AugmentedRawGuildMember, user: RawUser): GuildMember {
-    const now = new Date().getTime();
-    const readOnly = {
-      _lastAccessedTimestamp: 0,
-      updateAccessTimestamp(): void {
-        this._lastAccessedTimestamp = new Date().getTime();
-      },
-      get lastAccessedTimestamp(): number {
-        return this._lastAccessedTimestamp;
-      },
-      get cachedTimestamp(): number {
-        return now;
-      },
-    };
-
-    member.user = this.#client.upsertUser(user);
-    (<GuildMember>member).guild = this;
-    members.set(id, Object.assign(<GuildMember>member, readOnly));
-
-    return <GuildMember>member;
+    cachedMember.update(member);
+    return cachedMember;
   }
 
   public incrementMemberCount(): void{
