@@ -1,5 +1,4 @@
-import { Snowflake } from '../../../../../../dist/types';
-import { AugmentedEmoji } from '../../../../../types';
+import { AugmentedEmoji, Snowflake } from '../../../../../types';
 import { FilteredProps } from '../../../types';
 import Resource from '../../Resource';
 import Role from './Role';

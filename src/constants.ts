@@ -95,3 +95,5 @@ export const API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = 5 * MINUTE_IN_MILLISECON
 export const RPC_CLOSE_CODES = {
   LOST_CONNECTION: 14,
 };
+export const ROLE_STRING = 'role'; // for interning
+export const MEMBER_STRING = 'member'; // for interning

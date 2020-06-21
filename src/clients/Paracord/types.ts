@@ -85,7 +85,7 @@ export interface ParacordLoginOptions {
 }
 
 export type DiscordResource = Guild | GuildMember | GuildChannel | User | Role | Emoji | GuildVoiceState | Presence;
-export type DiscordObject = Activity | Overwrite
+export type DiscordObject = Activity | Overwrite;
 export type DiscordTypes = DiscordResource | DiscordObject;
 
 export type FilteredProps<T extends DiscordTypes, U extends RawWildCard> = Array<(FilterOptions['props'] & keyof Base<T, U>)[keyof FilterOptions['props'] & keyof Base<T, U>]>;

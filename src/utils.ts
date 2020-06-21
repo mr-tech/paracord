@@ -1,13 +1,14 @@
 /** A class of helper export functions used throughout the library. */
+import Overwrite from './clients/Paracord/structures/discord/objects/Overview';
+import Guild from './clients/Paracord/structures/discord/resources/Guild';
+import GuildChannel from './clients/Paracord/structures/discord/resources/GuildChannel';
+import GuildMember from './clients/Paracord/structures/discord/resources/GuildMember';
+import Role from './clients/Paracord/structures/discord/resources/Role';
+import User from './clients/Paracord/structures/discord/resources/User';
 import {
-  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS,
+  DISCORD_CDN_URL, DISCORD_EPOCH, MEMBER_STRING, PERMISSIONS, ROLE_STRING, SECOND_IN_MILLISECONDS,
 } from './constants';
 import type { Snowflake } from './types';
-import Guild from './clients/Paracord/structures/discord/resources/Guild';
-import GuildMember from './clients/Paracord/structures/discord/resources/GuildMember';
-import GuildChannel from './clients/Paracord/structures/discord/resources/GuildChannel';
-import Overwrite from './clients/Paracord/structures/discord/objects/Overview';
-import User from './clients/Paracord/structures/discord/resources/User';
 
 /**
  * Returns a new object that is a clone of the original.
@@ -80,11 +81,6 @@ export function coerceTokenToBotLike(token: string): string {
 export function computeChannelPerms({
   member, guild, channel, stopOnOwnerAdmin = false,
 }: { member: GuildMember; guild: Guild; channel: GuildChannel; stopOnOwnerAdmin?: boolean; }): number {
-  const { roles: guildRoles } = guild;
-  const { roles: memberRoles } = member;
-  if (guildRoles === undefined) throw Error('roles not cached for this guild');
-  if (memberRoles === undefined) throw Error('no roles on member object');
-
   const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
 
   if (stopOnOwnerAdmin && guildPerms & PERMISSIONS.ADMINISTRATOR) {
@@ -92,6 +88,10 @@ export function computeChannelPerms({
   }
 
   return computeChannelOverwrites(guildPerms, member as GuildMember, guild, channel);
+}
+
+interface SafeRole extends Role {
+  permissions: number;
 }
 
 /**
@@ -103,8 +103,8 @@ export function computeChannelPerms({
  */
 export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: { member: GuildMember; guild: Guild; stopOnOwnerAdmin?: boolean; }): number {
   const { roles: guildRoles } = guild;
-  const { roles: memberRoles } = member;
   if (guildRoles === undefined) throw Error('roles not cached for this guild');
+  const { roles: memberRoles } = member;
   if (memberRoles === undefined) throw Error('no roles on member object');
 
   if (stopOnOwnerAdmin && guild.ownerId === member.user.id) {
@@ -112,22 +112,16 @@ export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: {
   }
 
   const everyone = guildRoles.get(guild.id);
-
-  if (everyone === undefined) throw Error('no everyone role for this guild');
+  if (everyone === undefined) throw Error('no everyone role for this guild'); // not expected to ever hit this
+  if (everyone.permissions === undefined) throw Error('permissions are not cached on roles');
 
   // start with @everyone perms
   let perms: number = everyone.permissions;
 
-  for (const roleId of memberRoles) {
-    const role = guildRoles.get(roleId);
-    if (role !== undefined) {
-      if ((role.permissions & PERMISSIONS.ADMINISTRATOR) !== 0) {
-        return PERMISSIONS.ADMINISTRATOR;
-      }
+  Array.from(memberRoles.values()).forEach((role: unknown) => {
+    perms |= (<SafeRole>role).permissions;
+  });
 
-      perms |= role.permissions;
-    }
-  }
 
   return perms;
 }
@@ -142,10 +136,25 @@ export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: {
  */
 export function computeChannelOverwrites(perms: number, member: GuildMember, guild: Guild, channel: GuildChannel): number {
   const { permissionOverwrites: overwrites } = channel;
+  if (overwrites === undefined) throw Error('no overwrites on channel object');
+  const { roles: memberRoles } = member;
+  if (memberRoles === undefined) throw Error('no roles on member object');
 
-  perms = _everyoneOverwrites(perms, overwrites, guild.id);
-  perms = _roleOverwrites(perms, overwrites, member.roles);
-  perms = _memberOverwrites(perms, overwrites, member.user.id);
+
+  const roleOverwrites: Overwrite[] = [];
+  const memberOverwrites: Overwrite[] = [];
+  overwrites.forEach((o) => {
+    if (o.type === MEMBER_STRING && o.id === member.id) {
+      memberOverwrites.push(o);
+    } else if (o.type === ROLE_STRING && o.id !== guild.id && memberRoles.has(o.id)) {
+      roleOverwrites.push(o);
+    } else {
+      perms = _everyoneOverwrites(perms, o);
+    }
+  });
+
+  perms = _roleOverwrites(perms, roleOverwrites);
+  perms = _memberOverwrites(perms, memberOverwrites);
 
   return perms;
 }
@@ -157,14 +166,9 @@ export function computeChannelOverwrites(perms: number, member: GuildMember, gui
  * @param guildId id of the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _everyoneOverwrites(perms: number, overwrites: Overwrite[], guildId: string): number {
-  for (const o of overwrites) {
-    if (o.type === 'role' && o.id === guildId) {
-      perms |= o.allow;
-      perms &= ~o.deny;
-      break;
-    }
-  }
+function _everyoneOverwrites(perms: number, overwrite: Overwrite): number {
+  perms |= overwrite.allow;
+  perms &= ~overwrite.deny;
   return perms;
 }
 
@@ -175,14 +179,11 @@ function _everyoneOverwrites(perms: number, overwrites: Overwrite[], guildId: st
  * @param roles Roles in the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _roleOverwrites(perms: number, overwrites: Overwrite[], roles: string[]): number {
+function _roleOverwrites(perms: number, overwrites: Overwrite[]): number {
   for (const o of overwrites) {
-    if (o.type === 'role' && roles.includes(o.id)) {
-      perms |= o.allow;
-      perms &= ~o.deny;
-    }
+    perms |= o.allow;
+    perms &= ~o.deny;
   }
-
   return perms;
 }
 
@@ -193,13 +194,10 @@ function _roleOverwrites(perms: number, overwrites: Overwrite[], roles: string[]
  * @param memberId id of the member whose permissions are being checked.
  * @returns The new perms.
  */
-function _memberOverwrites(perms: number, overwrites: Overwrite[], memberId: string): number {
+function _memberOverwrites(perms: number, overwrites: Overwrite[]): number {
   for (const o of overwrites) {
-    if (o.type === 'member' && o.id === memberId) {
-      perms |= o.allow;
-      perms &= ~o.deny;
-      break;
-    }
+    perms |= o.allow;
+    perms &= ~o.deny;
   }
   return perms;
 }
@@ -228,7 +226,7 @@ export function constructUserAvatarUrl(user: User, fileType = ''): string {
  * @param fileType File extension of the image.
  */
 export function constructGuildIcon(guild: Guild, fileType = ''): string | undefined {
-  if (guild.icon === null) return undefined;
+  if (guild.icon === null || guild.icon === undefined) return undefined;
 
   if (guild.icon.startsWith('a_')) {
     return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;

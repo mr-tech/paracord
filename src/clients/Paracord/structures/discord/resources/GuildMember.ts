@@ -18,7 +18,9 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
   nick: string | null | undefined;
 
   /** array of role object ids */
-  roles: Map<Snowflake, Role> | Snowflake[] | undefined;
+  roles: Map<Snowflake, Role> | undefined;
+
+  #roleIds: Snowflake[] | undefined;
 
   /** when the user joined the guild */
   joinedAt: ISO8601timestamp | undefined;
@@ -47,7 +49,12 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
     return this.#guild;
   }
 
+  public get roleIds(): Snowflake[] {
+    return Array.from(this.roles?.keys() ?? this.#roleIds ?? []);
+  }
+
   public update(arg: IUpdateTypes): this {
+    // update roleIds
     return super.update(arg);
   }
 

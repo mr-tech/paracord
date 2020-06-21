@@ -1,7 +1,7 @@
 import {
-  ISO8601timestamp, Snowflake, VoiceRegion, RawRole, RawEmoji, RawChannel, RawPresence, RawVoiceState, RawUser,
+  ISO8601timestamp, RawChannel, RawEmoji, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, VoiceRegion,
 } from '.';
-import { GuildEmoji } from '../clients/Paracord/types';
+import Emoji from '../clients/Paracord/structures/discord/resources/Emoji';
 
 export type RawGuild = {
   [index: string]: unknown;
@@ -41,7 +41,7 @@ export type RawGuild = {
   /** roles in the guild */
   roles: RawRole[];
   /** custom guild emojis */
-  emojis: GuildEmoji[]; // !! NOT GENERATED RawEmoji -> GuildEmoji
+  emojis: Emoji[]; // !! NOT GENERATED RawEmoji -> GuildEmoji
   /** enabled guild features */
   features: GuildFeature[];
   /** required MFA Level for the guild */
