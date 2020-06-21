@@ -322,3 +322,17 @@ export function objectKeysSnakeToCamel(obj: Record<string, unknown>, seenObjects
 export function isObject(v: unknown): boolean {
   return (v !== null) && (typeof v === 'object') && (v?.constructor.name === 'Object');
 }
+
+export function squashArrays(oldArray: Array<unknown>, newArray: Array<unknown>): void {
+  for (let i = oldArray.length; i >= 0; --i) {
+    const oldItem = oldArray[i];
+    const newIdx = newArray.indexOf(oldItem);
+    if (newIdx > -1) { // item already in old array
+      newArray.splice(newIdx, 1);
+    } else { // item not in new array
+      oldArray.splice(i, 1);
+    }
+  }
+
+  oldArray.push(...newArray);
+}

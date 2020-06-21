@@ -27,6 +27,7 @@ export default class Emoji extends Resource<Emoji, AugmentedEmoji> {
 
   public constructor(filteredProps: FilteredProps<Emoji, AugmentedEmoji> | undefined, emoji: AugmentedEmoji) {
     super(filteredProps, emoji.id);
+    this.update(emoji);
   }
 
   public update(arg: AugmentedEmoji): this {

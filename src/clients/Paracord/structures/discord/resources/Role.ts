@@ -26,6 +26,7 @@ export default class Role extends Resource<Role, RawRole> {
 
   public constructor(filteredProps: FilteredProps<Role, RawRole> | undefined, role: RawRole) {
     super(filteredProps, role.id);
+    this.update(role);
   }
 
   public update(arg: RawRole): this {

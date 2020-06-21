@@ -37,6 +37,7 @@ export default class Presence extends Resource<Presence, RawPresence> {
   public constructor(filteredProps: FilteredProps<Presence, RawPresence> | undefined, presence: RawPresence) {
     super(filteredProps, presence.user.id);
     this.user = presence.user;
+    this.update(presence);
   }
 
   public update(arg: RawPresence): this {

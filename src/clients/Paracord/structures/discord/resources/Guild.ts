@@ -208,10 +208,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
     if (guildChannels ?? true) this.#channels = new CacheMap(GuildChannel, guildChannel);
     if (guildVoiceStates ?? true) this.#voiceStates = new CacheMap(GuildVoiceState, guildVoiceState);
 
-    if (!unavailable) {
-      this.constructCaches(<AugmentedRawGuild>guild);
-      this.update(<AugmentedRawGuild>guild);
-    }
+    this.update(<AugmentedRawGuild>guild);
   }
 
   public get client(): Paracord {
@@ -288,12 +285,12 @@ export default class Guild extends Resource<Guild, RawGuildType> {
       channels.forEach((c) => this.insertChannel(c));
     }
 
-    if (members !== undefined && this.#members !== undefined) {
-      members.forEach((m) => this.upsertMember(m));
-    }
-
     if (roles !== undefined && this.#roles !== undefined) {
       roles.forEach((r) => this.insertRole(r));
+    }
+
+    if (members !== undefined && this.#members !== undefined) {
+      members.forEach((m) => this.upsertMember(m));
     }
 
     if (presences !== undefined && this.#presences !== undefined) {
@@ -315,8 +312,17 @@ export default class Guild extends Resource<Guild, RawGuildType> {
    * @param client Paracord client.
    */
   public update(guildData: RawGuildType): this {
-    if (!guildData.unavailable && this.unavailable) {
+    if (!guildData.unavailable) {
       this.constructCaches(guildData);
+    }
+
+    if (!guildData.unavailable) {
+      delete guildData.emojis;
+      delete guildData.voice_states;
+      delete guildData.presences;
+      delete guildData.roles;
+      delete guildData.members;
+      delete guildData.channels;
     }
 
     return super.update(guildData);

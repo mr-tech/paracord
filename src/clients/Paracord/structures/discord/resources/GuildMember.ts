@@ -6,6 +6,7 @@ import Guild from './Guild';
 import Resource from '../../Resource';
 import Role from './Role';
 import User from './User';
+import { squashArrays } from '../../../../../utils';
 
 type IUpdateTypes = AugmentedRawGuildMember | GuildMemberUpdateEventFields
 
@@ -38,6 +39,11 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
     super(filteredProps, user.id);
     this.#user = user;
     this.#guild = guild;
+
+    if (guild.unsafe_roles !== undefined) {
+      this.roles = new Map();
+    }
+
     this.update(member);
   }
 
@@ -54,6 +60,36 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
   }
 
   public update(arg: IUpdateTypes): this {
+    delete arg.user;
+
+    if (arg.roles !== undefined) {
+      const { roles } = arg;
+      delete arg.roles;
+
+      if (this.roles !== undefined) {
+        const roleIds = Array.from(this.roleIds);
+        squashArrays(roleIds, roles);
+        if (this.id === '158446181310136320') {
+          console.log('ping2');
+          console.log(this.guild.roles);
+        }
+        roleIds.forEach((roleId) => {
+          const role = this.guild.roles.get(roleId);
+          if (this.id === '158446181310136320') {
+            console.log('ping3');
+            console.log(roleId);
+            console.log(role);
+          }
+          if (role !== undefined) {
+            (<Map<Snowflake, Role>> this.roles).set(roleId, role);
+          } else {
+            // TODO some kind of warning or error log
+          }
+        });
+      } else if (this.#roleIds !== undefined) {
+        squashArrays(this.#roleIds, roles);
+      }
+    }
     // update roleIds
     return super.update(arg);
   }

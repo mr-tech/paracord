@@ -44,6 +44,7 @@ export default class GuildVoiceState extends Resource<GuildVoiceState, Augmented
     super(filteredProps, voiceState.user_id);
     this.user = user;
     this.member = member;
+    this.update(voiceState);
   }
 
   public update(arg: AugmentedRawVoiceState): this {
