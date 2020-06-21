@@ -31,4 +31,3 @@ export interface ExtendedEmitter extends EventEmitter {
 export type DeleteEvent = ({ guildId }: {guildId: Snowflake}) => unknown;
 
 // export type NotVoid = string | number | boolean | symbol | bigint | Record<string, unknown>;
-export type KeysWithType<T, U> = { [K in keyof T]: T[K] extends U ? K : never }[keyof T];

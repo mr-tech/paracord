@@ -2,9 +2,12 @@
 import {
   DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS,
 } from './constants';
-import type { Overwrite, Snowflake } from './types';
-import Guild from './clients/Paracord/structures/Guild';
-import { GuildMember, GuildChannel, User } from './clients/Paracord/types';
+import type { Snowflake } from './types';
+import Guild from './clients/Paracord/structures/discord/resources/Guild';
+import GuildMember from './clients/Paracord/structures/discord/resources/GuildMember';
+import GuildChannel from './clients/Paracord/structures/discord/resources/GuildChannel';
+import Overwrite from './clients/Paracord/structures/discord/objects/Overview';
+import User from './clients/Paracord/structures/discord/resources/User';
 
 /**
  * Returns a new object that is a clone of the original.

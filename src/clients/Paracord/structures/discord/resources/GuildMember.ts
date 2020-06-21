@@ -1,14 +1,15 @@
 import {
-  AugmentedRawGuildMember, Snowflake, ISO8601timestamp, GuildMemberUpdateEventFields,
-} from '../../../types';
-import { FilteredProps } from '../types';
-import User from './User';
+  AugmentedRawGuildMember, GuildMemberUpdateEventFields, ISO8601timestamp, Snowflake,
+} from '../../../../../types';
+import { FilteredProps } from '../../../types';
 import Guild from './Guild';
-import Base from './Base';
+import Resource from '../../Resource';
+import Role from './Role';
+import User from './User';
 
 type IUpdateTypes = AugmentedRawGuildMember | GuildMemberUpdateEventFields
 
-export default class GuildMember extends Base<GuildMember, IUpdateTypes> {
+export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
   #user: User;
 
   #guild: Guild;
@@ -17,7 +18,7 @@ export default class GuildMember extends Base<GuildMember, IUpdateTypes> {
   nick: string | null | undefined;
 
   /** array of role object ids */
-  roles: RoleMap | Snowflake[] | undefined;
+  roles: Map<Snowflake, Role> | Snowflake[] | undefined;
 
   /** when the user joined the guild */
   joinedAt: ISO8601timestamp | undefined;
@@ -32,7 +33,7 @@ export default class GuildMember extends Base<GuildMember, IUpdateTypes> {
   mute: boolean | undefined;
 
   public constructor(filteredProps: FilteredProps<GuildMember, IUpdateTypes> | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
-    super(filteredProps);
+    super(filteredProps, user.id);
     this.#user = user;
     this.#guild = guild;
     this.update(member);
@@ -46,8 +47,8 @@ export default class GuildMember extends Base<GuildMember, IUpdateTypes> {
     return this.#guild;
   }
 
-  public update(args: IUpdateTypes): void{
-    super.update(args);
+  public update(arg: IUpdateTypes): this {
+    return super.update(arg);
   }
 
   // public get id(): string {

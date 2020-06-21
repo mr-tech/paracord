@@ -1,10 +1,12 @@
 
-import { RawOverwrite, Snowflake } from '../../../types';
+import { RawOverwrite, Snowflake } from '../../../../../types';
+import Base from '../../Base';
+import { FilteredProps } from '../../../types';
 
 const ROLE_STRING = 'role'; // for interning
 const MEMBER_STRING = 'member'; // for interning
 
-export default class Overwrite {
+export default class Overwrite extends Base<Overwrite, RawOverwrite> {
   /** role or user id */
   public id: Snowflake;
 
@@ -17,7 +19,8 @@ export default class Overwrite {
   /** permission bit set */
   public deny: number;
 
-  public constructor(overwrite: RawOverwrite) {
+  public constructor(filteredProps: FilteredProps<Overwrite, RawOverwrite>, overwrite: RawOverwrite) {
+    super(filteredProps);
     const {
       id, type, allow, deny,
     } = overwrite;
@@ -28,10 +31,12 @@ export default class Overwrite {
     this.deny = deny;
   }
 
-  public update(overwrite: RawOverwrite): void {
+  public update(overwrite: RawOverwrite): this {
     const { allow, deny } = overwrite;
 
     if (this.allow !== allow) this.allow = allow;
     if (this.deny !== deny) this.allow = deny;
+
+    return this;
   }
 }

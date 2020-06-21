@@ -1,16 +1,11 @@
-import { ISO8601timestamp, RawChannel, Snowflake } from '../../../types';
-import { FilteredProps } from '../types';
-import Base from './Base';
+import { ISO8601timestamp, RawChannel, Snowflake } from '../../../../../types';
+import { FilteredProps } from '../../../types';
 import Guild from './Guild';
-import Overwrite from './Overview';
+import Overwrite from '../objects/Overview';
+import Resource from '../../Resource';
 import User from './User';
 
-export default class GuildChannel extends Base<GuildChannel, RawChannel> {
-  /** the id of this channel */
-  #id: Snowflake | undefined;
-
-  #guild: Guild;
-
+export default class GuildChannel extends Resource<GuildChannel, RawChannel> {
   /** the type of channel */
   type: number | undefined;
 
@@ -62,17 +57,12 @@ export default class GuildChannel extends Base<GuildChannel, RawChannel> {
   /** when the last pinned message was pinned */
   lastPinTimestamp: ISO8601timestamp | undefined;
 
-  public constructor(filteredProps: FilteredProps<GuildChannel, RawChannel> | undefined, channel: RawChannel, guild: Guild) {
-    super(filteredProps);
-    this.#guild = guild;
+  public constructor(filteredProps: FilteredProps<GuildChannel, RawChannel> | undefined, channel: RawChannel) {
+    super(filteredProps, channel.id);
     this.update(channel);
   }
 
-  public get guild(): Guild {
-    return this.#guild;
-  }
-
-  public update(args: RawChannel): void {
-    super.update(args);
+  public update(arg: RawChannel): this {
+    return super.update(arg);
   }
 }

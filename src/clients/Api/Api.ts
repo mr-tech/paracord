@@ -70,7 +70,7 @@ export default class Api {
   /** Creates an isolated axios instance for use by this REST handler. */
   private static createWrappedAxiosInstance(rateLimitCache:RateLimitCache, token: string, requestOptions: IRequestOptions | undefined): WrappedRequest {
     const instance = axios.create({
-      baseURL: `${DISCORD_API_URL}/${DISCORD_API_DEFAULT_VERSION}`,
+      baseURL: `${DISCORD_API_URL}/${DISCORD_API_DEFAULT_VERSION}`, // TODO does not support webhooks
       headers: {
         Authorization: token,
         'Content-Type': 'application/json',

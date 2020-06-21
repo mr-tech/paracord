@@ -1,19 +1,20 @@
-import { FilteredProps, Resource } from '../types';
-import { Snowflake, WildCardRaw } from '../../../types';
+import { RawWildCard, Snowflake } from '../../../types';
+import { DiscordResource, FilteredProps } from '../types';
 
-interface BaseConstructor<T extends Resource, U extends WildCardRaw> {
-  new (filteredProps: FilteredProps<T, U> | undefined, value: U, ...args: unknown[]): T;
+interface BaseConstructor<T extends DiscordResource, U extends RawWildCard> {
+  /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+  new (filteredProps: FilteredProps<T, U> | undefined, value: U, ...args: any[]): T;
 }
 
-export default class CacheMap<T extends Resource, U extends WildCardRaw> extends Map<Snowflake, T> {
+export default class CacheMap<T extends DiscordResource, U extends RawWildCard> extends Map<Snowflake, T> {
   #filteredProps: FilteredProps<T, U> | undefined;
 
   #ItemConstructor: BaseConstructor<T, U>;
 
-  public constructor(ItemConstructor: BaseConstructor<T, U>, filteredProps: FilteredProps<T, U>) {
+  public constructor(ItemConstructor: BaseConstructor<T, U>, filteredProps: FilteredProps<T, U> | undefined) {
     super();
-    this.#filteredProps = filteredProps;
     this.#ItemConstructor = ItemConstructor;
+    this.#filteredProps = filteredProps;
   }
 
   public get filteredProps(): FilteredProps<T, U> | undefined {
@@ -26,13 +27,13 @@ export default class CacheMap<T extends Resource, U extends WildCardRaw> extends
     return item;
   }
 
-  set(key: string, value: T): this {
+  set(id: Snowflake, value: T): this {
     value.refreshLastAccessed();
-    return super.set(key, value);
+    return super.set(id, value);
   }
 
-  get(key: string): T | undefined {
-    const item = super.get(key);
+  get(id: Snowflake): T | undefined {
+    const item = super.get(id);
     if (item !== undefined) {
       item.refreshLastAccessed();
     }

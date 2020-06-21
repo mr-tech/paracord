@@ -1,13 +1,16 @@
 import { SECOND_IN_MILLISECONDS } from '../../constants';
 import {
-  AugmentedGuildMembersChunkEventFields, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawMessage, AugmentedRawVoiceState, GuildEmojisUpdateEventFields, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMembersChunkEventFields, GuildMemberUpdateEventFields, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, RawChannel, RawGuildMember, RawPresence, RawRole, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild, RawEmoji,
+  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawMessage, AugmentedRawVoiceState, GuildEmojisUpdateEventFields, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMemberUpdateEventFields, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, RawChannel, RawGuildMember, RawPresence, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild,
 } from '../../types';
 import Gateway from '../Gateway/Gateway';
 import Paracord from './Paracord';
-import Guild from './structures/Guild';
-import {
-  GuildChannel, GuildEmoji, GuildMember, GuildRole, GuildVoiceState, User, GuildMembersChunk,
-} from './types';
+import Emoji from './structures/discord/resources/Emoji';
+import Guild from './structures/discord/resources/Guild';
+import GuildChannel from './structures/discord/resources/GuildChannel';
+import GuildMember from './structures/discord/resources/GuildMember';
+import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
+import Role from './structures/discord/resources/Role';
+import User from './structures/discord/resources/User';
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
@@ -53,8 +56,8 @@ export function GUILD_CREATE(this: Paracord, data: AugmentedRawGuild, shard: num
   return this.upsertGuild(data, shard) ?? data;
 }
 
-export function GUILD_UPDATE(this: Paracord, data: AugmentedRawGuild): Guild | AugmentedRawGuild {
-  return this.upsertGuild(data) ?? data;
+export function GUILD_UPDATE(this: Paracord, data: AugmentedRawGuild, shard: number): Guild | AugmentedRawGuild {
+  return this.upsertGuild(data, shard) ?? data;
 }
 
 export function GUILD_DELETE(this: Paracord, data: UnavailableGuild): Guild | UnavailableGuild {
@@ -73,8 +76,8 @@ export function GUILD_DELETE(this: Paracord, data: UnavailableGuild): Guild | Un
   return guild;
 }
 
-export function USER_UPDATE(this: Paracord, data: RawUser): User {
-  return this.upsertUser(data);
+export function USER_UPDATE(this: Paracord, data: RawUser): User | RawUser {
+  return this.upsertUser(data) ?? data;
 }
 
 export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence | RawPresence {
@@ -87,22 +90,13 @@ export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence 
 }
 
 export function MESSAGE_CREATE(this: Paracord, data: AugmentedRawMessage): AugmentedRawMessage {
-  const { guild_id: guildId, author, member } = data;
-  if (guildId !== undefined) {
-    const guild = this.guilds.get(guildId);
+  const { guild_id: guildId, member } = data;
 
-    if (guild !== undefined && member !== undefined) {
-      member.user = data.author;
-      data.member = cacheMemberFromEvent(guild, member);
-      data.author = member.user;
-    }
-    this.users.get(author.id);
-  } else {
-    const user = this.users.get(author.id);
-    if (user !== undefined) {
-      data.author = user;
-    }
-  }
+  data.member.user = data.author;
+  /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+  // @ts-ignore
+  if (guildId !== undefined) data.member = this.guilds?.get(guildId)?.upsertMember(member) ?? member;
+  data.author = data.member.user;
 
   return data;
 }
@@ -162,7 +156,7 @@ export function GUILD_MEMBER_ADD(
   const guild = this.guilds.get(data.guild_id);
   if (guild !== undefined) {
     guild.incrementMemberCount();
-    return guild.insertMember(data) ?? data;
+    return guild.upsertMember(data) ?? data;
   }
 
   return data;
@@ -189,25 +183,25 @@ export function GUILD_MEMBER_REMOVE(
   return data;
 }
 
-export function GUILD_MEMBERS_CHUNK(this: Paracord, data: AugmentedGuildMembersChunkEventFields): GuildMembersChunk | AugmentedGuildMembersChunkEventFields {
-  const {
-    not_found: notFound, guild_id: guildId, presences, members,
-  } = data;
-  if (notFound) return data;
+// export function GUILD_MEMBERS_CHUNK(this: Paracord, data: AugmentedGuildMembersChunkEventFields): GuildMembersChunk | AugmentedGuildMembersChunkEventFields {
+//   const {
+//     not_found: notFound, guild_id: guildId, presences, members,
+//   } = data;
+//   if (notFound) return data;
 
-  const guild = this.guilds.get(guildId);
+//   const guild = this.guilds.get(guildId);
 
-  if (presences !== undefined) data.presences = presences.map((p) => this.handlePresence(p, guild));
-  if (guild !== undefined) {
-    data.members = members.map((m) => cacheMemberFromEvent(guild, m));
-  }
+//   if (presences !== undefined) data.presences = presences.map((p) => this.handlePresence(p, guild));
+//   if (guild !== undefined) {
+//     data.members = members.map((m) => cacheMemberFromEvent(guild, m));
+//   }
 
-  return data;
-}
+//   return data;
+// }
 
 export function GUILD_ROLE_CREATE(
   this: Paracord, data: GuildRoleCreateEventFields,
-): GuildRole | GuildRoleCreateEventFields {
+): Role | GuildRoleCreateEventFields {
   const { guild_id: guildId, role } = data;
   const guild = this.guilds.get(guildId);
   return guild?.insertRole(role) ?? data;
@@ -215,15 +209,15 @@ export function GUILD_ROLE_CREATE(
 
 export function GUILD_ROLE_UPDATE(
   this: Paracord, data: GuildRoleUpdateEventFields,
-): GuildRole | GuildRoleUpdateEventFields {
+): Role | GuildRoleUpdateEventFields {
   const { guild_id: guildId, role } = data;
   const guild = this.guilds.get(guildId);
-  return guild?.updateRole(role) ?? data;
+  return guild?.upsertRole(role) ?? data;
 }
 
 export function GUILD_ROLE_DELETE(
   this: Paracord, data: GuildRoleDeleteEventFields,
-): GuildRole | GuildRoleDeleteEventFields {
+): Role | GuildRoleDeleteEventFields {
   const { guild_id: guildId, role_id: roleId } = data;
   const guild = this.guilds.get(guildId);
   return guild?.removeRole(roleId) ?? data;
@@ -231,18 +225,8 @@ export function GUILD_ROLE_DELETE(
 
 export function GUILE_EMOJIS_UPDATE(
   this: Paracord, data: GuildEmojisUpdateEventFields,
-): [GuildEmoji[], GuildEmoji[]] | GuildEmojisUpdateEventFields {
+): [Emoji[], Emoji[]] | GuildEmojisUpdateEventFields {
   const { guild_id: guildId, emojis } = data;
   const guild = this.guilds.get(guildId);
   return guild?.updateEmojiCache(emojis) ?? data;
-}
-
-/**
- * Processes a member object (e.g. from MESSAGE_CREATE, VOICE_STATE_UPDATE, etc.)
- * @param guild Paracord guild.
- * @param member From Discord. More information on a particular payload can be found in the official docs. https://discordapp.com/developers/docs/resources/guild#guild-member-object
- */
-function cacheMemberFromEvent(guild: Guild, member: GuildMember | AugmentedRawGuildMember): GuildMember | AugmentedRawGuildMember {
-  const cachedMember = guild.members.get(member.user.id) ?? guild.updateMember(member);
-  return cachedMember ?? member;
 }

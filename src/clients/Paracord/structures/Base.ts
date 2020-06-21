@@ -1,38 +1,20 @@
+import { RawWildCard } from '../../../types';
 import { snakeToCamel } from '../../../utils';
-import { FilteredProps, Resource } from '../types';
-import { WildCardRaw } from '../../../types';
+import { DiscordTypes, FilteredProps } from '../types';
 
-export default class Base<T extends Resource, U extends WildCardRaw> {
+
+export default class Base<T extends DiscordTypes, U extends RawWildCard> {
   #filteredProps: FilteredProps<T, U> | undefined;
-
-  #lastAccessed: number;
-
-  #cachedTimestamp: number;
 
   public constructor(filteredProps: FilteredProps<T, U> | undefined) {
     this.#filteredProps = filteredProps;
-    const now = new Date().getTime();
-    this.#lastAccessed = now;
-    this.#cachedTimestamp = now;
 
     if (filteredProps !== undefined) {
       this.initializeProperties(filteredProps);
     }
   }
 
-  public get lastAccessed(): number {
-    return this.#lastAccessed;
-  }
-
-  public get cachedTimestamp(): number {
-    return this.#cachedTimestamp;
-  }
-
-  public refreshLastAccessed(): void {
-    this.#lastAccessed = new Date().getTime();
-  }
-
-  public update(newObj: U): void {
+  public update(newObj: U): this {
     let i = 0;
     for (const [key, newValue] of Object.entries(newObj)) {
       if (this.#filteredProps?.includes(key) ?? true) {
@@ -43,6 +25,8 @@ export default class Base<T extends Resource, U extends WildCardRaw> {
         }
       }
     }
+
+    return this;
   }
 
   private initializeProperties(filteredProps: FilteredProps<T, U>): void {
@@ -59,7 +43,7 @@ export default class Base<T extends Resource, U extends WildCardRaw> {
     if (curValue instanceof Base) {
       curValue.update(<U>newValue);
     } else if (curValue !== newValue) { // don't throw away good strings
-    // deep compare
+      // TODO deep compare
       (<Record<string, unknown>> this)[camelKey] = newValue;
     }
   }
