@@ -1,8 +1,7 @@
 import { ISO8601timestamp, RawChannel, Snowflake } from '../../../../../types';
 import { FilteredProps } from '../../../types';
-import Guild from './Guild';
-import Overwrite from '../objects/Overview';
 import Resource from '../../Resource';
+import Overwrite from '../objects/Overview';
 import User from './User';
 
 export default class GuildChannel extends Resource<GuildChannel, RawChannel> {

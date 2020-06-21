@@ -2,10 +2,9 @@
 /* eslint-disable max-classes-per-file */
 
 import { Paracord } from '../..';
-import { Overwrite, Snowflake, UnavailableGuild } from '../../../dist/types';
 import { UserEvents } from '../../common';
 import {
-  AugmentedEmoji, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, Identify, RawChannel, RawMessage, RawPresence, RawRole, RawUser, RawWildCard,
+  AugmentedEmoji, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, Identify, RawChannel, RawMessage, RawPresence, RawRole, RawUser, RawWildCard, Snowflake, UnavailableGuild,
 } from '../../types';
 import { IApiOptions } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
@@ -13,6 +12,7 @@ import { GatewayOptions } from '../Gateway/types';
 import Base from './structures/Base';
 import CacheMap from './structures/CacheMap';
 import Activity from './structures/discord/objects/Activity';
+import Overwrite from './structures/discord/objects/Overview';
 import Emoji from './structures/discord/resources/Emoji';
 import Guild from './structures/discord/resources/Guild';
 import GuildChannel from './structures/discord/resources/GuildChannel';
