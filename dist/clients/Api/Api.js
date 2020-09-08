@@ -92,7 +92,7 @@ class Api {
                 'Accept-Encoding': 'gzip,deflate',
             } }, (requestOptions !== null && requestOptions !== void 0 ? requestOptions : {})));
         instance.interceptors.response.use((response) => response, (error) => ({
-            status: 500, message: error.message, headers: {}, data: {},
+            status: 500, headers: {}, data: { message: error.message },
         }));
         return rateLimitCache.wrapRequest(instance.request);
     }
@@ -209,7 +209,7 @@ class Api {
             if (response !== undefined) {
                 response = yield this.handleResponse(request, response);
             }
-            if (response === undefined) {
+            else {
                 const customResponse = {
                     status: 429,
                     statusText: 'Too Many Requests',
@@ -306,18 +306,20 @@ class Api {
     handleResponse(request, response) {
         var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            let rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
-            let allowQueue = Api.shouldQueueRequest(request, (_a = rateLimitHeaders.global) !== null && _a !== void 0 ? _a : false);
-            while (response.status === 429 && allowQueue) {
-                if (__classPrivateFieldGet(this, _requestQueueProcessInterval) === undefined) {
-                    const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
-                    this.log('WARNING', message);
+            if (Object.keys(response.headers).length) {
+                let rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
+                let allowQueue = Api.shouldQueueRequest(request, (_a = rateLimitHeaders.global) !== null && _a !== void 0 ? _a : false);
+                while (response.status === 429 && allowQueue) {
+                    if (__classPrivateFieldGet(this, _requestQueueProcessInterval) === undefined) {
+                        const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
+                        this.log('WARNING', message);
+                    }
+                    response = yield this.handleRateLimitedRequest(request, rateLimitHeaders);
+                    rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
+                    allowQueue = Api.shouldQueueRequest(request, (_b = rateLimitHeaders.global) !== null && _b !== void 0 ? _b : false);
                 }
-                response = yield this.handleRateLimitedRequest(request, rateLimitHeaders);
-                rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
-                allowQueue = Api.shouldQueueRequest(request, (_b = rateLimitHeaders.global) !== null && _b !== void 0 ? _b : false);
+                this.updateRateLimitCache(request, rateLimitHeaders);
             }
-            this.updateRateLimitCache(request, rateLimitHeaders);
             return response;
         });
     }

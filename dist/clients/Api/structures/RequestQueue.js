@@ -100,7 +100,7 @@ class RequestQueue {
     sendRequest(request) {
         return __awaiter(this, void 0, void 0, function* () {
             const { response } = yield __classPrivateFieldGet(this, _apiClient).sendRequest(request, true);
-            if (response !== undefined) {
+            if (response && response.status !== 429) {
                 request.response = response;
             }
         });
