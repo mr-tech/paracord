@@ -5,7 +5,7 @@ import { IApiResponse } from '../Api/types';
 import { Identify, IdentifyConnectionProperties, GatewayStatusUpdate } from '../../types';
 
 export interface GatewayOptions {
-  /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
+  /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
   identity: Identify;
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventEmitter;
@@ -50,7 +50,7 @@ export type SessionLimitData = {
   maxConcurrency: number;
 }
 
-/** Information about the current request count and time that it should reset in relation to Discord rate limits. https://discordapp.com/developers/docs/topics/gateway#rate-limiting */
+/** Information about the current request count and time that it should reset in relation to Discord rate limits. https://discord.com/developers/docs/topics/gateway#rate-limiting */
 export type WebsocketRateLimitCache = {
   /** Timestamp in ms when the request limit is expected to reset. */
   resetTimestamp: number;

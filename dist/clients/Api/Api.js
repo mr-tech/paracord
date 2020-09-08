@@ -91,6 +91,9 @@ class Api {
                 'X-RateLimit-Precision': 'millisecond',
                 'Accept-Encoding': 'gzip,deflate',
             } }, (requestOptions !== null && requestOptions !== void 0 ? requestOptions : {})));
+        instance.interceptors.response.use((response) => response, (error) => ({
+            status: 500, message: error.message, headers: {}, data: {},
+        }));
         return rateLimitCache.wrapRequest(instance.request);
     }
     get hasRateLimitService() {

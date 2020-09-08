@@ -56,7 +56,7 @@ exports.CHANNEL_TYPES = {
     GUILD_NEWS: 5,
     GUILD_STORE: 6,
 };
-exports.DISCORD_API_URL = 'https://discordapp.com/api';
+exports.DISCORD_API_URL = 'https://discord.com/api';
 exports.DISCORD_API_DEFAULT_VERSION = 'v6';
 exports.DISCORD_EPOCH = 1420070400000;
 exports.DISCORD_CDN_URL = 'https://cdn.discordapp.com';

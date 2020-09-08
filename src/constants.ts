@@ -8,7 +8,7 @@ export const GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
 /** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
 export const GATEWAY_REQUEST_BUFFER = 4;
 export const DEFAULT_GATEWAY_BOT_WAIT = 5 * SECOND_IN_MILLISECONDS;
-/** https://discordapp.com/developers/docs/topics/opcodes-and-status-codes */
+/** https://discord.com/developers/docs/topics/opcodes-and-status-codes */
 export const GATEWAY_OP_CODES = {
   DISPATCH: 0,
   HEARTBEAT: 1,
@@ -20,7 +20,7 @@ export const GATEWAY_OP_CODES = {
   HELLO: 10,
   HEARTBEAT_ACK: 11,
 };
-/** https://discordapp.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
+/** https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
 export const GATEWAY_CLOSE_CODES = {
   CLEAN: 1000,
   GOING_AWAY: 1001,
@@ -66,7 +66,7 @@ export const CHANNEL_TYPES = {
 //   LISTENING = 2
 //   CUSTOM = 4
 // }
-export const DISCORD_API_URL = 'https://discordapp.com/api';
+export const DISCORD_API_URL = 'https://discord.com/api';
 export const DISCORD_API_DEFAULT_VERSION = 'v6';
 /** Discord epoch (2015-01-01T00:00:00.000Z) */
 export const DISCORD_EPOCH = 1420070400000;

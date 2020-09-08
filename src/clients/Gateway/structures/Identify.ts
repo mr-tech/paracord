@@ -1,7 +1,7 @@
 import { GatewayStatusUpdate, IdentifyConnectionProperties } from '../../../types';
 import { IdentityOptions } from '../types';
 
-/** A container of information for identifying with the gateway. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure */
+/** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
 export default class Identify {
     /** used for Guild Sharding */
     readonly shard?: [number, number]; // (shardId, numShards);

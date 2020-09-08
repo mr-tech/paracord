@@ -53,7 +53,7 @@ export declare const CHANNEL_TYPES: {
     GUILD_NEWS: number;
     GUILD_STORE: number;
 };
-export declare const DISCORD_API_URL = "https://discordapp.com/api";
+export declare const DISCORD_API_URL = "https://discord.com/api";
 export declare const DISCORD_API_DEFAULT_VERSION = "v6";
 export declare const DISCORD_EPOCH = 1420070400000;
 export declare const DISCORD_CDN_URL = "https://cdn.discordapp.com";

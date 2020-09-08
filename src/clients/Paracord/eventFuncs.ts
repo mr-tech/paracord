@@ -8,7 +8,7 @@ import Guild from './structures/Guild';
 
 const { DM, GROUP_DM } = CHANNEL_TYPES;
 
-/** The methods in ALL_CAPS correspond to a Discord gateway event (https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
+/** The methods in ALL_CAPS correspond to a Discord gateway event (https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
 export function READY(this: Paracord, data: ReadyEventFields, shard: number): ReadyEventFields {
   this.handleReady(data, shard);

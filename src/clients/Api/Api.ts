@@ -80,6 +80,13 @@ export default class Api {
       ...(requestOptions ?? {}),
     });
 
+    instance.interceptors.response.use(
+      (response) => response,
+      (error) => ({
+        status: 500, message: error.message, headers: {}, data: {},
+      }),
+    );
+
     /** `axios.request()` decorated with rate limit handling. */
     return rateLimitCache.wrapRequest(instance.request);
   }
@@ -493,7 +500,6 @@ export default class Api {
       }
     }
   }
-
 
   /**
    * Puts the Api Request onto the queue to be executed when the rate limit has reset.

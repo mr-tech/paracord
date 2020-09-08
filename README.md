@@ -18,7 +18,7 @@
 
 ## About
 
-A highly-scalable NodeJS framework built to interact with [Discord's API](https://discordapp.com/developers/docs/intro).
+A highly-scalable NodeJS framework built to interact with [Discord's API](https://discord.com/developers/docs/intro).
 
 Paracord addresses an important problem that large bot owners will inevitably encounter, how to avoid the exponential costs of vertically scaling infrastructure in the cloud while maintaining high reliability and availability. Paracord solves this by utilizing clients and servers running [grpc](https://grpc.io/) to support limited interprocess communication between shards on remote hosts. Bots of all sizes can use this framework to get started and seamlessly transition to multi-shard and eventually multi-host configurations with the addition of just a few lines of code.
 

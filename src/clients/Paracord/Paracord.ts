@@ -34,7 +34,7 @@ export default class Paracord extends EventEmitter {
   /** Whether or not the `init()` function has already been called. */
   #initialized: boolean;
 
-  /** User details given by Discord in the "Ready" event form the gateway. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
+  /** User details given by Discord in the "Ready" event form the gateway. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
   public user!: User;
 
   /** During a shard's start up, how many guilds may be unavailable before forcing ready. */
@@ -204,7 +204,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Processes a gateway event.
-   * @param eventType The type of the event from the gateway. https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events (Events tend to be emitted in all caps and underlines in place of spaces.)
+   * @param eventType The type of the event from the gateway. https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events (Events tend to be emitted in all caps and underlines in place of spaces.)
    * @param data From Discord.
    * @param shard Shard id of the gateway that emitted this event.
    */
@@ -423,7 +423,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Creates gateway and pushes it into cache and login queue.
-   * @param identity An object containing information for identifying with the gateway. https://discordapp.com/developers/docs/topics/gateway#identify-identify-structure
+   * @param identity An object containing information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
    */
   private addNewGateway(identity: Identify, wsUrl?: string | undefined): void {
     const gatewayOptions = {
@@ -621,7 +621,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Inserts/updates properties of a guild.
-   * @param data From Discord - https://discordapp.com/developers/docs/resources/guild#guild-object
+   * @param data From Discord - https://discord.com/developers/docs/resources/guild#guild-object
    * @param shard Id of shard that spawned this guild.
    * @param Guild Ignore. For dependency injection.
    */
@@ -642,7 +642,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Inserts/updates user in this client's cache.
-   * @param user From Discord - https://discordapp.com/developers/docs/resources/user#user-object-user-structure
+   * @param user From Discord - https://discord.com/developers/docs/resources/user#user-object-user-structure
    */
   public upsertUser(user: User | RawUser): User {
     let cachedUser = this.users.get(user.id) || <User>{};
@@ -664,7 +664,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Adjusts the client's presence cache, allowing ignoring events that may be redundant.
-   * @param presence From Discord - https://discordapp.com/developers/docs/topics/gateway#presence-update
+   * @param presence From Discord - https://discord.com/developers/docs/topics/gateway#presence-update
    */
   public updatePresences(presence: RawPresence): RawPresence {
     if (presence.status !== 'offline') {
@@ -678,7 +678,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Inserts/updates presence in this client's cache.
-   * @param presence From Discord - https://discordapp.com/developers/docs/topics/gateway#presence-update
+   * @param presence From Discord - https://discord.com/developers/docs/topics/gateway#presence-update
    */
   private upsertPresence(presence: RawPresence): RawPresence {
     const cachedPresence = this.presences.get(presence.user.id);
@@ -695,7 +695,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Ensures that a user is assigned its presence from the cache and vice versa.
-   * @param user From Discord - https://discordapp.com/developers/docs/resources/user#user-object
+   * @param user From Discord - https://discord.com/developers/docs/resources/user#user-object
    */
   private circularAssignCachedPresence(user: User): void {
     const cachedPresence = this.presences.get(user.id);
@@ -707,7 +707,7 @@ export default class Paracord extends EventEmitter {
 
   /**
    * Ensures that a presence is assigned its user from the cache and vice versa.
-   * @param presence From Discord - https://discordapp.com/developers/docs/topics/gateway#presence-update
+   * @param presence From Discord - https://discord.com/developers/docs/topics/gateway#presence-update
    */
   private circularAssignCachedUser(presence: RawPresence): void {
     let cachedUser;
@@ -738,7 +738,7 @@ export default class Paracord extends EventEmitter {
   /**
    * Processes presences (e.g. from PRESENCE_UPDATE, GUILD_MEMBERS_CHUNK, etc.)
    * @param guild Paracord guild.
-   * @param presence From Discord. More information on a particular payload can be found in the official docs. https://discordapp.com/developers/docs/topics/gateway#presence-update
+   * @param presence From Discord. More information on a particular payload can be found in the official docs. https://discord.com/developers/docs/topics/gateway#presence-update
    */
   public handlePresence({ guild, presence }: { guild?: Guild; presence: RawPresence; }): RawPresence {
     const cachedPresence = this.updatePresences(presence);
@@ -755,7 +755,7 @@ export default class Paracord extends EventEmitter {
   /**
    * Processes a member object (e.g. from MESSAGE_CREATE, VOICE_STATE_UPDATE, etc.)
    * @param guild Paracord guild.
-   * @param member From Discord. More information on a particular payload can be found in the official docs. https://discordapp.com/developers/docs/resources/guild#guild-member-object
+   * @param member From Discord. More information on a particular payload can be found in the official docs. https://discord.com/developers/docs/resources/guild#guild-member-object
    */
   public cacheMemberFromEvent(guild: Guild, member: GuildMember | RawGuildMember): GuildMember {
     const cachedMember = guild.members.get(member.user.id);
@@ -837,7 +837,7 @@ export default class Paracord extends EventEmitter {
   /**
    * Short-hand for sending a message to Discord.
    * @param channelId Discord snowflake of the channel to send the message.
-   * @param message  When a string is passed for `message`, that string will populate the `content` field. https://discordapp.com/developers/docs/resources/channel#create-message-params
+   * @param message  When a string is passed for `message`, that string will populate the `content` field. https://discord.com/developers/docs/resources/channel#create-message-params
    */
   public sendMessage(channelId: Snowflake, message: string | Record<string, unknown> | Message): Promise<IApiResponse | RemoteApiResponse> {
     return this.request('post', `channels/${channelId}/messages`, {
@@ -849,8 +849,8 @@ export default class Paracord extends EventEmitter {
   /**
    * Short-hand for editing a message to Discord.
    *
-   * @param message Partial Discord message. https://discordapp.com/developers/docs/resources/channel#create-message-params
-   * @param newMessage  When a string is passed for `message`, that string will populate the `content` field. https://discordapp.com/developers/docs/resources/channel#create-message-params
+   * @param message Partial Discord message. https://discord.com/developers/docs/resources/channel#create-message-params
+   * @param newMessage  When a string is passed for `message`, that string will populate the `content` field. https://discord.com/developers/docs/resources/channel#create-message-params
    */
   public editMessage(message: Record<string, unknown> | Message, newMessage: string | Record<string, unknown> | Message): Promise<IApiResponse | RemoteApiResponse> {
     return this.request(
