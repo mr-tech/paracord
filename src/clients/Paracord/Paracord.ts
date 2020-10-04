@@ -773,6 +773,16 @@ export default class Paracord extends EventEmitter {
     return cachedPresence;
   }
 
+  // /**
+  //  * Processes a member object (e.g. from MESSAGE_CREATE, VOICE_STATE_UPDATE, etc.)
+  //  * @param guild Paracord guild.
+  //  * @param member From Discord. More information on a particular payload can be found in the official docs. https://discord.com/developers/docs/resources/guild#guild-member-object
+  //  */
+  // public cacheMemberFromEvent(guild: Guild, member: GuildMember | RawGuildMember): GuildMember {
+  //   const cachedMember = guild.members.get(member.user.id);
+  //   return cachedMember === undefined ? guild.upsertMember(member, this) : cachedMember;
+  // }
+
   /** Removes from presence and user caches users who are no longer in a cached guild. */
   private sweepCaches(): void {
     if (this.#guilds === undefined) return;

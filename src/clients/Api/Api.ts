@@ -80,6 +80,13 @@ export default class Api {
       ...(requestOptions ?? {}),
     });
 
+    instance.interceptors.response.use(
+      (response) => response,
+      (error) => ({
+        status: 500, headers: {}, data: { message: error.message },
+      }),
+    );
+
     /** `axios.request()` decorated with rate limit handling. */
     return rateLimitCache.wrapRequest(instance.request);
   }
@@ -306,9 +313,7 @@ export default class Api {
     let { response, ...rateLimitState } = await this.sendRequest(request);
     if (response !== undefined) {
       response = await this.handleResponse(request, response);
-    }
-
-    if (response === undefined) {
+    } else {
       const customResponse = {
         status: 429,
         statusText: 'Too Many Requests',
@@ -422,22 +427,24 @@ export default class Api {
   }
 
   private async handleResponse(request: ApiRequest, response: IApiResponse): Promise<IApiResponse> {
-    let rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
-      response.headers,
-    );
+    if (Object.keys(response.headers).length) {
+      let rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
+        response.headers,
+      );
 
-    let allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
-    while (response.status === 429 && allowQueue) {
-      if (this.#requestQueueProcessInterval === undefined) {
-        const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
-        this.log('WARNING', message);
+      let allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
+      while (response.status === 429 && allowQueue) {
+        if (this.#requestQueueProcessInterval === undefined) {
+          const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
+          this.log('WARNING', message);
+        }
+        response = await this.handleRateLimitedRequest(request, rateLimitHeaders);
+        rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
+        allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
       }
-      response = await this.handleRateLimitedRequest(request, rateLimitHeaders);
-      rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
-      allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
-    }
 
-    this.updateRateLimitCache(request, rateLimitHeaders);
+      this.updateRateLimitCache(request, rateLimitHeaders);
+    }
 
     return response;
   }
@@ -493,7 +500,6 @@ export default class Api {
       }
     }
   }
-
 
   /**
    * Puts the Api Request onto the queue to be executed when the rate limit has reset.

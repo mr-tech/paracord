@@ -137,7 +137,7 @@ export default class RequestQueue {
 
   private async sendRequest(request: ApiRequest): Promise<void> {
     const { response } = await this.#apiClient.sendRequest(request, true);
-    if (response !== undefined) {
+    if (response && response.status !== 429) {
       request.response = response;
     }
   }
