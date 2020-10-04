@@ -44,10 +44,10 @@ export default class Gateway {
 
   #wsRateLimitCache: WebsocketRateLimitCache;
 
-  /** From Discord - Most recent event sequence id received. https://discordapp.com/developers/docs/topics/gateway#payloads */
+  /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
   #sequence?: number;
 
-  /** From Discord - Id of this gateway connection. https://discordapp.com/developers/docs/topics/gateway#ready-ready-event-fields */
+  /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
   #sessionId?: string;
 
   /** If the last heartbeat packet sent to Discord received an ACK. */
@@ -273,7 +273,7 @@ export default class Gateway {
   /**
    * Sends a `Request Guild Members` websocket message.
    * @param guildId Id of the guild to request members from.
-   * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discordapp.com/developers/docs/topics/gateway#request-guild-members
+   * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
    */
   public requestGuildMembers(guildId: string, options: Partial<GuildRequestMembers> = {}): boolean {
     const sendOptions: Partial<GuildRequestMembers> = {
@@ -417,7 +417,7 @@ export default class Gateway {
 
   /**
    * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
-   * @param type Type of event. (e.g. CHANNEL_CREATE) https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events
+   * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
    * @param data Data of the event from Discord.
    */
   private async handleEvent(type: string, data: unknown): Promise<void> {
@@ -678,7 +678,7 @@ export default class Gateway {
   }
 
   /** Processes incoming messages from Discord's gateway.
-   * @param p Packet from Discord. https://discordapp.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
+   * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
    */
   private handleMessage(p: GatewayPayload): void {
     const {
@@ -728,7 +728,7 @@ export default class Gateway {
   }
 
   /**
-   * Handles "Ready" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#ready
+   * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
    * @param data From Discord.
    */
   private handleReady(data: ReadyEventFields): void {
@@ -740,7 +740,7 @@ export default class Gateway {
     this.handleEvent('READY', data);
   }
 
-  /** Handles "Resumed" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#resumed */
+  /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
   private handleResumed(): void {
     this.log('INFO', 'Replay finished. Resuming events.');
     this.online = true;
@@ -749,7 +749,7 @@ export default class Gateway {
   }
 
   /**
-   * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discordapp.com/developers/docs/topics/gateway#connecting-to-the-gateway
+   * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
    * @param data From Discord.
    */
   private handleHello(data: Hello): void {
@@ -761,7 +761,7 @@ export default class Gateway {
   }
 
   /**
-   * Starts heartbeat. https://discordapp.com/developers/docs/topics/gateway#heartbeating
+   * Starts heartbeat. https://discord.com/developers/docs/topics/gateway#heartbeating
    * @param heartbeatInterval From Discord - Number of ms to wait between sending heartbeats.
    */
   private startHeartbeat(heartbeatInterval: number): void {
@@ -800,7 +800,7 @@ export default class Gateway {
     }
   }
 
-  /** Handles "Heartbeat ACK" packet from Discord. https://discordapp.com/developers/docs/topics/gateway#heartbeating */
+  /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
   private handleHeartbeatAck(): void {
     this.#heartbeatAck = true;
     this.handleEvent('HEARTBEAT_ACK', null);
@@ -970,7 +970,7 @@ export default class Gateway {
 
   /**
    * Sends a websocket message to Discord.
-   * @param op Gateway Opcode https://discordapp.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
+   * @param op Gateway Opcode https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
    * @param data Data of the message.
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
@@ -1035,7 +1035,7 @@ export default class Gateway {
 
   /**
    * Handles "Invalid Session" packet from Discord. Will attempt to resume a connection if Discord allows it and there is already a sessionId and sequence.
-   * Otherwise, will send a new identify payload. https://discordapp.com/developers/docs/topics/gateway#invalid-session
+   * Otherwise, will send a new identify payload. https://discord.com/developers/docs/topics/gateway#invalid-session
    * @param resumable Whether or not Discord has said that the connection as able to be resumed.
    */
   private handleInvalidSession(resumable: boolean): void {

@@ -175,7 +175,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Creates a new guild object.
-   * @param guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
+   * @param guildData From Discord - The guild. https://discord.com/developers/docs/resources/guild#guild-object
    * @param client Paracord client.
    * @param shard Shard id of the gateway connection this guild originated from.
    */
@@ -308,7 +308,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Replace caches with newly received information about a guild.
-   * @param guildData From Discord - The guild. https://discordapp.com/developers/docs/resources/guild#guild-object
+   * @param guildData From Discord - The guild. https://discord.com/developers/docs/resources/guild#guild-object
    * @param client Paracord client.
    */
   public update(guildData: RawGuildType): this {
@@ -392,7 +392,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Add a channel with some additional information to a map of channels.
-   * @param channel https://discordapp.com/developers/docs/resources/channel#channel-object-channel-structure
+   * @param channel https://discord.com/developers/docs/resources/channel#channel-object-channel-structure
    */
   // TODO: NO
   public insertChannel(channel: RawChannel): GuildChannel | undefined {
@@ -429,7 +429,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Add a member with some additional information to a map of members.
-   * @param member https://discordapp.com/developers/docs/resources/guild#guild-member-object
+   * @param member https://discord.com/developers/docs/resources/guild#guild-member-object
    */
   public upsertMember(member: AugmentedRawGuildMember): GuildMember | undefined {
     const members = this.#members;
@@ -470,7 +470,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Add a role with some additional information to a map of roles.
-   * @param role https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
+   * @param role https://discord.com/developers/docs/topics/permissions#role-object-role-structure
    */
   public insertRole(role: RawRole): Role | undefined {
     const roles = this.#roles;
@@ -499,7 +499,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Add a role with some additional information to a map of roles.
-   * @param emoji https://discordapp.com/developers/docs/topics/permissions#role-object-role-structure
+   * @param emoji https://discord.com/developers/docs/topics/permissions#role-object-role-structure
    */
   public updateEmojiCache(emojis: Emoji[]): [Emoji[], Emoji[]] | undefined {
     const emojiCache = this.#emojis;
@@ -523,7 +523,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Add a role to a map of voice states.
-   * @param voiceState https://discordapp.com/developers/docs/resources/voice
+   * @param voiceState https://discord.com/developers/docs/resources/voice
    * @param client
    */
   public insertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
@@ -540,7 +540,7 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /**
    * Create a map of presences keyed to their user's ids.
-   * @param presence https://discordapp.com/developers/docs/topics/gateway#presence-update-presence-update-event-fields
+   * @param presence https://discord.com/developers/docs/topics/gateway#presence-update-presence-update-event-fields
    * @param client
    */
   private insertPresence(presence: RawPresence): RawPresence | undefined {
@@ -573,8 +573,8 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   // /**
   //  * Asynchronously gets the the bot's member object from Discord and stores it in the guild.
-  //  * @param {Object} guild https://discordapp.com/developers/docs/resources/guild#guild-object
-  //  * @returns {void} guild.me <- https://discordapp.com/developers/docs/resources/guild#guild-member-object-guild-member-structure
+  //  * @param {Object} guild https://discord.com/developers/docs/resources/guild#guild-object
+  //  * @returns {void} guild.me <- https://discord.com/developers/docs/resources/guild#guild-member-object-guild-member-structure
   //  */
   // private async lazyLoadGuildMe(client) Promise<GuildMember> | undefined {
   //   const res = await client.fetchMember(this, client.user.id);

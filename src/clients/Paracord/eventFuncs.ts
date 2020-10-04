@@ -12,7 +12,7 @@ import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
 import Role from './structures/discord/resources/Role';
 import User from './structures/discord/resources/User';
 
-/** The methods in ALL_CAPS correspond to a Discord gateway event (https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
+/** The methods in ALL_CAPS correspond to a Discord gateway event (https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
 export function READY(this: Paracord, data: ReadyEventFields, shard: number): ReadyEventFields {
   this.handleReady(data, shard);
