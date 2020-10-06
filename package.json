@@ -28,6 +28,7 @@
     "@types/ws": "^7.2.4",
     "axios": "^0.19.2",
     "grpc": "^1.24.2",
+    "typescript": "^3.9.3",
     "ws": "^7.3.0"
   },
   "devDependencies": {
@@ -39,8 +40,7 @@
     "eslint-plugin-import": "^2.20.2",
     "mocha": "^6.2.3",
     "nyc": "^14.1.1",
-    "sinon": "^7.5.0",
-    "typescript": "^3.9.3"
+    "sinon": "^7.5.0"
   },
   "optionalDependencies": {
     "pm2": "^3.5.2"
