@@ -6,7 +6,7 @@ import GuildMember from './clients/Paracord/structures/discord/resources/GuildMe
 import Role from './clients/Paracord/structures/discord/resources/Role';
 import User from './clients/Paracord/structures/discord/resources/User';
 import {
-  DISCORD_CDN_URL, DISCORD_EPOCH, MEMBER_STRING, PERMISSIONS, ROLE_STRING, SECOND_IN_MILLISECONDS,
+  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS, OVERWRITE_ROLE_VALUE, OVERWRITE_MEMBER_VALUE,
 } from './constants';
 import type { Snowflake } from './types';
 
@@ -143,9 +143,9 @@ export function computeChannelOverwrites(perms: bigint, member: GuildMember, gui
   const roleOverwrites: Overwrite[] = [];
   const memberOverwrites: Overwrite[] = [];
   overwrites.forEach((o) => {
-    if (o.type === MEMBER_STRING && o.id === member.id) {
+    if (o.type === OVERWRITE_MEMBER_VALUE && o.id === member.id) {
       memberOverwrites.push(o);
-    } else if (o.type === ROLE_STRING && o.id !== guild.id && memberRoles.has(o.id)) {
+    } else if (o.type === OVERWRITE_ROLE_VALUE && o.id !== guild.id && memberRoles.has(o.id)) {
       roleOverwrites.push(o);
     } else {
       perms = _everyoneOverwrites(perms, o);

@@ -1,13 +1,12 @@
 
 import { RawOverwrite, Snowflake } from '../../../../../types';
-import { ROLE_STRING, MEMBER_STRING } from '../../../../../constants';
 
 export default class Overwrite {
   /** role or user id */
   public id: Snowflake;
 
   /** either "role" or "member" */
-  public type: 'role' | 'member';
+  public type: 0 | 1;
 
   /** permission bit set */
   public allow: number;
@@ -21,7 +20,7 @@ export default class Overwrite {
     } = overwrite;
 
     this.id = id;
-    this.type = type === ROLE_STRING ? ROLE_STRING : MEMBER_STRING;
+    this.type = type;
     this.allow = allow;
     this.deny = deny;
   }

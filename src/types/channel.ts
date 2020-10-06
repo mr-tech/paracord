@@ -203,8 +203,8 @@ export type Reaction = {
 export type RawOverwrite = {
   /** role or user id */
   id: Snowflake;
-  /** either "role" or "member" */
-  type: string;
+  /** either 0 - "role" or 1 - "member" */
+  type: 0 | 1;
   /** permission bit set */
   allow: number;
   /** permission bit set */
