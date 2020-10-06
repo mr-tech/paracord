@@ -338,22 +338,25 @@ export default class Guild extends Resource<Guild, RawGuildType> {
    * Checks if the user has a specific permission in this guild.
    * @returns `true` if member has the permission.
    */
-  public hasPermission(permission: number, member: GuildMember, adminOverride = true): boolean {
+  public hasPermission(permission: number | string | bigint, member: GuildMember, adminOverride = true): boolean {
     if (this.#roles === undefined) throw Error('roles are not cached');
 
-    const perms = computeGuildPerms({ member, guild: this, stopOnOwnerAdmin: adminOverride });
+    const memberPermissions = computeGuildPerms({ member, guild: this, stopOnOwnerAdmin: adminOverride });
 
-    if (perms & PERMISSIONS.ADMINISTRATOR && adminOverride) {
+    const bigIntPermission = BigInt(permission);
+
+    if ((memberPermissions & BigInt(PERMISSIONS.ADMINISTRATOR)) && adminOverride) {
       return true;
     }
-    return Boolean(perms & permission);
+
+    return Boolean(memberPermissions & bigIntPermission);
   }
 
   /**
    * Checks if the user has a specific permission for a channel in this guild.
    * @returns `true` if member has the permission.
    */
-  public hasChannelPermission(permission: number, member: GuildMember, channel: GuildChannel | Snowflake, stopOnOwnerAdmin = true): boolean {
+  public hasChannelPermission(permission: number | string | bigint, member: GuildMember, channel: GuildChannel | Snowflake, stopOnOwnerAdmin = true): boolean {
     if (this.#roles === undefined) throw Error('roles are not cached');
     if (this.#channels === undefined) throw Error('channels are not cached');
 
@@ -369,10 +372,12 @@ export default class Guild extends Resource<Guild, RawGuildType> {
       member, guild: this, channel, stopOnOwnerAdmin,
     });
 
-    if (perms & PERMISSIONS.ADMINISTRATOR && stopOnOwnerAdmin) {
+    const bigIntPermission = BigInt(permission);
+
+    if (bigIntPermission & BigInt(PERMISSIONS.ADMINISTRATOR) && stopOnOwnerAdmin) {
       return true;
     }
-    return Boolean(perms & permission);
+    return Boolean(perms & bigIntPermission);
   }
 
   /*
@@ -435,16 +440,16 @@ export default class Guild extends Resource<Guild, RawGuildType> {
     const members = this.#members;
     if (members === undefined) return undefined;
 
+
     const { user, user: { id } } = member;
-    const cachedMember = this.updateMember(member) ?? members.add(id, member, user, this);
+    const cachedUser = this.#client.upsertUser(user);
+    const cachedMember = this.updateMember(member) ?? members.add(id, member, cachedUser, this);
 
     if (this.owner === undefined && this.ownerId === id) {
       this.owner = cachedMember;
-      this.ownerId = id;
     }
     if (this.me === undefined && this.#client.user.id === id) {
       this.me = cachedMember;
-      user.id = this.#client.user.id;
     }
 
     return cachedMember;
@@ -532,10 +537,16 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
     const { user_id: userId, member } = voiceState;
 
-    const cachedMember = this.upsertMember(member);
+    let cachedMember;
+    if (member !== undefined) {
+      cachedMember = this.upsertMember(member);
+    } else {
+      cachedMember = this.members.get(userId);
+    }
+
     const user = cachedMember?.user ?? this.#client.users?.get(userId);
 
-    return voiceStates.add(userId, voiceState, user, member);
+    return voiceStates.add(userId, voiceState, user, cachedMember);
   }
 
   /**

@@ -63,28 +63,23 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
     delete arg.user;
 
     if (arg.roles !== undefined) {
+      const { roles: memberRoleMap } = this;
       const { roles } = arg;
       delete arg.roles;
 
-      if (this.roles !== undefined) {
+      if (memberRoleMap !== undefined) {
         const roleIds = Array.from(this.roleIds);
-        squashArrays(roleIds, roles);
-        if (this.id === '158446181310136320') {
-          console.log('ping2');
-          console.log(this.guild.roles);
-        }
+        const removedRoleIds = squashArrays(roleIds, roles);
         roleIds.forEach((roleId) => {
           const role = this.guild.roles.get(roleId);
-          if (this.id === '158446181310136320') {
-            console.log('ping3');
-            console.log(roleId);
-            console.log(role);
-          }
           if (role !== undefined) {
-            (<Map<Snowflake, Role>> this.roles).set(roleId, role);
+            (<Map<Snowflake, Role>> memberRoleMap).set(roleId, role);
           } else {
             // TODO some kind of warning or error log
           }
+        });
+        removedRoleIds.forEach((roleId) => {
+          memberRoleMap.delete(roleId);
         });
       } else if (this.#roleIds !== undefined) {
         squashArrays(this.#roleIds, roles);

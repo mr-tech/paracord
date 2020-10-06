@@ -67,7 +67,7 @@ export const CHANNEL_TYPES = {
 //   CUSTOM = 4
 // }
 export const DISCORD_API_URL = 'https://discord.com/api';
-export const DISCORD_API_DEFAULT_VERSION = 'v6';
+export const DISCORD_API_DEFAULT_VERSION = 'v8';
 /** Discord epoch (2015-01-01T00:00:00.000Z) */
 export const DISCORD_EPOCH = 1420070400000;
 export const DISCORD_CDN_URL = 'https://cdn.discordapp.com';

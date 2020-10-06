@@ -1,50 +1,57 @@
 import {
-  AugmentedRawVoiceState, ClientStatus, ISO8601timestamp, Snowflake,
+  AugmentedRawVoiceState, Snowflake,
 } from '../../../../../types';
 import { FilteredProps } from '../../../types';
 import Resource from '../../Resource';
-import Activity from '../objects/Activity';
 import GuildMember from './GuildMember';
 import User from './User';
 
 export default class GuildVoiceState extends Resource<GuildVoiceState, AugmentedRawVoiceState> {
   /** the user presence is being updated for */
-  user: User | undefined;
+  #user: User | undefined;
 
+  /** the channel id this user is connected to */
+  channelId: Snowflake | null | undefined;
+
+  /** the user id this voice state is for */
+  userId: Snowflake | undefined;
+
+  /** the guild member this voice state is for */
   member: GuildMember | undefined;
 
-  /** roles this user is in */
-  roles: Snowflake[] | undefined;
+  /** the session id for this voice state */
+  sessionId: string | undefined;
 
-  /** null, or the user's current activity */
-  game: Activity | null | undefined;
+  /** whether this user is deafened by the server */
+  deaf: boolean | undefined;
 
-  /** id of the guild */
-  guildId: Snowflake | undefined;
+  /** whether this user is muted by the server */
+  mute: boolean | undefined;
 
-  /** either "idle", "dnd", "online", or "offline" */
-  status: string | undefined;
+  /** whether this user is locally deafened */
+  selfDeaf: boolean | undefined;
 
-  /** user's current activities */
-  activities: Activity[] | undefined;
+  /** whether this user is locally muted */
+  selfMute: boolean | undefined;
 
-  /** user's platform-dependent status */
-  clientStatus: ClientStatus | undefined;
+  /** whether this user is streaming using "Go Live" */
+  selfStream: boolean | undefined;
 
-  /** when the user started boosting the guild */
-  premiumSince: ISO8601timestamp | null | undefined;
-
-  /** this users guild nickname (if one is set) */
-  nick: string | null | undefined;
+  /** whether this user is muted by the current user */
+  suppress: boolean | undefined;
 
   public constructor(
     filteredProps: FilteredProps<GuildVoiceState, AugmentedRawVoiceState> | undefined,
     voiceState: AugmentedRawVoiceState, user: User | undefined, member: GuildMember | undefined,
   ) {
     super(filteredProps, voiceState.user_id);
-    this.user = user;
+    this.#user = user;
     this.member = member;
     this.update(voiceState);
+  }
+
+  public get user(): User | undefined {
+    return this.#user;
   }
 
   public update(arg: AugmentedRawVoiceState): this {

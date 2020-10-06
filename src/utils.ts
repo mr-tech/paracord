@@ -80,11 +80,11 @@ export function coerceTokenToBotLike(token: string): string {
  */
 export function computeChannelPerms({
   member, guild, channel, stopOnOwnerAdmin = false,
-}: { member: GuildMember; guild: Guild; channel: GuildChannel; stopOnOwnerAdmin?: boolean; }): number {
+}: { member: GuildMember; guild: Guild; channel: GuildChannel; stopOnOwnerAdmin?: boolean; }): bigint {
   const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
 
-  if (stopOnOwnerAdmin && guildPerms & PERMISSIONS.ADMINISTRATOR) {
-    return PERMISSIONS.ADMINISTRATOR;
+  if (stopOnOwnerAdmin && guildPerms & BigInt(PERMISSIONS.ADMINISTRATOR)) {
+    return BigInt(PERMISSIONS.ADMINISTRATOR);
   }
 
   return computeChannelOverwrites(guildPerms, member as GuildMember, guild, channel);
@@ -99,29 +99,28 @@ interface SafeRole extends Role {
  * @param member GuildMember whose perms to check.
  * @param guild Guild in which to check the member's permissions.
  * @param stopOnOwnerAdmin Whether or not to stop and return the Administrator perm if the user qualifies.
- * @returns The Administrator perm or the new perms.
+ * @returns The Administrator perm or the new perms in BigInt form.
  */
-export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: { member: GuildMember; guild: Guild; stopOnOwnerAdmin?: boolean; }): number {
+export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: { member: GuildMember; guild: Guild; stopOnOwnerAdmin?: boolean; }): bigint {
   const { roles: guildRoles } = guild;
   if (guildRoles === undefined) throw Error('roles not cached for this guild');
   const { roles: memberRoles } = member;
   if (memberRoles === undefined) throw Error('no roles on member object');
 
   if (stopOnOwnerAdmin && guild.ownerId === member.user.id) {
-    return PERMISSIONS.ADMINISTRATOR;
+    return BigInt(PERMISSIONS.ADMINISTRATOR);
   }
 
   const everyone = guildRoles.get(guild.id);
-  if (everyone === undefined) throw Error('no everyone role for this guild'); // not expected to ever hit this
+  if (everyone === undefined) throw Error('no everyone role for this guild'); // should never trigger
   if (everyone.permissions === undefined) throw Error('permissions are not cached on roles');
 
   // start with @everyone perms
-  let perms: number = everyone.permissions;
+  let perms = BigInt(everyone.permissions);
 
   Array.from(memberRoles.values()).forEach((role: unknown) => {
-    perms |= (<SafeRole>role).permissions;
+    perms |= BigInt((<SafeRole>role).permissions);
   });
-
 
   return perms;
 }
@@ -134,7 +133,7 @@ export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: {
  * @param channel Channel in which to check the member's permissions.
  * @returns The new perms.
  */
-export function computeChannelOverwrites(perms: number, member: GuildMember, guild: Guild, channel: GuildChannel): number {
+export function computeChannelOverwrites(perms: bigint, member: GuildMember, guild: Guild, channel: GuildChannel): bigint {
   const { permissionOverwrites: overwrites } = channel;
   if (overwrites === undefined) throw Error('no overwrites on channel object');
   const { roles: memberRoles } = member;
@@ -166,9 +165,9 @@ export function computeChannelOverwrites(perms: number, member: GuildMember, gui
  * @param guildId id of the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _everyoneOverwrites(perms: number, overwrite: Overwrite): number {
-  perms |= overwrite.allow;
-  perms &= ~overwrite.deny;
+function _everyoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
+  perms |= BigInt(overwrite.allow);
+  perms &= ~BigInt(overwrite.deny);
   return perms;
 }
 
@@ -179,10 +178,10 @@ function _everyoneOverwrites(perms: number, overwrite: Overwrite): number {
  * @param roles Roles in the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _roleOverwrites(perms: number, overwrites: Overwrite[]): number {
+function _roleOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
   for (const o of overwrites) {
-    perms |= o.allow;
-    perms &= ~o.deny;
+    perms |= BigInt(o.allow);
+    perms &= ~BigInt(o.deny);
   }
   return perms;
 }
@@ -194,10 +193,10 @@ function _roleOverwrites(perms: number, overwrites: Overwrite[]): number {
  * @param memberId id of the member whose permissions are being checked.
  * @returns The new perms.
  */
-function _memberOverwrites(perms: number, overwrites: Overwrite[]): number {
+function _memberOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
   for (const o of overwrites) {
-    perms |= o.allow;
-    perms &= ~o.deny;
+    perms |= BigInt(o.allow);
+    perms &= ~BigInt(o.deny);
   }
   return perms;
 }
@@ -323,16 +322,19 @@ export function isObject(v: unknown): boolean {
   return (v !== null) && (typeof v === 'object') && (v?.constructor.name === 'Object');
 }
 
-export function squashArrays(oldArray: Array<unknown>, newArray: Array<unknown>): void {
+export function squashArrays <T>(oldArray: Array<T>, newArray: Array<T>): Array<T> {
+  const removedItems = [];
   for (let i = oldArray.length; i >= 0; --i) {
     const oldItem = oldArray[i];
     const newIdx = newArray.indexOf(oldItem);
     if (newIdx > -1) { // item already in old array
       newArray.splice(newIdx, 1);
     } else { // item not in new array
-      oldArray.splice(i, 1);
+      removedItems.push(...oldArray.splice(i, 1));
     }
   }
 
   oldArray.push(...newArray);
+
+  return removedItems;
 }

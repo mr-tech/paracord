@@ -61,6 +61,7 @@ export interface ParacordCacheOptions extends GuildCacheOptions {
 
 type Primitive = string | number | boolean | null | undefined;
 export type KeysWithType<T> = { [K in keyof T]: T[K] extends Primitive ? K : never }[keyof T];
+
 export interface FilterOptions {
   caches?: ParacordCacheOptions;
   props?: {

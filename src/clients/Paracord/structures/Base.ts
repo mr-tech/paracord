@@ -31,8 +31,9 @@ export default class Base<T extends DiscordTypes, U extends RawWildCard> {
 
   private initializeProperties(filteredProps: FilteredProps<T, U>): void {
     filteredProps.forEach((prop) => {
-      if (!Object.prototype.hasOwnProperty.call(this, prop)) {
-        (<Record<string, unknown>> this)[prop] = undefined;
+      const camelProp = snakeToCamel(prop);
+      if (!Object.prototype.hasOwnProperty.call(this, camelProp)) {
+        (<Record<string, unknown>> this)[camelProp] = undefined;
       }
     });
   }

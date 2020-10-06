@@ -92,11 +92,13 @@ export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence 
 export function MESSAGE_CREATE(this: Paracord, data: AugmentedRawMessage): AugmentedRawMessage {
   const { guild_id: guildId, member } = data;
 
-  data.member.user = data.author;
-  /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-  // @ts-ignore
-  if (guildId !== undefined) data.member = this.guilds?.get(guildId)?.upsertMember(member) ?? member;
-  data.author = data.member.user;
+  if (data.member !== undefined) {
+    data.member.user = data.author;
+    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+    // @ts-ignore
+    data.member = this.guilds?.get(guildId)?.upsertMember(member) ?? member;
+    data.author = data.member.user;
+  }
 
   return data;
 }
