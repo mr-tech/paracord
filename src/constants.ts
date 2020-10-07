@@ -2,7 +2,7 @@ export const SECOND_IN_MILLISECONDS = 1e3;
 export const MINUTE_IN_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
 export const GIGABYTE_IN_BYTES = 1073741824;
 /** Websocket parameters appended to the url received from Discord. */
-export const GATEWAY_DEFAULT_WS_PARAMS = '?v=6&encoding=json';
+export const GATEWAY_DEFAULT_WS_PARAMS = '?v=8&encoding=json';
 /** Gateway websocket connection rate limit. */
 export const GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
 /** A buffer the reserves this amount of gateway requests every minute for critical tasks. */

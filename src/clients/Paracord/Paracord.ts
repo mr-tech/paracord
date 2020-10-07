@@ -86,6 +86,8 @@ export default class Paracord extends EventEmitter {
 
   #apiOptions: Partial<IApiOptions> | undefined;
 
+  #gatewayOptions: Partial<GatewayOptions> | undefined;
+
   /* State that tracks the start up process. */
   /** Timestamp of the last gateway identify. */
   public safeGatewayIdentifyTimestamp: number;
@@ -158,9 +160,12 @@ export default class Paracord extends EventEmitter {
     this.#preventLogin = false;
     this.safeGatewayIdentifyTimestamp = 0;
 
-    const { events, apiOptions, filterOptions } = options;
+    const {
+      events, apiOptions, gatewayOptions, filterOptions,
+    } = options;
     this.#events = events;
     this.#apiOptions = apiOptions;
+    this.#gatewayOptions = gatewayOptions;
     this.#filterOptions = filterOptions;
 
     if (filterOptions?.props) {
@@ -483,7 +488,7 @@ export default class Paracord extends EventEmitter {
    * Creates gateway and pushes it into cache and login queue.
    * @param identity An object containing information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
    */
-  private addNewGateway(identity: Identify, wsUrl?: string | undefined): void {
+  private addNewGateway(identity: Identify, wsUrl?: string): void {
     const gatewayOptions = {
       identity, api: this.api, emitter: this, wsUrl,
     };
@@ -543,6 +548,7 @@ export default class Paracord extends EventEmitter {
    */
   private setUpGateway(token: string, options: GatewayOptions): Gateway {
     const gateway = new Gateway(token, {
+      ...this.#gatewayOptions,
       ...options,
       emitter: this,
       api: this.api,

@@ -65,6 +65,8 @@ export default class Gateway {
   /** From Discord - Time between heartbeats. */
   #heartbeatIntervalTime?: number;
 
+  #heartbeatIntervalOffset: number;
+
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
   #emitter: ExtendedEmitter;
 
@@ -105,7 +107,7 @@ export default class Gateway {
    */
   public constructor(token: string, options: GatewayOptions) {
     const {
-      emitter, identity, identity: { shard }, api, wsUrl, events,
+      emitter, identity, identity: { shard }, api, wsUrl, events, heartbeatIntervalOffset,
     } = options;
 
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
@@ -125,6 +127,7 @@ export default class Gateway {
     this.#wsUrl = wsUrl;
     this.#rpcServiceOptions = [];
     this.#events = events;
+    this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.bindTimerFunctions();
@@ -754,7 +757,7 @@ export default class Gateway {
    */
   private handleHello(data: Hello): void {
     this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
-    this.startHeartbeat(data.heartbeat_interval);
+    this.startHeartbeat(data.heartbeat_interval - this.#heartbeatIntervalOffset);
     this.connect(this.resumable);
 
     this.handleEvent('HELLO', data);

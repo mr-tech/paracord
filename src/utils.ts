@@ -139,7 +139,6 @@ export function computeChannelOverwrites(perms: bigint, member: GuildMember, gui
   const { roles: memberRoles } = member;
   if (memberRoles === undefined) throw Error('no roles on member object');
 
-
   const roleOverwrites: Overwrite[] = [];
   const memberOverwrites: Overwrite[] = [];
   overwrites.forEach((o) => {

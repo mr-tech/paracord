@@ -17,6 +17,8 @@ export interface GatewayOptions {
   // keepCase: false;
   /** Websocket url to connect to. */
   wsUrl?: string;
+  /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
+  heartbeatIntervalOffset?: number;
 }
 
 type ErrorResponse = {
