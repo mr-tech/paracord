@@ -10,10 +10,13 @@ import { squashArrays } from '../../../../../utils';
 
 type IUpdateTypes = AugmentedRawGuildMember | GuildMemberUpdateEventFields
 
-export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
+// export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
+export default class GuildMember {
   #user: User;
 
   #guild: Guild;
+
+  id: Snowflake;
 
   /** this users guild nickname */
   nick: string | null | undefined;
@@ -39,13 +42,17 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
 
 
   public constructor(filteredProps: FilteredProps<GuildMember, IUpdateTypes> | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
-    super(filteredProps, user.id);
     this.#filteredProps = filteredProps;
     this.#user = user;
     this.#guild = guild;
+    this.id = user.id;
 
     if (guild.unsafe_roles !== undefined) {
       this.roles = new Map();
+    }
+
+    if (filteredProps !== undefined) {
+      this.initializeProperties(filteredProps);
     }
 
     this.update(member);
@@ -81,7 +88,7 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
       && (!this.#filteredProps || 'joinedAt' in this)
       && arg.joined_at !== this.joinedAt) this.joinedAt = arg.joined_at;
 
-    return super.update(arg);
+    return this;
   }
 
   private updateRoles(arg: IUpdateTypes) {
@@ -105,6 +112,14 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
     } else if (this.#roleIds !== undefined) {
       squashArrays(this.#roleIds, roles);
     }
+  }
+
+  private initializeProperties(filteredProps: FilteredProps<GuildMember, IUpdateTypes>): void {
+    filteredProps.forEach((prop) => {
+      if (!Object.prototype.hasOwnProperty.call(this, prop)) {
+        (<Record<string, unknown>> this)[prop] = undefined;
+      }
+    });
   }
 
   // public get id(): string {

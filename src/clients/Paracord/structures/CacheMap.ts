@@ -28,15 +28,15 @@ export default class CacheMap<T extends DiscordResource, U extends RawWildCard> 
   }
 
   set(id: Snowflake, value: T): this {
-    value.refreshLastAccessed();
+    // value.refreshLastAccessed();
     return super.set(id, value);
   }
 
   get(id: Snowflake): T | undefined {
     const item = super.get(id);
-    if (item !== undefined) {
-      item.refreshLastAccessed();
-    }
+    // if (item !== undefined) {
+    //   item.refreshLastAccessed();
+    // }
     return item;
   }
 }
