@@ -48,4 +48,5 @@ AugmentedRawGuild |
 RawRole |
 AugmentedEmoji |
 RawActivity |
-AugmentedActivityAssets
+AugmentedActivityAssets |
+RawPresence

@@ -221,6 +221,8 @@ export type GuildMemberUpdateEventFields = {
   user: RawUser;
   /** nickname of the user in the guild */
   nick?: string | null;
+  /** when the user joined the guild */
+  joined_at: ISO8601timestamp;
   /** when the user starting boosting the guild */
   premium_since?: ISO8601timestamp | null;
 };

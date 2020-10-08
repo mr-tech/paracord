@@ -1,5 +1,5 @@
 /** A class of helper export functions used throughout the library. */
-import Overwrite from './clients/Paracord/structures/discord/objects/Overview';
+import Overwrite from './clients/Paracord/structures/discord/objects/Overwrite';
 import Guild from './clients/Paracord/structures/discord/resources/Guild';
 import GuildChannel from './clients/Paracord/structures/discord/resources/GuildChannel';
 import GuildMember from './clients/Paracord/structures/discord/resources/GuildMember';
@@ -91,7 +91,7 @@ export function computeChannelPerms({
 }
 
 interface SafeRole extends Role {
-  permissions: number;
+  permissions: string;
 }
 
 /**

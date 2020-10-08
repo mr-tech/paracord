@@ -12,7 +12,7 @@ export type RawRole = {
   /** position of this role */
   position: number;
   /** permission bit set */
-  permissions: number;
+  permissions: string;
   /** whether this role is managed by an integration */
   managed: boolean;
   /** whether this role is mentionable */

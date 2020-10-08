@@ -1,3 +1,4 @@
+import { performance } from 'perf_hooks';
 import {
   ClientStatus, RawPresence, Snowflake, RawActivity,
 } from '../../../../../types';
@@ -25,15 +26,17 @@ export default class Presence extends Resource<Presence, RawPresence> {
   /** user's platform-dependent status */
   clientStatus: ClientStatus | undefined;
 
+  #filteredProps: FilteredProps<Presence, RawPresence> | undefined;
+
   private static internStatusString(p: RawPresence): 'dnd' | 'idle' | 'online' | 'offline' {
     switch (p.status) {
-      case 'dnd':
+      case STATUS_DND_STRING:
         return STATUS_DND_STRING;
-      case 'idle':
+      case STATUS_IDLE_STRING:
         return STATUS_IDLE_STRING;
-      case 'online':
+      case STATUS_ONLINE_STRING:
         return STATUS_ONLINE_STRING;
-      case 'offline':
+      case STATUS_OFFLINE_STRING:
         return STATUS_OFFLINE_STRING;
       default:
         return p.status;
@@ -42,17 +45,28 @@ export default class Presence extends Resource<Presence, RawPresence> {
 
   public constructor(filteredProps: FilteredProps<Presence, RawPresence> | undefined, presence: RawPresence) {
     super(filteredProps, presence.user.id);
+    this.#filteredProps = filteredProps;
     this.user = presence.user;
-    super.update(presence);
+    this.update(presence);
   }
 
   public update(arg: RawPresence): this {
-    if (arg.user !== undefined && 'user' in this) this.user = arg.user;
-    if (arg.status !== undefined && 'status' in this) this.status = Presence.internStatusString(arg);
-    if (arg.activities !== undefined && 'activities' in this) this.activities = arg.activities;
-    if (arg.client_status !== undefined && 'clientStatus' in this) this.clientStatus = arg.client_status;
+    if (
+      arg.status !== undefined
+        && (!this.#filteredProps || 'status' in this)
+        && arg.status !== this.status
+    ) this.status = Presence.internStatusString(arg);
+    if (
+      arg.activities !== undefined
+        && (!this.#filteredProps || 'activities' in this)
+        // && arg.activities !== this.activities
+    ) this.activities = arg.activities;
+    if (
+      arg.client_status !== undefined
+        && (!this.#filteredProps || 'clientStatus' in this)
+        // && arg.client_status !== this.clientStatus
+    ) this.clientStatus = arg.client_status;
 
     return this;
-    // return super.update(arg);
   }
 }

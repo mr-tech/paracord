@@ -12,7 +12,7 @@ import { GatewayOptions } from '../Gateway/types';
 import Base from './structures/Base';
 import CacheMap from './structures/CacheMap';
 import Activity from './structures/discord/objects/Activity';
-import Overwrite from './structures/discord/objects/Overview';
+import Overwrite from './structures/discord/objects/Overwrite';
 import Emoji from './structures/discord/resources/Emoji';
 import Guild from './structures/discord/resources/Guild';
 import GuildChannel from './structures/discord/resources/GuildChannel';

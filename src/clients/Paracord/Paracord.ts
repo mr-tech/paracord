@@ -8,7 +8,7 @@ import {
   Identify, RawPresence, RawUser, RawWildCard, ReadyEventFields, Snowflake,
 } from '../../types';
 import {
-  camelToSnake, clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
+  clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
 } from '../../utils';
 import Api from '../Api/Api';
 import { IApiOptions, IApiResponse } from '../Api/types';
@@ -167,14 +167,6 @@ export default class Paracord extends EventEmitter {
     this.#apiOptions = apiOptions;
     this.#gatewayOptions = gatewayOptions;
     this.#filterOptions = filterOptions;
-
-    if (filterOptions?.props) {
-      for (const [key, arr] of Object.entries(filterOptions.props)) {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
-        filterOptions.props[key] = arr.map((prop) => camelToSnake(prop));
-      }
-    }
 
     if (!filterOptions?.caches?.guilds ?? true) {
       this.#guilds = new CacheMap(Guild, filterOptions?.props?.guild);

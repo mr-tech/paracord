@@ -1,5 +1,5 @@
 import {
-  AugmentedRawGuildMember, GuildMemberUpdateEventFields, ISO8601timestamp, Snowflake,
+  AugmentedRawGuildMember, GuildMemberUpdateEventFields, ISO8601timestamp, RawGuildMember, Snowflake,
 } from '../../../../../types';
 import { FilteredProps } from '../../../types';
 import Guild from './Guild';
@@ -30,13 +30,17 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
   premiumSince: ISO8601timestamp | null | undefined;
 
   /** whether the user is deafened in voice channels */
-  deaf: boolean | undefined;
+  // deaf: boolean | undefined;
 
   /** whether the user is muted in voice channels */
-  mute: boolean | undefined;
+  // mute: boolean | undefined;
+
+  #filteredProps: FilteredProps<GuildMember, IUpdateTypes> | undefined;
+
 
   public constructor(filteredProps: FilteredProps<GuildMember, IUpdateTypes> | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
     super(filteredProps, user.id);
+    this.#filteredProps = filteredProps;
     this.#user = user;
     this.#guild = guild;
 
@@ -60,33 +64,47 @@ export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
   }
 
   public update(arg: IUpdateTypes): this {
-    delete arg.user;
-
     if (arg.roles !== undefined) {
-      const { roles: memberRoleMap } = this;
-      const { roles } = arg;
-      delete arg.roles;
-
-      if (memberRoleMap !== undefined) {
-        const roleIds = Array.from(this.roleIds);
-        const removedRoleIds = squashArrays(roleIds, roles);
-        roleIds.forEach((roleId) => {
-          const role = this.guild.roles.get(roleId);
-          if (role !== undefined) {
-            (<Map<Snowflake, Role>> memberRoleMap).set(roleId, role);
-          } else {
-            // TODO some kind of warning or error log
-          }
-        });
-        removedRoleIds.forEach((roleId) => {
-          memberRoleMap.delete(roleId);
-        });
-      } else if (this.#roleIds !== undefined) {
-        squashArrays(this.#roleIds, roles);
-      }
+      this.updateRoles(arg);
     }
-    // update roleIds
+
+    if (
+      arg.nick !== undefined
+      && (!this.#filteredProps || 'nick' in this)
+      && arg.nick !== this.nick) this.nick = arg.nick;
+    if (
+      arg.premium_since !== undefined
+      && (!this.#filteredProps || 'premiumSince' in this)
+      && arg.premium_since !== this.premiumSince) this.premiumSince = arg.premium_since;
+    if (
+      arg.joined_at !== undefined
+      && (!this.#filteredProps || 'joinedAt' in this)
+      && arg.joined_at !== this.joinedAt) this.joinedAt = arg.joined_at;
+
     return super.update(arg);
+  }
+
+  private updateRoles(arg: IUpdateTypes) {
+    const { roles: memberRoleMap } = this;
+    const { roles } = arg;
+
+    if (memberRoleMap !== undefined) {
+      const roleIds = Array.from(this.roleIds);
+      const removedRoleIds = squashArrays(roleIds, roles);
+      roleIds.forEach((roleId) => {
+        const role = this.guild.roles.get(roleId);
+        if (role !== undefined) {
+          (<Map<Snowflake, Role>> memberRoleMap).set(roleId, role);
+        } else {
+          // TODO some kind of warning or error log
+        }
+      });
+      removedRoleIds.forEach((roleId) => {
+        memberRoleMap.delete(roleId);
+      });
+    } else if (this.#roleIds !== undefined) {
+      squashArrays(this.#roleIds, roles);
+    }
   }
 
   // public get id(): string {
