@@ -399,7 +399,7 @@ export type RawPresence = {
   /** id of the guild */
   guild_id: Snowflake;
   /** either "idle", "dnd", "online", or "offline" */
-  status: string;
+  status: 'idle' | 'dnd' | 'online' | 'offline';
   /** user's current activities */
   activities: RawActivity[];
   /** user's platform-dependent status */
