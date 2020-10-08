@@ -17,8 +17,9 @@ export default class Base<T extends DiscordTypes, U extends RawWildCard> {
   public update(newObj: U): this {
     let i = 0;
     for (const [key, newValue] of Object.entries(newObj)) {
-      if (this.#filteredProps?.includes(key) ?? true) {
-        this._update(key, newValue);
+      const camelKey = snakeToCamel(key);
+      if (this.#filteredProps?.includes(camelKey) ?? true) {
+        this._update(camelKey, newValue);
 
         if (++i === (this.#filteredProps?.length ?? -1)) {
           break;
