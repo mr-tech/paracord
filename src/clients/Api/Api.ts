@@ -3,8 +3,9 @@ import axios from 'axios';
 import type { EventEmitter } from 'events';
 import { DebugLevel } from '../../common';
 import {
-  DISCORD_API_DEFAULT_VERSION, DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES,
+  PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION, DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES,
 } from '../../constants';
+
 import { RateLimitService, RequestService } from '../../rpc/services';
 import { RemoteApiResponse } from '../../rpc/types';
 import { coerceTokenToBotLike, objectKeysSnakeToCamel } from '../../utils';
@@ -73,6 +74,7 @@ export default class Api {
       baseURL: `${DISCORD_API_URL}/${DISCORD_API_DEFAULT_VERSION}`, // TODO does not support webhooks
       headers: {
         Authorization: token,
+        'User-Agent': `DiscordBot (${PARACORD_URL}, ${PARACORD_VERSION_NUMBER})`,
         'Content-Type': 'application/json',
         'X-RateLimit-Precision': 'millisecond',
         'Accept-Encoding': 'gzip,deflate',

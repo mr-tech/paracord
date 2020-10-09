@@ -1,3 +1,5 @@
+export const PARACORD_VERSION_NUMBER = '0.1';
+export const PARACORD_URL = 'https://paracordjs.com/';
 export const SECOND_IN_MILLISECONDS = 1e3;
 export const MINUTE_IN_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
 export const GIGABYTE_IN_BYTES = 1073741824;
