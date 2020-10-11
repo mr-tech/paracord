@@ -224,13 +224,13 @@ export function constructUserAvatarUrl(user: User, fileType = ''): string {
  * @param fileType File extension of the image.
  */
 export function constructGuildIcon(guild: Guild, fileType = ''): string | undefined {
-  if (guild.icon === null || guild.icon === undefined) return undefined;
+  if (guild.iconHash === null || guild.iconHash === undefined) return undefined;
 
-  if (guild.icon.startsWith('a_')) {
-    return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;
+  if (guild.iconHash.startsWith('a_')) {
+    return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.iconHash}${fileType ? `.${fileType}` : ''}`;
   }
 
-  return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;
+  return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.iconHash}${fileType ? `.${fileType}` : ''}`;
 }
 
 // /**

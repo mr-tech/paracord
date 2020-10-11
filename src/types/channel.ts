@@ -37,8 +37,8 @@ export type RawChannel = {
   application_id?: Snowflake;
   /** id of the parent category for a channel (each parent category can contain up to 50 channels) */
   parent_id?: Snowflake | null;
-  /** when the last pinned message was pinned */
-  last_pin_timestamp?: ISO8601timestamp;
+  /** when the last pinned message was pinned. This may be `null` in events such as `GUILD_CREATE` when a message is not pinned. */
+  last_pin_timestamp?: ISO8601timestamp | null;
 };
 
 // ========================================================================
@@ -90,7 +90,7 @@ export type RawMessage = {
   application?: MessageApplication;
   /** reference data sent with crossposted messages */
   message_reference?: MessageReference;
-  /** message flags `OR`d together, describes extra features of the message */
+  /** message flags combined as a [bitfield](https://en.wikipedia.org/wiki/Bit_field) */
   flags?: number;
 };
 
@@ -189,6 +189,15 @@ export enum MessageFlags {
 
 // ========================================================================
 
+export type FollowedChannel = {
+  /** source channel id */
+  channel_id: Snowflake;
+  /** created target webhook id */
+  webhook_id: Snowflake;
+};
+
+// ========================================================================
+
 export type Reaction = {
   /** times this emoji has been used to react */
   count: number;
@@ -203,12 +212,12 @@ export type Reaction = {
 export type RawOverwrite = {
   /** role or user id */
   id: Snowflake;
-  /** either 0 - "role" or 1 - "member" */
+  /** either 0 (role) or 1 (member) */
   type: 0 | 1;
   /** permission bit set */
-  allow: number;
+  allow: string;
   /** permission bit set */
-  deny: number;
+  deny: string;
 };
 
 // ========================================================================

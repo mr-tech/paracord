@@ -1,4 +1,9 @@
 import { EventEmitter } from 'events';
+import GuildChannel from './structures/discord/resources/GuildChannel';
+import GuildEmoji from './structures/discord/resources/GuildEmoji';
+import GuildMember from './structures/discord/resources/GuildMember';
+import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
+import Role from './structures/discord/resources/Role';
 import { DebugLevel, ILockServiceOptions, UserEvents } from '../../common';
 import {
   LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, SECOND_IN_MILLISECONDS,
@@ -15,17 +20,16 @@ import { IApiOptions, IApiResponse } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
 import { GatewayBotResponse, GatewayOptions } from '../Gateway/types';
 import * as eventFuncs from './eventFuncs';
-import Base from './structures/Base';
 import CacheMap from './structures/CacheMap';
 import Guild from './structures/discord/resources/Guild';
 import Presence from './structures/discord/resources/Presence';
 import User from './structures/discord/resources/User';
 import {
+  DiscordResource,
   DiscordTypes, EventFunction, EventFunctions, FilterOptions, GatewayMap, GuildMap, Message, ParacordLoginOptions, ParacordOptions, PresenceMap, RawGuildType, UserMap,
 } from './types';
 
 const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
-
 
 // TODO: handle emitting of events before emitter is initialized in constructor... somehow.
 
@@ -132,8 +136,17 @@ export default class Paracord extends EventEmitter {
     }
   }
 
-  private static ensureCamelProps(data: Base<DiscordTypes, RawWildCard> | RawWildCard | unknown): unknown {
-    if (data instanceof Base) {
+  private static ensureCamelProps(data: DiscordResource | unknown): unknown {
+    if (
+      data instanceof Guild
+      || data instanceof GuildChannel
+      || data instanceof GuildEmoji
+      || data instanceof GuildMember
+      || data instanceof GuildVoiceState
+      || data instanceof Presence
+      || data instanceof Role
+      || data instanceof User
+    ) {
       return data;
     }
 
@@ -169,10 +182,10 @@ export default class Paracord extends EventEmitter {
     this.#filterOptions = filterOptions;
 
     if (!filterOptions?.caches?.guilds ?? true) {
-      this.#guilds = new CacheMap(Guild, filterOptions?.props?.guild);
+      this.#guilds = new CacheMap(Guild, filterOptions?.props);
     }
-    this.#users = new CacheMap(User, filterOptions?.props?.user);
-    this.#presences = new CacheMap(Presence, filterOptions?.props?.presence);
+    this.#users = new CacheMap(User, filterOptions?.props);
+    this.#presences = new CacheMap(Presence, filterOptions?.props);
 
     if (options.autoInit !== false) {
       this.init();
@@ -585,7 +598,7 @@ export default class Paracord extends EventEmitter {
    */
   public handleReady(data: ReadyEventFields, shard: number): void {
     const { user, guilds } = data;
-    this.user = new User(this.#filterOptions?.props?.user, user);
+    this.user = new User(this.#filterOptions?.props, user);
 
     this.#guildWaitCount = guilds.length;
     this.log('INFO', `Logged in as ${this.user.tag}.`);

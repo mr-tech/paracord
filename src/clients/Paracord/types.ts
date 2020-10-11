@@ -4,16 +4,15 @@
 import { Paracord } from '../..';
 import { UserEvents } from '../../common';
 import {
-  AugmentedEmoji, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, Identify, RawChannel, RawMessage, RawPresence, RawRole, RawUser, RawWildCard, Snowflake, UnavailableGuild,
+  RawGuildEmoji, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, Identify, RawChannel, RawMessage, RawPresence, RawRole, RawUser, RawWildCard, Snowflake, UnavailableGuild, RawActivity,
 } from '../../types';
 import { IApiOptions } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
 import { GatewayOptions } from '../Gateway/types';
-import Base from './structures/Base';
 import CacheMap from './structures/CacheMap';
 import Activity from './structures/discord/objects/Activity';
 import Overwrite from './structures/discord/objects/Overwrite';
-import Emoji from './structures/discord/resources/Emoji';
+import GuildEmoji from './structures/discord/resources/GuildEmoji';
 import Guild from './structures/discord/resources/Guild';
 import GuildChannel from './structures/discord/resources/GuildChannel';
 import GuildMember from './structures/discord/resources/GuildMember';
@@ -64,15 +63,16 @@ export type KeysWithType<T> = { [K in keyof T]: T[K] extends Primitive ? K : nev
 
 export interface FilterOptions {
   caches?: ParacordCacheOptions;
-  props?: {
+  props: {
     guild?: Array<KeysWithType<Guild>>;
     user?: Array<KeysWithType<User>>;
     role?: Array<KeysWithType<Role>>;
-    emoji?: Array<KeysWithType<Emoji>>;
+    emoji?: Array<KeysWithType<GuildEmoji>>;
     guildChannel?: Array<KeysWithType<GuildChannel>>;
     presence?: Array<KeysWithType<Presence>>;
     guildVoiceState?: Array<KeysWithType<GuildVoiceState>>;
     guildMember?: Array<KeysWithType<GuildMember>>;
+    activity?: Array<KeysWithType<Activity>>;
   };
 }
 
@@ -85,11 +85,11 @@ export interface ParacordLoginOptions {
   allowEventsDuringStartup?: true;
 }
 
-export type DiscordResource = Guild | GuildMember | GuildChannel | User | Role | Emoji | GuildVoiceState | Presence;
+export type DiscordResource = Guild | GuildMember | GuildChannel | User | Role | GuildEmoji | GuildVoiceState | Presence;
 export type DiscordObject = Activity | Overwrite;
 export type DiscordTypes = DiscordResource | DiscordObject;
 
-export type FilteredProps<T extends DiscordTypes, U extends RawWildCard> = Array<(FilterOptions['props'] & keyof Base<T, U>)[keyof FilterOptions['props'] & keyof Base<T, U>]>;
+// export type FilteredProps<T extends DiscordTypes, U extends RawWildCard> = Array<(FilterOptions['props'] & keyof Base<T, U>)[keyof FilterOptions['props'] & keyof Base<T, U>]>;
 
 // export type GuildProp = KeysWithType<Guild, Primitive | GuildMember | VoiceRegion >;
 
@@ -98,7 +98,7 @@ export type GuildMap = CacheMap<Guild, RawGuildType>
 export type UserMap = CacheMap<User, RawUser>
 export type PresenceMap = CacheMap<Presence, RawPresence>
 export type RoleMap = CacheMap<Role, RawRole>
-export type EmojiMap = CacheMap<Emoji, AugmentedEmoji>
+export type EmojiMap = CacheMap<GuildEmoji, RawGuildEmoji>
 export type GuildMemberMap = CacheMap<GuildMember, AugmentedRawGuildMember>
 export type GuildChannelMap = CacheMap<GuildChannel, RawChannel>
 export type VoiceStateMap = CacheMap<GuildVoiceState, AugmentedRawVoiceState>

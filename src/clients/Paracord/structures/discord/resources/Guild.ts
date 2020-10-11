@@ -1,17 +1,17 @@
 /* eslint-disable max-classes-per-file */
 
+import { performance } from 'perf_hooks';
 import { PERMISSIONS } from '../../../../../constants';
 import {
-  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, GuildMemberUpdateEventFields, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawPresence, RawRole, Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion,
+  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, GuildMemberUpdateEventFields, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawEmoji, RawGuild, RawGuildEmoji, RawPresence, RawRole, Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion,
 } from '../../../../../types';
 import { computeChannelPerms, computeGuildPerms } from '../../../../../utils';
 import Paracord from '../../../Paracord';
 import {
-  EmojiMap, FilteredProps, GuildChannelMap, GuildMemberMap, PresenceMap, RawGuildType, RoleMap, VoiceStateMap,
+  EmojiMap, FilterOptions, GuildChannelMap, GuildMemberMap, PresenceMap, RawGuildType, RoleMap, VoiceStateMap,
 } from '../../../types';
 import CacheMap from '../../CacheMap';
-import Resource from '../../Resource';
-import Emoji from './Emoji';
+import GuildEmoji from './GuildEmoji';
 import GuildChannel from './GuildChannel';
 import GuildMember from './GuildMember';
 import GuildVoiceState from './GuildVoiceState';
@@ -27,10 +27,54 @@ import Role from './Role';
 //   'owner', 'me', 'roles', 'emojiIds', 'channelIds', 'memberIds', 'presenceIds', 'voiceStateIds'];
 // const caches: GuildCacheFilter = ['roles', 'emojis', 'channels', 'members', 'presences', 'voiceStates'];
 
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+// @ts-ignore
+global.channels = undefined;
+// @ts-ignore
+global.roles = undefined;
+// @ts-ignore
+global.members = undefined;
+// @ts-ignore
+global.presences = undefined;
+// @ts-ignore
+global.voice_states = undefined;
+// @ts-ignore
+global.emojis = undefined;
+
+// @ts-ignore
+function measure(prop: string, func): void {
+  const t0 = performance.now();
+  func();
+  // @ts-ignore
+  const diff = performance.now() - t0;
+  if (diff > 1000) {
+    console.log(prop);
+    console.log(diff / 1000);
+  }
+  // @ts-ignore
+  if (global[prop] === undefined) {
+    // @ts-ignore
+    global[prop] = [1, diff];
+  } else {
+    // @ts-ignore
+    ++global[prop][0];
+    // @ts-ignore
+    global[prop][1] += diff;
+  }
+}
 
 /** A Discord guild. */
-export default class Guild extends Resource<Guild, RawGuildType> {
+export default class Guild {
+  #filteredProps: FilterOptions['props']['guild'] | undefined;
+
+  #filteredEmojiProps: FilterOptions['props']['emoji'] | undefined;
+
+  /** Shard id of the gateway connection this guild originated from. */
+  #shard: number | undefined;
+
   #client: Paracord;
+
+  #id: Snowflake;
 
   /** roles in the guild */
   #roles: RoleMap | undefined;
@@ -50,17 +94,11 @@ export default class Guild extends Resource<Guild, RawGuildType> {
   /** states of members currently in voice channels | undefined; lacks the `guild_id` key */
   #voiceStates: VoiceStateMap | undefined;
 
-  /** true if this guild is unavailable due to an outage */
-  public unavailable: boolean | undefined;
-
-  /** total number of members in this guild */
-  public memberCount: number | undefined;
-
   /** guild name (2-100 characters, excluding trailing and leading whitespace) */
   public name: string | undefined;
 
-  /** icon hash */
-  public icon: string | null | undefined;
+  /** icon & icon_hash */
+  public iconHash: string | null | undefined;
 
   /** splash hash */
   public splash: string | null | undefined;
@@ -88,6 +126,14 @@ export default class Guild extends Resource<Guild, RawGuildType> {
   /** afk timeout in seconds */
   public afkTimeout: number | undefined;
 
+  /** true if the server widget is enabled */
+  public widgetEnabled: boolean | undefined;
+
+  /** the channel id that the widget will generate an invite to, or `null` if set to no invite */
+  public widgetChannelId: Snowflake | null | undefined;
+
+  public widgetChannel: GuildChannel | undefined;
+
   /** verification level required for the guild */
   public verificationLevel: VerificationLevel | undefined;
 
@@ -105,14 +151,6 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /** application id of the guild creator if it is bot-created */
   public applicationId: Snowflake | null | undefined;
-
-  /** true if the server widget is enabled */
-  public widgetEnabled: boolean | undefined;
-
-  /** the channel id that the widget will generate an invite to, or `null` if set to no invite */
-  public widgetChannelId: Snowflake | null | undefined;
-
-  public widgetChannel: GuildChannel | undefined;
 
   /** the id of the channel where guild notices such as welcome messages and boost events are posted */
   public systemChannelId: Snowflake | null | undefined;
@@ -132,6 +170,12 @@ export default class Guild extends Resource<Guild, RawGuildType> {
 
   /** true if this is considered a large guild */
   public large: boolean | undefined;
+
+  /** true if this guild is unavailable due to an outage */
+  public unavailable: boolean | undefined;
+
+  /** total number of members in this guild */
+  public memberCount: number | undefined;
 
   /** the maximum number of presences for the guild (the default value, currently 25000, is in effect when `null` is returned) */
   public maxPresences: number | null | undefined;
@@ -165,9 +209,6 @@ export default class Guild extends Resource<Guild, RawGuildType> {
   /** the maximum amount of users in a video channel */
   public maxVideoChannelUsers: number | undefined;
 
-  /** Shard id of the gateway connection this guild originated from. */
-  public shard: number | undefined;
-
   // /** total permissions for the user in the guild (excludes overrides) */
   // public get permissions(): number {
   //   return this.hasPermission | undefined;
@@ -180,35 +221,26 @@ export default class Guild extends Resource<Guild, RawGuildType> {
    * @param shard Shard id of the gateway connection this guild originated from.
    */
   public constructor(
-    filteredProps: FilteredProps<Guild, RawGuildType> | undefined,
+    filteredProps: FilterOptions['props'] | undefined,
     guild: RawGuildType,
     client: Paracord,
     shard: number,
   ) {
-    super(filteredProps, guild.id); // TODO
-
+    this.#id = guild.id;
+    this.#filteredProps = filteredProps?.guild;
+    this.#filteredEmojiProps = filteredProps?.emoji;
     this.#client = client;
-    this.shard = shard;
+    this.#shard = shard;
 
     const { unavailable } = guild;
 
     this.unavailable = unavailable ?? false;
 
-    const {
-      role, emoji, guildMember, guildChannel, presence, guildVoiceState,
-    } = (client.filterOptions?.props ?? {});
-    const {
-      roles, emojis, guildMembers, guildChannels, presences, guildVoiceStates,
-    } = (client.filterOptions?.caches ?? {});
+    this.initialize(guild);
+  }
 
-    if (roles ?? true) this.#roles = new CacheMap(Role, role);
-    if (emojis ?? true) this.#emojis = new CacheMap(Emoji, emoji);
-    if (presences ?? true) this.#presences = new CacheMap(Presence, presence);
-    if (guildMembers ?? true) this.#members = new CacheMap(GuildMember, guildMember);
-    if (guildChannels ?? true) this.#channels = new CacheMap(GuildChannel, guildChannel);
-    if (guildVoiceStates ?? true) this.#voiceStates = new CacheMap(GuildVoiceState, guildVoiceState);
-
-    this.update(<AugmentedRawGuild>guild);
+  public get id(): Snowflake {
+    return this.#id;
   }
 
   public get client(): Paracord {
@@ -270,6 +302,10 @@ export default class Guild extends Resource<Guild, RawGuildType> {
     return this.#voiceStates;
   }
 
+  public get shard(): number | undefined {
+    return this.#shard;
+  }
+
   /*
    ********************************
    ********* CONSTRUCTOR **********
@@ -281,29 +317,41 @@ export default class Guild extends Resource<Guild, RawGuildType> {
       channels, roles, emojis, members, voice_states, presences,
     } = guildData;
 
-    if (channels !== undefined && this.#channels !== undefined) {
-      channels.forEach((c) => this.insertChannel(c));
-    }
+    measure('channels', () => {
+      if (channels !== undefined && this.#channels !== undefined) {
+        channels.forEach((c) => this.insertChannel(c));
+      }
+    });
 
-    if (roles !== undefined && this.#roles !== undefined) {
-      roles.forEach((r) => this.insertRole(r));
-    }
+    measure('roles', () => {
+      if (roles !== undefined && this.#roles !== undefined) {
+        roles.forEach((r) => this.insertRole(r));
+      }
+    });
 
-    if (members !== undefined && this.#members !== undefined) {
-      members.forEach((m) => this.upsertMember(m));
-    }
+    measure('members', () => {
+      if (members !== undefined && this.#members !== undefined) {
+        members.forEach((m) => this.upsertMember(m));
+      }
+    });
 
-    if (presences !== undefined && this.#presences !== undefined) {
-      presences.forEach((p) => this.insertPresence(p));
-    }
+    measure('presences', () => {
+      if (presences !== undefined && this.#presences !== undefined) {
+        presences.forEach((p) => this.insertPresence(p));
+      }
+    });
 
-    if (voice_states !== undefined && this.#voiceStates !== undefined) {
-      voice_states.forEach((v) => this.insertVoiceState(v));
-    }
+    measure('voice_states', () => {
+      if (voice_states !== undefined && this.#voiceStates !== undefined) {
+        voice_states.forEach((v) => this.insertVoiceState(v));
+      }
+    });
 
-    if (emojis !== undefined && this.#emojis !== undefined) {
-      this.updateEmojiCache(emojis);
-    }
+    measure('emojis', () => {
+      if (emojis !== undefined && this.#emojis !== undefined) {
+        this.updateEmojiCache(emojis);
+      }
+    });
   }
 
   /**
@@ -311,21 +359,175 @@ export default class Guild extends Resource<Guild, RawGuildType> {
    * @param guildData From Discord - The guild. https://discord.com/developers/docs/resources/guild#guild-object
    * @param client Paracord client.
    */
-  public update(guildData: RawGuildType): this {
-    if (!guildData.unavailable) {
-      this.constructCaches(guildData);
+  public update(guild: RawGuildType): this {
+    if (guild.unavailable) {
+      this.unavailable = true;
+    } else {
+      this.unavailable = false;
+      this.constructCaches(guild);
+
+      if (
+        (!this.#filteredProps || 'name' in this)
+        && this.name !== guild.name
+      ) this.name = guild.name;
+      if (
+        (!this.#filteredProps || 'icon' in this)
+        && this.iconHash !== guild.icon
+      ) this.iconHash = guild.icon;
+      if (
+        guild.icon_hash !== undefined
+        && (!this.#filteredProps || 'iconHash' in this)
+        && this.iconHash !== guild.icon_hash
+      ) this.iconHash = guild.icon_hash;
+      if (
+        (!this.#filteredProps || 'splash' in this)
+        && this.splash !== guild.splash
+      ) this.splash = guild.splash;
+      if (
+        (!this.#filteredProps || 'discoverySplash' in this)
+        && this.discoverySplash !== guild.discovery_splash
+      ) this.discoverySplash = guild.discovery_splash;
+      if (
+        (!this.#filteredProps || 'ownerId' in this)
+        && this.ownerId !== guild.owner_id
+      ) {
+        this.ownerId = guild.owner_id;
+        this.owner = this.members.get(guild.owner_id);
+      }
+      if (
+        (!this.#filteredProps || 'region' in this)
+        && this.region !== guild.region
+      ) this.region = guild.region;
+      if (
+        (!this.#filteredProps || 'afkChannelId' in this)
+        && this.afkChannelId !== guild.afk_channel_id
+      ) {
+        this.afkChannelId = guild.afk_channel_id;
+        if (guild.afk_channel_id !== null) {
+          this.afkChannel = this.channels?.get(guild.afk_channel_id);
+        }
+      }
+      if (!this.#filteredProps || 'afkTimeout' in this) this.afkTimeout = guild.afk_timeout;
+      if (!this.#filteredProps || 'widgetEnabled' in this) this.widgetEnabled = guild.widget_enabled;
+      if (
+        guild.widget_channel_id !== undefined
+        && (!this.#filteredProps || 'widgetChannelId' in this)
+        && this.widgetChannelId !== guild.widget_channel_id
+      ) {
+        this.widgetChannelId = guild.widget_channel_id;
+        if (guild.widget_channel_id !== null) {
+          this.widgetChannel = this.channels?.get(guild.widget_channel_id);
+        }
+      }
+      if (!this.#filteredProps || 'verificationLevel' in this) this.verificationLevel = guild.verification_level;
+      if (!this.#filteredProps || 'defaultMessageNotifications' in this) this.defaultMessageNotifications = guild.default_message_notifications;
+      if (!this.#filteredProps || 'explicitContentFilter' in this) this.explicitContentFilter = guild.explicit_content_filter;
+      if (!this.#filteredProps || 'features' in this) this.features = guild.features;
+      if (!this.#filteredProps || 'mfaLevel' in this) this.mfaLevel = guild.mfa_level;
+      if (
+        (!this.#filteredProps || 'applicationId' in this)
+        && this.applicationId !== guild.application_id
+      ) this.applicationId = guild.application_id;
+      if (
+        (!this.#filteredProps || 'systemChannelId' in this)
+        && this.systemChannelId !== guild.system_channel_id
+      ) {
+        this.systemChannelId = guild.system_channel_id;
+        if (guild.system_channel_id !== null) {
+          this.systemChannel = this.channels?.get(guild.system_channel_id);
+        }
+      }
+      if (!this.#filteredProps || 'systemChannelFlags' in this) this.systemChannelFlags = guild.system_channel_flags;
+      if (
+        (!this.#filteredProps || 'rulesChannelId' in this)
+        && this.rulesChannelId !== guild.rules_channel_id
+      ) {
+        this.rulesChannelId = guild.rules_channel_id;
+        if (guild.rules_channel_id !== null) {
+          this.rulesChannel = this.channels?.get(guild.rules_channel_id);
+        }
+      }
+      if (
+        guild.joined_at !== undefined
+        && (!this.#filteredProps || 'joinedAt' in this)
+        && this.joinedAt !== guild.joined_at
+      ) this.joinedAt = guild.joined_at;
+      if (
+        guild.large !== undefined
+        && (!this.#filteredProps || 'large' in this)
+      ) this.large = guild.large;
+      if (
+        guild.member_count !== undefined
+        && (!this.#filteredProps || 'memberCount' in this)
+      ) this.memberCount = guild.member_count;
+      if (
+        guild.max_presences !== undefined
+        && (!this.#filteredProps || 'maxPresences' in this)
+      ) this.maxPresences = guild.max_presences;
+      if (
+        (!this.#filteredProps || 'vanityUrlCode' in this)
+        && this.vanityUrlCode !== guild.vanity_url_code
+      ) this.vanityUrlCode = guild.vanity_url_code;
+      if (
+        (!this.#filteredProps || 'description' in this)
+        && this.description !== guild.description
+      ) this.description = guild.description;
+      if (
+        (!this.#filteredProps || 'banner' in this)
+        && this.banner !== guild.banner
+      ) this.banner = guild.banner;
+      if (!this.#filteredProps || 'premiumTier' in this) this.premiumTier = guild.premium_tier;
+      if (
+        guild.premium_subscription_count !== undefined
+        && (!this.#filteredProps || 'premiumSubscriptionCount' in this)
+      ) this.premiumSubscriptionCount = guild.premium_subscription_count;
+      if (
+        (!this.#filteredProps || 'preferredLocale' in this)
+        && this.preferredLocale !== guild.preferred_locale
+      ) this.preferredLocale = guild.preferred_locale;
+      if (
+        guild.public_updates_channel_id !== undefined
+        && (!this.#filteredProps || 'publicUpdatesChannelId' in this)
+        && this.publicUpdatesChannelId !== guild.public_updates_channel_id
+      ) {
+        this.publicUpdatesChannelId = guild.public_updates_channel_id;
+        if (guild.public_updates_channel_id !== null) {
+          this.publicUpdatesChannel = this.channels?.get(guild.public_updates_channel_id);
+        }
+      }
+      if (
+        guild.max_video_channel_users !== undefined
+        && (!this.#filteredProps || 'maxVideoChannelUsers' in this)
+      ) this.maxVideoChannelUsers = guild.max_video_channel_users;
     }
 
-    if (!guildData.unavailable) {
-      delete guildData.emojis;
-      delete guildData.voice_states;
-      delete guildData.presences;
-      delete guildData.roles;
-      delete guildData.members;
-      delete guildData.channels;
-    }
+    return this;
+  }
 
-    return super.update(guildData);
+  private initialize(guild: RawGuildType): this {
+    this.initializeProperties();
+
+    const {
+      roles, emojis, guildMembers, guildChannels, presences, guildVoiceStates,
+    } = (this.client.filterOptions?.caches ?? {});
+
+    const props = (this.client.filterOptions?.props ?? undefined);
+    if (roles ?? true) this.#roles = new CacheMap(Role, props);
+    if (emojis ?? true) this.#emojis = new CacheMap(GuildEmoji, props);
+    if (presences ?? true) this.#presences = new CacheMap(Presence, props);
+    if (guildMembers ?? true) this.#members = new CacheMap(GuildMember, props);
+    if (guildChannels ?? true) this.#channels = new CacheMap(GuildChannel, props);
+    if (guildVoiceStates ?? true) this.#voiceStates = new CacheMap(GuildVoiceState, props);
+
+    return this.update(guild);
+  }
+
+  private initializeProperties(): void {
+    if (this.#filteredProps !== undefined) {
+      this.#filteredProps.forEach((prop) => {
+        (<Record<string, unknown>> this)[prop] = undefined;
+      });
+    }
   }
 
   // /*
@@ -440,7 +642,6 @@ export default class Guild extends Resource<Guild, RawGuildType> {
     const members = this.#members;
     if (members === undefined) return undefined;
 
-
     const { user, user: { id } } = member;
     const cachedUser = this.#client.upsertUser(user);
     const cachedMember = this.updateMember(member) ?? members.add(id, member, cachedUser, this);
@@ -506,20 +707,21 @@ export default class Guild extends Resource<Guild, RawGuildType> {
    * Add a role with some additional information to a map of roles.
    * @param emoji https://discord.com/developers/docs/topics/permissions#role-object-role-structure
    */
-  public updateEmojiCache(emojis: Emoji[]): [Emoji[], Emoji[]] | undefined {
+  public updateEmojiCache(emojis: RawGuildEmoji[]): [GuildEmoji[], GuildEmoji[]] | undefined {
     const emojiCache = this.#emojis;
     if (emojiCache === undefined) return undefined;
 
     const removedEmojis = Array.from(emojiCache.values());
-    const newEmojis: Emoji[] = [];
+    const newEmojis: GuildEmoji[] = [];
     while (emojis.length) {
-      const emoji = <Emoji>emojis.shift();
+      const emoji = <RawGuildEmoji>emojis.shift();
       const { id } = emoji;
       const cachedEmoji = emojiCache.get(id);
       if (cachedEmoji !== undefined) {
-        removedEmojis.splice(removedEmojis.indexOf(emoji), 1);
+        cachedEmoji.update(emoji);
+        removedEmojis.splice(removedEmojis.indexOf(cachedEmoji), 1);
       } else {
-        newEmojis.push(emojiCache.add(id, emoji));
+        newEmojis.push(emojiCache.add(id, emoji, this));
       }
     }
     removedEmojis.forEach(({ id }) => emojiCache.delete(id));

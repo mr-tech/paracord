@@ -1,8 +1,9 @@
 import { RawRole } from '../../../../../types';
-import { FilteredProps } from '../../../types';
-import Resource from '../../Resource';
+import { FilterOptions } from '../../../types';
 
-export default class Role extends Resource<Role, RawRole> {
+export default class Role {
+  #filteredProps: FilterOptions['props']['role'] | undefined;
+
   /** role name */
   name: string | undefined;
 
@@ -24,12 +25,10 @@ export default class Role extends Resource<Role, RawRole> {
   /** whether this role is mentionable */
   mentionable: boolean | undefined;
 
-  #filteredProps: FilteredProps<Role, RawRole> | undefined;
+  public constructor(filteredProps: FilterOptions['props'] | undefined, role: RawRole) {
+    this.#filteredProps = filteredProps?.role;
 
-  public constructor(filteredProps: FilteredProps<Role, RawRole> | undefined, role: RawRole) {
-    super(filteredProps, role.id);
-    this.#filteredProps = filteredProps;
-    this.update(role);
+    this.initialize(role);
   }
 
   public update(arg: RawRole): this {
@@ -62,5 +61,19 @@ export default class Role extends Resource<Role, RawRole> {
         && (!this.#filteredProps || 'mentionable' in this)
         && arg.mentionable !== this.mentionable) this.mentionable = arg.mentionable;
     return this;
+  }
+
+  private initialize(role: RawRole): this {
+    this.initializeProperties();
+
+    return this.update(role);
+  }
+
+  private initializeProperties(): void {
+    if (this.#filteredProps !== undefined) {
+      this.#filteredProps.forEach((prop) => {
+        (<Record<string, unknown>> this)[prop] = undefined;
+      });
+    }
   }
 }

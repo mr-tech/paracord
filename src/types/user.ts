@@ -1,5 +1,4 @@
-import { Integration, Snowflake } from '.';
-import { RawPresence } from './gateway';
+import { RawIntegration, Snowflake } from '.';
 
 export type RawUser = {
   /** the user's id */
@@ -15,7 +14,7 @@ export type RawUser = {
   /** whether the user is an Official Discord System user (part of the urgent message system) */
   system?: boolean; // identify
   /** whether the user has two factor enabled on their account */
-  mfaEnabled?: boolean; // identify
+  mfa_enabled?: boolean; // identify
   /** the user's chosen language option */
   locale?: string; // identify
   /** whether the email on this account has been verified */
@@ -25,18 +24,17 @@ export type RawUser = {
   /** the flags on a user's account */
   flags?: number; // identify
   /** the type of Nitro subscription on a user's account */
-  premiumType?: number; // identify
+  premium_type?: number; // identify
   /** the public flags on a user's account */
-  publicFlags?: number; // identify
-  presence: RawPresence | undefined;
+  public_flags?: number; // identify
 };
 
 // ========================================================================
 
-export const enum UserFlags {
+export enum UserFlags {
   None = 0,
   DiscordEmployee = 1 << 0,
-  DiscordPartner = 1 << 1,
+  PartneredServerOwner = 1 << 1,
   HypeSquadEvents = 1 << 2,
   BugHunterLevel1 = 1 << 3,
   HouseBravery = 1 << 6,
@@ -47,7 +45,7 @@ export const enum UserFlags {
   System = 1 << 12,
   BugHunterLevel2 = 1 << 14,
   VerifiedBot = 1 << 16,
-  VerifiedBotDeveloper = 1 << 17
+  EarlyVerifiedBotDeveloper = 1 << 17
 }
 
 // ========================================================================
@@ -73,13 +71,13 @@ export type Connection = {
   /** whether the connection is revoked */
   revoked?: boolean;
   /** an array of this user's integrations */
-  integrations?: Partial<Integration>[];
+  integrations?: Partial<RawIntegration>[];
   /** whether the connection is verified */
   verified: boolean;
   /** whether friend sync is enabled for this connection */
-  friendSync: boolean;
+  friend_sync: boolean;
   /** whether activities related to this connection will be shown in presence updates */
-  showActivity: boolean;
+  show_activity: boolean;
   /** visibility of this connection */
   visibility: number;
 };

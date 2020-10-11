@@ -1,7 +1,7 @@
 import {
-  ISO8601timestamp, RawChannel, RawEmoji, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, VoiceRegion,
+  ISO8601timestamp, RawChannel, RawEmoji, RawGuildEmoji, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, VoiceRegion,
 } from '.';
-import Emoji from '../clients/Paracord/structures/discord/resources/Emoji';
+import GuildEmoji from '../clients/Paracord/structures/discord/resources/GuildEmoji';
 
 export type RawGuild = {
   [index: string]: unknown;
@@ -12,6 +12,8 @@ export type RawGuild = {
   name: string;
   /** icon hash */
   icon: string | null;
+  /** icon hash, returned when in the template object */
+  icon_hash?: string | null;
   /** splash hash */
   splash: string | null;
   /** discovery splash hash; only present for guilds with the "DISCOVERABLE" feature */
@@ -28,10 +30,10 @@ export type RawGuild = {
   afk_channel_id: Snowflake | null;
   /** afk timeout in seconds */
   afk_timeout: number;
-  /** true if the server widget is enabled (deprecated, replaced with `widget_enabled`) */
-  embed_enabled?: boolean;
-  /** the channel id that the widget will generate an invite to, or `null` if set to no invite (deprecated, replaced with `widget_channel_id`) */
-  embed_channel_id?: Snowflake | null;
+  /** true if the server widget is enabled */
+  widget_enabled?: boolean;
+  /** the channel id that the widget will generate an invite to, or `null` if set to no invite */
+  widget_channel_id?: Snowflake | null;
   /** verification level required for the guild */
   verification_level: VerificationLevel;
   /** default message notification level */
@@ -41,17 +43,13 @@ export type RawGuild = {
   /** roles in the guild */
   roles: RawRole[];
   /** custom guild emojis */
-  emojis: Emoji[]; // !! NOT GENERATED RawEmoji -> GuildEmoji
+  emojis: RawGuildEmoji[]; // !! NOT GENERATED RawEmoji -> GuildEmoji
   /** enabled guild features */
   features: GuildFeature[];
   /** required MFA Level for the guild */
   mfa_level: MFALevel;
   /** application id of the guild creator if it is bot-created */
   application_id: Snowflake | null;
-  /** true if the server widget is enabled */
-  widget_enabled?: boolean;
-  /** the channel id that the widget will generate an invite to, or `null` if set to no invite */
-  widget_channel_id?: Snowflake | null;
   /** the id of the channel where guild notices such as welcome messages and boost events are posted */
   system_channel_id: Snowflake | null;
   /** system channel flags */
@@ -94,10 +92,6 @@ export type RawGuild = {
   public_updates_channel_id: Snowflake | null;
   /** the maximum amount of users in a video channel */
   max_video_channel_users?: number;
-  /** approximate number of members in this guild, returned from the `GET /guild/<id>` endpoint when `with_counts` is `true` */
-  approximate_member_count?: number;
-  /** approximate number of non-offline members in this guild, returned from the `GET /guild/<id>` endpoint when `with_counts` is `true` */
-  approximate_presence_count?: number;
 };
 
 // ========================================================================
@@ -252,7 +246,7 @@ export type RawGuildMember = {
 
 // ========================================================================
 
-export type Integration = {
+export type RawIntegration = {
   /** integration id */
   id: Snowflake;
   /** integration name */

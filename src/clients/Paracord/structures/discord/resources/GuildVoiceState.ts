@@ -1,60 +1,115 @@
 import {
   AugmentedRawVoiceState, Snowflake,
 } from '../../../../../types';
-import { FilteredProps } from '../../../types';
-import Resource from '../../Resource';
+import { FilterOptions } from '../../../types';
+import Guild from './Guild';
 import GuildMember from './GuildMember';
 import User from './User';
 
-export default class GuildVoiceState extends Resource<GuildVoiceState, AugmentedRawVoiceState> {
+export default class GuildVoiceState {
+  #filteredProps: FilterOptions['props']['guildVoiceState'] | undefined;
+
   /** the user presence is being updated for */
   #user: User | undefined;
 
+  /** the guild member this voice state is for */
+  #member: GuildMember | undefined;
+
+  #guild: Guild;
+
   /** the channel id this user is connected to */
-  channelId: Snowflake | null | undefined;
+  public channelId: Snowflake | null | undefined;
 
   /** the user id this voice state is for */
-  userId: Snowflake | undefined;
-
-  /** the guild member this voice state is for */
-  member: GuildMember | undefined;
+  public userId: Snowflake | undefined;
 
   /** the session id for this voice state */
-  sessionId: string | undefined;
+  public sessionId: string | undefined;
 
   /** whether this user is deafened by the server */
-  deaf: boolean | undefined;
+  public deaf: boolean | undefined;
 
   /** whether this user is muted by the server */
-  mute: boolean | undefined;
+  public mute: boolean | undefined;
 
   /** whether this user is locally deafened */
-  selfDeaf: boolean | undefined;
+  public selfDeaf: boolean | undefined;
 
   /** whether this user is locally muted */
-  selfMute: boolean | undefined;
+  public selfMute: boolean | undefined;
 
   /** whether this user is streaming using "Go Live" */
-  selfStream: boolean | undefined;
+  public selfStream: boolean | undefined;
+
+  /** whether this user's camera is enabled */
+  public selfVideo: boolean | undefined;
 
   /** whether this user is muted by the current user */
-  suppress: boolean | undefined;
+  public suppress: boolean | undefined;
+
 
   public constructor(
-    filteredProps: FilteredProps<GuildVoiceState, AugmentedRawVoiceState> | undefined,
+    filteredProps: FilterOptions['props'] | undefined,
     voiceState: AugmentedRawVoiceState, user: User | undefined, member: GuildMember | undefined,
+    guild: Guild,
   ) {
-    super(filteredProps, voiceState.user_id);
+    this.#filteredProps = filteredProps?.guildVoiceState;
     this.#user = user;
-    this.member = member;
-    this.update(voiceState);
+    this.#member = member;
+    this.#guild = guild;
+
+    this.initialize(voiceState);
+  }
+
+  public get guild(): Guild {
+    return this.#guild;
+  }
+
+  public get member(): GuildMember | undefined {
+    return this.#member;
   }
 
   public get user(): User | undefined {
     return this.#user;
   }
 
-  public update(arg: AugmentedRawVoiceState): this {
-    return super.update(arg);
+  public update(voiceState: AugmentedRawVoiceState): this {
+    if ((this.#filteredProps === undefined || 'deaf' in this)
+    ) this.deaf = voiceState.deaf;
+    if ((this.#filteredProps === undefined || 'mute' in this)
+    ) this.mute = voiceState.mute;
+    if ((this.#filteredProps === undefined || 'selfDeaf' in this)
+    ) this.selfDeaf = voiceState.self_deaf;
+    if ((this.#filteredProps === undefined || 'selfMute' in this)
+    ) this.selfMute = voiceState.self_mute;
+    if (
+      voiceState.self_stream !== undefined
+      && (this.#filteredProps === undefined || 'selfStream' in this)
+    ) this.selfStream = voiceState.self_stream;
+    if ((this.#filteredProps === undefined || 'selfVideo' in this)
+    ) this.selfVideo = voiceState.self_video;
+    if ((this.#filteredProps === undefined || 'suppress' in this)
+    ) this.suppress = voiceState.suppress;
+
+    return this;
+  }
+
+  private initialize(voiceState: AugmentedRawVoiceState): this {
+    this.initializeProperties();
+
+    if (
+      voiceState.session_id !== undefined
+      && (this.#filteredProps === undefined || 'sessionId' in this)
+    ) this.sessionId = voiceState.session_id;
+
+    return this.update(voiceState);
+  }
+
+  private initializeProperties(): void {
+    if (this.#filteredProps !== undefined) {
+      this.#filteredProps.forEach((prop) => {
+        (<Record<string, unknown>> this)[prop] = undefined;
+      });
+    }
   }
 }

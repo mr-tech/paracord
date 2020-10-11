@@ -1,10 +1,10 @@
 import { SECOND_IN_MILLISECONDS } from '../../constants';
 import {
-  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawMessage, AugmentedRawVoiceState, GuildEmojisUpdateEventFields, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMemberUpdateEventFields, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, RawChannel, RawGuildMember, RawPresence, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild,
+  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawMessage, AugmentedRawVoiceState, GuildEmojisUpdateEventFields, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMemberUpdateEventFields, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, RawChannel, RawEmoji, RawGuildMember, RawPresence, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild,
 } from '../../types';
 import Gateway from '../Gateway/Gateway';
 import Paracord from './Paracord';
-import Emoji from './structures/discord/resources/Emoji';
+import GuildEmoji from './structures/discord/resources/GuildEmoji';
 import Guild from './structures/discord/resources/Guild';
 import GuildChannel from './structures/discord/resources/GuildChannel';
 import GuildMember from './structures/discord/resources/GuildMember';
@@ -227,7 +227,7 @@ export function GUILD_ROLE_DELETE(
 
 export function GUILE_EMOJIS_UPDATE(
   this: Paracord, data: GuildEmojisUpdateEventFields,
-): [Emoji[], Emoji[]] | GuildEmojisUpdateEventFields {
+): [GuildEmoji[], GuildEmoji[]] | GuildEmojisUpdateEventFields {
   const { guild_id: guildId, emojis } = data;
   const guild = this.guilds.get(guildId);
   return guild?.updateEmojiCache(emojis) ?? data;

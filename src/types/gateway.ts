@@ -17,7 +17,7 @@ export type GatewayPayload = {
 
 export type GatewayURLParams = {
   /** Gateway Version to use */
-  v: number; // 6 (see [Gateway versions](#DOCS_TOPICS_GATEWAY/gateways-gateway-versions))
+  v: number; // see [Gateway versions](#DOCS_TOPICS_GATEWAY/gateways-gateway-versions)
   /** The encoding of received gateway packets */
   encoding: string; // 'json' or 'etf'
   /** The (optional) compression of gateway packets */
@@ -102,8 +102,8 @@ export type GatewayVoiceStateUpdate = {
 export type GatewayStatusUpdate = {
   /** unix time (in milliseconds) of when the client went idle, or null if the client is not idle */
   since: number | null;
-  /** null, or the user's new activity */
-  game: RawActivity | null;
+  /** null, or the user's activities */
+  activities: RawActivity[] | null;
   /** the user's new status */
   status: string;
   /** whether or not the client is afk */
@@ -394,10 +394,6 @@ export type MessageReactionRemoveEmoji = {
 export type RawPresence = {
   /** the user presence is being updated for */
   user: RawUser;
-  /** roles this user is in */
-  roles: Snowflake[];
-  /** null, or the user's current activity */
-  game: RawActivity | null;
   /** id of the guild */
   guild_id: Snowflake;
   /** either "idle", "dnd", "online", or "offline" */
@@ -406,10 +402,6 @@ export type RawPresence = {
   activities: RawActivity[];
   /** user's platform-dependent status */
   client_status: ClientStatus;
-  /** when the user started boosting the guild */
-  premium_since?: ISO8601timestamp | null;
-  /** this users guild nickname (if one is set) */
-  nick?: string | null;
 };
 
 // ========================================================================
@@ -433,7 +425,7 @@ export type RawActivity = {
   /** stream url, is validated when type is 1 */
   url?: string | null;
   /** unix timestamp of when the activity was added to the user's session */
-  created_at: number;
+  created_at?: number;
   /** unix timestamps for start and/or end of the game */
   timestamps?: ActivityTimestamps;
   /** application id for the game */
@@ -466,7 +458,9 @@ export type ActivityTypes = [
   /** Listening */
   2 |
   /** Custom */
-  4
+  4 |
+  /** Competing */
+  5
 ];
 
 // ========================================================================

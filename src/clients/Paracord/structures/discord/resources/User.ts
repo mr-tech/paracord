@@ -1,11 +1,13 @@
 import { RawUser, Snowflake } from '../../../../../types';
-import { FilteredProps } from '../../../types';
+import { FilterOptions } from '../../../types';
 import { timestampFromSnowflake } from '../../../../../utils';
-// import Resource from '../../Resource';
 import Presence from './Presence';
 
-// export default class User extends Resource<User, RawUser> {
 export default class User {
+  #filteredProps: FilterOptions['props']['user'] | undefined;
+
+  #lastAccessed: number;
+
   /** the user's id */
   #id: Snowflake; // identify
 
@@ -16,53 +18,45 @@ export default class User {
   public discriminator: string | undefined; // identify
 
   /** the user's avatar hash */
-  public avatar: string | null| undefined; // identify
+  public avatar: string | null | undefined; // identify
 
   /** whether the user belongs to an OAuth2 application */
   public bot: boolean | undefined; // identify
 
   /** whether the user is an Official Discord System user (part of the urgent message system) */
-  public system: boolean | undefined; // identify
+  // public system: boolean | undefined; // identify
 
   /** whether the user has two factor enabled on their account */
-  public mfaEnabled: boolean | undefined; // identify
+  // public mfaEnabled: boolean | undefined; // identify
 
   /** the user's chosen language option */
-  public locale: string | undefined; // identify
+  // public locale: string | undefined; // identify
 
   /** whether the email on this account has been verified */
-  public verified: boolean | undefined; // email
+  // public verified: boolean | undefined; // email
 
   /** the user's email */
-  public email: string | null | undefined; // email
+  // public email: string | null | undefined; // email
 
   /** the flags on a user's account */
-  public flags: number | undefined; // identify
+  // public flags: number | undefined; // identify
 
   /** the type of Nitro subscription on a user's account */
-  public premiumType: number | undefined; // identify
+  // public premiumType: number | undefined; // identify
 
   /** the public flags on a user's account */
   public publicFlags: number | undefined; // identify
 
   public presence: Presence | undefined;
 
-  #filteredProps: FilteredProps<User, RawUser> | undefined;
-
-  #lastAccessed: number;
-
-  public constructor(filteredProps: FilteredProps<User, RawUser> | undefined, user: RawUser) {
-    this.#filteredProps = filteredProps;
+  public constructor(filteredProps: FilterOptions['props'] | undefined, user: RawUser) {
+    this.#filteredProps = filteredProps?.user;
     this.#id = user.id;
 
     const now = new Date().getTime();
     this.#lastAccessed = now;
 
-    if (filteredProps !== undefined) {
-      this.initializeProperties(filteredProps);
-    }
-
-    this.update(user);
+    this.initialize(user);
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
@@ -88,41 +82,38 @@ export default class User {
 
   public update(arg: RawUser): this {
     if (
-      arg.username !== undefined
-        && (this.#filteredProps === undefined || 'username' in this)
-        && arg.username !== this.username
+      (this.#filteredProps === undefined || 'username' in this)
+      && arg.username !== this.username
     ) this.username = arg.username;
     if (
-      arg.discriminator !== undefined
-        && (this.#filteredProps === undefined || 'discriminator' in this)
-        && arg.discriminator !== this.discriminator
+      (this.#filteredProps === undefined || 'discriminator' in this)
+      && arg.discriminator !== this.discriminator
     ) this.discriminator = arg.discriminator;
     if (
-      arg.avatar !== undefined
-        && (this.#filteredProps === undefined || 'avatar' in this)
-        && arg.avatar !== this.avatar
+      (this.#filteredProps === undefined || 'avatar' in this)
+      && arg.avatar !== this.avatar
     ) this.avatar = arg.avatar;
     if (
-      arg.bot !== undefined
-        && (this.#filteredProps === undefined || 'bot' in this)
-        && arg.bot !== this.bot
-    ) this.bot = arg.bot;
-    if (
-      arg.system !== undefined
-        && (this.#filteredProps === undefined || 'system' in this)
-        && arg.system !== this.system
-    ) this.system = arg.system;
-
-    // TODO: add remaining props
+      arg.public_flags !== undefined
+      && (this.#filteredProps === undefined || 'publicFlags' in this)
+    ) this.publicFlags = arg.public_flags;
 
     return this;
   }
 
-  private initializeProperties(filteredProps: FilteredProps<User, RawUser>): void {
-    filteredProps.forEach((prop) => {
-      if (!Object.prototype.hasOwnProperty.call(this, prop)) {
+  private initialize(user: RawUser): this {
+    this.initializeProperties();
+
+    if (this.#filteredProps === undefined || 'bot' in this) this.bot = !!user.bot;
+
+    return this.update(user);
+  }
+
+  private initializeProperties(): void {
+    if (this.#filteredProps !== undefined) {
+      this.#filteredProps.forEach((prop) => {
         (<Record<string, unknown>> this)[prop] = undefined;
-      }
-    });
+      });
+    }
   }
 }

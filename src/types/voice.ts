@@ -21,6 +21,8 @@ export type RawVoiceState = {
   self_mute: boolean;
   /** whether this user is streaming using "Go Live" */
   self_stream?: boolean;
+  /** whether this user's camera is enabled */
+  self_video: boolean;
   /** whether this user is muted by the current user */
   suppress: boolean;
 };

@@ -1,7 +1,6 @@
 import {
-  ActivityAssets, GuildMembersChunkEventFields, GuildMemberUpdateEventFields, RawActivity, RawChannel, RawGuild, RawGuildMember, RawMessage, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake,
+  ActivityAssets, GuildMembersChunkEventFields, GuildMemberUpdateEventFields, RawActivity, RawChannel, RawEmoji, RawGuild, RawGuildMember, RawMessage, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, UnavailableGuild,
 } from '.';
-import GuildMember from '../clients/Paracord/structures/discord/resources/GuildMember';
 
 export interface AugmentedRawGuildMember extends RawGuildMember {
   user: RawUser;
@@ -25,7 +24,7 @@ export interface AugmentedRawMessage extends RawMessage {
   member: AugmentedRawGuildMember;
 }
 
-export interface AugmentedEmoji {
+export interface RawGuildEmoji extends RawEmoji {
   id: Snowflake
 }
 
@@ -46,7 +45,8 @@ RawUser |
 RawChannel |
 AugmentedRawGuild |
 RawRole |
-AugmentedEmoji |
+RawGuildEmoji |
 RawActivity |
 AugmentedActivityAssets |
-RawPresence
+RawPresence |
+UnavailableGuild

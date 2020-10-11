@@ -1,23 +1,23 @@
 import { RawWildCard, Snowflake } from '../../../types';
-import { DiscordResource, FilteredProps } from '../types';
+import { DiscordResource, FilterOptions } from '../types';
 
 interface BaseConstructor<T extends DiscordResource, U extends RawWildCard> {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  new (filteredProps: FilteredProps<T, U> | undefined, value: U, ...args: any[]): T;
+  new (filteredProps: FilterOptions['props'] | undefined, value: U, ...args: any[]): T;
 }
 
 export default class CacheMap<T extends DiscordResource, U extends RawWildCard> extends Map<Snowflake, T> {
-  #filteredProps: FilteredProps<T, U> | undefined;
+  #filteredProps: FilterOptions['props'] | undefined;
 
   #ItemConstructor: BaseConstructor<T, U>;
 
-  public constructor(ItemConstructor: BaseConstructor<T, U>, filteredProps: FilteredProps<T, U> | undefined) {
+  public constructor(ItemConstructor: BaseConstructor<T, U>, filteredProps: FilterOptions['props'] | undefined) {
     super();
     this.#ItemConstructor = ItemConstructor;
     this.#filteredProps = filteredProps;
   }
 
-  public get filteredProps(): FilteredProps<T, U> | undefined {
+  public get filteredProps(): FilterOptions['props'] | undefined {
     return this.#filteredProps;
   }
 
@@ -28,7 +28,6 @@ export default class CacheMap<T extends DiscordResource, U extends RawWildCard> 
   }
 
   set(id: Snowflake, value: T): this {
-    // value.refreshLastAccessed();
     return super.set(id, value);
   }
 

@@ -1,9 +1,8 @@
 import {
-  AugmentedRawGuildMember, GuildMemberUpdateEventFields, ISO8601timestamp, RawGuildMember, Snowflake,
+  AugmentedRawGuildMember, GuildMemberUpdateEventFields, ISO8601timestamp, Snowflake,
 } from '../../../../../types';
-import { FilteredProps } from '../../../types';
+import { FilterOptions } from '../../../types';
 import Guild from './Guild';
-import Resource from '../../Resource';
 import Role from './Role';
 import User from './User';
 import { squashArrays } from '../../../../../utils';
@@ -12,11 +11,13 @@ type IUpdateTypes = AugmentedRawGuildMember | GuildMemberUpdateEventFields
 
 // export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
 export default class GuildMember {
+  #filteredProps: FilterOptions['props']['guildMember'] | undefined;
+
   #user: User;
 
   #guild: Guild;
 
-  id: Snowflake;
+  #id: Snowflake;
 
   /** this users guild nickname */
   nick: string | null | undefined;
@@ -38,36 +39,46 @@ export default class GuildMember {
   /** whether the user is muted in voice channels */
   // mute: boolean | undefined;
 
-  #filteredProps: FilteredProps<GuildMember, IUpdateTypes> | undefined;
+  #lastAccessed: number;
 
-
-  public constructor(filteredProps: FilteredProps<GuildMember, IUpdateTypes> | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
-    this.#filteredProps = filteredProps;
+  public constructor(filteredProps: FilterOptions['props'] | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
+    this.#filteredProps = filteredProps?.guildMember;
     this.#user = user;
     this.#guild = guild;
-    this.id = user.id;
+    this.#id = user.id;
+
+    const now = new Date().getTime();
+    this.#lastAccessed = now;
 
     if (guild.unsafe_roles !== undefined) {
       this.roles = new Map();
     }
 
-    if (filteredProps !== undefined) {
-      this.initializeProperties(filteredProps);
-    }
-
-    this.update(member);
+    this.initialize(member);
   }
 
-  public get user(): User {
-    return this.#user;
+  public get id(): Snowflake {
+    return this.#id;
   }
 
   public get guild(): Guild {
     return this.#guild;
   }
 
+  public get user(): User {
+    return this.#user;
+  }
+
+  public get lastAccessed(): number {
+    return this.#lastAccessed;
+  }
+
   public get roleIds(): Snowflake[] {
     return Array.from(this.roles?.keys() ?? this.#roleIds ?? []);
+  }
+
+  public refreshLastAccessed(): void {
+    this.#lastAccessed = new Date().getTime();
   }
 
   public update(arg: IUpdateTypes): this {
@@ -114,12 +125,18 @@ export default class GuildMember {
     }
   }
 
-  private initializeProperties(filteredProps: FilteredProps<GuildMember, IUpdateTypes>): void {
-    filteredProps.forEach((prop) => {
-      if (!Object.prototype.hasOwnProperty.call(this, prop)) {
+  private initialize(member: AugmentedRawGuildMember): this {
+    this.initializeProperties();
+
+    return this.update(member);
+  }
+
+  private initializeProperties(): void {
+    if (this.#filteredProps !== undefined) {
+      this.#filteredProps.forEach((prop) => {
         (<Record<string, unknown>> this)[prop] = undefined;
-      }
-    });
+      });
+    }
   }
 
   // public get id(): string {

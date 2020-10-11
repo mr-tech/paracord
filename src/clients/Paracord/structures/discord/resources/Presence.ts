@@ -1,10 +1,8 @@
-import { performance } from 'perf_hooks';
 import {
   ClientStatus, RawPresence, Snowflake, RawActivity,
 } from '../../../../../types';
-import { FilteredProps } from '../../../types';
-import Resource from '../../Resource';
-// import Activity from '../objects/Activity';
+import { FilterOptions } from '../../../types';
+import Activity from '../objects/Activity';
 import User from './User';
 
 const STATUS_DND_STRING = 'dnd';
@@ -12,7 +10,11 @@ const STATUS_IDLE_STRING = 'idle';
 const STATUS_ONLINE_STRING = 'online';
 const STATUS_OFFLINE_STRING = 'offline';
 
-export default class Presence extends Resource<Presence, RawPresence> {
+export default class Presence {
+  #filteredProps: FilterOptions['props']['presence'] | undefined;
+
+  #filteredActivityProps: FilterOptions['props']['activity'] | undefined;
+
   /** the user presence is being updated for */
   user: User | { id: Snowflake };
 
@@ -20,13 +22,10 @@ export default class Presence extends Resource<Presence, RawPresence> {
   status: string | undefined;
 
   /** user's current activities */
-  activities: RawActivity[] | undefined;
-  // activities: Activity[] | undefined;
+  activities: Activity[] | undefined;
 
   /** user's platform-dependent status */
   clientStatus: ClientStatus | undefined;
-
-  #filteredProps: FilteredProps<Presence, RawPresence> | undefined;
 
   private static internStatusString(p: RawPresence): 'dnd' | 'idle' | 'online' | 'offline' {
     switch (p.status) {
@@ -43,30 +42,71 @@ export default class Presence extends Resource<Presence, RawPresence> {
     }
   }
 
-  public constructor(filteredProps: FilteredProps<Presence, RawPresence> | undefined, presence: RawPresence) {
-    super(filteredProps, presence.user.id);
-    this.#filteredProps = filteredProps;
+  public constructor(filteredProps: FilterOptions['props'] | undefined, presence: RawPresence) {
+    this.#filteredProps = filteredProps?.presence;
+    this.#filteredActivityProps = filteredProps?.activity;
     this.user = presence.user;
-    this.update(presence);
+
+    this.initialize(presence);
   }
 
   public update(arg: RawPresence): this {
-    if (
-      arg.status !== undefined
-        && (!this.#filteredProps || 'status' in this)
+    if ((!this.#filteredProps || 'user' in this)
+        && arg.user !== this.user
+    ) this.user = arg.user;
+    if ((!this.#filteredProps || 'status' in this)
         && arg.status !== this.status
     ) this.status = Presence.internStatusString(arg);
-    if (
-      arg.activities !== undefined
+    if (arg.activities !== undefined
         && (!this.#filteredProps || 'activities' in this)
-        // && arg.activities !== this.activities
-    ) this.activities = arg.activities;
-    if (
-      arg.client_status !== undefined
-        && (!this.#filteredProps || 'clientStatus' in this)
-        // && arg.client_status !== this.clientStatus
+    ) {
+      this.updateActivities(arg.activities);
+    }
+    if ((!this.#filteredProps || 'clientStatus' in this)
     ) this.clientStatus = arg.client_status;
 
     return this;
+  }
+
+  private updateActivities(rawActivities: RawActivity[]) {
+    const existingActivities = this.activities ?? [];
+    const newActivities = [];
+
+    for (const rawActivity of rawActivities) {
+      const existingActivity = existingActivities.find(Presence.activityIsSame.bind(null, rawActivity));
+
+      let activity;
+      if (existingActivity === undefined) {
+        activity = new Activity(this.#filteredActivityProps, rawActivity);
+      } else {
+        activity = existingActivity.update(rawActivity);
+      }
+      newActivities.push(activity);
+    }
+
+    this.activities = newActivities;
+  }
+
+  private initialize(presence: RawPresence): this {
+    this.initializeProperties();
+
+    return this.update(presence);
+  }
+
+  private initializeProperties(): void {
+    if (this.#filteredProps !== undefined) {
+      this.#filteredProps.forEach((prop) => {
+        (<Record<string, unknown>> this)[prop] = undefined;
+      });
+    }
+  }
+
+  private static activityIsSame(a: RawActivity, b: Activity): boolean {
+    if (a.application_id !== undefined && b.applicationId === undefined) return false;
+    if (a.application_id === undefined && b.applicationId !== undefined) return false;
+    if (a.application_id === undefined && b.applicationId === undefined) {
+      return a.created_at === b.createdAt && a.name === b.name;
+    }
+    return a.application_id === b.applicationId;
   }
 }

@@ -9,10 +9,10 @@ export default class Overwrite {
   public type: 0 | 1;
 
   /** permission bit set */
-  public allow: number;
+  public allow: string;
 
   /** permission bit set */
-  public deny: number;
+  public deny: string;
 
   public constructor(overwrite: RawOverwrite) {
     const {
