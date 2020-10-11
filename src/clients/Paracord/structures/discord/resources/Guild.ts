@@ -1,6 +1,5 @@
 /* eslint-disable max-classes-per-file */
 
-import { performance } from 'perf_hooks';
 import { PERMISSIONS } from '../../../../../constants';
 import {
   AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, GuildMemberUpdateEventFields, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawEmoji, RawGuild, RawGuildEmoji, RawPresence, RawRole, Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion,
@@ -17,51 +16,6 @@ import GuildMember from './GuildMember';
 import GuildVoiceState from './GuildVoiceState';
 import Presence from './Presence';
 import Role from './Role';
-
-// const props: GuildPropFilter = ['name', 'icon', 'splash', 'discoverySplash', 'ownerId', 'region', 'afkChannelId',
-//   'afkTimeout', 'embedEnabled', 'embedChannelId', 'verificationLevel', 'defaultMessageNotifications',
-//   'explicitContentFilter', 'features', 'mfaLevel', 'applicationId', 'widgetEnabled', 'widgetChannelId',
-//   'systemChannelId', 'systemChannelFlags', 'rulesChannelId', 'joinedAt', 'large', 'unavailable',
-//   'memberCount', 'maxPresences', 'vanityUrlCode', 'description', 'banner', 'premiumTier',
-//   'premiumSubscriptionCount', 'preferredLocale', 'publicUpdatesChannelId', 'maxVideoChannelUsers',
-//   'owner', 'me', 'roles', 'emojiIds', 'channelIds', 'memberIds', 'presenceIds', 'voiceStateIds'];
-// const caches: GuildCacheFilter = ['roles', 'emojis', 'channels', 'members', 'presences', 'voiceStates'];
-
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-// @ts-ignore
-global.channels = undefined;
-// @ts-ignore
-global.roles = undefined;
-// @ts-ignore
-global.members = undefined;
-// @ts-ignore
-global.presences = undefined;
-// @ts-ignore
-global.voice_states = undefined;
-// @ts-ignore
-global.emojis = undefined;
-
-// @ts-ignore
-function measure(prop: string, func): void {
-  const t0 = performance.now();
-  func();
-  // @ts-ignore
-  const diff = performance.now() - t0;
-  if (diff > 1000) {
-    console.log(prop);
-    console.log(diff / 1000);
-  }
-  // @ts-ignore
-  if (global[prop] === undefined) {
-    // @ts-ignore
-    global[prop] = [1, diff];
-  } else {
-    // @ts-ignore
-    ++global[prop][0];
-    // @ts-ignore
-    global[prop][1] += diff;
-  }
-}
 
 /** A Discord guild. */
 export default class Guild {
@@ -317,41 +271,29 @@ export default class Guild {
       channels, roles, emojis, members, voice_states, presences,
     } = guildData;
 
-    measure('channels', () => {
-      if (channels !== undefined && this.#channels !== undefined) {
-        channels.forEach((c) => this.insertChannel(c));
-      }
-    });
+    if (channels !== undefined && this.#channels !== undefined) {
+      channels.forEach((c) => this.insertChannel(c));
+    }
 
-    measure('roles', () => {
-      if (roles !== undefined && this.#roles !== undefined) {
-        roles.forEach((r) => this.insertRole(r));
-      }
-    });
+    if (roles !== undefined && this.#roles !== undefined) {
+      roles.forEach((r) => this.insertRole(r));
+    }
 
-    measure('members', () => {
-      if (members !== undefined && this.#members !== undefined) {
-        members.forEach((m) => this.upsertMember(m));
-      }
-    });
+    if (members !== undefined && this.#members !== undefined) {
+      members.forEach((m) => this.upsertMember(m));
+    }
 
-    measure('presences', () => {
-      if (presences !== undefined && this.#presences !== undefined) {
-        presences.forEach((p) => this.insertPresence(p));
-      }
-    });
+    if (presences !== undefined && this.#presences !== undefined) {
+      presences.forEach((p) => this.insertPresence(p));
+    }
 
-    measure('voice_states', () => {
-      if (voice_states !== undefined && this.#voiceStates !== undefined) {
-        voice_states.forEach((v) => this.insertVoiceState(v));
-      }
-    });
+    if (voice_states !== undefined && this.#voiceStates !== undefined) {
+      voice_states.forEach((v) => this.insertVoiceState(v));
+    }
 
-    measure('emojis', () => {
-      if (emojis !== undefined && this.#emojis !== undefined) {
-        this.updateEmojiCache(emojis);
-      }
-    });
+    if (emojis !== undefined && this.#emojis !== undefined) {
+      this.updateEmojiCache(emojis);
+    }
   }
 
   /**
