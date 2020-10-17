@@ -1,8 +1,11 @@
-import { RawRole } from '../../../../../types';
+import { RawRole, Snowflake } from '../../../../../types';
+import { timestampFromSnowflake } from '../../../../../utils';
 import { FilterOptions } from '../../../types';
 
 export default class Role {
   #filteredProps: FilterOptions['props']['role'] | undefined;
+
+  #id: Snowflake;
 
   /** role name */
   name: string | undefined;
@@ -27,8 +30,18 @@ export default class Role {
 
   public constructor(filteredProps: FilterOptions['props'] | undefined, role: RawRole) {
     this.#filteredProps = filteredProps?.role;
+    this.#id = role.id;
 
     this.initialize(role);
+  }
+
+  /** The epoch timestamp of when this guild was created extract from its Id. */
+  public get createdOn(): number | undefined {
+    return timestampFromSnowflake(this.#id);
+  }
+
+  public get id(): Snowflake {
+    return this.#id;
   }
 
   public update(arg: RawRole): this {

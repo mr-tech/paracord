@@ -47,7 +47,6 @@ export default class GuildVoiceState {
   /** whether this user is muted by the current user */
   public suppress: boolean | undefined;
 
-
   public constructor(
     filteredProps: FilterOptions['props'] | undefined,
     voiceState: AugmentedRawVoiceState, user: User | undefined, member: GuildMember | undefined,

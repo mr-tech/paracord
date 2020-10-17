@@ -60,7 +60,7 @@ export default class GuildChannel {
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
-  public get createdOn(): number | undefined {
+  public get createdOn(): number {
     return timestampFromSnowflake(this.#id);
   }
 

@@ -4,7 +4,7 @@ import { PERMISSIONS } from '../../../../../constants';
 import {
   AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, GuildMemberUpdateEventFields, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawEmoji, RawGuild, RawGuildEmoji, RawPresence, RawRole, Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion,
 } from '../../../../../types';
-import { computeChannelPerms, computeGuildPerms } from '../../../../../utils';
+import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../../../utils';
 import Paracord from '../../../Paracord';
 import {
   EmojiMap, FilterOptions, GuildChannelMap, GuildMemberMap, PresenceMap, RawGuildType, RoleMap, VoiceStateMap,
@@ -199,6 +199,11 @@ export default class Guild {
 
   public get client(): Paracord {
     return this.#client;
+  }
+
+  /** The epoch timestamp of when this guild was created extract from its Id. */
+  public get createdOn(): number {
+    return timestampFromSnowflake(this.#id);
   }
 
   public get roles(): RoleMap {
