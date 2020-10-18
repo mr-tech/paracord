@@ -51,9 +51,6 @@ export default class Presence {
   }
 
   public update(arg: RawPresence): this {
-    if ((!this.#filteredProps || 'user' in this)
-        && arg.user !== this.user
-    ) this.user = arg.user;
     if ((!this.#filteredProps || 'status' in this)
         && arg.status !== this.status
     ) this.status = Presence.internStatusString(arg);
@@ -89,6 +86,8 @@ export default class Presence {
 
   private initialize(presence: RawPresence): this {
     this.initializeProperties();
+
+    if (!this.#filteredProps || 'user' in this) this.user = presence.user;
 
     return this.update(presence);
   }
