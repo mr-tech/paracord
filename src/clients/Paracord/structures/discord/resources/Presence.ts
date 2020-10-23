@@ -87,6 +87,8 @@ export default class Presence {
   private initialize(presence: RawPresence): this {
     this.initializeProperties();
 
+    if (!this.#filteredProps || 'user' in this) this.user = presence.user;
+
     return this.update(presence);
   }
 
