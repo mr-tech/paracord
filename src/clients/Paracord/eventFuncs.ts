@@ -80,7 +80,7 @@ export function USER_UPDATE(this: Paracord, data: RawUser): User | RawUser {
   return this.upsertUser(data) ?? data;
 }
 
-export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence | RawPresence {
+export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence {
   const { guild_id: guildId } = data;
 
   const guild = guildId ? this.guilds.get(guildId) : undefined;

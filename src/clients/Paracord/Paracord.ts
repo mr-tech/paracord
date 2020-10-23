@@ -754,7 +754,6 @@ export default class Paracord extends EventEmitter {
    */
   private circularAssignCachedUser(presence: Presence): void {
     const cachedUser = this.#users.get(presence.user.id);
-
     if (cachedUser !== undefined) {
       presence.user = cachedUser;
       cachedUser.presence = presence;
@@ -803,12 +802,14 @@ export default class Paracord extends EventEmitter {
   // }
 
   /** Removes from presence and user caches users who are no longer in a cached guild. */
-  private sweepCaches(): void {
+  private async sweepCaches(): Promise<void> {
     if (this.#guilds === undefined) return;
 
     const idsFromPresences = this.#presences.keys();
     const idsFromUsers = this.#users.keys();
     const deleteIds = Paracord.deDupe(Array.from(idsFromPresences).concat(Array.from(idsFromUsers)));
+
+    await new Promise((resolve) => setTimeout(resolve));
 
     Paracord.trimMembersFromDeleteList(deleteIds, this.#guilds.values());
 
