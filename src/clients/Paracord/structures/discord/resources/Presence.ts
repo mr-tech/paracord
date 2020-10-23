@@ -16,7 +16,7 @@ export default class Presence {
   #filteredActivityProps: FilterOptions['props']['activity'] | undefined;
 
   /** the user presence is being updated for */
-  user: User | { id: Snowflake } | undefined;
+  user: User | { id: Snowflake };
 
   /** either "idle", "dnd", "online", or "offline" */
   status: string | undefined;
@@ -45,6 +45,7 @@ export default class Presence {
   public constructor(filteredProps: FilterOptions['props'] | undefined, presence: RawPresence) {
     this.#filteredProps = filteredProps?.presence;
     this.#filteredActivityProps = filteredProps?.activity;
+    this.user = presence.user;
 
     this.initialize(presence);
   }
@@ -85,8 +86,6 @@ export default class Presence {
 
   private initialize(presence: RawPresence): this {
     this.initializeProperties();
-
-    if (!this.#filteredProps || 'user' in this) this.user = presence.user;
 
     return this.update(presence);
   }
