@@ -16,7 +16,7 @@ export default class Presence {
   #filteredActivityProps: FilterOptions['props']['activity'] | undefined;
 
   /** the user presence is being updated for */
-  user: User | { id: Snowflake };
+  user: User | { id: Snowflake } | undefined;
 
   /** either "idle", "dnd", "online", or "offline" */
   status: string | undefined;
