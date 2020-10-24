@@ -498,7 +498,7 @@ export default class Gateway {
       resetTimestamp: 0,
     };
 
-    this.handleEvent('GATEWAY_CLOSE', { shouldReconnect, gateway: this });
+    this.handleEvent('GATEWAY_CLOSE', { shouldReconnect, code: event.code, gateway: this });
   }
 
   /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
