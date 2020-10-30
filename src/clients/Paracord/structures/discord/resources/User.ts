@@ -3,6 +3,8 @@ import { FilterOptions } from '../../../types';
 import { timestampFromSnowflake } from '../../../../../utils';
 import Presence from './Presence';
 
+let nextCacheCheckOffset = 0;
+
 export default class User {
   #filteredProps: FilterOptions['props']['user'] | undefined;
 
@@ -44,6 +46,8 @@ export default class User {
   /** the type of Nitro subscription on a user's account */
   // public premiumType: number | undefined; // identify
 
+  #cacheCheckOffset: number;
+
   /** the public flags on a user's account */
   public publicFlags: number | undefined; // identify
 
@@ -52,6 +56,11 @@ export default class User {
   public constructor(filteredProps: FilterOptions['props'] | undefined, user: RawUser) {
     this.#filteredProps = filteredProps?.user;
     this.#id = user.id;
+    this.#cacheCheckOffset = nextCacheCheckOffset;
+    nextCacheCheckOffset += 10;
+    if (nextCacheCheckOffset >= 60) {
+      nextCacheCheckOffset = 0;
+    }
 
     const now = new Date().getTime();
     this.#lastAccessed = now;
@@ -74,6 +83,10 @@ export default class User {
 
   public get tag(): string | undefined {
     return this.username !== undefined && this.discriminator !== undefined ? `${this.username}#${this.discriminator}` : undefined;
+  }
+
+  public get checkOffset(): number {
+    return this.#cacheCheckOffset;
   }
 
   public refreshLastAccessed(): void {

@@ -10,6 +10,8 @@ const STATUS_IDLE_STRING = 'idle';
 const STATUS_ONLINE_STRING = 'online';
 const STATUS_OFFLINE_STRING = 'offline';
 
+let nextCacheCheckOffset = 5;
+
 export default class Presence {
   #filteredProps: FilterOptions['props']['presence'] | undefined;
 
@@ -26,6 +28,8 @@ export default class Presence {
 
   /** user's platform-dependent status */
   clientStatus: ClientStatus | undefined;
+
+  #cacheCheckOffset: number;
 
   private static internStatusString(p: RawPresence): 'dnd' | 'idle' | 'online' | 'offline' {
     switch (p.status) {
@@ -46,8 +50,17 @@ export default class Presence {
     this.#filteredProps = filteredProps?.presence;
     this.#filteredActivityProps = filteredProps?.activity;
     this.user = presence.user;
+    this.#cacheCheckOffset = nextCacheCheckOffset;
+    nextCacheCheckOffset += 10;
+    if (nextCacheCheckOffset >= 60) {
+      nextCacheCheckOffset = 5;
+    }
 
     this.initialize(presence);
+  }
+
+  public get checkOffset(): number {
+    return this.#cacheCheckOffset;
   }
 
   public update(arg: RawPresence): this {
