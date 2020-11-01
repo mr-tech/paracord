@@ -10,6 +10,7 @@ import {
 } from '../../constants';
 import { RemoteApiResponse } from '../../rpc/types';
 import {
+  AugmentedRawGuildMember,
   Identify, RawPresence, RawUser, ReadyEventFields, Snowflake,
 } from '../../types';
 import {
@@ -947,15 +948,11 @@ export default class Paracord extends EventEmitter {
       const guilds = this.#guilds;
       if (guilds === undefined) return res;
 
-      let cacheGuild;
-      if (typeof guild === 'string') {
-        cacheGuild = guilds.get(guild);
-      }
+      const cacheGuild = typeof guild === 'string' ? guilds.get(guild) : guild;
+
 
       if (cacheGuild !== undefined) {
-        /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-        // @ts-ignore
-        res.cached = cacheGuild.updateMember(res.data);
+        cacheGuild.upsertMember(<AugmentedRawGuildMember><unknown>res.data);
       }
     }
 

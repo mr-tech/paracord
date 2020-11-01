@@ -169,7 +169,7 @@ export function GUILD_MEMBER_UPDATE(
 ): GuildMember | GuildMemberUpdateEventFields {
   const { guild_id: guildId } = data;
   const guild = this.guilds.get(guildId);
-  return guild?.updateMember(data) ?? data;
+  return guild?.upsertMember(data) ?? data;
 }
 
 export function GUILD_MEMBER_REMOVE(

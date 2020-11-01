@@ -4,7 +4,7 @@
 import { Paracord } from '../..';
 import { UserEvents } from '../../common';
 import {
-  RawGuildEmoji, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, Identify, RawChannel, RawMessage, RawPresence, RawRole, RawUser, RawWildCard, Snowflake, UnavailableGuild, RawActivity,
+  RawGuildEmoji, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, Identify, RawChannel, RawMessage, RawPresence, RawRole, RawUser, Snowflake, UnavailableGuild, GuildMemberUpdateEventFields,
 } from '../../types';
 import { IApiOptions } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
@@ -100,7 +100,7 @@ export type UserMap = CacheMap<User, RawUser>
 export type PresenceMap = CacheMap<Presence, RawPresence>
 export type RoleMap = CacheMap<Role, RawRole>
 export type EmojiMap = CacheMap<GuildEmoji, RawGuildEmoji>
-export type GuildMemberMap = CacheMap<GuildMember, AugmentedRawGuildMember>
+export type GuildMemberMap = CacheMap<GuildMember, AugmentedRawGuildMember | GuildMemberUpdateEventFields>
 export type GuildChannelMap = CacheMap<GuildChannel, RawChannel>
 export type VoiceStateMap = CacheMap<GuildVoiceState, AugmentedRawVoiceState>
 

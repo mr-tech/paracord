@@ -23,8 +23,6 @@ export default class Guild {
 
   #filteredEmojiProps: FilterOptions['props']['emoji'] | undefined;
 
-  #filteredMembersProps: FilterOptions['props'] | undefined;
-
   /** Shard id of the gateway connection this guild originated from. */
   #shard: number | undefined;
 
@@ -185,7 +183,6 @@ export default class Guild {
     this.#id = guild.id;
     this.#filteredProps = filteredProps?.guild;
     this.#filteredEmojiProps = filteredProps?.emoji;
-    this.#filteredMembersProps = filteredProps;
     this.#client = client;
     this.#shard = shard;
 
@@ -547,6 +544,19 @@ export default class Guild {
     return resource;
   }
 
+  public updateChannel(channel: RawChannel): GuildChannel | undefined {
+    const channels = this.#channels;
+    if (channels === undefined) return undefined;
+
+    const { id } = channel;
+    const cachedChannel = channels.get(id);
+    if (cachedChannel !== undefined) {
+      return cachedChannel.update(channel);
+    }
+
+    return this.insertChannel(channel);
+  }
+
   /**
    * Add a channel with some additional information to a map of channels.
    * @param channel https://discord.com/developers/docs/resources/channel#channel-object-channel-structure
@@ -567,18 +577,6 @@ export default class Guild {
     return guildChannel;
   }
 
-  public updateChannel(channel: RawChannel): GuildChannel | undefined {
-    const channels = this.#channels;
-    if (channels === undefined) return undefined;
-
-    const { id } = channel;
-    const cachedChannel = channels.get(id);
-    if (cachedChannel !== undefined) {
-      return cachedChannel.update(channel);
-    }
-
-    return this.insertChannel(channel);
-  }
 
   public removeChannel(id: Snowflake): GuildChannel | undefined {
     return this.#channels && Guild.removeFromCache(this.#channels, id);
@@ -588,13 +586,18 @@ export default class Guild {
    * Add a member with some additional information to a map of members.
    * @param member https://discord.com/developers/docs/resources/guild#guild-member-object
    */
-  public upsertMember(member: AugmentedRawGuildMember): GuildMember | undefined {
+  public upsertMember(member: AugmentedRawGuildMember | GuildMemberUpdateEventFields): GuildMember | undefined {
     const members = this.#members;
     if (members === undefined) return undefined;
 
     const { user, user: { id } } = member;
+    let cachedMember = members.get(id);
+    if (cachedMember !== undefined) {
+      return cachedMember.update(member);
+    }
+
     const cachedUser = this.#client.upsertUser(user);
-    const cachedMember = this.updateMember(member) ?? members.add(id, member, cachedUser, this);
+    cachedMember = members.add(id, member, cachedUser, this);
 
     if (this.owner === undefined && this.ownerId === id) {
       this.owner = cachedMember;
@@ -604,11 +607,6 @@ export default class Guild {
     }
 
     return cachedMember;
-  }
-
-  public updateMember(member: GuildMemberUpdateEventFields | AugmentedRawGuildMember): GuildMember | undefined {
-    return this.#members?.get(member.user.id)?.update(member)
-    ?? new GuildMember(this.#filteredMembersProps, member, this.#client.upsertUser(member.user), this);
   }
 
   public removeMember(id: Snowflake): GuildMember | undefined {
