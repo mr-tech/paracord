@@ -41,7 +41,7 @@ export default class GuildMember {
 
   #lastAccessed: number;
 
-  public constructor(filteredProps: FilterOptions['props'] | undefined, member: AugmentedRawGuildMember, user: User, guild: Guild) {
+  public constructor(filteredProps: FilterOptions['props'] | undefined, member: GuildMemberUpdateEventFields | AugmentedRawGuildMember, user: User, guild: Guild) {
     this.#filteredProps = filteredProps?.guildMember;
     this.#user = user;
     this.#guild = guild;
@@ -125,7 +125,7 @@ export default class GuildMember {
     }
   }
 
-  private initialize(member: AugmentedRawGuildMember): this {
+  private initialize(member: GuildMemberUpdateEventFields | AugmentedRawGuildMember): this {
     this.initializeProperties();
 
     return this.update(member);

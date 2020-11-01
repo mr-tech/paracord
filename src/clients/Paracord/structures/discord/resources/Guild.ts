@@ -23,6 +23,8 @@ export default class Guild {
 
   #filteredEmojiProps: FilterOptions['props']['emoji'] | undefined;
 
+  #filteredMembersProps: FilterOptions['props'] | undefined;
+
   /** Shard id of the gateway connection this guild originated from. */
   #shard: number | undefined;
 
@@ -183,6 +185,7 @@ export default class Guild {
     this.#id = guild.id;
     this.#filteredProps = filteredProps?.guild;
     this.#filteredEmojiProps = filteredProps?.emoji;
+    this.#filteredMembersProps = filteredProps;
     this.#client = client;
     this.#shard = shard;
 
@@ -604,7 +607,8 @@ export default class Guild {
   }
 
   public updateMember(member: GuildMemberUpdateEventFields | AugmentedRawGuildMember): GuildMember | undefined {
-    return this.#members?.get(member.user.id)?.update(member);
+    return this.#members?.get(member.user.id)?.update(member)
+    ?? new GuildMember(this.#filteredMembersProps, member, this.#client.upsertUser(member.user), this);
   }
 
   public removeMember(id: Snowflake): GuildMember | undefined {

@@ -716,7 +716,7 @@ export default class Paracord extends EventEmitter {
    * Inserts/updates user in this client's cache.
    * @param user From Discord - https://discord.com/developers/docs/resources/user#user-object-user-structure
    */
-  public upsertUser(user: RawUser): User | undefined {
+  public upsertUser(user: RawUser): User {
     const cachedUser = this.#users?.get(user.id)?.update(user) ?? this.#users?.add(user.id, user);
     cachedUser && this.circularAssignCachedPresence(cachedUser);
     return cachedUser;
