@@ -10,7 +10,7 @@ import {
 } from '../../constants';
 import { RemoteApiResponse } from '../../rpc/types';
 import {
-  Identify, RawPresence, RawUser, RawWildCard, ReadyEventFields, Snowflake,
+  Identify, RawPresence, RawUser, ReadyEventFields, Snowflake,
 } from '../../types';
 import {
   clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
@@ -25,8 +25,8 @@ import Guild from './structures/discord/resources/Guild';
 import Presence from './structures/discord/resources/Presence';
 import User from './structures/discord/resources/User';
 import {
-  DiscordResource,
-  DiscordTypes, EventFunction, EventFunctions, FilterOptions, GatewayMap, GuildMap, Message, ParacordLoginOptions, ParacordOptions, PresenceMap, RawGuildType, UserMap,
+  DiscordResource, EventFunction, EventFunctions, FilterOptions, GatewayMap, GuildMap, Message,
+  ParacordLoginOptions, ParacordOptions, PresenceMap, RawGuildType, UserMap,
 } from './types';
 
 const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
@@ -108,6 +108,7 @@ export default class Paracord extends EventEmitter {
   /** Timestamp of last GUILD_CREATE event on start up for the current `startingGateway`. */
   #lastGuildTimestamp?: number;
 
+  #startupHeartbeatTolerance?: number;
 
   /** Interval that coordinates gateway logins. */
   #processGatewayQueueInterval?: NodeJS.Timer;
@@ -338,7 +339,7 @@ export default class Paracord extends EventEmitter {
    */
   public async login(options: ParacordLoginOptions = {}): Promise<void> {
     const {
-      unavailableGuildTolerance, unavailableGuildWait, allowEventsDuringStartup,
+      unavailableGuildTolerance, unavailableGuildWait, allowEventsDuringStartup, startupHeartbeatTolerance,
     } = options;
 
     if (!this.#initialized) {
@@ -347,6 +348,7 @@ export default class Paracord extends EventEmitter {
 
     this.#unavailableGuildTolerance = unavailableGuildTolerance;
     this.#unavailableGuildWait = unavailableGuildWait;
+    this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
 
     if (PARACORD_SHARD_IDS !== undefined) {
       options.shards = <[number, number]>PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
@@ -494,9 +496,8 @@ export default class Paracord extends EventEmitter {
    * @param identity An object containing information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
    */
   private addNewGateway(identity: Identify, wsUrl?: string): void {
-    const gatewayOptions = {
-      identity, api: this.api, emitter: this, wsUrl,
-    };
+    const gatewayOptions = this.createGatewayOptions(identity, wsUrl);
+
     const gateway = this.setUpGateway(this.token, gatewayOptions);
     if (this.#gateways.get(gateway.id) !== undefined) {
       throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
@@ -505,6 +506,20 @@ export default class Paracord extends EventEmitter {
     ++this.#gatewayWaitCount;
     this.#gateways.set(gateway.id, gateway);
     this.gatewayLoginQueue.push(gateway);
+  }
+
+  private createGatewayOptions(identity: Identify, wsUrl?: string): GatewayOptions {
+    const gatewayOptions: GatewayOptions = {
+      identity, api: this.api, emitter: this, wsUrl,
+    };
+
+    if (this.#startupHeartbeatTolerance !== undefined) {
+      gatewayOptions.startupHeartbeatTolerance = this.#startupHeartbeatTolerance;
+      const startingGateway = () => this.startingGateway;
+      gatewayOptions.isStartingFunc = (gateway: Gateway) => startingGateway() === gateway;
+    }
+
+    return gatewayOptions;
   }
 
   /** Sets up the internal handlers for this client. */
@@ -803,6 +818,7 @@ export default class Paracord extends EventEmitter {
 
   /** Removes from presence and user caches users who are no longer in a cached guild. */
   private async sweepCaches(): Promise<void> {
+    const startTime = new Date().getTime();
     const checkOffset = new Date().getMinutes();
     if (this.connecting || this.#guilds === undefined || (checkOffset % 5) !== 0) return;
 
@@ -818,7 +834,7 @@ export default class Paracord extends EventEmitter {
       ++sweptCount;
     }
 
-    this.log('INFO', `Swept ${sweptCount} users from caches.`);
+    this.log('INFO', `Swept ${sweptCount} users from caches in ${new Date().getTime() - startTime} ms.`);
   }
 
   /** https://stackoverflow.com/questions/6940103/how-do-i-make-an-array-with-unique-elements-i-e-remove-duplicates */

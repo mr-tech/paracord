@@ -3,6 +3,7 @@ import {
 } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import Guild from './Guild';
+import GuildChannel from './GuildChannel';
 import GuildMember from './GuildMember';
 import User from './User';
 
@@ -16,6 +17,8 @@ export default class GuildVoiceState {
   #member: GuildMember | undefined;
 
   #guild: Guild;
+
+  #channel: GuildChannel;
 
   /** the channel id this user is connected to */
   public channelId: Snowflake | null | undefined;
@@ -50,18 +53,23 @@ export default class GuildVoiceState {
   public constructor(
     filteredProps: FilterOptions['props'] | undefined,
     voiceState: AugmentedRawVoiceState, user: User | undefined, member: GuildMember | undefined,
-    guild: Guild,
+    guild: Guild, channel: GuildChannel,
   ) {
     this.#filteredProps = filteredProps?.guildVoiceState;
     this.#user = user;
     this.#member = member;
     this.#guild = guild;
+    this.#channel = channel;
 
     this.initialize(voiceState);
   }
 
   public get guild(): Guild {
     return this.#guild;
+  }
+
+  public get channel(): GuildChannel {
+    return this.#channel;
   }
 
   public get member(): GuildMember | undefined {

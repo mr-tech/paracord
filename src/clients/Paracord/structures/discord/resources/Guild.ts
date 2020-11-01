@@ -293,7 +293,7 @@ export default class Guild {
     }
 
     if (voice_states !== undefined && this.#voiceStates !== undefined) {
-      voice_states.forEach((v) => this.insertVoiceState(v));
+      voice_states.forEach((v) => this.upsertVoiceState(v));
     }
 
     if (emojis !== undefined && this.#emojis !== undefined) {
@@ -675,6 +675,19 @@ export default class Guild {
     return [newEmojis, removedEmojis];
   }
 
+  public upsertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
+    const voiceStates = this.#voiceStates;
+    if (voiceStates === undefined) return undefined;
+
+    const { user_id } = voiceState;
+    const cachedVoiceState = voiceStates.get(user_id);
+    if (cachedVoiceState !== undefined) {
+      return cachedVoiceState.update(voiceState);
+    }
+
+    return this.insertVoiceState(voiceState);
+  }
+
   /**
    * Add a role to a map of voice states.
    * @param voiceState https://discord.com/developers/docs/resources/voice
@@ -682,9 +695,8 @@ export default class Guild {
    */
   public insertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
     const voiceStates = this.#voiceStates;
-    if (voiceStates === undefined) return undefined;
-
-    const { user_id: userId, member } = voiceState;
+    const { user_id: userId, member, channel_id } = voiceState;
+    if (voiceStates === undefined || channel_id === null) return undefined;
 
     let cachedMember;
     if (member !== undefined) {
@@ -695,7 +707,7 @@ export default class Guild {
 
     const user = cachedMember?.user ?? this.#client.users?.get(userId);
 
-    return voiceStates.add(userId, voiceState, user, cachedMember);
+    return voiceStates.add(userId, voiceState, user, cachedMember, this, this.channels.get(channel_id));
   }
 
   /**

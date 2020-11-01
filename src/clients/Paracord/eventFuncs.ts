@@ -112,7 +112,7 @@ export function VOICE_STATE_UPDATE(this: Paracord, data: AugmentedRawVoiceState)
   const guild = this.guilds.get(guildId);
   if (guild !== undefined) {
     if (channelId !== null) {
-      return guild.insertVoiceState(data) ?? data;
+      return guild.upsertVoiceState(data) ?? data;
     }
 
     guild.voiceStates.delete(userId);

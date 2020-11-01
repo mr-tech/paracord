@@ -83,6 +83,7 @@ export interface ParacordLoginOptions {
   unavailableGuildTolerance?: number;
   unavailableGuildWait?: number;
   allowEventsDuringStartup?: true;
+  startupHeartbeatTolerance?: number;
 }
 
 export type DiscordResource = Guild | GuildMember | GuildChannel | User | Role | GuildEmoji | GuildVoiceState | Presence;
