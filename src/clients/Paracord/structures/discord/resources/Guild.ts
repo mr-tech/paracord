@@ -554,7 +554,7 @@ export default class Guild {
     if (channels === undefined) return undefined;
 
     const { id } = channel;
-    const guildChannel = channels.add(id, channel);
+    const guildChannel = channels.add(id, channel, this);
     if ((this.afkChannelId ?? false) && id === this.afkChannelId) this.afkChannel = guildChannel;
     if ((this.rulesChannelId ?? false) && id === this.rulesChannelId) this.rulesChannel = guildChannel;
     if ((this.systemChannelId ?? false) && id === this.systemChannelId) this.systemChannel = guildChannel;
@@ -630,7 +630,7 @@ export default class Guild {
     if (roles === undefined) return undefined;
 
     const { id } = role;
-    return roles.add(id, role);
+    return roles.add(id, role, this);
   }
 
   public upsertRole(role: RawRole): Role | undefined {

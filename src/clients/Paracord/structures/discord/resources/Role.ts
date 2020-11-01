@@ -1,11 +1,14 @@
 import { RawRole, Snowflake } from '../../../../../types';
 import { timestampFromSnowflake } from '../../../../../utils';
 import { FilterOptions } from '../../../types';
+import Guild from './Guild';
 
 export default class Role {
   #filteredProps: FilterOptions['props']['role'] | undefined;
 
   #id: Snowflake;
+
+  #guild: Guild;
 
   /** role name */
   name: string | undefined;
@@ -28,9 +31,10 @@ export default class Role {
   /** whether this role is mentionable */
   mentionable: boolean | undefined;
 
-  public constructor(filteredProps: FilterOptions['props'] | undefined, role: RawRole) {
+  public constructor(filteredProps: FilterOptions['props'] | undefined, role: RawRole, guild: Guild) {
     this.#filteredProps = filteredProps?.role;
     this.#id = role.id;
+    this.#guild = guild;
 
     this.initialize(role);
   }
@@ -42,6 +46,10 @@ export default class Role {
 
   public get id(): Snowflake {
     return this.#id;
+  }
+
+  public get guild(): Guild {
+    return this.#guild;
   }
 
   public update(arg: RawRole): this {
