@@ -11,6 +11,7 @@ import GuildMember from './structures/discord/resources/GuildMember';
 import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
 import Role from './structures/discord/resources/Role';
 import User from './structures/discord/resources/User';
+import { GatewayCloseEvent } from '../Gateway/types';
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
@@ -23,7 +24,7 @@ export function READY(this: Paracord, data: ReadyEventFields, shard: number): Re
 /**
  * @param identity From a gateway client.
  */
-export function GATEWAY_IDENTIFY(this: Paracord, gateway: Gateway): void {
+export function GATEWAY_IDENTIFY(this: Paracord, gateway: Gateway): Gateway {
   this.safeGatewayIdentifyTimestamp = new Date().getTime() + (6 * SECOND_IN_MILLISECONDS);
 
   for (const guild of this.guilds.values()) {
@@ -31,25 +32,35 @@ export function GATEWAY_IDENTIFY(this: Paracord, gateway: Gateway): void {
       this.guilds.delete(guild.id);
     }
   }
+
+  return gateway;
 }
 
+// { gateway, shouldReconnect }: { gateway: Gateway, shouldReconnect: boolean },
 /**
  * @param gateway Gateway that emitted the event.
  * @param shouldReconnect Whether or not to attempt to login again.
  */
 export function GATEWAY_CLOSE(
-  this: Paracord, { gateway, shouldReconnect }: { gateway: Gateway, shouldReconnect: boolean },
-): void {
+  this: Paracord, data: GatewayCloseEvent,
+): GatewayCloseEvent {
+  const { gateway, shouldReconnect } = data;
   if (shouldReconnect) {
     if (gateway.resumable) {
       gateway.login();
     } else if (this.startingGateway === gateway) {
       this.clearStartingShardState();
+      this.clearShardGuilds(gateway.id);
       this.gatewayLoginQueue.unshift(gateway);
     } else {
+      this.clearShardGuilds(gateway.id);
       this.gatewayLoginQueue.push(gateway);
     }
+  } else {
+    this.clearShardGuilds(gateway.id);
   }
+
+  return data;
 }
 
 export function GUILD_CREATE(this: Paracord, data: AugmentedRawGuild, shard: number): Guild | AugmentedRawGuild {

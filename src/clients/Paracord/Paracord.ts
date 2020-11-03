@@ -619,12 +619,12 @@ export default class Paracord extends EventEmitter {
     this.#guildWaitCount = guilds.length;
     this.log('INFO', `Logged in as ${this.user.tag}.`);
 
-    const guildCache = this.#guilds;
-    if (guildCache !== undefined) {
-      guilds.forEach((guild) => guildCache.add(guild.id,
-        guild,
-        this,
-        shard));
+    if (this.#guilds !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      for (const guild of guilds) {
+        this.#guilds.add(guild.id, guild, this, shard);
+      }
     }
 
     const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
@@ -634,6 +634,15 @@ export default class Paracord extends EventEmitter {
       this.checkIfDoneStarting();
     } else {
       this.#lastGuildTimestamp = new Date().getTime();
+    }
+  }
+
+  public clearShardGuilds(shardId: number): void {
+    const guilds = this.#guilds;
+    if (guilds !== undefined) {
+      for (const [id, guild] of guilds.entries()) {
+        if (guild.shard === shardId) guilds.delete(id);
+      }
     }
   }
 

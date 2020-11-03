@@ -13,7 +13,7 @@ import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
 import Api from '../Api/Api';
 import Identify from './structures/Identify';
 import {
-  GatewayBotResponse, GatewayOptions, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
+  GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 import { IServiceOptions } from '../Api/types';
 
@@ -175,6 +175,10 @@ export default class Gateway {
   /** Whether or not the client is connected to the gateway. */
   public get online(): boolean {
     return this.#online !== undefined;
+  }
+
+  public get ws(): ws | undefined {
+    return this.#ws;
   }
 
   /** Binds `this` to certain methods so that they are able to be called in `setInterval()` and `setTimeout()`. */
@@ -522,7 +526,8 @@ export default class Gateway {
       resetTimestamp: 0,
     };
 
-    this.handleEvent('GATEWAY_CLOSE', { shouldReconnect, code: event.code, gateway: this });
+    const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
+    this.handleEvent('GATEWAY_CLOSE', gatewayCloseEvent);
   }
 
   /** Uses the close code to determine what message to log and if the client should attempt to reconnect.

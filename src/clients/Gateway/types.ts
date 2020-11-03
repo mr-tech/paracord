@@ -92,4 +92,10 @@ export type IdentityOptions = {
   intents?: number;
 }
 
+export type GatewayCloseEvent = {
+  shouldReconnect: boolean,
+  code: number,
+  gateway: Gateway
+}
+
 export type StartupCheckFunction = (x: Gateway) => boolean;
