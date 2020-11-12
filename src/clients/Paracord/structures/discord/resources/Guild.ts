@@ -686,7 +686,7 @@ export default class Guild {
     if (cachedVoiceState !== undefined) {
       let channel;
       if (voiceState.channel_id !== null && cachedVoiceState.channel.id !== voiceState.channel_id) {
-        this.channels.get(voiceState.channel_id);
+        channel = this.channels.get(voiceState.channel_id);
       }
       return cachedVoiceState.update(voiceState, channel);
     }
