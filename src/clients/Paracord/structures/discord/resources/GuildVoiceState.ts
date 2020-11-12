@@ -80,7 +80,9 @@ export default class GuildVoiceState {
     return this.#user;
   }
 
-  public update(voiceState: AugmentedRawVoiceState): this {
+  public update(voiceState: AugmentedRawVoiceState, channel: GuildChannel | undefined): this {
+    if (channel !== undefined) this.#channel = channel;
+
     if ((this.#filteredProps === undefined || 'deaf' in this)
     ) this.deaf = voiceState.deaf;
     if ((this.#filteredProps === undefined || 'mute' in this)
