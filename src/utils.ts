@@ -1,11 +1,14 @@
 /** A class of helper export functions used throughout the library. */
+import Overwrite from './clients/Paracord/structures/discord/objects/Overwrite';
+import Guild from './clients/Paracord/structures/discord/resources/Guild';
+import GuildChannel from './clients/Paracord/structures/discord/resources/GuildChannel';
+import GuildMember from './clients/Paracord/structures/discord/resources/GuildMember';
+import Role from './clients/Paracord/structures/discord/resources/Role';
+import User from './clients/Paracord/structures/discord/resources/User';
 import {
-  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS,
+  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS, OVERWRITE_ROLE_VALUE, OVERWRITE_MEMBER_VALUE,
 } from './constants';
-import type {
-  GuildChannel, GuildMember, Overwrite, Snowflake, User,
-} from './types';
-import Guild from './clients/Paracord/structures/Guild';
+import type { Snowflake } from './types';
 
 /**
  * Returns a new object that is a clone of the original.
@@ -77,19 +80,18 @@ export function coerceTokenToBotLike(token: string): string {
  */
 export function computeChannelPerms({
   member, guild, channel, stopOnOwnerAdmin = false,
-}: { member: GuildMember; guild: Guild; channel: GuildChannel; stopOnOwnerAdmin?: boolean; }): number {
-  const { roles: guildRoles } = guild;
-  const { roles: memberRoles } = member;
-  if (guildRoles === undefined) throw Error('roles not cached for this guild');
-  if (memberRoles === undefined) throw Error('no roles on member object');
-
+}: { member: GuildMember; guild: Guild; channel: GuildChannel; stopOnOwnerAdmin?: boolean; }): bigint {
   const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
 
-  if (stopOnOwnerAdmin && guildPerms & PERMISSIONS.ADMINISTRATOR) {
-    return PERMISSIONS.ADMINISTRATOR;
+  if (stopOnOwnerAdmin && guildPerms & BigInt(PERMISSIONS.ADMINISTRATOR)) {
+    return BigInt(PERMISSIONS.ADMINISTRATOR);
   }
 
   return computeChannelOverwrites(guildPerms, member as GuildMember, guild, channel);
+}
+
+interface SafeRole extends Role {
+  permissions: string;
 }
 
 /**
@@ -97,35 +99,28 @@ export function computeChannelPerms({
  * @param member GuildMember whose perms to check.
  * @param guild Guild in which to check the member's permissions.
  * @param stopOnOwnerAdmin Whether or not to stop and return the Administrator perm if the user qualifies.
- * @returns The Administrator perm or the new perms.
+ * @returns The Administrator perm or the new perms in BigInt form.
  */
-export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: { member: GuildMember; guild: Guild; stopOnOwnerAdmin?: boolean; }): number {
+export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: { member: GuildMember; guild: Guild; stopOnOwnerAdmin?: boolean; }): bigint {
   const { roles: guildRoles } = guild;
-  const { roles: memberRoles } = member;
   if (guildRoles === undefined) throw Error('roles not cached for this guild');
+  const { roles: memberRoles } = member;
   if (memberRoles === undefined) throw Error('no roles on member object');
 
   if (stopOnOwnerAdmin && guild.ownerId === member.user.id) {
-    return PERMISSIONS.ADMINISTRATOR;
+    return BigInt(PERMISSIONS.ADMINISTRATOR);
   }
 
   const everyone = guildRoles.get(guild.id);
-
-  if (everyone === undefined) throw Error('no everyone role for this guild');
+  if (everyone === undefined) throw Error('no everyone role for this guild'); // should never trigger
+  if (everyone.permissions === undefined) throw Error('permissions are not cached on roles');
 
   // start with @everyone perms
-  let perms: number = everyone.permissions;
+  let perms = BigInt(everyone.permissions);
 
-  for (const roleId of memberRoles) {
-    const role = guildRoles.get(roleId);
-    if (role !== undefined) {
-      if ((role.permissions & PERMISSIONS.ADMINISTRATOR) !== 0) {
-        return PERMISSIONS.ADMINISTRATOR;
-      }
-
-      perms |= role.permissions;
-    }
-  }
+  Array.from(memberRoles.values()).forEach((role: unknown) => {
+    perms |= BigInt((<SafeRole>role).permissions);
+  });
 
   return perms;
 }
@@ -138,12 +133,26 @@ export function computeGuildPerms({ member, guild, stopOnOwnerAdmin = false }: {
  * @param channel Channel in which to check the member's permissions.
  * @returns The new perms.
  */
-export function computeChannelOverwrites(perms: number, member: GuildMember, guild: Guild, channel: GuildChannel): number {
+export function computeChannelOverwrites(perms: bigint, member: GuildMember, guild: Guild, channel: GuildChannel): bigint {
   const { permissionOverwrites: overwrites } = channel;
+  if (overwrites === undefined) throw Error('no overwrites on channel object');
+  const { roles: memberRoles } = member;
+  if (memberRoles === undefined) throw Error('no roles on member object');
 
-  perms = _everyoneOverwrites(perms, overwrites, guild.id);
-  perms = _roleOverwrites(perms, overwrites, member.roles);
-  perms = _memberOverwrites(perms, overwrites, member.user.id);
+  const roleOverwrites: Overwrite[] = [];
+  const memberOverwrites: Overwrite[] = [];
+  overwrites.forEach((o) => {
+    if (o.type === OVERWRITE_MEMBER_VALUE && o.id === member.id) {
+      memberOverwrites.push(o);
+    } else if (o.type === OVERWRITE_ROLE_VALUE && o.id !== guild.id && memberRoles.has(o.id)) {
+      roleOverwrites.push(o);
+    } else {
+      perms = _everyoneOverwrites(perms, o);
+    }
+  });
+
+  perms = _roleOverwrites(perms, roleOverwrites);
+  perms = _memberOverwrites(perms, memberOverwrites);
 
   return perms;
 }
@@ -155,14 +164,9 @@ export function computeChannelOverwrites(perms: number, member: GuildMember, gui
  * @param guildId id of the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _everyoneOverwrites(perms: number, overwrites: Overwrite[], guildId: string): number {
-  for (const o of overwrites) {
-    if (o.type === 'role' && o.id === guildId) {
-      perms |= o.allow;
-      perms &= ~o.deny;
-      break;
-    }
-  }
+function _everyoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
+  perms |= BigInt(overwrite.allow);
+  perms &= ~BigInt(overwrite.deny);
   return perms;
 }
 
@@ -173,14 +177,11 @@ function _everyoneOverwrites(perms: number, overwrites: Overwrite[], guildId: st
  * @param roles Roles in the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _roleOverwrites(perms: number, overwrites: Overwrite[], roles: string[]): number {
+function _roleOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
   for (const o of overwrites) {
-    if (o.type === 'role' && roles.includes(o.id)) {
-      perms |= o.allow;
-      perms &= ~o.deny;
-    }
+    perms |= BigInt(o.allow);
+    perms &= ~BigInt(o.deny);
   }
-
   return perms;
 }
 
@@ -191,13 +192,10 @@ function _roleOverwrites(perms: number, overwrites: Overwrite[], roles: string[]
  * @param memberId id of the member whose permissions are being checked.
  * @returns The new perms.
  */
-function _memberOverwrites(perms: number, overwrites: Overwrite[], memberId: string): number {
+function _memberOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
   for (const o of overwrites) {
-    if (o.type === 'member' && o.id === memberId) {
-      perms |= o.allow;
-      perms &= ~o.deny;
-      break;
-    }
+    perms |= BigInt(o.allow);
+    perms &= ~BigInt(o.deny);
   }
   return perms;
 }
@@ -226,13 +224,13 @@ export function constructUserAvatarUrl(user: User, fileType = ''): string {
  * @param fileType File extension of the image.
  */
 export function constructGuildIcon(guild: Guild, fileType = ''): string | undefined {
-  if (guild.icon === null) return undefined;
+  if (guild.iconHash === null || guild.iconHash === undefined) return undefined;
 
-  if (guild.icon.startsWith('a_')) {
-    return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;
+  if (guild.iconHash.startsWith('a_')) {
+    return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.iconHash}${fileType ? `.${fileType}` : ''}`;
   }
 
-  return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon}${fileType ? `.${fileType}` : ''}`;
+  return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.iconHash}${fileType ? `.${fileType}` : ''}`;
 }
 
 // /**
@@ -298,14 +296,20 @@ export function snakeToCamel(str: string): string {
   );
 }
 
-export function objectKeysSnakeToCamel(obj: Record<string, unknown>): Record<string, unknown> {
+/**
+ *
+ * @param obj
+ * @param seenObjects avoid circular assignment traps
+ */
+export function objectKeysSnakeToCamel(obj: Record<string, unknown>, seenObjects: unknown[] = []): Record<string, unknown> {
   const camelObj: Record<string, unknown> = {};
   /* eslint-disable-next-line prefer-const */
   for (let [key, value] of Object.entries(obj)) {
-    if (isObject(value)) {
-      value = objectKeysSnakeToCamel(<Record<string, unknown>>value);
+    if (isObject(value) && !seenObjects.includes(value)) {
+      seenObjects.push(value);
+      value = objectKeysSnakeToCamel(<Record<string, unknown>>value, seenObjects);
     } else if (Array.isArray(value) && isObject(value[0])) {
-      value = value.map(objectKeysSnakeToCamel);
+      value = value.map((v) => objectKeysSnakeToCamel(v, seenObjects));
     }
     camelObj[snakeToCamel(key)] = value;
   }
@@ -313,6 +317,23 @@ export function objectKeysSnakeToCamel(obj: Record<string, unknown>): Record<str
   return camelObj;
 }
 
-function isObject(v: unknown): boolean {
-  return typeof v === 'object' && v?.constructor.name === 'Object';
+export function isObject(v: unknown): boolean {
+  return (v !== null) && (typeof v === 'object') && (v?.constructor.name === 'Object');
+}
+
+export function squashArrays <T>(oldArray: Array<T>, newArray: Array<T>): Array<T> {
+  const removedItems = [];
+  for (let i = oldArray.length; i >= 0; --i) {
+    const oldItem = oldArray[i];
+    const newIdx = newArray.indexOf(oldItem);
+    if (newIdx > -1) { // item already in old array
+      newArray.splice(newIdx, 1);
+    } else { // item not in new array
+      removedItems.push(...oldArray.splice(i, 1));
+    }
+  }
+
+  oldArray.push(...newArray);
+
+  return removedItems;
 }

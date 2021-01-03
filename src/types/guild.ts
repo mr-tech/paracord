@@ -1,100 +1,97 @@
 import {
-  ISO8601timestamp, Snowflake, User, EmojiMap, VoiceRegion, RawRole, RawEmoji, RawChannel, RawPresence, RawVoiceState,
+  ISO8601timestamp, RawChannel, RawEmoji, RawGuildEmoji, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, VoiceRegion,
 } from '.';
+import GuildEmoji from '../clients/Paracord/structures/discord/resources/GuildEmoji';
 
 export type RawGuild = {
+  [index: string]: unknown;
+
   /** guild id */
   id: Snowflake;
   /** guild name (2-100 characters, excluding trailing and leading whitespace) */
   name: string;
   /** icon hash */
   icon: string | null;
+  /** icon hash, returned when in the template object */
+  icon_hash?: string | null;
   /** splash hash */
   splash: string | null;
   /** discovery splash hash; only present for guilds with the "DISCOVERABLE" feature */
-  discoverySplash: string | null;
+  discovery_splash: string | null;
   /** true if the user is the owner of the guild */
   owner?: boolean;
   /** id of owner */
-  ownerId: Snowflake;
+  owner_id: Snowflake;
   /** total permissions for the user in the guild (excludes overrides) */
   permissions?: number;
   /** voice region id for the guild */
   region: VoiceRegion;
   /** id of afk channel */
-  afkChannelId: Snowflake | null;
+  afk_channel_id: Snowflake | null;
   /** afk timeout in seconds */
-  afkTimeout: number;
-  /** true if the server widget is enabled (deprecated, replaced with `widget_enabled`) */
-  embedEnabled?: boolean;
-  /** the channel id that the widget will generate an invite to, or `null` if set to no invite (deprecated, replaced with `widget_channel_id`) */
-  embedChannelId?: Snowflake | null;
+  afk_timeout: number;
+  /** true if the server widget is enabled */
+  widget_enabled?: boolean;
+  /** the channel id that the widget will generate an invite to, or `null` if set to no invite */
+  widget_channel_id?: Snowflake | null;
   /** verification level required for the guild */
-  verificationLevel: VerificationLevel;
+  verification_level: VerificationLevel;
   /** default message notification level */
-  defaultMessageNotifications: DefaultMessageNotificationLevel;
+  default_message_notifications: DefaultMessageNotificationLevel;
   /** explicit content filter level */
-  explicitContentFilter: ExplicitContentFilterLevel;
+  explicit_content_filter: ExplicitContentFilterLevel;
   /** roles in the guild */
   roles: RawRole[];
   /** custom guild emojis */
-  emojis: RawEmoji[];
+  emojis: RawGuildEmoji[]; // !! NOT GENERATED RawEmoji -> GuildEmoji
   /** enabled guild features */
   features: GuildFeature[];
   /** required MFA Level for the guild */
-  mfaLevel: MFALevel;
+  mfa_level: MFALevel;
   /** application id of the guild creator if it is bot-created */
-  applicationId: Snowflake | null;
-  /** true if the server widget is enabled */
-  widgetEnabled?: boolean;
-  /** the channel id that the widget will generate an invite to, or `null` if set to no invite */
-  widgetChannelId?: Snowflake | null;
+  application_id: Snowflake | null;
   /** the id of the channel where guild notices such as welcome messages and boost events are posted */
-  systemChannelId: Snowflake | null;
+  system_channel_id: Snowflake | null;
   /** system channel flags */
-  systemChannelFlags: SystemChannelFlags;
+  system_channel_flags: SystemChannelFlags;
   /** the id of the channel where guilds with the "PUBLIC" feature can display rules and/or guidelines */
-  rulesChannelId: Snowflake | null;
+  rules_channel_id: Snowflake | null;
   /** when this guild was joined at */
-  joinedAt?: ISO8601timestamp;
+  joined_at?: ISO8601timestamp;
   /** true if this is considered a large guild */
   large?: boolean;
   /** true if this guild is unavailable due to an outage */
   unavailable?: boolean;
   /** total number of members in this guild */
-  memberCount?: number;
+  member_count?: number;
   /** states of members currently in voice channels; lacks the `guild_id` key */
-  voiceStates?: RawVoiceState[];
+  voice_states?: Partial<RawVoiceState>[];
   /** users in the guild */
   members?: RawGuildMember[];
   /** channels in the guild */
   channels?: RawChannel[];
   /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
-  presences?: RawPresence[];
+  presences?: Partial<RawPresence>[];
   /** the maximum number of presences for the guild (the default value, currently 25000, is in effect when `null` is returned) */
-  maxPresences?: number | null;
+  max_presences?: number | null;
   /** the maximum number of members for the guild */
-  maxMembers?: number;
+  max_members?: number;
   /** the vanity url code for the guild */
-  vanityUrlCode: string | null;
+  vanity_url_code: string | null;
   /** the description for the guild, if the guild is discoverable */
   description: string | null;
   /** banner hash */
   banner: string | null;
   /** server Boost level */
-  premiumTier: PremiumTier;
+  premium_tier: PremiumTier;
   /** the number of boosts this guild currently has */
-  premiumSubscriptionCount?: number;
+  premium_subscription_count?: number;
   /** the preferred locale of a guild with the "PUBLIC" feature; used in server discovery and notices from Discord; defaults to "en-US" */
-  preferredLocale: string;
+  preferred_locale: string;
   /** the id of the channel where admins and moderators of guilds with the "PUBLIC" feature receive notices from Discord */
-  publicUpdatesChannelId: Snowflake | null;
+  public_updates_channel_id: Snowflake | null;
   /** the maximum amount of users in a video channel */
-  maxVideoChannelUsers?: number;
-  /** approximate number of members in this guild, returned from the `GET /guild/<id>` endpoint when `with_counts` is `true` */
-  approximateMemberCount?: number;
-  /** approximate number of non-offline members in this guild, returned from the `GET /guild/<id>` endpoint when `with_counts` is `true` */
-  approximatePresenceCount?: number;
+  max_video_channel_users?: number;
 };
 
 // ========================================================================
@@ -156,7 +153,7 @@ export type PremiumTier = [
 
 // ========================================================================
 
-export const enum SystemChannelFlags {
+export enum SystemChannelFlags {
   SUPPRESS_JOIN_NOTIFICATIONS = 1 << 0,
   SUPPRESS_PREMIUM_SUBSCRIPTIONS = 1 << 1
 }
@@ -206,15 +203,15 @@ export type GuildPreview = {
   /** splash hash */
   splash: string | null;
   /** discovery splash hash */
-  discoverySplash: string | null;
+  discovery_splash: string | null;
   /** custom guild emojis */
-  emojis: EmojiMap;
+  emojis: RawEmoji[];
   /** enabled guild features */
   features: GuildFeature[];
   /** approximate number of members in this guild */
-  approximateMemberCount: number;
+  approximate_member_count: number;
   /** approximate number of online members in this guild */
-  approximatePresenceCount: number;
+  approximate_presence_count: number;
   /** the description for the guild */
   description: string | null;
 };
@@ -225,22 +222,22 @@ export type GuildWidget = {
   /** whether the widget is enabled */
   enabled: boolean;
   /** the widget channel id */
-  channelId: Snowflake | null;
+  channel_id: Snowflake | null;
 };
 
 // ========================================================================
 
 export type RawGuildMember = {
   /** the user this guild member represents */
-  user: User;
+  user?: RawUser;
   /** this users guild nickname */
   nick: string | null;
   /** array of role object ids */
   roles: Snowflake[];
   /** when the user joined the guild */
-  joinedAt: ISO8601timestamp;
+  joined_at: ISO8601timestamp;
   /** when the user started boosting the guild */
-  premiumSince?: ISO8601timestamp | null;
+  premium_since?: ISO8601timestamp | null;
   /** whether the user is deafened in voice channels */
   deaf: boolean;
   /** whether the user is muted in voice channels */
@@ -249,7 +246,7 @@ export type RawGuildMember = {
 
 // ========================================================================
 
-export type Integration = {
+export type RawIntegration = {
   /** integration id */
   id: Snowflake;
   /** integration name */
@@ -261,19 +258,19 @@ export type Integration = {
   /** is this integration syncing */
   syncing: boolean;
   /** id that this integration uses for "subscribers" */
-  roleId: Snowflake;
+  role_id: Snowflake;
   /** whether emoticons should be synced for this integration (twitch only currently) */
-  enableEmoticons?: boolean;
+  enable_emoticons?: boolean;
   /** the behavior of expiring subscribers */
-  expireBehavior: IntegrationExpireBehavior;
+  expire_behavior: IntegrationExpireBehavior;
   /** the grace period (in days) before expiring subscribers */
-  expireGracePeriod: number;
+  expire_grace_period: number;
   /** user for this integration */
-  user: User;
+  user: RawUser;
   /** integration account information */
   account: Account;
   /** when this integration was last synced */
-  syncedAt: ISO8601timestamp;
+  synced_at: ISO8601timestamp;
 };
 
 // ========================================================================
@@ -300,5 +297,5 @@ export type Ban = {
   /** the reason for the ban */
   reason: string | null;
   /** the banned user */
-  user: User;
+  user: RawUser;
 };

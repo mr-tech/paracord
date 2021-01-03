@@ -41,7 +41,7 @@ export default class Identify {
       this.#presence = {
         status: 'online',
         afk: false,
-        game: null,
+        activities: null,
         since: null,
       };
 

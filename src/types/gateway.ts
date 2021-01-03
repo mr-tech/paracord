@@ -1,12 +1,12 @@
 import {
-  GuildMember, ISO8601timestamp, RawEmoji, RawRole, RawUser, Snowflake, UnavailableGuild, User,
+  Snowflake, RawUser, ISO8601timestamp, RawRole, RawGuildMember, RawEmoji, UnavailableGuild,
 } from '.';
 
 export type GatewayPayload = {
   /** opcode for the payload */
   op: number;
   /** event data */
-  d: unknown; // any JSON value;
+  d: string | number | boolean | null; // any JSON value;
   /** sequence number, used for resuming sessions and heartbeats */
   s: number | null; // *
   /** the event name for this payload */
@@ -17,7 +17,7 @@ export type GatewayPayload = {
 
 export type GatewayURLParams = {
   /** Gateway Version to use */
-  v: number; // 6 (see [Gateway versions](#DOCS_TOPICS_GATEWAY/gateways-gateway-versions))
+  v: number; // see [Gateway versions](#DOCS_TOPICS_GATEWAY/gateways-gateway-versions)
   /** The encoding of received gateway packets */
   encoding: string; // 'json' or 'etf'
   /** The (optional) compression of gateway packets */
@@ -34,13 +34,13 @@ export type Identify = {
   /** whether this connection supports compression of packets */
   compress?: boolean; // false
   /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
-  largeThreshold?: number; // 50
+  large_threshold?: number; // 50
   /** used for Guild Sharding */
-  shard?: [number, number]; // (shardId, numShards);
+  shard?: [number, number]; // (shard_id, num_shards);
   /** presence structure for initial presence information */
   presence?: GatewayStatusUpdate;
   /** enables dispatching of guild subscription events (presence and typing events) */
-  guildSubscriptions?: boolean; // true
+  guild_subscriptions?: boolean; // true
   /** the Gateway Intents you wish to receive */
   intents?: number;
 };
@@ -62,7 +62,7 @@ export type Resume = {
   /** session token */
   token: string;
   /** session id */
-  sessionId: string;
+  session_id: string;
   /** last sequence number received */
   seq: number;
 };
@@ -71,7 +71,7 @@ export type Resume = {
 
 export type GuildRequestMembers = {
   /** id of the guild(s) to get members for */
-  guildId: Snowflake | Snowflake[]; // true
+  guild_id: Snowflake | Snowflake[]; // true
   /** string that username starts with, or an empty string to return all members */
   query?: string; // one of query or user_ids
   /** maximum number of members to send matching the `query`; a limit of `0` can be used with an empty string `query` to return all members */
@@ -79,7 +79,7 @@ export type GuildRequestMembers = {
   /** used to specify if we want the presences of the matched members */
   presences?: boolean; // false
   /** used to specify which users you wish to fetch */
-  userIds?: Snowflake | Snowflake[]; // one of query or user_ids
+  user_ids?: Snowflake | Snowflake[]; // one of query or user_ids
   /** nonce to identify the Guild Members Chunk response */
   nonce?: string; // false
 };
@@ -88,13 +88,13 @@ export type GuildRequestMembers = {
 
 export type GatewayVoiceStateUpdate = {
   /** id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** id of the voice channel client wants to join (null if disconnecting) */
-  channelId: Snowflake | null;
+  channel_id: Snowflake | null;
   /** is the client muted */
-  selfMute: boolean;
+  self_mute: boolean;
   /** is the client deafened */
-  selfDeaf: boolean;
+  self_deaf: boolean;
 };
 
 // ========================================================================
@@ -102,8 +102,8 @@ export type GatewayVoiceStateUpdate = {
 export type GatewayStatusUpdate = {
   /** unix time (in milliseconds) of when the client went idle, or null if the client is not idle */
   since: number | null;
-  /** null, or the user's new activity */
-  game: Activity | null;
+  /** null, or the user's activities */
+  activities: RawActivity[] | null;
   /** the user's new status */
   status: string;
   /** whether or not the client is afk */
@@ -129,9 +129,8 @@ export type StatusTypes = [
 
 export type Hello = {
   /** the interval (in milliseconds) the client should heartbeat with */
-  heartbeatInterval: number;
+  heartbeat_interval: number;
 };
-
 
 // ========================================================================
 
@@ -139,51 +138,51 @@ export type ReadyEventFields = {
   /** gateway version */
   v: number;
   /** information about the user including email */
-  user: User;
+  user: RawUser;
   /** empty array */
-  privateChannels: [];
+  private_channels: [];
   /** the guilds the user is in */
   guilds: UnavailableGuild[];
   /** used for resuming connections */
-  sessionId: string;
+  session_id: string;
   /** the shard information associated with this session, if sent when identifying */
-  shard?: [number, number]; // (shardId, numShards);
+  shard?: [number, number]; // (shard_id, num_shards);
 };
 
 // ========================================================================
 
 export type ChannelPinsUpdateEventFields = {
   /** the id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
   /** the id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the time at which the most recent pinned message was pinned */
-  lastPinTimestamp?: ISO8601timestamp;
+  last_pin_timestamp?: ISO8601timestamp;
 };
 
 // ========================================================================
 
 export type GuildBanAddEventFields = {
   /** id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** the banned user */
-  user: User;
+  user: RawUser;
 };
 
 // ========================================================================
 
 export type GuildBanRemoveEventFields = {
   /** id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** the unbanned user */
-  user: User;
+  user: RawUser;
 };
 
 // ========================================================================
 
 export type GuildEmojisUpdateEventFields = {
   /** id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** array of emojis */
   emojis: [];
 };
@@ -192,53 +191,59 @@ export type GuildEmojisUpdateEventFields = {
 
 export type GuildIntegrationsUpdateEventFields = {
   /** id of the guild whose integrations were updated */
-  guildId: Snowflake;
+  guild_id: Snowflake;
 };
 
 // ========================================================================
 
 export type GuildMemberAddExtraFields = {
   /** id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
 };
 
 // ========================================================================
 
 export type GuildMemberRemoveEventFields = {
   /** the id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** the user who was removed */
-  user: User;
+  user: RawUser;
 };
 
 // ========================================================================
 
 export type GuildMemberUpdateEventFields = {
   /** the id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** user role ids */
   roles: Snowflake[];
   /** the user */
-  user: User;
+  user: RawUser;
   /** nickname of the user in the guild */
   nick?: string | null;
+  /** when the user joined the guild */
+  joined_at: ISO8601timestamp;
   /** when the user starting boosting the guild */
-  premiumSince?: ISO8601timestamp | null;
+  premium_since?: ISO8601timestamp | null;
+  /** whether the user is deafened in voice channels */
+  deaf: boolean | undefined;
+  /** whether the user is muted in voice channels */
+  mute: boolean | undefined;
 };
 
 // ========================================================================
 
 export type GuildMembersChunkEventFields = {
   /** the id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** set of guild members */
-  members: GuildMember[];
+  members: RawGuildMember[];
   /** the chunk index in the expected chunks for this response (0 <= chunk\_index < chunk\_count) */
-  chunkIndex: number;
+  chunk_index: number;
   /** the total number of expected chunks for this response */
-  chunkCount: number;
+  chunk_count: number;
   /** if passing an invalid id to `REQUEST_GUILD_MEMBERS`, it will be returned here */
-  notFound?: [];
+  not_found?: [];
   /** if passing true to `REQUEST_GUILD_MEMBERS`, presences of the returned members will be here */
   presences?: RawPresence[];
   /** the nonce used in the Guild Members Request */
@@ -249,7 +254,7 @@ export type GuildMembersChunkEventFields = {
 
 export type GuildRoleCreateEventFields = {
   /** the id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** the role created */
   role: RawRole;
 };
@@ -258,7 +263,7 @@ export type GuildRoleCreateEventFields = {
 
 export type GuildRoleUpdateEventFields = {
   /** the id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** the role updated */
   role: RawRole;
 };
@@ -267,32 +272,32 @@ export type GuildRoleUpdateEventFields = {
 
 export type GuildRoleDeleteEventFields = {
   /** id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** id of the role */
-  roleId: Snowflake;
+  role_id: Snowflake;
 };
 
 // ========================================================================
 
 export type InviteCreateEventFields = {
   /** the channel the invite is for */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the unique invite code */
   code: string;
   /** unix timestamp of the time at which the invite was created */
-  createdAt: number;
+  created_at: number;
   /** the guild of the invite */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
   /** the user that created the invite */
-  inviter?: User;
+  inviter?: RawUser;
   /** how long the invite is valid for (in seconds) */
-  maxAge: number;
+  max_age: number;
   /** the maximum number of times the invite can be used */
-  maxUses: number;
+  max_uses: number;
   /** the target user for this invite */
-  targetUser?: Partial<User>;
+  target_user?: Partial<RawUser>;
   /** the type of user target for this invite */
-  targetUserType?: number;
+  target_user_type?: number;
   /** whether or not the invite is temporary (invited users will be kicked on disconnect unless they're assigned a role) */
   temporary: boolean;
   /** how many times the invite has been used (always will be 0) */
@@ -303,9 +308,9 @@ export type InviteCreateEventFields = {
 
 export type InviteDeleteEventFields = {
   /** the channel of the invite */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the guild of the invite */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
   /** the unique invite code */
   code: string;
 };
@@ -316,9 +321,9 @@ export type MessageDeleteEventFields = {
   /** the id of the message */
   id: Snowflake;
   /** the id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
 };
 
 // ========================================================================
@@ -327,24 +332,24 @@ export type MessageDeleteBulkEventFields = {
   /** the ids of the messages */
   ids: Snowflake[];
   /** the id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
 };
 
 // ========================================================================
 
 export type MessageReactionAddEventFields = {
   /** the id of the user */
-  userId: Snowflake;
+  user_id: Snowflake;
   /** the id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the id of the message */
-  messageId: Snowflake;
+  message_id: Snowflake;
   /** the id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
   /** the member who reacted if this happened in a guild */
-  member?: GuildMember;
+  member?: RawGuildMember;
   /** the emoji used to react - example */
   emoji: Partial<RawEmoji>;
 };
@@ -353,13 +358,13 @@ export type MessageReactionAddEventFields = {
 
 export type MessageReactionRemoveEventFields = {
   /** the id of the user */
-  userId: Snowflake;
+  user_id: Snowflake;
   /** the id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the id of the message */
-  messageId: Snowflake;
+  message_id: Snowflake;
   /** the id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
   /** the emoji used to react - example */
   emoji: Partial<RawEmoji>;
 };
@@ -368,22 +373,22 @@ export type MessageReactionRemoveEventFields = {
 
 export type MessageReactionRemoveAllEventFields = {
   /** the id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the id of the message */
-  messageId: Snowflake;
+  message_id: Snowflake;
   /** the id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
 };
 
 // ========================================================================
 
 export type MessageReactionRemoveEmoji = {
   /** the id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** the id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
   /** the id of the message */
-  messageId: Snowflake;
+  message_id: Snowflake;
   /** the emoji that was removed */
   emoji: Partial<RawEmoji>;
 };
@@ -393,22 +398,14 @@ export type MessageReactionRemoveEmoji = {
 export type RawPresence = {
   /** the user presence is being updated for */
   user: RawUser;
-  /** roles this user is in */
-  roles?: Snowflake[];
-  /** null, or the user's current activity */
-  game?: Activity | null;
   /** id of the guild */
-  guildId?: Snowflake;
+  guild_id: Snowflake;
   /** either "idle", "dnd", "online", or "offline" */
-  status?: string;
+  status: 'idle' | 'dnd' | 'online' | 'offline';
   /** user's current activities */
-  activities?: Activity[];
+  activities: RawActivity[];
   /** user's platform-dependent status */
-  clientStatus?: ClientStatus;
-  /** when the user started boosting the guild */
-  premiumSince?: ISO8601timestamp | null;
-  /** this users guild nickname (if one is set) */
-  nick?: string | null;
+  client_status: ClientStatus;
 };
 
 // ========================================================================
@@ -424,7 +421,7 @@ export type ClientStatus = {
 
 // ========================================================================
 
-export type Activity = {
+export type RawActivity = {
   /** the activity's name */
   name: string;
   /** activity type */
@@ -432,11 +429,11 @@ export type Activity = {
   /** stream url, is validated when type is 1 */
   url?: string | null;
   /** unix timestamp of when the activity was added to the user's session */
-  createdAt: number;
+  created_at?: number;
   /** unix timestamps for start and/or end of the game */
   timestamps?: ActivityTimestamps;
   /** application id for the game */
-  applicationId?: Snowflake;
+  application_id?: Snowflake;
   /** what the player is currently doing */
   details?: string | null;
   /** the user's current party status */
@@ -465,7 +462,9 @@ export type ActivityTypes = [
   /** Listening */
   2 |
   /** Custom */
-  4
+  4 |
+  /** Competing */
+  5
 ];
 
 // ========================================================================
@@ -501,13 +500,13 @@ export type ActivityParty = {
 
 export type ActivityAssets = {
   /** the id for a large asset of the activity, usually a snowflake */
-  largeImage?: string;
+  large_image?: string;
   /** text displayed when hovering over the large image of the activity */
-  largeText?: string;
+  large_text?: string;
   /** the id for a small asset of the activity, usually a snowflake */
-  smallImage?: string;
+  small_image?: string;
   /** text displayed when hovering over the small image of the activity */
-  smallText?: string;
+  small_text?: string;
 };
 
 // ========================================================================
@@ -523,7 +522,7 @@ export type ActivitySecrets = {
 
 // ========================================================================
 
-export const enum ActivityFlags {
+export enum ActivityFlags {
   INSTANCE = 1 << 0,
   JOIN = 1 << 1,
   SPECTATE = 1 << 2,
@@ -536,15 +535,15 @@ export const enum ActivityFlags {
 
 export type TypingStartEventFields = {
   /** id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
   /** id of the guild */
-  guildId?: Snowflake;
+  guild_id?: Snowflake;
   /** id of the user */
-  userId: Snowflake;
+  user_id: Snowflake;
   /** unix time (in seconds) of when the user started typing */
   timestamp: number;
   /** the member who started typing if this happened in a guild */
-  member?: GuildMember;
+  member?: RawGuildMember;
 };
 
 // ========================================================================
@@ -553,7 +552,7 @@ export type VoiceServerUpdateEventFields = {
   /** voice connection token */
   token: string;
   /** the guild this voice server update is for */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** the voice server host */
   endpoint: string;
 };
@@ -562,7 +561,7 @@ export type VoiceServerUpdateEventFields = {
 
 export type WebhookUpdateEventFields = {
   /** id of the guild */
-  guildId: Snowflake;
+  guild_id: Snowflake;
   /** id of the channel */
-  channelId: Snowflake;
+  channel_id: Snowflake;
 };

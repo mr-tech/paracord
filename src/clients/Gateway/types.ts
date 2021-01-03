@@ -3,6 +3,7 @@ import { UserEvents } from '../../common';
 import Api from '../Api/Api';
 import { IApiResponse } from '../Api/types';
 import { Identify, IdentifyConnectionProperties, GatewayStatusUpdate } from '../../types';
+import Gateway from './Gateway';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
@@ -17,6 +18,12 @@ export interface GatewayOptions {
   // keepCase: false;
   /** Websocket url to connect to. */
   wsUrl?: string;
+  /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
+  heartbeatIntervalOffset?: number;
+  /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */
+  startupHeartbeatTolerance?: number;
+  /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
+  isStartingFunc?: StartupCheckFunction;
 }
 
 type ErrorResponse = {
@@ -84,3 +91,11 @@ export type IdentityOptions = {
   /** the Gateway Intents you wish to receive */
   intents?: number;
 }
+
+export type GatewayCloseEvent = {
+  shouldReconnect: boolean,
+  code: number,
+  gateway: Gateway
+}
+
+export type StartupCheckFunction = (x: Gateway) => boolean;

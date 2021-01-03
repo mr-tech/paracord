@@ -1,8 +1,10 @@
+export const PARACORD_VERSION_NUMBER = '0.1';
+export const PARACORD_URL = 'https://paracordjs.com/';
 export const SECOND_IN_MILLISECONDS = 1e3;
 export const MINUTE_IN_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
 export const GIGABYTE_IN_BYTES = 1073741824;
 /** Websocket parameters appended to the url received from Discord. */
-export const GATEWAY_DEFAULT_WS_PARAMS = '?v=6&encoding=json';
+export const GATEWAY_DEFAULT_WS_PARAMS = '?v=8&encoding=json';
 /** Gateway websocket connection rate limit. */
 export const GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
 /** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
@@ -24,7 +26,7 @@ export const GATEWAY_OP_CODES = {
 export const GATEWAY_CLOSE_CODES = {
   CLEAN: 1000,
   GOING_AWAY: 1001,
-  ABNORMAL_CLOSE: 1006,
+  ABNORMAL: 1006,
   UNKNOWN_ERROR: 4000,
   UNKNOWN_OPCODE: 4001,
   DECODE_ERROR: 4002,
@@ -67,7 +69,7 @@ export const CHANNEL_TYPES = {
 //   CUSTOM = 4
 // }
 export const DISCORD_API_URL = 'https://discord.com/api';
-export const DISCORD_API_DEFAULT_VERSION = 'v6';
+export const DISCORD_API_DEFAULT_VERSION = 'v8';
 /** Discord epoch (2015-01-01T00:00:00.000Z) */
 export const DISCORD_EPOCH = 1420070400000;
 export const DISCORD_CDN_URL = 'https://cdn.discordapp.com';
@@ -95,3 +97,6 @@ export const API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = 5 * MINUTE_IN_MILLISECON
 export const RPC_CLOSE_CODES = {
   LOST_CONNECTION: 14,
 };
+
+export const OVERWRITE_ROLE_VALUE = 0;
+export const OVERWRITE_MEMBER_VALUE = 1;
