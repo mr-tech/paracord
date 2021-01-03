@@ -225,6 +225,10 @@ export type GuildMemberUpdateEventFields = {
   joined_at: ISO8601timestamp;
   /** when the user starting boosting the guild */
   premium_since?: ISO8601timestamp | null;
+  /** whether the user is deafened in voice channels */
+  deaf: boolean | undefined;
+  /** whether the user is muted in voice channels */
+  mute: boolean | undefined;
 };
 
 // ========================================================================

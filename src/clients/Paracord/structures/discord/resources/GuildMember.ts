@@ -34,10 +34,10 @@ export default class GuildMember {
   premiumSince: ISO8601timestamp | null | undefined;
 
   /** whether the user is deafened in voice channels */
-  // deaf: boolean | undefined;
+  deaf: boolean | undefined;
 
   /** whether the user is muted in voice channels */
-  // mute: boolean | undefined;
+  mute: boolean | undefined;
 
   #lastAccessed: number;
 
@@ -98,6 +98,14 @@ export default class GuildMember {
       arg.joined_at !== undefined
       && (!this.#filteredProps || 'joinedAt' in this)
       && arg.joined_at !== this.joinedAt) this.joinedAt = arg.joined_at;
+    if (
+      arg.deaf !== undefined
+      && (!this.#filteredProps || 'deaf' in this)
+      && arg.deaf !== this.deaf) this.deaf = arg.deaf;
+    if (
+      arg.mute !== undefined
+        && (!this.#filteredProps || 'mute' in this)
+        && arg.mute !== this.mute) this.mute = arg.mute;
 
     return this;
   }

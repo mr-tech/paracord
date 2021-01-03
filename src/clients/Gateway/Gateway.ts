@@ -538,7 +538,7 @@ export default class Gateway {
     const {
       CLEAN,
       GOING_AWAY,
-      ABNORMAL_CLOSE,
+      ABNORMAL,
       UNKNOWN_ERROR,
       UNKNOWN_OPCODE,
       DECODE_ERROR,
@@ -576,7 +576,7 @@ export default class Gateway {
       case GOING_AWAY:
         message = 'The current endpoint is going away. (Reconnecting.)';
         break;
-      case ABNORMAL_CLOSE:
+      case ABNORMAL:
         message = 'Abnormal close. (Reconnecting.)';
         break;
       case UNKNOWN_ERROR:
