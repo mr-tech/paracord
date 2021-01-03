@@ -1,11 +1,11 @@
-import { IApiResponse, IRequestOptions } from '../types';
+import { IApiResponse, IRequestOptions, ResponseData } from '../types';
 import BaseRequest from './BaseRequest';
 
 /**
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
  */
-export default class Request extends BaseRequest {
+export default class Request<T extends ResponseData = any> extends BaseRequest {
   /** Data to send in the body of the request.  */
   public data: Record<string, unknown> | undefined;
 
@@ -13,7 +13,7 @@ export default class Request extends BaseRequest {
   public headers: Record<string, unknown> | undefined;
 
   /** If queued, will be the response when this request is sent. */
-  public response: Promise<IApiResponse> | IApiResponse | undefined;
+  public response: Promise<IApiResponse<T>> | IApiResponse<T> | undefined;
 
   /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
   public waitUntil: number | undefined;

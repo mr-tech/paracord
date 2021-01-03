@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { ServerCredentials, ServiceError } from '@grpc/grpc-js';
 import Api from '../clients/Api/Api';
 import { Lock } from './structures';
+import { ResponseData } from '../clients/Api/types';
 
 export interface RpcServerOptions{
   host?: string;
@@ -136,11 +137,11 @@ export type RequestMetaProto = {
   url: string;
 }
 
-export type RemoteApiResponse = {
+export type RemoteApiResponse<T extends ResponseData> = {
   /** The HTTP status code of the response. */
   status: number;
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
   statusText: string;
   /** Data response from Discord not having yet been parsed into json. */
-  data: Record<string, unknown>;
+  data: T;
 }

@@ -2,7 +2,7 @@ import { AxiosInstance } from 'axios';
 import type { ApiRequest } from '.';
 import { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
 import { millisecondsFromNow } from '../../../utils';
-import { IApiResponse, IRateLimitState, WrappedRequest } from '../types';
+import { IRateLimitState, ResponseData, WrappedRequest } from '../types';
 import BaseRequest from './BaseRequest';
 import RateLimit from './RateLimit';
 import RateLimitHeaders from './RateLimitHeaders';
@@ -92,7 +92,7 @@ export default class RateLimitCache {
 
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
   public wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest {
-    const wrappedRequest = (request: ApiRequest): Promise<IApiResponse> => {
+    const wrappedRequest = <T extends ResponseData = any>(request: ApiRequest<T>) => {
       const rateLimit = this.getRateLimitFromCache(request);
 
       if (rateLimit !== undefined) {
@@ -102,7 +102,7 @@ export default class RateLimitCache {
       this.decrementGlobalRemaining();
 
       const r = requestFunc.bind(this);
-      return r(request.sendData);
+      return r<T>(request.sendData);
     };
 
     return wrappedRequest;

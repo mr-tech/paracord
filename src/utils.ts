@@ -301,8 +301,8 @@ export function snakeToCamel(str: string): string {
  * @param obj
  * @param seenObjects avoid circular assignment traps
  */
-export function objectKeysSnakeToCamel(obj: Record<string, unknown>, seenObjects: unknown[] = []): Record<string, unknown> {
-  const camelObj: Record<string, unknown> = {};
+export function objectKeysSnakeToCamel<T>(obj: T, seenObjects: unknown[] = []): T {
+  const camelObj: any = {};
   /* eslint-disable-next-line prefer-const */
   for (let [key, value] of Object.entries(obj)) {
     if (isObject(value) && !seenObjects.includes(value)) {

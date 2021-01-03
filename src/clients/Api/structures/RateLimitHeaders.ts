@@ -27,7 +27,7 @@ export default class RateLimitHeaders {
    * @param headers Headers from a response.
    * @returns Rate limit state with the bucket id; or `undefined` if there is no rate limit information.
    */
-  public static extractRateLimitFromHeaders(headers: IApiResponse['headers']): RateLimitHeaders {
+  public static extractRateLimitFromHeaders(headers: IApiResponse<any>['headers']): RateLimitHeaders {
     const {
       'x-ratelimit-global': global,
       'x-ratelimit-bucket': bucket,

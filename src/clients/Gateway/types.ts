@@ -35,15 +35,13 @@ type ErrorResponse = {
 
 export type Heartbeat = number;
 
-export interface GatewayBotResponse extends IApiResponse {
-  data: {
+export interface GatewayBotResponse extends IApiResponse<any>, ErrorResponse {
     /** websocket url */
     url: string;
     /** recommended shard count */
     shards: number;
     /** state of the limits for this period of time */
     sessionStartLimit: SessionLimitData;
-  } & ErrorResponse
 }
 
 export type SessionLimitData = {

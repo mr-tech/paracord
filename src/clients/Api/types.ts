@@ -36,7 +36,7 @@ export interface IRequestOptions {
 }
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
-export type WrappedRequest = (request: ApiRequest) => Promise<IApiResponse>;
+export type WrappedRequest<T extends ResponseData = any, R = IApiResponse<T>> = (request: ApiRequest) => Promise<R>;
 
 /** The known state of a rate limit. */
 export type RateLimitState = {
@@ -58,16 +58,20 @@ export interface IServiceOptions {
   allowFallback?: boolean;
 }
 
+export type ResponseData = Record<string, any> | Array<unknown>;
 // Request Service
-export interface IApiResponse {
+export interface IApiResponse<T extends ResponseData> {
   /** The HTTP status code of the response. */
   status: number;
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
   statusText: string;
   /** The data returned by Discord. */
-  data: Record<string, unknown>;
+  data: T;
 
   headers: Record<string, unknown>;
+
+  /** How long the client should wait in ms before trying again. */
+  'retry-after'?: number;
 }
 
 export type IRateLimitState = {
@@ -75,6 +79,6 @@ export type IRateLimitState = {
   global?: boolean;
 }
 
-export type IResponseState = IRateLimitState & {
-  response?: IApiResponse
+export type IResponseState<T extends ResponseData> = IRateLimitState & {
+  response?: IApiResponse<T>
 }

@@ -1,3 +1,4 @@
+import { ResponseData } from '../../../clients/Api/types';
 import { RemoteApiResponse, ResponseProto } from '../../types';
 
 /** A class for the ResponseMessage protobuf */
@@ -15,7 +16,7 @@ export default class ResponseMessage {
    * Validate incoming message and translate it into common state.
    * @param message Message received by client.
    */
-  public static fromProto(message: ResponseProto): RemoteApiResponse {
+  public static fromProto<T extends ResponseData>(message: ResponseProto): RemoteApiResponse<T> {
     ResponseMessage.validateIncoming(message);
 
     const { status_code: status, status_text: statusText, data } = message;

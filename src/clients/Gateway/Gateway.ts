@@ -394,7 +394,7 @@ export default class Gateway {
       this.#api.startQueue();
     }
 
-    const { status, statusText, data } = <GatewayBotResponse> await this.#api.request(
+    const { status, statusText, data } = await this.#api.request<GatewayBotResponse>(
       'get',
       'gateway/bot',
     );

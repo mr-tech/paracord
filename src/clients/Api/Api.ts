@@ -13,7 +13,7 @@ import {
   RateLimitCache, RateLimitHeaders, RequestQueue, ApiRequest,
 } from './structures';
 import {
-  IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState, IServiceOptions, WrappedRequest,
+  IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState, IServiceOptions, ResponseData, WrappedRequest,
 } from './types';
 
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
@@ -280,7 +280,7 @@ export default class Api {
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
-  public async request(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse | RemoteApiResponse> {
+  public async request<T extends ResponseData = any>(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> {
     const { local, keepCase } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
@@ -289,14 +289,17 @@ export default class Api {
 
     const request = new ApiRequest(method.toUpperCase(), url, options);
 
-    let response: IApiResponse | RemoteApiResponse;
+    let response: IApiResponse<T> | RemoteApiResponse<T>;
     if (this.rpcRequestService === undefined || local) {
-      response = await this.handleRequestLocal(request);
+      response = await this.handleRequestLocal<T>(request);
     } else {
       response = await this.handleRequestRemote(this.rpcRequestService, request);
     }
 
-    if (!keepCase) response.data = objectKeysSnakeToCamel(<Record<string, unknown>>response.data);
+    if (!keepCase) {
+      if (Array.isArray(response.data)) response.data = (response.data as any[]).map((d) => objectKeysSnakeToCamel(d)) as T;
+      else response.data = objectKeysSnakeToCamel(response.data);
+    }
 
     return response;
   }
@@ -306,37 +309,36 @@ export default class Api {
    * @param request The request being sent.
    * @returns axios response.
    */
-  async handleRequestLocal(request: ApiRequest): Promise<IApiResponse> {
+  async handleRequestLocal<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
     if (this.#requestQueueProcessInterval === undefined) {
       const message = 'Making a request with a local Api client without a running request queue. Please invoke `startQueue()` on this client so that rate limits may be handled.';
       this.log('WARNING', message);
     }
 
-    let { response, ...rateLimitState } = await this.sendRequest(request);
+    let { response, ...rateLimitState } = await this.sendRequest<T>(request);
     if (response !== undefined) {
       response = await this.handleResponse(request, response);
-    } else {
-      const customResponse = {
-        status: 429,
-        statusText: 'Too Many Requests',
-        'retry-after': rateLimitState.resetAfter,
-        data: { ...rateLimitState },
-        headers: {
-          _paracord: true,
-          'x-ratelimit-global': rateLimitState.global ?? false,
-        },
-      };
-      return customResponse;
+      return response;
     }
 
-    return response;
+    const customResponse: IApiResponse<T> = {
+      status: 429,
+      statusText: 'Too Many Requests',
+      'retry-after': rateLimitState.resetAfter,
+      data: <any>{ ...rateLimitState },
+      headers: {
+        _paracord: true,
+        'x-ratelimit-global': rateLimitState.global ?? false,
+      },
+    };
+    return customResponse;
   }
 
   /**
    * Sends the request to the rpc server for handling.
    * @param request ApiRequest being made.
    */
-  private async handleRequestRemote(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse> {
+  private async handleRequestRemote<T extends ResponseData>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
     this.emit('DEBUG', {
       source: LOG_SOURCES.API,
       level: LOG_LEVELS.DEBUG,
@@ -361,7 +363,7 @@ export default class Api {
    * Determines how the request will be made based on the client's options and makes it.
    * @param request ApiRequest being made,
    */
-  async sendRequest(request: ApiRequest, fromQueue?: true): Promise<IResponseState> {
+  async sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue?: true): Promise<IResponseState<T>> {
     try {
       request.running = true;
 
@@ -428,7 +430,7 @@ export default class Api {
     }
   }
 
-  private async handleResponse(request: ApiRequest, response: IApiResponse): Promise<IApiResponse> {
+  private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T>): Promise<IApiResponse<T>> {
     if (Object.keys(response.headers).length) {
       let rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
         response.headers,
@@ -456,7 +458,7 @@ export default class Api {
    * @param headers Response headers.
    * @param request Request being sent.
    */
-  private handleRateLimitedRequest(request: ApiRequest, rateLimitHeaders: RateLimitHeaders): Promise<IApiResponse> {
+  private handleRateLimitedRequest<T extends ResponseData>(request: ApiRequest, rateLimitHeaders: RateLimitHeaders): Promise<IApiResponse<T>> {
     let message;
     if (rateLimitHeaders.global) {
       message = `Request global rate limited: ${request.method} ${request.url}`;
@@ -508,14 +510,14 @@ export default class Api {
    * @param request The Api Request to queue.
    * @returns Resolves as the response to the request.
    */
-  private enqueueRequest(request: ApiRequest): Promise<IApiResponse> {
+  private enqueueRequest<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
     // request.timeout = new Date().getTime() + timeout;
 
     this.#requestQueue.push(request);
     request.response = undefined;
 
     /** Continuously checks if the response has returned. */
-    function checkRequest(resolve: (x: IApiResponse | Promise<IApiResponse>) => void): void {
+    function checkRequest<T extends ResponseData>(resolve: (x: IApiResponse<T> | Promise<IApiResponse<T>>) => void): void {
       const { response } = request;
       if (response !== undefined) {
         resolve(response);

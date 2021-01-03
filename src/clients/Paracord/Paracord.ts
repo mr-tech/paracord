@@ -17,7 +17,7 @@ import {
   clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
 } from '../../utils';
 import Api from '../Api/Api';
-import { IApiOptions, IApiResponse } from '../Api/types';
+import { IApiOptions, IApiResponse, ResponseData } from '../Api/types';
 import Gateway from '../Gateway/Gateway';
 import { GatewayBotResponse, GatewayOptions } from '../Gateway/types';
 import * as eventFuncs from './eventFuncs';
@@ -912,8 +912,8 @@ export default class Paracord extends EventEmitter {
    * @param channelId Discord snowflake of the channel to send the message.
    * @param message  When a string is passed for `message`, that string will populate the `content` field. https://discord.com/developers/docs/resources/channel#create-message-params
    */
-  public sendMessage(channelId: Snowflake, message: string | Record<string, unknown> | Message): Promise<IApiResponse | RemoteApiResponse> {
-    return this.request('post', `channels/${channelId}/messages`, {
+  public sendMessage<T extends ResponseData = any>(channelId: Snowflake, message: string | Record<string, unknown> | Message): Promise<IApiResponse<T> | RemoteApiResponse<T>> {
+    return this.request<T>('post', `channels/${channelId}/messages`, {
       data:
         typeof message === 'string' ? { content: message } : { embed: message },
     });
@@ -925,8 +925,8 @@ export default class Paracord extends EventEmitter {
    * @param message Partial Discord message. https://discord.com/developers/docs/resources/channel#create-message-params
    * @param newMessage  When a string is passed for `message`, that string will populate the `content` field. https://discord.com/developers/docs/resources/channel#create-message-params
    */
-  public editMessage(message: Record<string, unknown> | Message, newMessage: string | Record<string, unknown> | Message): Promise<IApiResponse | RemoteApiResponse> {
-    return this.request(
+  public editMessage<T extends ResponseData = any>(message: Record<string, unknown> | Message, newMessage: string | Record<string, unknown> | Message): Promise<IApiResponse<T> | RemoteApiResponse<T>> {
+    return this.request<T>(
       'patch',
       `channels/${message.channelId}/messages/${message.id}`,
       {
@@ -944,14 +944,14 @@ export default class Paracord extends EventEmitter {
    * @param guild Guild object or id in which to search for member.
    * @param memberId Id of the member.
    */
-  public async fetchMember(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse | RemoteApiResponse> { // TODO create cached type
+  public async fetchMember<T extends ResponseData = any>(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse<T> | RemoteApiResponse<T>> { // TODO create cached type
     let guildId;
 
     if (typeof guild !== 'string') {
       ({ id: guildId } = guild);
     }
 
-    const res = await this.request('get', `/guilds/${guildId}/members/${memberId}`);
+    const res = await this.request<T>('get', `/guilds/${guildId}/members/${memberId}`);
 
     if (res.status === 200) {
       const guilds = this.#guilds;
@@ -973,8 +973,8 @@ export default class Paracord extends EventEmitter {
    * Fetch a user using the REST API, caching on successful hit.
    * @param userId Id of the user.
    */
-  public async fetchUser(userId: Snowflake): Promise<IApiResponse | RemoteApiResponse> {
-    const res = await this.request('get', `/users/${userId}`);
+  public async fetchUser<T extends ResponseData = any>(userId: Snowflake): Promise<IApiResponse<T> | RemoteApiResponse<T>> {
+    const res = await this.request<T>('get', `/users/${userId}`);
 
     if (res.status === 200) {
       /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */

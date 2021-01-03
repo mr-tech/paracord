@@ -1,6 +1,7 @@
 /* eslint-disable prefer-destructuring */
 import { ServiceError } from '@grpc/grpc-js';
 import { ApiRequest } from '../../../clients/Api/structures';
+import { ResponseData } from '../../../clients/Api/types';
 import { IServerOptions } from '../../../common';
 import { RequestMessage, ResponseMessage } from '../../structures';
 import { RemoteApiResponse, ResponseProto } from '../../types';
@@ -36,7 +37,7 @@ export default class RequestService extends definition.RequestService {
   }
 
   /** Sends the information to make a request to Discord to the server. returning a promise with the response. */
-  public request(apiRequest: ApiRequest): Promise<RemoteApiResponse> {
+  public request<T extends ResponseData>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>> {
     const message = new RequestMessage(apiRequest).proto;
 
     return new Promise((resolve, reject) => {
