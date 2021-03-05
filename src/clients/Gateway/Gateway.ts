@@ -726,6 +726,7 @@ export default class Gateway {
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
+          this.checkHeartbeat();
           setImmediate(() => this.handleEvent(type, data));
         } else {
           this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
@@ -757,6 +758,20 @@ export default class Gateway {
     }
 
     this.updateSequence(sequence);
+  }
+
+  /**
+   * Set inline with the firehose of events to check if the heartbeat needs to be sent.
+   * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
+   */
+  checkHeartbeat(): void {
+    const now = new Date().getTime();
+    if (
+      this.#nextHeartbeatTimestamp !== undefined
+      && now > this.#nextHeartbeatTimestamp
+    ) {
+      this.heartbeat();
+    }
   }
 
   /**
@@ -803,7 +818,15 @@ export default class Gateway {
 
     const now = new Date().getTime();
     this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
-    this.#heartbeatTimeout = setTimeout(this.heartbeat, this.#nextHeartbeatTimestamp - now);
+    this.refreshHeartbeatTimeout(this.#nextHeartbeatTimestamp - now);
+  }
+
+  /**
+   * Clears old heartbeat timeout and starts a new one.
+   */
+  private refreshHeartbeatTimeout(timeoutDuration: number) {
+    if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
+    this.#heartbeatTimeout = setTimeout(this.heartbeat, timeoutDuration);
   }
 
   /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
@@ -816,6 +839,7 @@ export default class Gateway {
   }
 
   private handleMissedHeartbeatAck(): void {
+    if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
     if (this.#isStarting !== undefined && this.#isStarting(this) && this.allowMissingAckOnStartup()) {
       this.sendHeartbeat();
       this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#allowedMissedHeartbeatAcks} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
@@ -840,7 +864,7 @@ export default class Gateway {
         ? `Heartbeat sent ${now - this.#nextHeartbeatTimestamp}ms after scheduled time.`
         : 'nextHeartbeatTimestamp is undefined.';
       this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
-      this.#heartbeatTimeout = setTimeout(this.heartbeat, this.#nextHeartbeatTimestamp - now);
+      this.refreshHeartbeatTimeout(this.#nextHeartbeatTimestamp - now);
       this.log('DEBUG', message);
     } else {
       this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
