@@ -12,6 +12,7 @@ import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
 import Role from './structures/discord/resources/Role';
 import User from './structures/discord/resources/User';
 import { GatewayCloseEvent } from '../Gateway/types';
+import Presence from './structures/discord/resources/Presence';
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
@@ -91,13 +92,13 @@ export function USER_UPDATE(this: Paracord, data: RawUser): User | RawUser {
   return this.upsertUser(data) ?? data;
 }
 
-export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): RawPresence {
+export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): Presence | RawPresence {
   const { guild_id: guildId } = data;
 
   const guild = guildId ? this.guilds.get(guildId) : undefined;
-  this.handlePresence(data, guild);
+  const presence = this.handlePresence(data, guild);
 
-  return data;
+  return presence || data;
 }
 
 export function MESSAGE_CREATE(this: Paracord, data: AugmentedRawMessage): AugmentedRawMessage {

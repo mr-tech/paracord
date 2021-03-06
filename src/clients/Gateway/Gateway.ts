@@ -306,12 +306,12 @@ export default class Gateway {
    * @param guildId Id of the guild to request members from.
    * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
    */
-  public requestGuildMembers(guildId: string, options: Partial<GuildRequestMembers> = {}): boolean {
-    const sendOptions: Partial<GuildRequestMembers> = {
-      limit: 0, query: '', presences: false, user_ids: [],
+  public requestGuildMembers(guildId: string, options: Partial<GuildRequestMembers> = { query: '', presences: false, user_ids: [] }): boolean {
+    const requiredSendOptions: Partial<GuildRequestMembers> = {
+      limit: 0,
     };
 
-    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guildId, ...Object.assign(sendOptions, options) });
+    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guildId, ...requiredSendOptions, ...options });
   }
 
   private async checkLocksPromise(resolve: () => void): Promise<void> {
@@ -764,11 +764,13 @@ export default class Gateway {
    * Set inline with the firehose of events to check if the heartbeat needs to be sent.
    * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
    */
-  checkHeartbeat(): void {
+  private checkHeartbeat(): void {
     const now = new Date().getTime();
     if (
       this.#nextHeartbeatTimestamp !== undefined
+      && this.#heartbeatAck
       && now > this.#nextHeartbeatTimestamp
+      && this.#ws?.readyState !== ws.CLOSED
     ) {
       this.heartbeat();
     }
@@ -816,17 +818,17 @@ export default class Gateway {
     this.#heartbeatAck = true;
     this.#heartbeatIntervalTime = heartbeatInterval;
 
-    const now = new Date().getTime();
-    this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
-    this.refreshHeartbeatTimeout(this.#nextHeartbeatTimestamp - now);
+    this.refreshHeartbeatTimeout(heartbeatInterval);
   }
 
   /**
    * Clears old heartbeat timeout and starts a new one.
    */
-  private refreshHeartbeatTimeout(timeoutDuration: number) {
+  private refreshHeartbeatTimeout(interval: number) {
     if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
-    this.#heartbeatTimeout = setTimeout(this.heartbeat, timeoutDuration);
+    this.#heartbeatTimeout = setTimeout(this.heartbeat, interval);
+    const now = new Date().getTime();
+    this.#nextHeartbeatTimestamp = now + interval;
   }
 
   /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
@@ -839,11 +841,15 @@ export default class Gateway {
   }
 
   private handleMissedHeartbeatAck(): void {
-    if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
+    if (this.#heartbeatTimeout !== undefined) {
+      clearTimeout(this.#heartbeatTimeout);
+      this.#heartbeatTimeout = undefined;
+    }
     if (this.#isStarting !== undefined && this.#isStarting(this) && this.allowMissingAckOnStartup()) {
       this.sendHeartbeat();
       this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#allowedMissedHeartbeatAcks} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
     } else {
+      this.clearHeartbeat();
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
       this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     }
@@ -863,8 +869,7 @@ export default class Gateway {
       const message = this.#nextHeartbeatTimestamp !== undefined
         ? `Heartbeat sent ${now - this.#nextHeartbeatTimestamp}ms after scheduled time.`
         : 'nextHeartbeatTimestamp is undefined.';
-      this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
-      this.refreshHeartbeatTimeout(this.#nextHeartbeatTimestamp - now);
+      this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime);
       this.log('DEBUG', message);
     } else {
       this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
