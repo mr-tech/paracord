@@ -1,9 +1,6 @@
 import { EventEmitter } from 'events';
 import ws from 'ws';
-
-/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-// @ts-ignore
-import _erlpack from 'erlpack';
+import type erlpackType from 'erlpack';
 import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
 import {
   DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
@@ -20,10 +17,14 @@ import {
 } from './types';
 import { IServiceOptions } from '../Api/types';
 
-let erlpack: null | typeof _erlpack = null;
-if (_erlpack) erlpack = _erlpack;
+let erlpack: null | typeof erlpackType = null;
+let encoding = 'json';
 
-const ENCODING = erlpack ? 'etf' : 'json';
+import('erlpack')
+  .then((_erlpack) => {
+    erlpack = _erlpack;
+    encoding = 'etf';
+  }).catch(() => { /* do nothing */ });
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
@@ -415,7 +416,7 @@ export default class Gateway {
       )})`;
       this.log('INFO', message);
 
-      return `${data.url}?v=${DISCORD_WS_VERSION}&encoding=${ENCODING}`;
+      return `${data.url}?v=${DISCORD_WS_VERSION}&encoding=${encoding}`;
     }
 
     this.handleBadStatus(status, statusText, data.message, data.code);
