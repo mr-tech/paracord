@@ -678,8 +678,8 @@ export default class Paracord extends EventEmitter {
 
   private completeShardStartup(startingGateway: Gateway, forced = false): void {
     if (!forced) {
-      const message = `Shard ${startingGateway.id} - received all start up guilds.`;
-      this.log('INFO', message);
+      const message = 'Received all start up guilds.';
+      this.log('INFO', message, { shard: startingGateway.id });
     }
 
     startingGateway.releaseIdentifyLocks();
@@ -831,18 +831,18 @@ export default class Paracord extends EventEmitter {
 
   /** Removes from presence and user caches users who are no longer in a cached guild. */
   private async sweepCaches(): Promise<void> {
-    const startTime = new Date().getTime();
     const checkOffset = new Date().getMinutes();
     if (this.connecting || this.#guilds === undefined || (checkOffset % 5) !== 0) return;
 
     const deleteIds = Paracord.deDupeResource(checkOffset, this.#users.values(), this.#presences.values());
 
-    await new Promise((resolve) => setTimeout(resolve));
+    await new Promise((resolve) => setTimeout(resolve)); // yield execution to event loop
+    const startTime = new Date().getTime();
 
     Paracord.trimMembersFromDeleteList(deleteIds, this.#guilds.values());
 
     let sweptCount = 0;
-    for (const id of deleteIds.keys()) {
+    for (const id of deleteIds.values()) {
       this.clearUserFromCaches(id);
       ++sweptCount;
     }
@@ -851,19 +851,19 @@ export default class Paracord extends EventEmitter {
   }
 
   /** https://stackoverflow.com/questions/6940103/how-do-i-make-an-array-with-unique-elements-i-e-remove-duplicates */
-  private static deDupeResource(currentCheckOffset: number, users: IterableIterator<User>, presences: IterableIterator<Presence>): Map<Snowflake, undefined> {
-    const uniqueIds: Map<Snowflake, undefined> = new Map();
+  private static deDupeResource(currentCheckOffset: number, users: IterableIterator<User>, presences: IterableIterator<Presence>): Set<Snowflake> {
+    const uniqueIdArr: Snowflake[] = [];
     if (currentCheckOffset % 10 === 0) {
       for (const { id, checkOffset } of users) {
-        if (checkOffset === currentCheckOffset) uniqueIds.set(id, undefined);
+        if (checkOffset === currentCheckOffset) uniqueIdArr.push(id);
       }
     } else if (currentCheckOffset % 10 === 5) {
       for (const { user: { id }, checkOffset } of presences) {
-        if (checkOffset === currentCheckOffset) uniqueIds.set(id, undefined);
+        if (checkOffset === currentCheckOffset) uniqueIdArr.push(id);
       }
     }
 
-    return uniqueIds;
+    return new Set(uniqueIdArr);
   }
 
   /**
@@ -871,28 +871,13 @@ export default class Paracord extends EventEmitter {
    * @param deleteIds Unique set of user ids in a map.
    * @param guilds An iterable of guilds.
    *  */
-  private static trimMembersFromDeleteList(deleteIds: Map<Snowflake, undefined>, guilds: IterableIterator<Guild>): void {
+  private static trimMembersFromDeleteList(deleteIds: Set<Snowflake>, guilds: IterableIterator<Guild>): void {
     for (const { members, presences } of guilds) {
-      const idsFromPresences = presences.keys();
-      const idFromMembers = members.keys();
-      const cachedIds = Paracord.deDupeId(idsFromPresences, idFromMembers);
-      for (const id of cachedIds.keys()) {
+      const cachedIds = new Set([...presences.keys(), ...members.keys()]);
+      for (const id of cachedIds.values()) {
         deleteIds.delete(id);
       }
     }
-  }
-
-  /** https://stackoverflow.com/questions/6940103/how-do-i-make-an-array-with-unique-elements-i-e-remove-duplicates */
-  private static deDupeId(a: IterableIterator<Snowflake>, b: IterableIterator<Snowflake>): Map<Snowflake, undefined> {
-    const temp: Map<Snowflake, undefined> = new Map();
-    for (const id of a) {
-      temp.set(id, undefined);
-    }
-    for (const id of b) {
-      temp.set(id, undefined);
-    }
-
-    return temp;
   }
 
   /**
