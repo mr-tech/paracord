@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import ws from 'ws';
-import erlpack from 'erlpack';
 
+import _erlpack from 'erlpack';
 import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
 import {
   DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
@@ -10,13 +10,16 @@ import { IdentifyLockService } from '../../rpc/services';
 import {
   GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
 } from '../../types';
-import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
+import { coerceTokenToBotLike } from '../../utils';
 import Api from '../Api/Api';
 import Identify from './structures/Identify';
 import {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 import { IServiceOptions } from '../Api/types';
+
+let erlpack: null | typeof _erlpack = null;
+if (_erlpack) erlpack = _erlpack;
 
 const ENCODING = erlpack ? 'etf' : 'json';
 
@@ -707,11 +710,10 @@ export default class Gateway {
 
   /** Assigned to websocket `onmessage`. */
   private _onmessage({ data: raw }: ws.MessageEvent): void {
-    if (typeof raw === 'string') return this.handleMessage(JSON.parse(raw));
-
-    if (Buffer.isBuffer(raw)) return erlpack.unpack(raw);
-
-    if (raw instanceof SharedArrayBuffer) return erlpack.unpack(Buffer.from(new Uint8Array(raw)));
+    if (erlpack) {
+      if (Buffer.isBuffer(raw)) return this.handleMessage(erlpack.unpack(raw));
+      if (raw instanceof SharedArrayBuffer) return this.handleMessage(erlpack.unpack(Buffer.from(new Uint8Array(raw))));
+    } else if (typeof raw === 'string') return this.handleMessage(JSON.parse(raw));
 
     return undefined;
   }
@@ -949,7 +951,7 @@ export default class Gateway {
 
     await this.handleEvent('GATEWAY_IDENTIFY', this);
 
-    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.#identity);
+    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.#identity.toJSON());
   }
 
   /**
@@ -1064,26 +1066,30 @@ export default class Gateway {
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
   private send(op: number, data: Heartbeat | Identify | GuildRequestMembers | Resume): boolean {
-    const payload = { op, d: data };
-
     if (
       this.canSendPacket(op)
       && this.#ws?.readyState === ws.OPEN
     ) {
-      const packet = JSON.stringify(typeof payload === 'object' ? objectKeysCamelToSnake(payload) : payload);
+      const payload = { op, d: data };
+
+      let packet: string | Buffer;
+      if (erlpack) packet = erlpack.pack(payload);
+      else packet = JSON.stringify(payload);
+
       this.#ws.send(packet);
 
       this.updateWsRateLimit();
 
-      this.log('DEBUG', 'Sent payload.', { payload });
+      this.log('DEBUG', 'Sent payload.', { payload: { op, d: data } });
 
       return true;
     }
 
-    this.log('DEBUG', 'Failed to send payload.', { payload });
+    this.log('DEBUG', 'Failed to send payload.', { payload: { op, d: data } });
 
     return false;
   }
+
 
   /**
    * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).
