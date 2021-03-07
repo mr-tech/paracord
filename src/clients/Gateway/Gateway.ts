@@ -1,6 +1,8 @@
 import { EventEmitter } from 'events';
 import ws from 'ws';
 
+/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+// @ts-ignore
 import _erlpack from 'erlpack';
 import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
 import {
