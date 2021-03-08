@@ -9,7 +9,7 @@ import { IdentifyLockService } from '../../rpc/services';
 import {
   GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
 } from '../../types';
-import { coerceTokenToBotLike } from '../../utils';
+import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
 import Api from '../Api/Api';
 import Identify from './structures/Identify';
 import {
@@ -314,12 +314,12 @@ export default class Gateway {
    * @param guildId Id of the guild to request members from.
    * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
    */
-  public requestGuildMembers(guildId: string, options: Partial<GuildRequestMembers> = { query: '', presences: false, user_ids: [] }): boolean {
+  public requestGuildMembers(guildId: string, options: any = { query: '', presences: false, userIds: [] }): boolean {
     const requiredSendOptions: Partial<GuildRequestMembers> = {
       limit: 0,
     };
-
-    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guildId, ...requiredSendOptions, ...options });
+    const snakeOptions = objectKeysCamelToSnake(options);
+    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guild_id: guildId, ...requiredSendOptions, ...snakeOptions });
   }
 
   private async checkLocksPromise(resolve: () => void): Promise<void> {
@@ -1074,6 +1074,8 @@ export default class Gateway {
       && this.#ws?.readyState === ws.OPEN
     ) {
       const payload = { op, d: data };
+
+      console.log;
 
       let packet: string | Buffer;
       if (erlpack) packet = erlpack.pack(payload);
