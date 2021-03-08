@@ -54,7 +54,7 @@ export default class Gateway {
   #wsRateLimitCache: WebsocketRateLimitCache;
 
   /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
-  #sequence?: number;
+  #sequence: null | number;
 
   /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
   #sessionId?: string;
@@ -78,9 +78,9 @@ export default class Gateway {
 
   #startupHeartbeatTolerance: number;
 
-  #allowedMissedHeartbeatAcks: number;
+  #heartbeatsMissedDuringSetup: number;
 
-  #isStarting?: StartupCheckFunction;
+  #isStartingFunction?: StartupCheckFunction;
 
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
   #emitter: ExtendedEmitter;
@@ -112,7 +112,7 @@ export default class Gateway {
       throw Error("Gateway option 'startupHeartbeatTolerance' requires 'isStartingFunc'.");
     } else if (option.isStartingFunc !== undefined
       && (option.startupHeartbeatTolerance === undefined || option.startupHeartbeatTolerance <= 0)) {
-      throw Error("Gateway option 'isStartingFunc' requires 'allowedMissedHeartbeatAcks' larger than 0.");
+      throw Error("Gateway option 'isStartingFunc' requires 'startupHeartbeatTolerance' larger than 0.");
     }
   }
 
@@ -138,6 +138,7 @@ export default class Gateway {
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
       throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
     }
+    this.#sequence = null;
     this.#heartbeatAck = false;
     this.#online = false;
     this.#loggingIn = false;
@@ -154,11 +155,15 @@ export default class Gateway {
     this.#events = events;
     this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
     this.#startupHeartbeatTolerance = startupHeartbeatTolerance || 0;
-    this.#allowedMissedHeartbeatAcks = startupHeartbeatTolerance || 0;
-    this.#isStarting = isStartingFunc;
+    this.#heartbeatsMissedDuringSetup = 0;
+    this.#isStartingFunction = isStartingFunc;
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.bindTimerFunctions();
+  }
+
+  public get isStarting() {
+    return this.#isStartingFunction !== undefined && this.#isStartingFunction(this);
   }
 
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
@@ -183,7 +188,7 @@ export default class Gateway {
 
   /** Whether or not the client is connected to the gateway. */
   public get online(): boolean {
-    return this.#online !== undefined;
+    return this.#online;
   }
 
   public get ws(): ws | undefined {
@@ -692,17 +697,22 @@ export default class Gateway {
   /** Removes current session information. */
   private clearSession(): void {
     this.#sessionId = undefined;
-    this.#sequence = undefined;
+    this.#sequence = null;
     this.#wsUrl = undefined;
+    this.log('DEBUG', 'Session cleared.');
   }
 
   /** Clears heartbeat values and clears the heartbeatTimeout. */
   private clearHeartbeat(): void {
-    this.#heartbeatTimeout && clearTimeout(this.#heartbeatTimeout);
+    if (this.#heartbeatTimeout) clearTimeout(this.#heartbeatTimeout);
+
+    this.#heartbeatAck = false;
+    this.#lastHeartbeatTimestamp = undefined;
+    this.#nextHeartbeatTimestamp = undefined;
     this.#heartbeatTimeout = undefined;
     this.#heartbeatIntervalTime = undefined;
-    this.#heartbeatAck = false;
-    this.#nextHeartbeatTimestamp = undefined;
+    this.#heartbeatsMissedDuringSetup = 0;
+    this.log('DEBUG', 'Heartbeat cleared.');
   }
 
   /*
@@ -780,8 +790,8 @@ export default class Gateway {
     const now = new Date().getTime();
     if (
       this.#nextHeartbeatTimestamp !== undefined
-      && this.#heartbeatAck
       && now > this.#nextHeartbeatTimestamp
+      && this.#ws?.readyState !== ws.CLOSING
       && this.#ws?.readyState !== ws.CLOSED
     ) {
       this.heartbeat();
@@ -796,7 +806,6 @@ export default class Gateway {
     this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
 
     this.#sessionId = data.session_id;
-    this.#allowedMissedHeartbeatAcks = this.#startupHeartbeatTolerance;
     this.#online = true;
 
     this.handleEvent('READY', data);
@@ -836,11 +845,11 @@ export default class Gateway {
   /**
    * Clears old heartbeat timeout and starts a new one.
    */
-  private refreshHeartbeatTimeout(interval: number) {
+  private refreshHeartbeatTimeout(timeToNext: number) {
     if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
-    this.#heartbeatTimeout = setTimeout(this.heartbeat, interval);
+    this.#heartbeatTimeout = setTimeout(this.heartbeat, timeToNext);
     const now = new Date().getTime();
-    this.#nextHeartbeatTimestamp = now + interval;
+    this.#nextHeartbeatTimestamp = now + timeToNext;
   }
 
   /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
@@ -857,18 +866,31 @@ export default class Gateway {
       clearTimeout(this.#heartbeatTimeout);
       this.#heartbeatTimeout = undefined;
     }
-    if (this.#isStarting !== undefined && this.#isStarting(this) && this.allowMissingAckOnStartup()) {
-      this.sendHeartbeat();
-      this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#allowedMissedHeartbeatAcks} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
+
+    let close = false;
+    if (this.isStarting) {
+      if (this.allowMissingAckOnStartup()) {
+        this.sendHeartbeat();
+        this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#heartbeatsMissedDuringSetup} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
+      } else {
+        this.log('ERROR', 'Missed heartbeats exceeded startupHeartbeatTolerance.');
+        close = true;
+      }
     } else {
-      this.clearHeartbeat();
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
-      if (this.#ws?.readyState !== ws.CLOSED && this.#ws?.readyState !== ws.CLOSING) this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+      close = true;
+    }
+
+    if (close) {
+      this.clearHeartbeat();
+      if (this.#ws?.readyState !== ws.CLOSED && this.#ws?.readyState !== ws.CLOSING) {
+        this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+      }
     }
   }
 
   private allowMissingAckOnStartup(): boolean {
-    return this.#allowedMissedHeartbeatAcks-- > 0;
+    return ++this.#heartbeatsMissedDuringSetup <= this.#startupHeartbeatTolerance;
   }
 
   private handleSuccessfulHeartbeat(): void {
@@ -901,11 +923,11 @@ export default class Gateway {
     this.handleEvent('HEARTBEAT_ACK', null);
 
     if (this.#lastHeartbeatTimestamp !== undefined) {
-      const message = `Heartbeat acknowledged. Latency: ${new Date().getTime() - this.#lastHeartbeatTimestamp}ms`;
+      const message = `Heartbeat acknowledged. Latency: ${new Date().getTime() - this.#lastHeartbeatTimestamp}ms.`;
       this.#lastHeartbeatTimestamp = undefined;
       this.log('DEBUG', message);
     } else {
-      this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
+      this.log('ERROR', 'lastHeartbeatTimestamp is undefined. Reconnecting.');
       this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
@@ -928,7 +950,7 @@ export default class Gateway {
     const sequence = this.#sequence;
     const sessionId = this.#sessionId;
 
-    if (sessionId !== undefined && sequence !== undefined) {
+    if (sessionId !== undefined) {
       const payload: Resume = {
         token,
         session_id: sessionId,
@@ -1158,8 +1180,8 @@ export default class Gateway {
    * @param s Sequence value from Discord.
    */
   private updateSequence(s: number | null): void {
-    if (this.#sequence === undefined) {
-      this.#sequence = s ?? undefined;
+    if (this.#sequence === null) {
+      this.#sequence = s;
     } else if (s !== null) {
       if (s > this.#sequence + 1) {
         this.log(
