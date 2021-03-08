@@ -1,21 +1,30 @@
-
 import { EventEmitter } from 'events';
 import ws from 'ws';
+import type erlpackType from 'erlpack';
 import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
 import {
-  DEFAULT_GATEWAY_BOT_WAIT, GATEWAY_CLOSE_CODES, GATEWAY_DEFAULT_WS_PARAMS, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
+  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 import { IdentifyLockService } from '../../rpc/services';
 import {
   GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
 } from '../../types';
-import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
+import { coerceTokenToBotLike } from '../../utils';
 import Api from '../Api/Api';
 import Identify from './structures/Identify';
 import {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 import { IServiceOptions } from '../Api/types';
+
+let erlpack: null | typeof erlpackType = null;
+let encoding = 'json';
+
+import('erlpack')
+  .then((_erlpack) => {
+    erlpack = _erlpack;
+    encoding = 'etf';
+  }).catch(() => { /* do nothing */ });
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
@@ -294,7 +303,6 @@ export default class Gateway {
     }
   }
 
-
   /*
    ********************************
    ************ PUBLIC ************
@@ -408,7 +416,7 @@ export default class Gateway {
       )})`;
       this.log('INFO', message);
 
-      return data.url + GATEWAY_DEFAULT_WS_PARAMS;
+      return `${data.url}?v=${DISCORD_WS_VERSION}&encoding=${encoding}`;
     }
 
     this.handleBadStatus(status, statusText, data.message, data.code);
@@ -571,7 +579,6 @@ export default class Gateway {
     switch (code) {
       case CLEAN:
         message = 'Clean close. (Reconnecting.)';
-        this.clearSession();
         break;
       case GOING_AWAY:
         message = 'The current endpoint is going away. (Reconnecting.)';
@@ -705,8 +712,13 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onmessage`. */
-  private _onmessage(m: ws.MessageEvent): void {
-    typeof m.data === 'string' && this.handleMessage(JSON.parse(m.data));
+  private _onmessage({ data: raw }: ws.MessageEvent): void {
+    if (erlpack) {
+      if (Buffer.isBuffer(raw)) return this.handleMessage(erlpack.unpack(raw));
+      if (raw instanceof SharedArrayBuffer) return this.handleMessage(erlpack.unpack(Buffer.from(new Uint8Array(raw))));
+    } else if (typeof raw === 'string') return this.handleMessage(JSON.parse(raw));
+
+    return undefined;
   }
 
   /** Processes incoming messages from Discord's gateway.
@@ -851,7 +863,7 @@ export default class Gateway {
     } else {
       this.clearHeartbeat();
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
-      this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+      if (this.#ws?.readyState !== ws.CLOSED && this.#ws?.readyState !== ws.CLOSING) this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     }
   }
 
@@ -889,8 +901,8 @@ export default class Gateway {
     this.handleEvent('HEARTBEAT_ACK', null);
 
     if (this.#lastHeartbeatTimestamp !== undefined) {
-      const message = `Heartbeat acknowledged. Latency: ${new Date().getTime()
-      - this.#lastHeartbeatTimestamp}ms`;
+      const message = `Heartbeat acknowledged. Latency: ${new Date().getTime() - this.#lastHeartbeatTimestamp}ms`;
+      this.#lastHeartbeatTimestamp = undefined;
       this.log('DEBUG', message);
     } else {
       this.log('ERROR', 'heartbeatIntervalTime is undefined. Reconnecting.');
@@ -942,7 +954,7 @@ export default class Gateway {
 
     await this.handleEvent('GATEWAY_IDENTIFY', this);
 
-    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.#identity);
+    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.#identity.toJSON());
   }
 
   /**
@@ -1025,7 +1037,6 @@ export default class Gateway {
     }
   }
 
-
   /**
    * Releases the identity lock.
    * @param lock Lock to release.
@@ -1058,26 +1069,30 @@ export default class Gateway {
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
   private send(op: number, data: Heartbeat | Identify | GuildRequestMembers | Resume): boolean {
-    const payload = { op, d: data };
-
     if (
       this.canSendPacket(op)
       && this.#ws?.readyState === ws.OPEN
     ) {
-      const packet = JSON.stringify(typeof payload === 'object' ? objectKeysCamelToSnake(payload) : payload);
+      const payload = { op, d: data };
+
+      let packet: string | Buffer;
+      if (erlpack) packet = erlpack.pack(payload);
+      else packet = JSON.stringify(payload);
+
       this.#ws.send(packet);
 
       this.updateWsRateLimit();
 
-      this.log('DEBUG', 'Sent payload.', { payload });
+      this.log('DEBUG', 'Sent payload.', { payload: { op, d: data } });
 
       return true;
     }
 
-    this.log('DEBUG', 'Failed to send payload.', { payload });
+    this.log('DEBUG', 'Failed to send payload.', { payload: { op, d: data } });
 
     return false;
   }
+
 
   /**
    * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).

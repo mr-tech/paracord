@@ -64,8 +64,8 @@ export default class RequestQueue {
    * Removes requests from the queue.
    * @param indices Indices of the requests to be removed.
    */
-  private spliceMany(indices: Array<number | null>): void {
-    if (indices.length === 0) return;
+  private spliceMany(indices: Set<number | null>): void {
+    if (indices.size === 0) return;
 
     this.#length = 0;
 
@@ -73,7 +73,7 @@ export default class RequestQueue {
     for (let idx = 0; idx < this.#queue.length; ++idx) {
       // undefined = past end of array; null = past end of requests in array (rest are null)
       if (this.#queue[idx] === undefined || this.#queue[idx] === null) break;
-      if (!indices.includes(idx)) {
+      if (!indices.has(idx)) {
         this.#queue[this.#length] = this.#queue[idx];
         ++this.#length;
       }
@@ -103,7 +103,7 @@ export default class RequestQueue {
         }
       }
 
-      this.spliceMany(removedIndices);
+      this.spliceMany(new Set(removedIndices));
     } finally {
       this.#processing = false;
     }

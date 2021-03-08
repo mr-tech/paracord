@@ -53,6 +53,12 @@
         "ts": "never",
         "tsx": "never"
       }
+    ],
+    "import/no-extraneous-dependencies": [
+      "error",
+      {
+        "optionalDependencies": true
+      }
     ]
   },
   "settings": {
