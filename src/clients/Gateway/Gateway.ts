@@ -748,7 +748,7 @@ export default class Gateway {
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
-          this.checkHeartbeat();
+          this.checkIfShouldHeartbeat();
           setImmediate(() => this.handleEvent(type, data));
         } else {
           this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
@@ -786,10 +786,11 @@ export default class Gateway {
    * Set inline with the firehose of events to check if the heartbeat needs to be sent.
    * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
    */
-  private checkHeartbeat(): void {
+  private checkIfShouldHeartbeat(): void {
     const now = new Date().getTime();
     if (
-      this.#nextHeartbeatTimestamp !== undefined
+      this.#heartbeatAck
+      && this.#nextHeartbeatTimestamp !== undefined
       && now > this.#nextHeartbeatTimestamp
       && this.#ws?.readyState !== ws.CLOSING
       && this.#ws?.readyState !== ws.CLOSED
