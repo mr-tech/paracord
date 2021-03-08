@@ -47,6 +47,8 @@ export default class GuildMember {
     this.#guild = guild;
     this.#id = user.id;
 
+    user.incrementGuildCount();
+
     const now = new Date().getTime();
     this.#lastAccessed = now;
 

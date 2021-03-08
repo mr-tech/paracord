@@ -10,8 +10,6 @@ const STATUS_IDLE_STRING = 'idle';
 const STATUS_ONLINE_STRING = 'online';
 const STATUS_OFFLINE_STRING = 'offline';
 
-let nextCacheCheckOffset = 5;
-
 export default class Presence {
   #filteredProps: FilterOptions['props']['presence'] | undefined;
 
@@ -29,7 +27,8 @@ export default class Presence {
   /** user's platform-dependent status */
   clientStatus: ClientStatus | undefined;
 
-  #cacheCheckOffset: number;
+  /** how many guilds in this client that this presence belongs to */
+  #guildCount: number;
 
   private static internStatusString(p: RawPresence): 'dnd' | 'idle' | 'online' | 'offline' {
     switch (p.status) {
@@ -50,17 +49,9 @@ export default class Presence {
     this.#filteredProps = filteredProps?.presence;
     this.#filteredActivityProps = filteredProps?.activity;
     this.user = presence.user;
-    this.#cacheCheckOffset = nextCacheCheckOffset;
-    nextCacheCheckOffset += 10;
-    if (nextCacheCheckOffset >= 60) {
-      nextCacheCheckOffset = 5;
-    }
+    this.#guildCount = 0;
 
     this.initialize(presence);
-  }
-
-  public get checkOffset(): number {
-    return this.#cacheCheckOffset;
   }
 
   public update(arg: RawPresence): this {
@@ -77,6 +68,12 @@ export default class Presence {
 
     return this;
   }
+
+
+  public get guildCount(): number {
+    return this.#guildCount;
+  }
+
 
   private updateActivities(rawActivities: RawActivity[]) {
     const existingActivities = this.activities ?? [];
@@ -120,5 +117,13 @@ export default class Presence {
       return a.created_at === b.createdAt && a.name === b.name;
     }
     return a.application_id === b.applicationId;
+  }
+
+  public incrementGuildCount(): void {
+    this.#guildCount++;
+  }
+
+  public decrementGuildCount(): void {
+    this.#guildCount--;
   }
 }

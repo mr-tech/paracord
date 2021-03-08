@@ -264,7 +264,6 @@ export default class Paracord extends EventEmitter {
 
   /** Binds `this` to functions that are used in timeouts and intervals. */
   private bindTimerFunction(): void {
-    this.sweepCaches = this.sweepCaches.bind(this);
     this.processGatewayQueue = this.processGatewayQueue.bind(this);
   }
 
@@ -366,8 +365,6 @@ export default class Paracord extends EventEmitter {
     await this.enqueueGateways(options);
 
     this.#allowEventsDuringStartup = allowEventsDuringStartup || false;
-
-    this.startSweepInterval();
   }
 
   /** Begins the interval that kicks off gateway logins from the queue. */
@@ -537,13 +534,6 @@ export default class Paracord extends EventEmitter {
     this.#initialized = true;
   }
 
-  /** Begins the intervals that prune caches. */
-  public startSweepInterval(): void {
-    this.#sweepCachesInterval = setInterval(
-      this.sweepCaches,
-      MINUTE_IN_MILLISECONDS,
-    );
-  }
 
   /*
    ********************************
@@ -752,7 +742,7 @@ export default class Paracord extends EventEmitter {
    * Inserts/updates presence in this client's cache.
    * @param presence From Discord - https://discord.com/developers/docs/topics/gateway#presence-update
    */
-  private upsertPresence(presence: RawPresence): Presence | undefined {
+  private upsertPresence(presence: RawPresence): Presence {
     let cachedPresence = this.#presences.get(presence.user.id);
     if (cachedPresence !== undefined) {
       cachedPresence.update(presence);
@@ -810,13 +800,30 @@ export default class Paracord extends EventEmitter {
 
     if (guild !== undefined) {
       if (cachedPresence !== undefined) {
-        guild.setPresence(cachedPresence);
+        guild.insertCachedPresence(cachedPresence);
       } else {
-        guild.deletePresence(presence.user.id);
+        guild.removePresence(presence.user.id);
       }
     }
 
     return cachedPresence;
+  }
+
+
+  public handleUserRemovedFromGuild(user: User): void {
+    user.decrementGuildCount();
+    if (user.guildCount === 0 && user !== this.user) {
+      this.#users.delete(user.id);
+      console.log('users size', this.#users.size);
+    }
+  }
+
+  public handlePresenceRemovedFromGuild(presence: Presence): void {
+    presence.decrementGuildCount();
+    if (presence.guildCount === 0) {
+      this.#presences.delete(presence.user.id);
+      console.log('presences size', this.#presences.size);
+    }
   }
 
   // /**
@@ -828,66 +835,6 @@ export default class Paracord extends EventEmitter {
   //   const cachedMember = guild.members.get(member.user.id);
   //   return cachedMember === undefined ? guild.upsertMember(member, this) : cachedMember;
   // }
-
-  /** Removes from presence and user caches users who are no longer in a cached guild. */
-  private async sweepCaches(): Promise<void> {
-    const checkOffset = new Date().getMinutes();
-    if (this.connecting || this.#guilds === undefined || (checkOffset % 5) !== 0) return;
-
-    const deleteIds = Paracord.deDupeResource(checkOffset, this.#users.values(), this.#presences.values());
-
-    await new Promise((resolve) => setTimeout(resolve)); // yield execution to event loop
-    const startTime = new Date().getTime();
-
-    Paracord.trimMembersFromDeleteList(deleteIds, this.#guilds.values());
-
-    let sweptCount = 0;
-    for (const id of deleteIds.values()) {
-      this.clearUserFromCaches(id);
-      ++sweptCount;
-    }
-
-    this.log('INFO', `Swept ${sweptCount} users from caches in ${new Date().getTime() - startTime} ms.`);
-  }
-
-  /** https://stackoverflow.com/questions/6940103/how-do-i-make-an-array-with-unique-elements-i-e-remove-duplicates */
-  private static deDupeResource(currentCheckOffset: number, users: IterableIterator<User>, presences: IterableIterator<Presence>): Set<Snowflake> {
-    const uniqueIdArr: Snowflake[] = [];
-    if (currentCheckOffset % 10 === 0) {
-      for (const { id, checkOffset } of users) {
-        if (checkOffset === currentCheckOffset) uniqueIdArr.push(id);
-      }
-    } else if (currentCheckOffset % 10 === 5) {
-      for (const { user: { id }, checkOffset } of presences) {
-        if (checkOffset === currentCheckOffset) uniqueIdArr.push(id);
-      }
-    }
-
-    return new Set(uniqueIdArr);
-  }
-
-  /**
-   * Remove users referenced in a guild's members or presences from the delete list.
-   * @param deleteIds Unique set of user ids in a map.
-   * @param guilds An iterable of guilds.
-   *  */
-  private static trimMembersFromDeleteList(deleteIds: Set<Snowflake>, guilds: IterableIterator<Guild>): void {
-    for (const { members, presences } of guilds) {
-      const cachedIds = new Set([...presences.keys(), ...members.keys()]);
-      for (const id of cachedIds.values()) {
-        deleteIds.delete(id);
-      }
-    }
-  }
-
-  /**
-   * Delete the user and its presence from this client's cache.
-   * @param id User id.
-   */
-  private clearUserFromCaches(id: Snowflake) {
-    this.#presences.delete(id);
-    this.#users.delete(id);
-  }
 
   /*
    ********************************

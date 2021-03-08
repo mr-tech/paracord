@@ -13,6 +13,9 @@ export default class User {
   /** the user's id */
   #id: Snowflake; // identify
 
+  /** how many guilds in this client that this user belongs to */
+  #guildCount: number;
+
   /** the user's username, not unique across the platform */
   public username: string | undefined; // identify
 
@@ -46,8 +49,6 @@ export default class User {
   /** the type of Nitro subscription on a user's account */
   // public premiumType: number | undefined; // identify
 
-  #cacheCheckOffset: number;
-
   /** the public flags on a user's account */
   public publicFlags: number | undefined; // identify
 
@@ -56,7 +57,7 @@ export default class User {
   public constructor(filteredProps: FilterOptions['props'] | undefined, user: RawUser) {
     this.#filteredProps = filteredProps?.user;
     this.#id = user.id;
-    this.#cacheCheckOffset = nextCacheCheckOffset;
+    this.#guildCount = 0;
     nextCacheCheckOffset += 10;
     if (nextCacheCheckOffset >= 60) {
       nextCacheCheckOffset = 0;
@@ -66,6 +67,10 @@ export default class User {
     this.#lastAccessed = now;
 
     this.initialize(user);
+  }
+
+  public get guildCount(): number {
+    return this.#guildCount;
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
@@ -83,10 +88,6 @@ export default class User {
 
   public get tag(): string | undefined {
     return this.username !== undefined && this.discriminator !== undefined ? `${this.username}#${this.discriminator}` : undefined;
-  }
-
-  public get checkOffset(): number {
-    return this.#cacheCheckOffset;
   }
 
   public refreshLastAccessed(): void {
@@ -128,5 +129,13 @@ export default class User {
         (<Record<string, unknown>> this)[prop] = undefined;
       });
     }
+  }
+
+  public incrementGuildCount(): void {
+    this.#guildCount++;
+  }
+
+  public decrementGuildCount(): void {
+    this.#guildCount--;
   }
 }

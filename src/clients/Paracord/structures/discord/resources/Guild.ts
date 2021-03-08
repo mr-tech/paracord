@@ -289,7 +289,7 @@ export default class Guild {
     }
 
     if (presences !== undefined && this.#presences !== undefined) {
-      presences.forEach((p) => this.insertPresence(p));
+      presences.forEach((p) => this.insertRawPresence(p));
     }
 
     if (voice_states !== undefined && this.#voiceStates !== undefined) {
@@ -610,9 +610,11 @@ export default class Guild {
   }
 
   public removeMember(id: Snowflake): GuildMember | undefined {
-    const presences = this.#presences;
-    if (presences !== undefined) presences.delete(id);
-    return this.#members && Guild.removeFromCache(this.#members, id);
+    this.removePresence(id);
+    let member: GuildMember | undefined;
+    if (this.#members) member = Guild.removeFromCache<GuildMember, GuildMemberMap>(this.#members, id);
+    if (member) this.#client.handleUserRemovedFromGuild(member.user);
+    return member;
   }
 
   public incrementMemberCount(): void {
@@ -695,7 +697,7 @@ export default class Guild {
   }
 
   /**
-   * Add a role to a map of voice states.
+   * Add a voice state to a map of voice states.
    * @param voiceState https://discord.com/developers/docs/resources/voice
    * @param client
    */
@@ -717,16 +719,17 @@ export default class Guild {
   }
 
   /**
-   * Create a map of presences keyed to their user's ids.
+   * Add presence to map of presences.
    * @param presence https://discord.com/developers/docs/topics/gateway#presence-update-presence-update-event-fields
    * @param client
    */
-  private insertPresence(presence: RawPresence): RawPresence | undefined {
+  private insertRawPresence(presence: RawPresence): RawPresence | undefined {
     const presences = this.#presences;
     if (presences === undefined) return undefined;
 
     const cachedPresence = this.#client.updatePresences(presence);
     if (cachedPresence !== undefined) {
+      cachedPresence.incrementGuildCount();
       presences.set(cachedPresence.user.id, cachedPresence);
     }
 
@@ -737,16 +740,28 @@ export default class Guild {
    * Set a presence in this guild's presence cache.
    * @param presence
    */
-  public setPresence(presence: Presence): void {
-    this.#presences?.set(presence.user.id, presence);
+  public insertCachedPresence(presence: Presence): void {
+    if (this.#presences) {
+      const cachedPresence = this.#presences.get(presence.user.id);
+      if (!cachedPresence) {
+        presence.incrementGuildCount();
+        this.#presences.set(presence.user.id, presence);
+      }
+    }
   }
 
   /**
    * Remove a presence from this guild's presence cache.
    * @param userId
    */
-  public deletePresence(userId: Snowflake): void {
-    this.#presences?.delete(userId);
+  public removePresence(userId: Snowflake): void {
+    if (this.#presences) {
+      const presence = this.#presences.get(userId);
+      if (presence) {
+        this.#presences.delete(userId);
+        this.#client.handlePresenceRemovedFromGuild(presence);
+      }
+    }
   }
 
   // /**
