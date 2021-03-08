@@ -820,19 +820,15 @@ export default class Paracord extends EventEmitter {
 
   public handleUserRemovedFromGuild(user: User): void {
     user.decrementGuildCount();
-    console.log(user.guildCount);
     if (user.guildCount === 0 && user !== this.user) {
       this.#users.delete(user.id);
-      console.log('users size', this.#users.size);
     }
   }
 
   public handlePresenceRemovedFromGuild(presence: Presence): void {
     presence.decrementGuildCount();
-    console.log(presence.guildCount);
     if (presence.guildCount === 0) {
       this.#presences.delete(presence.user.id);
-      console.log('presences size', this.#presences.size);
     }
   }
 
