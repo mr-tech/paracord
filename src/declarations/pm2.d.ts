@@ -87,7 +87,7 @@ export function restart(process: string|number, errback: ErrProcCallback): void;
  * a process id, or the string “all” to indicate that all scripts should be restarted.
  * @param errback - called when the process is deleted
  */
-declare function del(process: string|number, errback: ErrProcCallback): void;
+export function del(process: string|number, errback: ErrProcCallback): void;
 // have to use this construct because `delete` is a reserved word
 export { del as delete };
 
