@@ -3,6 +3,7 @@
 
 // Exported Methods
 
+declare module 'pm2' {
 /**
  * Either connects to a running pm2 daemon (“God”) or launches and daemonizes one.
  * Once launched, the pm2 process will keep running after the script exits.
@@ -418,3 +419,4 @@ type ErrProcDescCallback = (err: Error, processDescription: ProcessDescription) 
 type ErrProcDescsCallback = (err: Error, processDescriptionList: ProcessDescription[]) => void;
 type ErrResultCallback = (err: Error, result: any) => void;
 type ErrBusCallback = (err: Error, bus: any) => void;
+}

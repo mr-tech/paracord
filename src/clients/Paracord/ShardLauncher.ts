@@ -1,6 +1,6 @@
 /* eslint-disable no-console, import/no-duplicates */
 
-import pm2Type from 'pm2';
+import type pm2Type from 'pm2';
 import type { StartOptions } from 'pm2';
 import Api from '../Api/Api';
 import { GatewayBotResponse } from '../Gateway/types';
