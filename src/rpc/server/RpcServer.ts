@@ -55,7 +55,7 @@ export default class RpcServer extends grpc.Server {
     this.emitter = emitter;
     this.apiClient = apiClient;
     this.identifyLock = identifyLock ?? new Lock(this.emitter);
-    this.rateLimitCache = new RateLimitCache(false);
+    this.rateLimitCache = new RateLimitCache(false, apiClient);
   }
 
   /** Establishes the arguments that will be passed to `bindAsync()` when starting the server. */

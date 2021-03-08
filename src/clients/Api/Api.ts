@@ -101,7 +101,7 @@ export default class Api {
   public constructor(token: string, options: IApiOptions = {}) {
     Api.validateParams(token);
 
-    this.#rateLimitCache = new RateLimitCache();
+    this.#rateLimitCache = new RateLimitCache(true, this);
     this.#requestQueue = new RequestQueue(this);
     this.#requestQueueProcessInterval;
 
@@ -138,7 +138,7 @@ export default class Api {
    * @param message Content of the log
    * @param [data] Data pertinent to the event.
    */
-  private log(level: DebugLevel, message: string, data?: unknown): void {
+  public log(level: DebugLevel, message: string, data?: unknown): void {
     this.emit('DEBUG', {
       source: LOG_SOURCES.API,
       level: LOG_LEVELS[level],

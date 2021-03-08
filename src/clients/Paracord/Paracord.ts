@@ -114,12 +114,6 @@ export default class Paracord extends EventEmitter {
   /** Interval that coordinates gateway logins. */
   #processGatewayQueueInterval?: NodeJS.Timer;
 
-  /** Interval that removes objects from the presence and user caches. */
-  #sweepCachesInterval?:NodeJS.Timer;
-
-  /** Interval that removes object from the redundant presence update cache. */
-  #sweepRecentPresenceUpdatesInterval?: NodeJS.Timer;
-
   /* User-defined event handling behavior. */
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
   #events?: UserEvents;
