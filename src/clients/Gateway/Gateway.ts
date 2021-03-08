@@ -749,7 +749,10 @@ export default class Gateway {
           this.handleResumed();
         } else if (type !== null) {
           this.checkIfShouldHeartbeat();
-          setImmediate(() => this.handleEvent(type, data));
+          setImmediate(() => {
+            this.checkIfShouldHeartbeat();
+            this.handleEvent(type, data);
+          });
         } else {
           this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
