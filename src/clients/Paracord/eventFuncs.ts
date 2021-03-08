@@ -80,7 +80,7 @@ export function GUILD_DELETE(this: Paracord, data: UnavailableGuild): Guild | Un
   }
 
   if (!data.unavailable) {
-    this.guilds.delete(data.id);
+    this.removeGuild(guild);
     return guild;
   }
 

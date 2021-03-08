@@ -194,6 +194,8 @@ export default class Paracord extends EventEmitter {
     }
     this.bindTimerFunction();
     this.#gatewayEvents = this.bindEventFunctions();
+    this.handlePresenceRemovedFromGuild = this.handlePresenceRemovedFromGuild.bind(this);
+    this.handleUserRemovedFromGuild = this.handleUserRemovedFromGuild.bind(this);
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -809,9 +811,16 @@ export default class Paracord extends EventEmitter {
     return cachedPresence;
   }
 
+  public removeGuild(guild: Guild): void {
+    Array.from(guild.members.values()).forEach(({ user }) => this.handleUserRemovedFromGuild(user));
+    if (guild.presences) {
+      Array.from(guild.presences.values()).forEach(this.handlePresenceRemovedFromGuild);
+    }
+  }
 
   public handleUserRemovedFromGuild(user: User): void {
     user.decrementGuildCount();
+    console.log(user.guildCount);
     if (user.guildCount === 0 && user !== this.user) {
       this.#users.delete(user.id);
       console.log('users size', this.#users.size);
@@ -820,6 +829,7 @@ export default class Paracord extends EventEmitter {
 
   public handlePresenceRemovedFromGuild(presence: Presence): void {
     presence.decrementGuildCount();
+    console.log(presence.guildCount);
     if (presence.guildCount === 0) {
       this.#presences.delete(presence.user.id);
       console.log('presences size', this.#presences.size);
