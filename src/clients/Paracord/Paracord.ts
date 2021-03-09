@@ -710,13 +710,14 @@ export default class Paracord extends EventEmitter {
    ********************************
    */
 
-  private removeInactiveUsersAfterStartup(iterator?: IterableIterator<User>) {
+  private removeInactiveUsersAfterStartup(iterator?: IterableIterator<User>, removedCount = 0) {
     let throttle = 10000;
     let runAgain = false;
     const iter = iterator ?? this.#users.values();
     for (const user of iter) {
       if (user.activeReferenceCount === 0) {
         this.#users.delete(user.id);
+        ++removedCount;
         if (!--throttle) {
           runAgain = true;
           break;
@@ -725,17 +726,18 @@ export default class Paracord extends EventEmitter {
     }
 
 
-    if (runAgain) setTimeout(() => this.removeInactiveUsersAfterStartup(iter));
+    if (runAgain) setTimeout(() => this.removeInactiveUsersAfterStartup(iter, removedCount));
     else {
       // final pass
       setTimeout(() => {
         for (const user of this.#users.values()) {
           if (user.activeReferenceCount === 0) {
             this.#users.delete(user.id);
+            ++removedCount;
           }
         }
 
-        this.log('DEBUG', 'Done removing inactive members from cache.');
+        this.log('DEBUG', `Removed ${removedCount} inactive users from cache.`);
       });
     }
   }
