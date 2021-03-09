@@ -91,6 +91,8 @@ export default class Gateway {
   /** Object passed to Discord when identifying. */
   #identity: Identify;
 
+  #checkSiblingHeartbeats?: Gateway['checkIfShouldHeartbeat'][];
+
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
   // #keepCase: false;
 
@@ -132,7 +134,7 @@ export default class Gateway {
   public constructor(token: string, options: GatewayOptions) {
     Gateway.validateOptions(options);
     const {
-      emitter, identity, identity: { shard }, api, wsUrl, events, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc,
+      emitter, identity, identity: { shard }, api, wsUrl, events, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc, checkSiblingHeartbeats,
     } = options;
 
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
@@ -157,12 +159,14 @@ export default class Gateway {
     this.#startupHeartbeatTolerance = startupHeartbeatTolerance || 0;
     this.#heartbeatsMissedDuringSetup = 0;
     this.#isStartingFunction = isStartingFunc;
+    this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.bindTimerFunctions();
+    this.checkIfShouldHeartbeat = this.checkIfShouldHeartbeat.bind(this);
   }
 
-  public get isStarting() {
+  public get isStarting(): boolean {
     return this.#isStartingFunction !== undefined && this.#isStartingFunction(this);
   }
 
@@ -748,9 +752,12 @@ export default class Gateway {
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
-          this.checkIfShouldHeartbeat();
+          // back pressure may cause the interval to occur too late, hence this check
+          this._checkIfShouldHeartbeat();
+          // defer execution to allow back pressure (which may include critical events like HEARTBEAT_ACK) to process
           setImmediate(() => {
-            this.checkIfShouldHeartbeat();
+            // deferred events will block just as hard on the next pass of the event loop as when they were coming in, hence this second check
+            this._checkIfShouldHeartbeat();
             this.handleEvent(type, data);
           });
         } else {
@@ -785,11 +792,21 @@ export default class Gateway {
     this.updateSequence(sequence);
   }
 
+
+  /** Proxy for inline heartbeat checking. */
+  private _checkIfShouldHeartbeat(): void {
+    if (this.#checkSiblingHeartbeats !== undefined) this.#checkSiblingHeartbeats.forEach((f) => f());
+    else this.checkIfShouldHeartbeat();
+  }
+
   /**
    * Set inline with the firehose of events to check if the heartbeat needs to be sent.
    * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
+   * May be passed as array to other gateways so that no one gateway blocks the others from sending timely heartbeats.
+   * Now receiving the ACKs on the other hand...
    */
-  private checkIfShouldHeartbeat(): void {
+  public checkIfShouldHeartbeat(): void {
+    console.log(this.id);
     const now = new Date().getTime();
     if (
       this.#heartbeatAck

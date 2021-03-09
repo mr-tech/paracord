@@ -125,6 +125,8 @@ export default class Paracord extends EventEmitter {
 
   #gatewayEvents: EventFunctions;
 
+  #gatewayHeartbeats: Gateway['checkIfShouldHeartbeat'][];
+
   /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
   private static validateParams(token: string): void {
     if (token === undefined) {
@@ -168,6 +170,7 @@ export default class Paracord extends EventEmitter {
     this.#allowEventsDuringStartup = false;
     this.#preventLogin = false;
     this.safeGatewayIdentifyTimestamp = 0;
+    this.#gatewayHeartbeats = [];
 
     const {
       events, apiOptions, gatewayOptions, filterOptions,
@@ -502,6 +505,8 @@ export default class Paracord extends EventEmitter {
       throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
     }
 
+    this.#gatewayHeartbeats.push(gateway.checkIfShouldHeartbeat);
+
     ++this.#gatewayWaitCount;
     this.#gateways.set(gateway.id, gateway);
     this.gatewayLoginQueue.push(gateway);
@@ -509,7 +514,7 @@ export default class Paracord extends EventEmitter {
 
   private createGatewayOptions(identity: Identify, wsUrl?: string): GatewayOptions {
     const gatewayOptions: GatewayOptions = {
-      identity, api: this.api, emitter: this, wsUrl,
+      identity, api: this.api, emitter: this, wsUrl, checkSiblingHeartbeats: this.#gatewayHeartbeats,
     };
 
     if (this.#startupHeartbeatTolerance !== undefined) {
@@ -627,6 +632,7 @@ export default class Paracord extends EventEmitter {
   }
 
   public clearShardGuilds(shardId: number): void {
+    // TODO: add handling for removing users / presences when a shard dies and is not resumable
     const guilds = this.#guilds;
     if (guilds !== undefined) {
       for (const [id, guild] of guilds.entries()) {

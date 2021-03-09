@@ -24,6 +24,8 @@ export interface GatewayOptions {
   startupHeartbeatTolerance?: number;
   /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
   isStartingFunc?: StartupCheckFunction;
+  /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
+  checkSiblingHeartbeats?: Gateway['checkIfShouldHeartbeat'][];
 }
 
 type ErrorResponse = {
