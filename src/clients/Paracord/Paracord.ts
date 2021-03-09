@@ -737,7 +737,7 @@ export default class Paracord extends EventEmitter {
           }
         }
 
-        this.log('DEBUG', `Removed ${removedCount} inactive users from cache.`);
+        this.log('INFO', `Removed ${removedCount} inactive users from cache.`);
       });
     }
   }
