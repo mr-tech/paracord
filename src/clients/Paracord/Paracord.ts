@@ -632,11 +632,14 @@ export default class Paracord extends EventEmitter {
   }
 
   public clearShardGuilds(shardId: number): void {
-    // TODO: add handling for removing users / presences when a shard dies and is not resumable
     const guilds = this.#guilds;
     if (guilds !== undefined) {
       for (const [id, guild] of guilds.entries()) {
-        if (guild.shard === shardId) guilds.delete(id);
+        if (guild.shard === shardId) {
+          for (const member of guild.members.values()) this.handleUserRemovedFromGuild(member.user);
+          for (const presence of guild.presences.values()) this.handlePresenceRemovedFromGuild(presence);
+          guilds.delete(id);
+        }
       }
     }
   }
@@ -727,6 +730,15 @@ export default class Paracord extends EventEmitter {
     return cachedUser;
   }
 
+  public decrementUserActiveReference(user: User): void {
+    user.decrementActiveReferenceCount();
+    if (this.#guilds !== undefined && user.activeReferenceCount === 0) {
+      // only need to delete from members because 0 active references means no voice states or presences
+      for (const guild of this.#guilds.values()) guild.members.delete(user.id);
+      this.users.delete(user.id);
+    }
+  }
+
   /**
    * Adjusts the client's presence cache, allowing ignoring events that may be redundant.
    * @param presence From Discord - https://discord.com/developers/docs/topics/gateway#presence-update
@@ -777,6 +789,7 @@ export default class Paracord extends EventEmitter {
     if (cachedUser !== undefined) {
       presence.user = cachedUser;
       cachedUser.presence = presence;
+      cachedUser.incrementActiveReferenceCount();
     }
   }
 
@@ -788,6 +801,8 @@ export default class Paracord extends EventEmitter {
     this.#presences.delete(userId);
     const user = this.#users.get(userId);
     if (user !== undefined) {
+      this.decrementUserActiveReference(user);
+      // break circular reference just to be safe
       user.presence = undefined;
     }
   }

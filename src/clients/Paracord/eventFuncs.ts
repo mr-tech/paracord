@@ -127,7 +127,7 @@ export function VOICE_STATE_UPDATE(this: Paracord, data: AugmentedRawVoiceState)
       return guild.upsertVoiceState(data) ?? data;
     }
 
-    guild.voiceStates.delete(userId);
+    guild.removeVoiceState(userId);
   }
 
   return data;

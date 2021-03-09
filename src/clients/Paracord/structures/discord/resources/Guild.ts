@@ -714,8 +714,21 @@ export default class Guild {
     }
 
     const user = cachedMember?.user ?? this.#client.users?.get(userId);
+    user?.incrementActiveReferenceCount();
 
     return voiceStates.add(userId, voiceState, user, cachedMember, this, this.channels.get(channel_id));
+  }
+
+  /** Remove a voice state from the map of voice states and handle the cached user */
+  public removeVoiceState(id: Snowflake): void {
+    const voiceStates = this.#voiceStates;
+    if (voiceStates === undefined) return;
+
+    const cachedPresence = voiceStates.get(id);
+    if (cachedPresence) {
+      if (cachedPresence.user !== undefined) this.#client.decrementUserActiveReference(cachedPresence.user);
+      voiceStates.delete(id);
+    }
   }
 
   /**

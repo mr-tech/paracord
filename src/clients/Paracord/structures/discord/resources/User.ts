@@ -13,8 +13,11 @@ export default class User {
   /** the user's id */
   #id: Snowflake; // identify
 
-  /** how many guilds in this client that this user belongs to */
+  /** how many guilds in this client that this user belongs to (might deprecate) */
   #guildCount: number;
+
+  /** how many "active objects" (presences, voice states) in this client that this user is referenced by. */
+  #activeReferenceCount: number;
 
   /** the user's username, not unique across the platform */
   public username: string | undefined; // identify
@@ -58,6 +61,7 @@ export default class User {
     this.#filteredProps = filteredProps?.user;
     this.#id = user.id;
     this.#guildCount = 0;
+    this.#activeReferenceCount = 0;
     nextCacheCheckOffset += 10;
     if (nextCacheCheckOffset >= 60) {
       nextCacheCheckOffset = 0;
@@ -71,6 +75,10 @@ export default class User {
 
   public get guildCount(): number {
     return this.#guildCount;
+  }
+
+  public get activeReferenceCount(): number {
+    return this.#activeReferenceCount;
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
@@ -137,5 +145,13 @@ export default class User {
 
   public decrementGuildCount(): void {
     this.#guildCount--;
+  }
+
+  public incrementActiveReferenceCount(): void {
+    this.#activeReferenceCount++;
+  }
+
+  public decrementActiveReferenceCount(): void {
+    this.#activeReferenceCount--;
   }
 }
