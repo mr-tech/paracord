@@ -154,4 +154,8 @@ export default class User {
   public decrementActiveReferenceCount(): void {
     this.#activeReferenceCount--;
   }
+
+  public resetActiveReferenceCount(): void {
+    this.#activeReferenceCount = 0;
+  }
 }

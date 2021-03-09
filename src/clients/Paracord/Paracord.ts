@@ -6,7 +6,7 @@ import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
 import Role from './structures/discord/resources/Role';
 import { DebugLevel, ILockServiceOptions, UserEvents } from '../../common';
 import {
-  LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, SECOND_IN_MILLISECONDS,
+  LOG_LEVELS, LOG_SOURCES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 import { RemoteApiResponse } from '../../rpc/types';
 import {
@@ -634,13 +634,9 @@ export default class Paracord extends EventEmitter {
   public clearShardGuilds(shardId: number): void {
     const guilds = this.#guilds;
     if (guilds !== undefined) {
-      for (const [id, guild] of guilds.entries()) {
-        if (guild.shard === shardId) {
-          for (const member of guild.members.values()) this.handleUserRemovedFromGuild(member.user);
-          for (const presence of guild.presences.values()) this.handlePresenceRemovedFromGuild(presence);
-          guilds.delete(id);
-        }
-      }
+      guilds.forEach((guild) => {
+        if (guild.shard === shardId) this.removeGuild(guild);
+      });
     }
   }
 
@@ -777,6 +773,7 @@ export default class Paracord extends EventEmitter {
     if (cachedPresence !== undefined) {
       user.presence = cachedPresence;
       user.presence.user = user;
+      user.incrementActiveReferenceCount();
     }
   }
 
@@ -798,12 +795,16 @@ export default class Paracord extends EventEmitter {
    * @param userId Id of the presence's user.
    */
   private deletePresence(userId: Snowflake): void {
-    this.#presences.delete(userId);
-    const user = this.#users.get(userId);
-    if (user !== undefined) {
-      this.decrementUserActiveReference(user);
-      // break circular reference just to be safe
-      user.presence = undefined;
+    const cachedPresence = this.#presences.get(userId);
+    if (cachedPresence) {
+      this.#presences.delete(userId);
+
+      const { user } = cachedPresence;
+      if (user instanceof User) {
+        this.decrementUserActiveReference(user);
+        // break circular reference just to be safe
+        user.presence = undefined;
+      }
     }
   }
 
@@ -827,17 +828,24 @@ export default class Paracord extends EventEmitter {
   }
 
   public removeGuild(guild: Guild): void {
-    Array.from(guild.members.values()).forEach(({ user }) => this.handleUserRemovedFromGuild(user));
+    Array.from(guild.members.values()).forEach(({ user }) => this.handleUserRemovedFromGuild(user, guild));
+    Array.from(guild.voiceStates.values()).forEach(({ user }) => {
+      if (user) this.decrementUserActiveReference(user);
+    });
     if (guild.presences) {
       Array.from(guild.presences.values()).forEach(this.handlePresenceRemovedFromGuild);
     }
+    this.#guilds?.delete(guild.id);
   }
 
-  public handleUserRemovedFromGuild(user: User): void {
+  public handleUserRemovedFromGuild(user: User, guild: Guild): void {
     user.decrementGuildCount();
-    if (user.guildCount === 0 && user !== this.user) {
-      this.#users.delete(user.id);
-    }
+    if (user.guildCount === 0) {
+      if (user !== this.user) {
+        this.#users.delete(user.id);
+        user.resetActiveReferenceCount();
+      }
+    } else if (guild.voiceStates.has(user.id)) this.decrementUserActiveReference(user);
   }
 
   public handlePresenceRemovedFromGuild(presence: Presence): void {

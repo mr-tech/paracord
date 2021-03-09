@@ -583,7 +583,7 @@ export default class Guild {
 
   private updateGuildOwner(id: Snowflake) {
     const previousOwner = this.owner;
-    previousOwner?.user.incrementActiveReferenceCount();
+    previousOwner?.user.decrementActiveReferenceCount();
 
     this.ownerId = id;
     const newOwner = this.members.get(id);
@@ -623,7 +623,7 @@ export default class Guild {
     this.removePresence(id);
     let member: GuildMember | undefined;
     if (this.#members) member = Guild.removeFromCache<GuildMember, GuildMemberMap>(this.#members, id);
-    if (member) this.#client.handleUserRemovedFromGuild(member.user);
+    if (member) this.#client.handleUserRemovedFromGuild(member.user, this);
     return member;
   }
 
