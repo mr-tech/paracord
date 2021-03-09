@@ -710,18 +710,34 @@ export default class Paracord extends EventEmitter {
    ********************************
    */
 
-  private removeInactiveUsersAfterStartup() {
+  private removeInactiveUsersAfterStartup(iterator?: IterableIterator<User>) {
     let throttle = 10000;
     let runAgain = false;
-    for (const user of this.#users.values()) {
-      if (user.activeReferenceCount === 0) this.#users.delete(user.id);
-      if (!--throttle) {
-        runAgain = true;
-        break;
+    const iter = iterator ?? this.#users.values();
+    for (const user of iter) {
+      if (user.activeReferenceCount === 0) {
+        this.#users.delete(user.id);
+        if (!--throttle) {
+          runAgain = true;
+          break;
+        }
       }
     }
 
-    if (runAgain) setTimeout(this.removeInactiveUsersAfterStartup);
+
+    if (runAgain) setTimeout(() => this.removeInactiveUsersAfterStartup(iter));
+    else {
+      // final pass
+      setTimeout(() => {
+        for (const user of this.#users.values()) {
+          if (user.activeReferenceCount === 0) {
+            this.#users.delete(user.id);
+          }
+        }
+
+        this.log('DEBUG', 'Done removing inactive members from cache.');
+      });
+    }
   }
 
   /**
@@ -748,7 +764,7 @@ export default class Paracord extends EventEmitter {
     if (this.#guilds !== undefined && user.activeReferenceCount === 0) {
       // only need to delete from members because 0 active references means no voice states or presences
       for (const guild of this.#guilds.values()) guild.members.delete(user.id);
-      this.users.delete(user.id);
+      this.#users.delete(user.id);
     }
   }
 
