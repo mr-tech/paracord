@@ -193,6 +193,7 @@ export default class Paracord extends EventEmitter {
     this.#gatewayEvents = this.bindEventFunctions();
     this.handlePresenceRemovedFromGuild = this.handlePresenceRemovedFromGuild.bind(this);
     this.handleUserRemovedFromGuild = this.handleUserRemovedFromGuild.bind(this);
+    this.removeInactiveUsersAfterStartup = this.removeInactiveUsersAfterStartup.bind(this);
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -697,8 +698,10 @@ export default class Paracord extends EventEmitter {
       message += ` ${reason}`;
     }
 
+
     this.log('INFO', message);
     this.emit('PARACORD_STARTUP_COMPLETE');
+    this.removeInactiveUsersAfterStartup();
   }
 
   /*
@@ -706,6 +709,20 @@ export default class Paracord extends EventEmitter {
    *********** CACHING ************
    ********************************
    */
+
+  private removeInactiveUsersAfterStartup() {
+    let throttle = 10000;
+    let runAgain = false;
+    for (const user of this.#users.values()) {
+      if (user.activeReferenceCount === 0) this.#users.delete(user.id);
+      if (!--throttle) {
+        runAgain = true;
+        break;
+      }
+    }
+
+    if (runAgain) setTimeout(this.removeInactiveUsersAfterStartup);
+  }
 
   /**
    * Inserts/updates properties of a guild.
