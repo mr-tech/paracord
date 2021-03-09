@@ -16,7 +16,7 @@ export default class User {
   /** how many guilds in this client that this user belongs to (might deprecate) */
   #guildCount: number;
 
-  /** how many "active objects" (presences, voice states) in this client that this user is referenced by. */
+  /** how many "active objects" (presences, voice states, guild owner) in this client that this user is referenced by. */
   #activeReferenceCount: number;
 
   /** the user's username, not unique across the platform */

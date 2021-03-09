@@ -338,8 +338,7 @@ export default class Guild {
         (!this.#filteredProps || 'ownerId' in this)
         && this.ownerId !== guild.owner_id
       ) {
-        this.ownerId = guild.owner_id;
-        this.owner = this.members.get(guild.owner_id);
+        this.updateGuildOwner(guild.owner_id);
       }
       if (
         (!this.#filteredProps || 'region' in this)
@@ -582,6 +581,16 @@ export default class Guild {
     return this.#channels && Guild.removeFromCache(this.#channels, id);
   }
 
+  private updateGuildOwner(id: Snowflake) {
+    const previousOwner = this.owner;
+    previousOwner?.user.incrementActiveReferenceCount();
+
+    this.ownerId = id;
+    const newOwner = this.members.get(id);
+    newOwner?.user.incrementActiveReferenceCount();
+    this.owner = newOwner;
+  }
+
   /**
    * Add a member with some additional information to a map of members.
    * @param member https://discord.com/developers/docs/resources/guild#guild-member-object
@@ -601,6 +610,7 @@ export default class Guild {
 
     if (this.owner === undefined && this.ownerId === id) {
       this.owner = cachedMember;
+      this.owner.user.incrementActiveReferenceCount();
     }
     if (this.me === undefined && this.#client.user.id === id) {
       this.me = cachedMember;
