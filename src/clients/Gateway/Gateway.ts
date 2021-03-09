@@ -806,7 +806,6 @@ export default class Gateway {
    * Now receiving the ACKs on the other hand...
    */
   public checkIfShouldHeartbeat(): void {
-    console.log(this.id);
     const now = new Date().getTime();
     if (
       this.#heartbeatAck
@@ -1117,8 +1116,6 @@ export default class Gateway {
       && this.#ws?.readyState === ws.OPEN
     ) {
       const payload = { op, d: data };
-
-      console.log;
 
       let packet: string | Buffer;
       if (erlpack) packet = erlpack.pack(payload);
