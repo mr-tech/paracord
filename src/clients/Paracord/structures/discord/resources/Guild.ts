@@ -607,6 +607,9 @@ export default class Guild {
 
     const cachedUser = this.#client.upsertUser(user);
     cachedMember = members.add(id, member, cachedUser, this);
+    if (cachedMember.roles?.size || cachedMember.roleIds.length) {
+      cachedMember.user.incrementActiveReferenceCount();
+    }
 
     if (this.owner === undefined && this.ownerId === id) {
       this.owner = cachedMember;
@@ -623,7 +626,10 @@ export default class Guild {
     this.removePresence(id);
     let member: GuildMember | undefined;
     if (this.#members) member = Guild.removeFromCache<GuildMember, GuildMemberMap>(this.#members, id);
-    if (member) this.#client.handleUserRemovedFromGuild(member.user, this);
+    if (member) {
+      if (member.roles?.size || member.roleIds.length) member.user.decrementActiveReferenceCount();
+      this.#client.handleUserRemovedFromGuild(member.user, this);
+    }
     return member;
   }
 

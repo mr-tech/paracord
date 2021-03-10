@@ -116,6 +116,12 @@ export default class GuildMember {
     const { roles: memberRoleMap } = this;
     const { roles } = arg;
 
+    const currentRoleCount = memberRoleMap?.size || this.roleIds.length;
+    if (currentRoleCount !== roles.length) {
+      if (roles.length === 0) this.user.decrementActiveReferenceCount();
+      else this.user.incrementActiveReferenceCount();
+    }
+
     if (memberRoleMap !== undefined) {
       const roleIds = Array.from(this.roleIds);
       const removedRoleIds = squashArrays(roleIds, roles);

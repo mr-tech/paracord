@@ -193,7 +193,7 @@ export default class Paracord extends EventEmitter {
     this.#gatewayEvents = this.bindEventFunctions();
     this.handlePresenceRemovedFromGuild = this.handlePresenceRemovedFromGuild.bind(this);
     this.handleUserRemovedFromGuild = this.handleUserRemovedFromGuild.bind(this);
-    this.removeInactiveUsersAfterStartup = this.removeInactiveUsersAfterStartup.bind(this);
+    this.removeInactiveUsersFromCache = this.removeInactiveUsersFromCache.bind(this);
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -701,7 +701,7 @@ export default class Paracord extends EventEmitter {
 
     this.log('INFO', message);
     this.emit('PARACORD_STARTUP_COMPLETE');
-    this.removeInactiveUsersAfterStartup();
+    this.removeInactiveUsersFromCache();
   }
 
   /*
@@ -710,7 +710,7 @@ export default class Paracord extends EventEmitter {
    ********************************
    */
 
-  private removeInactiveUsersAfterStartup(iterator?: IterableIterator<User>, removedCount = 0) {
+  protected removeInactiveUsersFromCache(iterator?: IterableIterator<User>, removedCount = 0): void {
     let throttle = 10000;
     let runAgain = false;
     const iter = iterator ?? this.#users.values();
@@ -726,7 +726,7 @@ export default class Paracord extends EventEmitter {
     }
 
 
-    if (runAgain) setTimeout(() => this.removeInactiveUsersAfterStartup(iter, removedCount));
+    if (runAgain) setTimeout(() => this.removeInactiveUsersFromCache(iter, removedCount));
     else {
       // final pass
       setTimeout(() => {
@@ -765,7 +765,10 @@ export default class Paracord extends EventEmitter {
     user.decrementActiveReferenceCount();
     if (this.#guilds !== undefined && user.activeReferenceCount === 0) {
       // only need to delete from members because 0 active references means no voice states or presences
-      for (const guild of this.#guilds.values()) guild.members.delete(user.id);
+      for (const guild of this.#guilds.values()) {
+        const guildMember = guild.members.get(user.id);
+        if (!guildMember?.roles?.size) guild.members.delete(user.id);
+      }
       this.#users.delete(user.id);
     }
   }
