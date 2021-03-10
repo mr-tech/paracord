@@ -20,11 +20,11 @@ export default class GuildVoiceState {
 
   #channel: GuildChannel;
 
+  /** the user id this voice state is for */
+  #userId: Snowflake;
+
   /** the channel id this user is connected to */
   public channelId: Snowflake | null | undefined;
-
-  /** the user id this voice state is for */
-  public userId: Snowflake | undefined;
 
   /** the session id for this voice state */
   public sessionId: string | undefined;
@@ -60,6 +60,9 @@ export default class GuildVoiceState {
     this.#member = member;
     this.#guild = guild;
     this.#channel = channel;
+    this.#userId = voiceState.user_id;
+
+    if (user) user.incrementActiveReferenceCount();
 
     this.initialize(voiceState);
   }
@@ -78,6 +81,10 @@ export default class GuildVoiceState {
 
   public get user(): User | undefined {
     return this.#user;
+  }
+
+  public getUserId(): string {
+    return this.#userId;
   }
 
   public update(voiceState: AugmentedRawVoiceState, channel?: GuildChannel): this {
@@ -119,6 +126,16 @@ export default class GuildVoiceState {
       this.#filteredProps.forEach((prop) => {
         (<Record<string, unknown>> this)[prop] = undefined;
       });
+    }
+  }
+
+  public setMember(member: GuildMember): void {
+    if (this.#member) return;
+
+    this.#member = member;
+    if (!this.user) {
+      this.#user = member.user;
+      member.user.incrementActiveReferenceCount();
     }
   }
 }

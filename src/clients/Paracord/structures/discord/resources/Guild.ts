@@ -48,6 +48,9 @@ export default class Guild {
   /** states of members currently in voice channels | undefined; lacks the `guild_id` key */
   #voiceStates: VoiceStateMap | undefined;
 
+  /** The guild owner's member object if cached. */
+  #owner: GuildMember | undefined;
+
   /** guild name (2-100 characters, excluding trailing and leading whitespace) */
   public name: string | undefined;
 
@@ -62,9 +65,6 @@ export default class Guild {
 
   /** id of owner */
   public ownerId: Snowflake | undefined;
-
-  /** The guild owner's member object if cached. */
-  public owner: GuildMember | undefined;
 
   /** The bot's member object. */
   public me: GuildMember | undefined;
@@ -199,6 +199,18 @@ export default class Guild {
 
   public get client(): Paracord {
     return this.#client;
+  }
+
+  public get owner(): GuildMember | undefined {
+    return this.#owner;
+  }
+
+  public set owner(member: GuildMember | undefined) {
+    if (this.owner !== member) {
+      this.owner?.user.decrementActiveReferenceCount();
+    }
+    member?.user.incrementActiveReferenceCount();
+    this.owner = member;
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
@@ -338,7 +350,7 @@ export default class Guild {
         (!this.#filteredProps || 'ownerId' in this)
         && this.ownerId !== guild.owner_id
       ) {
-        this.updateGuildOwner(guild.owner_id);
+        this.owner = this.members.get(guild.owner_id);
       }
       if (
         (!this.#filteredProps || 'region' in this)
@@ -581,16 +593,6 @@ export default class Guild {
     return this.#channels && Guild.removeFromCache(this.#channels, id);
   }
 
-  private updateGuildOwner(id: Snowflake) {
-    const previousOwner = this.owner;
-    previousOwner?.user.decrementActiveReferenceCount();
-
-    this.ownerId = id;
-    const newOwner = this.members.get(id);
-    newOwner?.user.incrementActiveReferenceCount();
-    this.owner = newOwner;
-  }
-
   /**
    * Add a member with some additional information to a map of members.
    * @param member https://discord.com/developers/docs/resources/guild#guild-member-object
@@ -599,25 +601,33 @@ export default class Guild {
     const members = this.#members;
     if (members === undefined) return undefined;
 
-    const { user, user: { id } } = member;
-    let cachedMember = members.get(id);
+    const { user, user: { id: userId } } = member;
+    let cachedMember = members.get(userId);
     if (cachedMember !== undefined) {
       return cachedMember.update(member);
     }
 
+    const voiceState = this.voiceStates.get(userId);
+    if (
+      !member.roles.length
+      && this.ownerId !== userId
+      && !voiceState
+    ) return undefined;
+
     const cachedUser = this.#client.upsertUser(user);
-    cachedMember = members.add(id, member, cachedUser, this);
+    cachedMember = members.add(userId, member, cachedUser, this);
     if (cachedMember.roles?.size || cachedMember.roleIds.length) {
       cachedMember.user.incrementActiveReferenceCount();
     }
 
-    if (this.owner === undefined && this.ownerId === id) {
+    if (this.ownerId === userId) {
       this.owner = cachedMember;
-      this.owner.user.incrementActiveReferenceCount();
     }
-    if (this.me === undefined && this.#client.user.id === id) {
+    if (this.me === undefined && this.#client.user.id === userId) {
       this.me = cachedMember;
     }
+
+    voiceState?.setMember(cachedMember);
 
     return cachedMember;
   }
@@ -702,7 +712,7 @@ export default class Guild {
     const { user_id } = voiceState;
     const cachedVoiceState = voiceStates.get(user_id);
     if (cachedVoiceState !== undefined) {
-      let channel;
+      let channel: GuildChannel | undefined;
       if (voiceState.channel_id !== null && cachedVoiceState.channel.id !== voiceState.channel_id) {
         channel = this.channels.get(voiceState.channel_id);
       }
@@ -722,7 +732,7 @@ export default class Guild {
     const { user_id: userId, member, channel_id } = voiceState;
     if (voiceStates === undefined || channel_id === null) return undefined;
 
-    let cachedMember;
+    let cachedMember: GuildMember | undefined;
     if (member !== undefined) {
       cachedMember = this.upsertMember(member);
     } else {
@@ -730,7 +740,6 @@ export default class Guild {
     }
 
     const user = cachedMember?.user ?? this.#client.users?.get(userId);
-    user?.incrementActiveReferenceCount();
 
     return voiceStates.add(userId, voiceState, user, cachedMember, this, this.channels.get(channel_id));
   }
