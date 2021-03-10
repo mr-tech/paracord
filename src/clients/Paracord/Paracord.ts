@@ -193,7 +193,6 @@ export default class Paracord extends EventEmitter {
     this.#gatewayEvents = this.bindEventFunctions();
     this.handlePresenceRemovedFromGuild = this.handlePresenceRemovedFromGuild.bind(this);
     this.handleUserRemovedFromGuild = this.handleUserRemovedFromGuild.bind(this);
-    this.removeInactiveUsersFromCache = this.removeInactiveUsersFromCache.bind(this);
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -701,7 +700,7 @@ export default class Paracord extends EventEmitter {
 
     this.log('INFO', message);
     this.emit('PARACORD_STARTUP_COMPLETE');
-    this.removeInactiveUsersFromCache();
+    // this.removeInactiveUsersFromCache();
   }
 
   /*
@@ -710,37 +709,37 @@ export default class Paracord extends EventEmitter {
    ********************************
    */
 
-  protected removeInactiveUsersFromCache(iterator?: IterableIterator<User>, removedCount = 0): void {
-    let throttle = 10000;
-    let runAgain = false;
-    const iter = iterator ?? this.#users.values();
-    for (const user of iter) {
-      if (user.activeReferenceCount === 0) {
-        this.#users.delete(user.id);
-        ++removedCount;
-        if (!--throttle) {
-          runAgain = true;
-          break;
-        }
-      }
-    }
+  // protected removeInactiveUsersFromCache(iterator?: IterableIterator<User>, removedCount = 0): void {
+  //   let throttle = 10000;
+  //   let runAgain = false;
+  //   const iter = iterator ?? this.#users.values();
+  //   for (const user of iter) {
+  //     if (user.activeReferenceCount === 0) {
+  //       this.#users.delete(user.id);
+  //       ++removedCount;
+  //       if (!--throttle) {
+  //         runAgain = true;
+  //         break;
+  //       }
+  //     }
+  //   }
 
 
-    if (runAgain) setTimeout(() => this.removeInactiveUsersFromCache(iter, removedCount));
-    else {
-      // final pass
-      setTimeout(() => {
-        for (const user of this.#users.values()) {
-          if (user.activeReferenceCount === 0) {
-            this.#users.delete(user.id);
-            ++removedCount;
-          }
-        }
+  //   if (runAgain) setTimeout(() => this.removeInactiveUsersFromCache(iter, removedCount));
+  //   else {
+  //     // final pass
+  //     setTimeout(() => {
+  //       for (const user of this.#users.values()) {
+  //         if (user.activeReferenceCount === 0) {
+  //           this.#users.delete(user.id);
+  //           ++removedCount;
+  //         }
+  //       }
 
-        this.log('INFO', `Removed ${removedCount} inactive users from cache.`);
-      });
-    }
-  }
+  //       this.log('INFO', `Removed ${removedCount} inactive users from cache.`);
+  //     });
+  //   }
+  // }
 
   /**
    * Inserts/updates properties of a guild.
