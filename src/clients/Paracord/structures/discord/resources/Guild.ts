@@ -206,11 +206,11 @@ export default class Guild {
   }
 
   public set owner(member: GuildMember | undefined) {
-    if (this.owner !== member) {
-      this.owner?.user.decrementActiveReferenceCount();
+    if (this.#owner !== member) {
+      this.#owner?.user.decrementActiveReferenceCount();
     }
     member?.user.incrementActiveReferenceCount();
-    this.owner = member;
+    this.#owner = member;
   }
 
   /** The epoch timestamp of when this guild was created extract from its Id. */
