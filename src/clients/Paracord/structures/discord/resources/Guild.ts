@@ -769,7 +769,7 @@ export default class Guild {
     const cachedPresence = this.#client.updatePresences(presence);
     if (cachedPresence !== undefined) {
       cachedPresence.incrementGuildCount();
-      presences.set(cachedPresence.id, cachedPresence);
+      presences.set(cachedPresence.user.id, cachedPresence);
     }
 
     return <RawPresence>presence;
@@ -781,10 +781,10 @@ export default class Guild {
    */
   public insertCachedPresence(presence: Presence): void {
     if (this.#presences) {
-      const cachedPresence = this.#presences.get(presence.id);
+      const cachedPresence = this.#presences.get(presence.user.id);
       if (!cachedPresence) {
         presence.incrementGuildCount();
-        this.#presences.set(presence.id, presence);
+        this.#presences.set(presence.user.id, presence);
       }
     }
   }
