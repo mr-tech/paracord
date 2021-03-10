@@ -818,7 +818,7 @@ export default class Paracord extends EventEmitter {
    * @param presence From Discord - https://discord.com/developers/docs/topics/gateway#presence-update
    */
   private circularAssignCachedUser(presence: Presence): void {
-    const cachedUser = this.#users.get(presence.user.id);
+    const cachedUser = this.#users.get(presence.id);
     if (cachedUser !== undefined) {
       presence.user = cachedUser;
       cachedUser.presence = presence;
@@ -887,7 +887,7 @@ export default class Paracord extends EventEmitter {
   public handlePresenceRemovedFromGuild(presence: Presence): void {
     presence.decrementGuildCount();
     if (presence.guildCount === 0) {
-      this.#presences.delete(presence.user.id);
+      this.#presences.delete(presence.id);
     }
   }
 

@@ -11,6 +11,8 @@ const STATUS_ONLINE_STRING = 'online';
 const STATUS_OFFLINE_STRING = 'offline';
 
 export default class Presence {
+  #id: string;
+
   #filteredProps: FilterOptions['props']['presence'] | undefined;
 
   #filteredActivityProps: FilterOptions['props']['activity'] | undefined;
@@ -46,6 +48,7 @@ export default class Presence {
   }
 
   public constructor(filteredProps: FilterOptions['props'] | undefined, presence: RawPresence) {
+    this.#id = presence.user.id;
     this.#filteredProps = filteredProps?.presence;
     this.#filteredActivityProps = filteredProps?.activity;
     this.user = presence.user;
@@ -69,11 +72,13 @@ export default class Presence {
     return this;
   }
 
+  public get id(): string {
+    return this.#id;
+  }
 
   public get guildCount(): number {
     return this.#guildCount;
   }
-
 
   private updateActivities(rawActivities: RawActivity[]) {
     const existingActivities = this.activities ?? [];
