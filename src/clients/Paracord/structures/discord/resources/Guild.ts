@@ -616,9 +616,6 @@ export default class Guild {
 
     const cachedUser = this.#client.upsertUser(user);
     cachedMember = members.add(userId, member, cachedUser, this);
-    if (cachedMember.roles?.size || cachedMember.roleIds.length) {
-      cachedMember.user.incrementActiveReferenceCount();
-    }
 
     if (this.ownerId === userId) {
       this.owner = cachedMember;
@@ -750,10 +747,9 @@ export default class Guild {
     if (voiceStates === undefined) return;
 
     const cachedPresence = voiceStates.get(id);
-    if (cachedPresence) {
-      if (cachedPresence.user !== undefined) this.#client.decrementUserActiveReference(cachedPresence.user);
-      voiceStates.delete(id);
-    }
+    cachedPresence?.user?.decrementActiveReferenceCount();
+
+    voiceStates.delete(id);
   }
 
   /**

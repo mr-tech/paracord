@@ -609,7 +609,7 @@ export default class Paracord extends EventEmitter {
    */
   public handleReady(data: ReadyEventFields, shard: number): void {
     const { user, guilds } = data;
-    this.user = new User(this.#filterOptions?.props, user);
+    this.user = new User(this.#filterOptions?.props, user, this);
 
     this.#guildWaitCount = guilds.length;
     this.log('INFO', `Logged in as ${this.user.tag}.`);
@@ -756,21 +756,20 @@ export default class Paracord extends EventEmitter {
    * @param user From Discord - https://discord.com/developers/docs/resources/user#user-object-user-structure
    */
   public upsertUser(user: RawUser): User {
-    const cachedUser = this.#users?.get(user.id)?.update(user) ?? this.#users?.add(user.id, user);
-    cachedUser && this.circularAssignCachedPresence(cachedUser);
+    const cachedUser = this.#users?.get(user.id)?.update(user) ?? this.#users?.add(user.id, user, this);
+    if (cachedUser) this.circularAssignCachedPresence(cachedUser);
     return cachedUser;
   }
 
-  public decrementUserActiveReference(user: User): void {
-    user.decrementActiveReferenceCount();
-    if (this.#guilds !== undefined && user.activeReferenceCount === 0) {
-      // only need to delete from members because 0 active references means no voice states or presences
+  public removeUserWithNoReferences(user: User): void {
+    if (this.#guilds !== undefined) {
+      // only need to delete from members because 0 active references means no voice states and presences
       for (const guild of this.#guilds.values()) {
-        const guildMember = guild.members.get(user.id);
-        if (!guildMember?.roles?.size) guild.members.delete(user.id);
+        guild.members.delete(user.id);
       }
-      this.#users.delete(user.id);
     }
+
+    this.#users.delete(user.id);
   }
 
   /**
@@ -839,7 +838,7 @@ export default class Paracord extends EventEmitter {
 
       const { user } = cachedPresence;
       if (user instanceof User) {
-        this.decrementUserActiveReference(user);
+        user.decrementActiveReferenceCount();
         // break circular reference just to be safe
         user.presence = undefined;
       }
@@ -868,7 +867,7 @@ export default class Paracord extends EventEmitter {
   public removeGuild(guild: Guild): void {
     Array.from(guild.members.values()).forEach(({ user }) => this.handleUserRemovedFromGuild(user, guild));
     Array.from(guild.voiceStates.values()).forEach(({ user }) => {
-      if (user) this.decrementUserActiveReference(user);
+      user?.decrementActiveReferenceCount();
     });
     if (guild.presences) {
       Array.from(guild.presences.values()).forEach(this.handlePresenceRemovedFromGuild);
@@ -883,7 +882,7 @@ export default class Paracord extends EventEmitter {
         this.#users.delete(user.id);
         user.resetActiveReferenceCount();
       }
-    } else if (guild.voiceStates.has(user.id)) this.decrementUserActiveReference(user);
+    } else if (guild.voiceStates.has(user.id)) user.decrementActiveReferenceCount();
   }
 
   public handlePresenceRemovedFromGuild(presence: Presence): void {

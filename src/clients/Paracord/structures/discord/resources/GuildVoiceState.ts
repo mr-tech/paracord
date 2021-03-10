@@ -52,17 +52,22 @@ export default class GuildVoiceState {
 
   public constructor(
     filteredProps: FilterOptions['props'] | undefined,
-    voiceState: AugmentedRawVoiceState, user: User | undefined, member: GuildMember | undefined,
-    guild: Guild, channel: GuildChannel,
+    voiceState: AugmentedRawVoiceState,
+    user: User | undefined,
+    member: GuildMember | undefined,
+    guild: Guild,
+    channel: GuildChannel,
   ) {
     this.#filteredProps = filteredProps?.guildVoiceState;
-    this.#user = user;
     this.#member = member;
+    if (!this.#user && user) {
+      this.#user = user;
+      user.incrementActiveReferenceCount();
+    }
     this.#guild = guild;
     this.#channel = channel;
     this.#userId = voiceState.user_id;
 
-    if (user) user.incrementActiveReferenceCount();
 
     this.initialize(voiceState);
   }

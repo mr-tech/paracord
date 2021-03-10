@@ -2,10 +2,13 @@ import { RawUser, Snowflake } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import { timestampFromSnowflake } from '../../../../../utils';
 import Presence from './Presence';
+import type Paracord from '../../../Paracord';
 
 let nextCacheCheckOffset = 0;
 
 export default class User {
+  #client: Paracord;
+
   #filteredProps: FilterOptions['props']['user'] | undefined;
 
   #lastAccessed: number;
@@ -57,7 +60,8 @@ export default class User {
 
   public presence: Presence | undefined;
 
-  public constructor(filteredProps: FilterOptions['props'] | undefined, user: RawUser) {
+  public constructor(filteredProps: FilterOptions['props'] | undefined, user: RawUser, client: Paracord) {
+    this.#client = client;
     this.#filteredProps = filteredProps?.user;
     this.#id = user.id;
     this.#guildCount = 0;
@@ -152,7 +156,7 @@ export default class User {
   }
 
   public decrementActiveReferenceCount(): void {
-    this.#activeReferenceCount--;
+    if (--this.#activeReferenceCount === 0) this.#client.removeUserWithNoReferences(this);
   }
 
   public resetActiveReferenceCount(): void {

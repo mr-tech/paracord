@@ -41,7 +41,12 @@ export default class GuildMember {
 
   #lastAccessed: number;
 
-  public constructor(filteredProps: FilterOptions['props'] | undefined, member: GuildMemberUpdateEventFields | AugmentedRawGuildMember, user: User, guild: Guild) {
+  public constructor(
+    filteredProps: FilterOptions['props'] | undefined,
+    member: GuildMemberUpdateEventFields | AugmentedRawGuildMember,
+    user: User,
+    guild: Guild,
+  ) {
     this.#filteredProps = filteredProps?.guildMember;
     this.#user = user;
     this.#guild = guild;
@@ -118,8 +123,8 @@ export default class GuildMember {
 
     const currentRoleCount = memberRoleMap?.size || this.roleIds.length;
     if (currentRoleCount !== roles.length) {
-      if (roles.length === 0) this.user.decrementActiveReferenceCount();
-      else this.user.incrementActiveReferenceCount();
+      if (currentRoleCount === 0) this.user.incrementActiveReferenceCount();
+      else if (roles.length === 0) this.user.decrementActiveReferenceCount();
     }
 
     if (memberRoleMap !== undefined) {
