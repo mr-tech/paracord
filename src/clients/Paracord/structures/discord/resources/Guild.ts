@@ -608,14 +608,12 @@ export default class Guild {
       return cachedMember.update(member);
     }
 
-    if (this.me === undefined && this.#client.user.id === userId) {
-      this.me = cachedMember;
-    }
 
     const voiceState = this.voiceStates.get(userId);
     if (
       !member.roles.length
       && this.ownerId !== userId
+      && this.#client.user.id !== userId
       && !voiceState
     ) return undefined;
 
@@ -626,6 +624,9 @@ export default class Guild {
       this.owner = cachedMember;
     }
 
+    if (this.me === undefined && this.#client.user.id === userId) {
+      this.me = cachedMember;
+    }
 
     voiceState?.setMember(cachedMember);
 
