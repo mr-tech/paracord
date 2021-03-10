@@ -82,7 +82,7 @@ export default class Presence {
     for (const rawActivity of rawActivities) {
       const existingActivity = existingActivities.find(Presence.activityIsSame.bind(null, rawActivity));
 
-      let activity;
+      let activity: Activity;
       if (existingActivity === undefined) {
         activity = new Activity(this.#filteredActivityProps, rawActivity);
       } else {

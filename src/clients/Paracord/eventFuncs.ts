@@ -156,7 +156,7 @@ export function CHANNEL_DELETE(this: Paracord, data: RawChannel): GuildChannel |
 
   const guild = this.guilds.get(guildId);
 
-  let channel;
+  let channel: GuildChannel | undefined;
   if (guild !== undefined) {
     channel = guild.removeChannel(id);
   }

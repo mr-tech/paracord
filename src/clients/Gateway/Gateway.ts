@@ -581,7 +581,7 @@ export default class Gateway {
       UNKNOWN,
     } = GATEWAY_CLOSE_CODES;
 
-    let message;
+    let message: string;
     let shouldReconnect = true;
     let level: DebugLevel = 'INFO';
 

@@ -472,7 +472,7 @@ export default class Paracord extends EventEmitter {
       throw Error('shards defined with no shardCount.');
     }
 
-    let wsUrl;
+    let wsUrl: string | undefined;
     if (shardCount === undefined) {
       const { status, data: { url, shards: recommendedShards } } = <GatewayBotResponse> await this.api.request(
         'get',
@@ -947,9 +947,11 @@ export default class Paracord extends EventEmitter {
    * @param memberId Id of the member.
    */
   public async fetchMember<T extends ResponseData = any>(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse<T> | RemoteApiResponse<T>> { // TODO create cached type
-    let guildId;
+    let guildId: string;
 
-    if (typeof guild !== 'string') {
+    if (typeof guild === 'string') {
+      guildId = guild;
+    } else {
       ({ id: guildId } = guild);
     }
 

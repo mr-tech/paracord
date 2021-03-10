@@ -459,7 +459,7 @@ export default class Api {
    * @param request Request being sent.
    */
   private handleRateLimitedRequest<T extends ResponseData>(request: ApiRequest, rateLimitHeaders: RateLimitHeaders): Promise<IApiResponse<T>> {
-    let message;
+    let message: string;
     if (rateLimitHeaders.global) {
       message = `Request global rate limited: ${request.method} ${request.url}`;
     } else {
