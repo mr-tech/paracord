@@ -126,4 +126,13 @@ export default class Presence {
   public decrementGuildCount(): void {
     this.#guildCount--;
   }
+
+  public dereference(): void {
+    this.#filteredActivityProps = undefined;
+    this.#filteredProps = undefined;
+    this.activities = undefined;
+    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+    // @ts-ignore
+    this.user = undefined;
+  }
 }

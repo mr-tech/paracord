@@ -160,6 +160,17 @@ export default class GuildMember {
     }
   }
 
+  public dereference(): void {
+    this.#filteredProps = undefined;
+    this.roles = undefined;
+    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+    // @ts-ignore
+    this.#guild = undefined;
+    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+    // @ts-ignore
+    this.#user = undefined;
+  }
+
   // public get id(): string {
   //   return this.#user.id;
   // }

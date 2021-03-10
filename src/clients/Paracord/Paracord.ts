@@ -764,10 +764,10 @@ export default class Paracord extends EventEmitter {
     if (this.#guilds !== undefined) {
       // only need to delete from members because 0 active references means no voice states and presences
       for (const guild of this.#guilds.values()) {
-        guild.members.delete(user.id);
+        Guild.removeFromCache(guild.members, user.id);
       }
     }
-
+    user.dereference();
     this.#users.delete(user.id);
   }
 
@@ -838,9 +838,9 @@ export default class Paracord extends EventEmitter {
       const { user } = cachedPresence;
       if (user instanceof User) {
         user.decrementActiveReferenceCount();
-        // break circular reference just to be safe
-        user.presence = undefined;
       }
+
+      cachedPresence.dereference();
     }
   }
 

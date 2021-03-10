@@ -156,10 +156,20 @@ export default class User {
   }
 
   public decrementActiveReferenceCount(): void {
-    if (--this.#activeReferenceCount === 0) this.#client.removeUserWithNoReferences(this);
+    if (--this.#activeReferenceCount === 0) {
+      this.#client.removeUserWithNoReferences(this);
+      this.dereference();
+    }
   }
 
   public resetActiveReferenceCount(): void {
     this.#activeReferenceCount = 0;
+  }
+
+  public dereference(): void {
+    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+    // @ts-ignore
+    this.#client = undefined;
+    this.#filteredProps = undefined;
   }
 }
