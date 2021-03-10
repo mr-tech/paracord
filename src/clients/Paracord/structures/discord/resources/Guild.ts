@@ -350,6 +350,7 @@ export default class Guild {
         (!this.#filteredProps || 'ownerId' in this)
         && this.ownerId !== guild.owner_id
       ) {
+        this.ownerId = guild.owner_id;
         this.owner = this.members.get(guild.owner_id);
       }
       if (
