@@ -7,7 +7,6 @@ import {
 import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../../../utils';
 import Paracord from '../../../Paracord';
 import {
-  DiscordResource,
   EmojiMap, FilterOptions, GuildChannelMap, GuildMemberMap, PresenceMap, RawGuildType, RoleMap, VoiceStateMap,
 } from '../../../types';
 import CacheMap from '../../CacheMap';
@@ -549,12 +548,11 @@ export default class Guild {
    */
 
   // private static removeFromCache(cache: Map<string, WildCardCache> | undefined, idCache: Snowflake[] | undefined, id: Snowflake): WildCardCache | undefined {
-  static removeFromCache<T extends DiscordResource, U extends CacheMap<T>>(cache: U, id: Snowflake): T | undefined {
+  private static removeFromCache<T, U extends Map<Snowflake, T>>(cache: U, id: Snowflake): T | undefined {
     if (cache === undefined) return undefined;
 
     const resource = cache.get(id);
     cache.delete(id);
-    resource?.dereference();
     return resource;
   }
 
@@ -635,7 +633,7 @@ export default class Guild {
   public removeMember(id: Snowflake): GuildMember | undefined {
     this.removePresence(id);
     let member: GuildMember | undefined;
-    if (this.#members) member = Guild.removeFromCache(this.#members, id);
+    if (this.#members) member = Guild.removeFromCache<GuildMember, GuildMemberMap>(this.#members, id);
     if (member) {
       if (member.roles?.size || member.roleIds.length) member.user.decrementActiveReferenceCount();
       this.#client.handleUserRemovedFromGuild(member.user, this);
@@ -701,9 +699,7 @@ export default class Guild {
         newEmojis.push(emojiCache.add(id, emoji, this));
       }
     }
-    removedEmojis.forEach(({ id }) => {
-      Guild.removeFromCache(emojiCache, id);
-    });
+    removedEmojis.forEach(({ id }) => emojiCache.delete(id));
     return [newEmojis, removedEmojis];
   }
 
@@ -754,7 +750,7 @@ export default class Guild {
     const cachedPresence = voiceStates.get(id);
     cachedPresence?.user?.decrementActiveReferenceCount();
 
-    Guild.removeFromCache(voiceStates, id);
+    voiceStates.delete(id);
   }
 
   /**
@@ -794,21 +790,15 @@ export default class Guild {
    * @param userId
    */
   public removePresence(userId: Snowflake): void {
-    const presences = this.#presences;
-    if (presences) {
-      const presence = presences?.get(userId);
+    if (this.#presences) {
+      const presence = this.#presences.get(userId);
       if (presence) {
-        Guild.removeFromCache(presences, userId);
+        this.#presences.delete(userId);
         this.#client.handlePresenceRemovedFromGuild(presence);
       }
     }
   }
 
-  public dereference(): void {
-    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    this.#client = undefined;
-  }
   // /**
   //  * Asynchronously gets the the bot's member object from Discord and stores it in the guild.
   //  * @param {Object} guild https://discord.com/developers/docs/resources/guild#guild-object

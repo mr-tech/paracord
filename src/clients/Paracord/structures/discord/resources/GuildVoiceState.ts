@@ -143,18 +143,4 @@ export default class GuildVoiceState {
       member.user.incrementActiveReferenceCount();
     }
   }
-
-  public dereference(): void {
-    this.#user = undefined;
-    this.#member = undefined;
-    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    this.#filteredProp = undefined;
-    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    this.#guild = undefined;
-    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    this.#channel = undefined;
-  }
 }

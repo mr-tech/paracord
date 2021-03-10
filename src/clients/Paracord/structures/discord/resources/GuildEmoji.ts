@@ -2,6 +2,7 @@ import { RawGuildEmoji, Snowflake } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import { timestampFromSnowflake, squashArrays } from '../../../../../utils';
 import Role from './Role';
+import User from './User';
 import Guild from './Guild';
 
 export default class GuildEmoji {
@@ -134,13 +135,5 @@ export default class GuildEmoji {
         (<Record<string, unknown>> this)[prop] = undefined;
       });
     }
-  }
-
-  public dereference(): void {
-    this.#filteredProps = undefined;
-    this.roles = undefined;
-    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    this.#guild = undefined;
   }
 }

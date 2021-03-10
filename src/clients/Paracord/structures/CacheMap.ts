@@ -6,7 +6,7 @@ interface BaseConstructor<T extends DiscordResource, U extends RawWildCard> {
   new (filteredProps: FilterOptions['props'] | undefined, value: U, ...args: any[]): T;
 }
 
-export default class CacheMap<T extends DiscordResource = any, U extends RawWildCard = any> extends Map<Snowflake, T> {
+export default class CacheMap<T extends DiscordResource, U extends RawWildCard> extends Map<Snowflake, T> {
   #filteredProps: FilterOptions['props'] | undefined;
 
   #ItemConstructor: BaseConstructor<T, U>;

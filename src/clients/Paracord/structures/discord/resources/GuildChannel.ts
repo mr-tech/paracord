@@ -143,11 +143,4 @@ export default class GuildChannel {
       });
     }
   }
-
-  public dereference(): void {
-    this.#filteredProps = undefined;
-    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-    // @ts-ignore
-    this.#guild = undefined;
-  }
 }
