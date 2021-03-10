@@ -798,8 +798,8 @@ export default class Guild {
     if (presences) {
       const presence = presences?.get(userId);
       if (presence) {
-        this.#client.handlePresenceRemovedFromGuild(presence);
         Guild.removeFromCache(presences, userId);
+        this.#client.handlePresenceRemovedFromGuild(presence);
       }
     }
   }
