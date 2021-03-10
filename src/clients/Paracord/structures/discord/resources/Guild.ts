@@ -633,18 +633,13 @@ export default class Guild {
   }
 
   public removeMember(id: Snowflake): GuildMember | undefined {
-    let member: GuildMember | undefined;
-    if (this.#members) {
-      member = this.#members.get(id);
-      if (member) {
-        if (member.roles?.size || member.roleIds.length) member.user.decrementActiveReferenceCount();
-        this.#client.handleUserRemovedFromGuild(member.user, this);
-      }
-
-      Guild.removeFromCache(this.#members, id);
-    }
-
     this.removePresence(id);
+    let member: GuildMember | undefined;
+    if (this.#members) member = Guild.removeFromCache(this.#members, id);
+    if (member) {
+      if (member.roles?.size || member.roleIds.length) member.user.decrementActiveReferenceCount();
+      this.#client.handleUserRemovedFromGuild(member.user, this);
+    }
     return member;
   }
 
