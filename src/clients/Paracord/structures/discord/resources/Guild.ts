@@ -608,6 +608,10 @@ export default class Guild {
       return cachedMember.update(member);
     }
 
+    if (this.me === undefined && this.#client.user.id === userId) {
+      this.me = cachedMember;
+    }
+
     const voiceState = this.voiceStates.get(userId);
     if (
       !member.roles.length
@@ -621,9 +625,7 @@ export default class Guild {
     if (this.ownerId === userId) {
       this.owner = cachedMember;
     }
-    if (this.me === undefined && this.#client.user.id === userId) {
-      this.me = cachedMember;
-    }
+
 
     voiceState?.setMember(cachedMember);
 
