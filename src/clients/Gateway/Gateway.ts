@@ -241,6 +241,7 @@ export default class Gateway {
   private bindTimerFunctions(): void {
     this.login = this.login.bind(this);
     this.checkHeartbeatAck = this.checkHeartbeatAck.bind(this);
+    this.handleMissedHeartbeatAck = this.handleMissedHeartbeatAck.bind(this);
     this.checkLocksPromise = this.checkLocksPromise.bind(this);
     this.sendHeartbeat = this.sendHeartbeat.bind(this);
     this.refreshHeartbeatTimeout = this.refreshHeartbeatTimeout.bind(this);
