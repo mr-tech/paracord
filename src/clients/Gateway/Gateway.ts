@@ -16,7 +16,6 @@ import {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, GuildMemberChunk, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 import { IServiceOptions } from '../Api/types';
-import { Snowflake } from '../../../dist/types';
 
 let erlpack: null | typeof erlpackType = null;
 let encoding = 'json';
