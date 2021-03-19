@@ -223,12 +223,6 @@ export default class Gateway {
     return this.#heartbeatAck;
   }
 
-  /** While connected - Time between heartbeats from Discord.
-   * `options#heartbeatIntervalOffset` is subtracted from this  */
-  public get heartbeatInterval(): undefined | number {
-    return this.#receivedHeartbeatIntervalTime;
-  }
-
   /** Between Heartbeat/ACK, time when last heartbeat packet was sent in ms. */
   public get lastHeartbeatTimestamp(): number | undefined {
     return this.#lastHeartbeatTimestamp;
@@ -248,6 +242,7 @@ export default class Gateway {
     this.login = this.login.bind(this);
     this.checkHeartbeatAck = this.checkHeartbeatAck.bind(this);
     this.checkLocksPromise = this.checkLocksPromise.bind(this);
+    this.sendHeartbeat = this.sendHeartbeat.bind(this);
   }
 
   /*
@@ -789,8 +784,8 @@ export default class Gateway {
 
   /** Clears heartbeat values and clears the heartbeatTimeout. */
   private clearHeartbeat(): void {
-    if (this.#heartbeatTimeout) clearTimeout(this.#heartbeatTimeout);
-    if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
+    if (this.#heartbeatTimeout) clearInterval(this.#heartbeatTimeout);
+    if (this.#heartbeatAckTimeout) clearInterval(this.#heartbeatAckTimeout);
 
     this.#heartbeatAck = false;
     this.#lastHeartbeatTimestamp = undefined;
@@ -897,7 +892,7 @@ export default class Gateway {
       && this.#nextHeartbeatTimestamp !== undefined
       && now > this.#nextHeartbeatTimestamp
     ) {
-      this.checkHeartbeatAck();
+      this.sendHeartbeat();
     }
   }
 
@@ -936,39 +931,44 @@ export default class Gateway {
 
   /**
    * Starts heartbeat. https://discord.com/developers/docs/topics/gateway#heartbeating
-   * @param heartbeatInterval From Discord - Number of ms to wait between sending heartbeats.
+   * @param heartbeatTimeout From Discord - Number of ms to wait between sending heartbeats.
    */
-  private startHeartbeat(heartbeatInterval: number): void {
+  private startHeartbeat(heartbeatTimeout: number): void {
     this.#heartbeatAck = true;
 
-    this.#receivedHeartbeatIntervalTime = heartbeatInterval;
-    this.#heartbeatIntervalTime = heartbeatInterval - this.#heartbeatIntervalOffset;
-    this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime, this.#receivedHeartbeatIntervalTime);
+    this.#receivedHeartbeatIntervalTime = heartbeatTimeout;
+    this.#heartbeatIntervalTime = heartbeatTimeout - this.#heartbeatIntervalOffset;
+    this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime);
+    this.refreshHeartbeatAckTimeout(this.#receivedHeartbeatIntervalTime);
   }
 
   /**
    * Clears old heartbeat timeout and starts a new one.
    */
-  private refreshHeartbeatTimeout(timeToNextHeartbeat: number, timeToAckTimeout: number) {
+  private refreshHeartbeatTimeout(timeToNextHeartbeat: number) {
     if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
-    if (this.#heartbeatAckTimeout !== undefined) clearTimeout(this.#heartbeatAckTimeout);
-    this.#heartbeatTimeout = setTimeout(() => this.checkHeartbeatAck(), timeToNextHeartbeat);
-    this.#heartbeatAckTimeout = setTimeout(() => this.checkHeartbeatAck(false), timeToAckTimeout);
+    this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, timeToNextHeartbeat);
+
     const now = new Date().getTime();
     this.#nextHeartbeatTimestamp = now + timeToNextHeartbeat;
+  }
+
+  private refreshHeartbeatAckTimeout(timeToAckTimeout: number) {
+    if (this.#heartbeatAckTimeout !== undefined) clearTimeout(this.#heartbeatAckTimeout);
+    this.#heartbeatAckTimeout = setTimeout(this.checkHeartbeatAck, timeToAckTimeout);
+
+    const now = new Date().getTime();
     this.#heartbeatExpectedTimestamp = now + timeToAckTimeout;
   }
 
   /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
-  private checkHeartbeatAck(sendHeartBeat = true) {
+  private checkHeartbeatAck() {
     const waitingForAck = this.#heartbeatAck === false;
     const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp < new Date().getTime();
     const requestingMembers = this.#requestingMembersStateMap.size;
 
     if (waitingForAck && ackIsOverdue && !requestingMembers) {
       this.handleMissedHeartbeatAck();
-    } else if (sendHeartBeat) {
-      this.handleSuccessfulHeartbeat();
     }
   }
 
@@ -990,7 +990,8 @@ export default class Gateway {
       this.clearHeartbeat();
       this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
-      this.sendHeartbeat();
+      if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
+      this.#heartbeatAckTimeout = undefined;
     }
   }
 
@@ -998,24 +999,24 @@ export default class Gateway {
     return ++this.#heartbeatsMissedDuringStartup <= this.#startupHeartbeatTolerance;
   }
 
-  private handleSuccessfulHeartbeat(): void {
-    const lastHeartbeatWasAcked = this.#heartbeatAck;
+  private sendHeartbeat(): void {
     this.#heartbeatAck = false;
 
     const now = new Date().getTime();
     const message = this.#nextHeartbeatTimestamp !== undefined
       ? `Heartbeat sent ${now - this.#nextHeartbeatTimestamp}ms after scheduled time.`
       : 'nextHeartbeatTimestamp is undefined.';
-    this.sendHeartbeat(lastHeartbeatWasAcked);
+    this._sendHeartbeat();
     this.log('DEBUG', message);
   }
 
-  private sendHeartbeat(refreshTimeouts = true): void {
+  private _sendHeartbeat(): void {
     if (this.#heartbeatIntervalTime !== undefined && this.#receivedHeartbeatIntervalTime !== undefined) {
       const now = new Date().getTime();
       this.#lastHeartbeatTimestamp = now;
-      if (refreshTimeouts) this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime, this.#receivedHeartbeatIntervalTime);
       this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.#sequence);
+      this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime);
+      if (this.#heartbeatAckTimeout === undefined) this.refreshHeartbeatAckTimeout(this.#receivedHeartbeatIntervalTime);
     } else {
       this.log('ERROR', 'heartbeatIntervalTime or receivedHeartbeatIntervalTime is undefined. Reconnecting.');
       this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
@@ -1031,6 +1032,11 @@ export default class Gateway {
       const message = `Heartbeat acknowledged. Latency: ${new Date().getTime() - this.#lastHeartbeatTimestamp}ms.`;
       this.#lastHeartbeatTimestamp = undefined;
       this.log('DEBUG', message);
+    }
+
+    if (this.#heartbeatAckTimeout) {
+      clearTimeout(this.#heartbeatAckTimeout);
+      this.#heartbeatAckTimeout = undefined;
     }
   }
 
