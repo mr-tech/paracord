@@ -969,7 +969,7 @@ export default class Gateway {
     }
   }
 
-  /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
+  /** Checks if heartbeat ack was received. */
   private checkHeartbeatAck() {
     const waitingForAck = this.#heartbeatAck === false;
     const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp < new Date().getTime();
@@ -977,8 +977,6 @@ export default class Gateway {
 
     if (waitingForAck && ackIsOverdue && !requestingMembers) {
       this.handleMissedHeartbeatAck();
-    } else {
-      this.refreshHeartbeatAckTimeout();
     }
   }
 
