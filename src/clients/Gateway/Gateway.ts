@@ -952,16 +952,20 @@ export default class Gateway {
 
       const now = new Date().getTime();
       this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
+    } else {
+      this.log('ERROR', 'heartbeatIntervalTime undefined.');
     }
   }
 
   private refreshHeartbeatAckTimeout() {
     if (this.#receivedHeartbeatIntervalTime !== undefined) {
       if (this.#heartbeatAckTimeout !== undefined) clearTimeout(this.#heartbeatAckTimeout);
-      this.#heartbeatAckTimeout = setTimeout(this.checkHeartbeatAck, this.#receivedHeartbeatIntervalTime);
+      this.#heartbeatAckTimeout = setTimeout(this.handleMissedHeartbeatAck, this.#receivedHeartbeatIntervalTime);
 
       const now = new Date().getTime();
       this.#heartbeatExpectedTimestamp = now + this.#receivedHeartbeatIntervalTime;
+    } else {
+      this.log('ERROR', 'refreshHeartbeatAckTimeout undefined.');
     }
   }
 
