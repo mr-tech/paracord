@@ -377,7 +377,9 @@ export default class Gateway {
 
     this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
 
-    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guild_id: guildId, ...requiredSendOptions, ...snakeOptions });
+    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{
+      guild_id: guildId, ...requiredSendOptions, ...snakeOptions, nonce,
+    });
   }
 
   private async checkLocksPromise(resolve: () => void): Promise<void> {
@@ -518,7 +520,7 @@ export default class Gateway {
    * @param data Data of the event from Discord.
    */
   private async handleEvent(type: string, data: unknown): Promise<void> {
-    if (type === 'GUILD_MEMBER_CHUNK') this.handleGuildMemberChunk(data as GuildMemberChunk);
+    if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GuildMemberChunk);
 
     if (this.#emitter.eventHandler !== undefined) {
       data = await this.#emitter.eventHandler(type, data, this.id);
@@ -528,15 +530,25 @@ export default class Gateway {
   }
 
   private handleGuildMemberChunk(data: GuildMemberChunk): void {
-    const { nonce, chunk_count, chunk_index } = data;
+    const {
+      nonce, not_found, chunk_count, chunk_index,
+    } = data;
     if (nonce) {
-      const guildChunkState = this.#requestingMembersStateMap.get(nonce);
-      if (guildChunkState) {
-        const { receivedIndexes } = guildChunkState;
-        receivedIndexes.push(chunk_index);
-        if (receivedIndexes.length === chunk_count) {
-          this.#requestingMembersStateMap.delete(nonce);
-        }
+      if (not_found) {
+        this.#requestingMembersStateMap.delete(nonce);
+      } else {
+        this.updateRestMembersState(nonce, chunk_count, chunk_index);
+      }
+    }
+  }
+
+  private updateRestMembersState(nonce: string, chunkCount: number, chunkIndex: number) {
+    const guildChunkState = this.#requestingMembersStateMap.get(nonce);
+    if (guildChunkState) {
+      const { receivedIndexes } = guildChunkState;
+      receivedIndexes.push(chunkIndex);
+      if (receivedIndexes.length === chunkCount) {
+        this.#requestingMembersStateMap.delete(nonce);
       }
     }
   }
