@@ -243,6 +243,8 @@ export default class Gateway {
     this.checkHeartbeatAck = this.checkHeartbeatAck.bind(this);
     this.checkLocksPromise = this.checkLocksPromise.bind(this);
     this.sendHeartbeat = this.sendHeartbeat.bind(this);
+    this.refreshHeartbeatTimeout = this.refreshHeartbeatTimeout.bind(this);
+    this.refreshHeartbeatAckTimeout = this.refreshHeartbeatAckTimeout.bind(this);
   }
 
   /*
