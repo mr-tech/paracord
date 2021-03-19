@@ -2,8 +2,11 @@ import { EventEmitter } from 'events';
 import { UserEvents } from '../../common';
 import Api from '../Api/Api';
 import { IApiResponse } from '../Api/types';
-import { Identify, IdentifyConnectionProperties, GatewayStatusUpdate } from '../../types';
+import {
+  Identify, IdentifyConnectionProperties, GatewayStatusUpdate, RawPresence, RawGuildMember,
+} from '../../types';
 import Gateway from './Gateway';
+import { Snowflake } from '../../../dist/types';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
@@ -99,3 +102,13 @@ export type GatewayCloseEvent = {
 }
 
 export type StartupCheckFunction = (x: Gateway) => boolean;
+
+export interface GuildMemberChunk {
+  guild_id: Snowflake;
+  members: Omit<RawGuildMember, 'guild_id'>[];
+  chunk_index: number;
+  chunk_count: number;
+  not_found?: number;
+  presences?: Omit<RawPresence, 'guild_id'>[];
+  nonce?: string;
+}

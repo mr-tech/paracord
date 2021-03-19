@@ -11,7 +11,7 @@ import {
 import { RemoteApiResponse } from '../../rpc/types';
 import {
   AugmentedRawGuildMember,
-  Identify, RawPresence, RawUser, ReadyEventFields, Snowflake,
+  Identify, RawGuildMember, RawPresence, RawUser, ReadyEventFields, Snowflake,
 } from '../../types';
 import {
   clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
@@ -944,7 +944,7 @@ export default class Paracord extends EventEmitter {
    * @param guild Guild object or id in which to search for member.
    * @param memberId Id of the member.
    */
-  public async fetchMember<T extends ResponseData = any>(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse<T> | RemoteApiResponse<T>> { // TODO create cached type
+  public async fetchMember(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse<RawGuildMember> | RemoteApiResponse<RawGuildMember>> { // TODO create cached type
     let guildId: string;
 
     if (typeof guild === 'string') {
@@ -953,7 +953,7 @@ export default class Paracord extends EventEmitter {
       ({ id: guildId } = guild);
     }
 
-    const res = await this.request<T>('get', `/guilds/${guildId}/members/${memberId}`);
+    const res = await this.request<RawGuildMember>('get', `/guilds/${guildId}/members/${memberId}`);
 
     if (res.status === 200) {
       const guilds = this.#guilds;

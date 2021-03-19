@@ -13,9 +13,10 @@ import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
 import Api from '../Api/Api';
 import Identify from './structures/Identify';
 import {
-  GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
+  GatewayBotResponse, GatewayCloseEvent, GatewayOptions, GuildMemberChunk, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 import { IServiceOptions } from '../Api/types';
+import { Snowflake } from '../../../dist/types';
 
 let erlpack: null | typeof erlpackType = null;
 let encoding = 'json';
@@ -25,6 +26,11 @@ import('erlpack')
     erlpack = _erlpack;
     encoding = 'etf';
   }).catch(() => { /* do nothing */ });
+
+
+interface GuildChunkState {
+  receivedIndexes: number[];
+}
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
@@ -72,13 +78,16 @@ export default class Gateway {
   #heartbeatTimeout?: NodeJS.Timer;
 
   /** From Discord - Time between heartbeats. */
-  #heartbeatIntervalTime?: number;
+  #receivedHeartbeatIntervalTime?: number;
+
+  /** Time between heartbeats with user offset subtracted. */
+  #heartbeatIntervalTime?: number
 
   #heartbeatIntervalOffset: number;
 
   #startupHeartbeatTolerance: number;
 
-  #heartbeatsMissedDuringSetup: number;
+  #heartbeatsMissedDuringStartup: number;
 
   #isStartingFunction?: StartupCheckFunction;
 
@@ -92,6 +101,10 @@ export default class Gateway {
   #identity: Identify;
 
   #checkSiblingHeartbeats?: Gateway['checkIfShouldHeartbeat'][];
+
+  #membersRequestCounter: number;
+
+  #requestingMembersStateMap: Map<string, GuildChunkState>;
 
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
   // #keepCase: false;
@@ -148,6 +161,8 @@ export default class Gateway {
       remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
       resetTimestamp: 0,
     };
+    this.#membersRequestCounter = 0;
+    this.#requestingMembersStateMap = new Map();
     // this.keepCase = options.keepCase || false;
     this.#emitter = emitter ?? new EventEmitter();
     this.#identity = new Identify(coerceTokenToBotLike(token), identity);
@@ -157,7 +172,7 @@ export default class Gateway {
     this.#events = events;
     this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
     this.#startupHeartbeatTolerance = startupHeartbeatTolerance || 0;
-    this.#heartbeatsMissedDuringSetup = 0;
+    this.#heartbeatsMissedDuringStartup = 0;
     this.#isStartingFunction = isStartingFunc;
     this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
 
@@ -195,8 +210,34 @@ export default class Gateway {
     return this.#online;
   }
 
+  /** This gateway's active websocket connection. */
   public get ws(): ws | undefined {
     return this.#ws;
+  }
+
+  /** If the last heartbeat packet sent to Discord received an ACK. */
+  public get heartbeatAck(): boolean {
+    return this.#heartbeatAck;
+  }
+
+  /** While connected - Time between heartbeats from Discord.
+   * `options#heartbeatIntervalOffset` is subtracted from this  */
+  public get heartbeatInterval(): undefined | number {
+    return this.#receivedHeartbeatIntervalTime;
+  }
+
+  /** Between Heartbeat/ACK, time when last heartbeat packet was sent in ms. */
+  public get lastHeartbeatTimestamp(): number | undefined {
+    return this.#lastHeartbeatTimestamp;
+  }
+
+  /** Time when the next heartbeat packet should be sent in ms. */
+  public get nextHeartbeatTimestamp(): number | undefined {
+    return this.#nextHeartbeatTimestamp;
+  }
+
+  public get requestingMembers(): boolean {
+    return !!this.#requestingMembersStateMap.size;
   }
 
   /** Binds `this` to certain methods so that they are able to be called in `setInterval()` and `setTimeout()`. */
@@ -328,6 +369,13 @@ export default class Gateway {
       limit: 0,
     };
     const snakeOptions = objectKeysCamelToSnake(options);
+    let { nonce } = options;
+    if (nonce === undefined) {
+      nonce = `${guildId}-${++this.#membersRequestCounter}`;
+    }
+
+    this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
+
     return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{ guild_id: guildId, ...requiredSendOptions, ...snakeOptions });
   }
 
@@ -469,11 +517,27 @@ export default class Gateway {
    * @param data Data of the event from Discord.
    */
   private async handleEvent(type: string, data: unknown): Promise<void> {
+    if (type === 'GUILD_MEMBER_CHUNK') this.handleGuildMemberChunk(data as GuildMemberChunk);
+
     if (this.#emitter.eventHandler !== undefined) {
       data = await this.#emitter.eventHandler(type, data, this.id);
     }
 
     data && this.emit(type, data);
+  }
+
+  private handleGuildMemberChunk(data: GuildMemberChunk): void {
+    const { nonce, chunk_count, chunk_index } = data;
+    if (nonce) {
+      const guildChunkState = this.#requestingMembersStateMap.get(nonce);
+      if (guildChunkState) {
+        const { receivedIndexes } = guildChunkState;
+        receivedIndexes.push(chunk_index);
+        if (receivedIndexes.length === chunk_count) {
+          this.#requestingMembersStateMap.delete(nonce);
+        }
+      }
+    }
   }
 
   // /**
@@ -535,6 +599,8 @@ export default class Gateway {
   private _onclose(event: ws.CloseEvent): void {
     this.#ws = undefined;
     this.#online = false;
+    this.#membersRequestCounter = 0;
+    this.#requestingMembersStateMap = new Map();
     this.clearHeartbeat();
     const shouldReconnect = this.handleCloseCode(event.code);
 
@@ -714,8 +780,9 @@ export default class Gateway {
     this.#lastHeartbeatTimestamp = undefined;
     this.#nextHeartbeatTimestamp = undefined;
     this.#heartbeatTimeout = undefined;
+    this.#receivedHeartbeatIntervalTime = undefined;
     this.#heartbeatIntervalTime = undefined;
-    this.#heartbeatsMissedDuringSetup = 0;
+    this.#heartbeatsMissedDuringStartup = 0;
     this.log('DEBUG', 'Heartbeat cleared.');
   }
 
@@ -845,7 +912,7 @@ export default class Gateway {
    */
   private handleHello(data: Hello): void {
     this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
-    this.startHeartbeat(data.heartbeat_interval - this.#heartbeatIntervalOffset);
+    this.startHeartbeat(data.heartbeat_interval);
     this.connect(this.resumable);
 
     this.handleEvent('HELLO', data);
@@ -857,9 +924,10 @@ export default class Gateway {
    */
   private startHeartbeat(heartbeatInterval: number): void {
     this.#heartbeatAck = true;
-    this.#heartbeatIntervalTime = heartbeatInterval;
 
-    this.refreshHeartbeatTimeout(heartbeatInterval);
+    this.#receivedHeartbeatIntervalTime = heartbeatInterval;
+    this.#heartbeatIntervalTime = heartbeatInterval - this.#heartbeatIntervalOffset;
+    this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime);
   }
 
   /**
@@ -874,7 +942,7 @@ export default class Gateway {
 
   /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
   private heartbeat() {
-    if (this.#heartbeatAck === false) {
+    if (this.#heartbeatAck === false && !this.#requestingMembersStateMap.size) {
       this.handleMissedHeartbeatAck();
     } else {
       this.handleSuccessfulHeartbeat();
@@ -891,7 +959,7 @@ export default class Gateway {
     if (this.isStarting) {
       if (this.allowMissingAckOnStartup()) {
         this.sendHeartbeat();
-        this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#heartbeatsMissedDuringSetup} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
+        this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#heartbeatsMissedDuringStartup} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
       } else {
         this.log('ERROR', 'Missed heartbeats exceeded startupHeartbeatTolerance.');
         close = true;
@@ -910,7 +978,7 @@ export default class Gateway {
   }
 
   private allowMissingAckOnStartup(): boolean {
-    return ++this.#heartbeatsMissedDuringSetup <= this.#startupHeartbeatTolerance;
+    return ++this.#heartbeatsMissedDuringStartup <= this.#startupHeartbeatTolerance;
   }
 
   private handleSuccessfulHeartbeat(): void {
@@ -946,9 +1014,6 @@ export default class Gateway {
       const message = `Heartbeat acknowledged. Latency: ${new Date().getTime() - this.#lastHeartbeatTimestamp}ms.`;
       this.#lastHeartbeatTimestamp = undefined;
       this.log('DEBUG', message);
-    } else {
-      this.log('ERROR', 'lastHeartbeatTimestamp is undefined. Reconnecting.');
-      this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
 
@@ -981,7 +1046,7 @@ export default class Gateway {
 
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
-      this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionI d: ${sessionId}, sequence: ${sequence}`);
+      this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
       this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }

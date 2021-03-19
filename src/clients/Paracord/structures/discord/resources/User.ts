@@ -156,7 +156,7 @@ export default class User {
   }
 
   public decrementActiveReferenceCount(): void {
-    if (--this.#activeReferenceCount === 0) this.#client.removeUserWithNoReferences(this);
+    if (--this.#activeReferenceCount === 0 && !this.bot) this.#client.removeUserWithNoReferences(this);
   }
 
   public resetActiveReferenceCount(): void {
