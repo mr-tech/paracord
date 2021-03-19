@@ -956,7 +956,7 @@ export default class Gateway {
   /** Checks if heartbeat ack was received. If not, closes gateway connection. If so, send a heartbeat. */
   private heartbeat() {
     const waitingForAck = this.#heartbeatAck === false;
-    const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp > new Date().getTime();
+    const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp < new Date().getTime();
     const requestingMembers = this.#requestingMembersStateMap.size;
 
     if (waitingForAck && ackIsOverdue && !requestingMembers) {
