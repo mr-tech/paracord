@@ -880,8 +880,6 @@ export default class Gateway {
       this.#heartbeatAck
       && this.#nextHeartbeatTimestamp !== undefined
       && now > this.#nextHeartbeatTimestamp
-      && this.#ws?.readyState !== ws.CLOSING
-      && this.#ws?.readyState !== ws.CLOSED
     ) {
       this.heartbeat();
     }
@@ -929,7 +927,7 @@ export default class Gateway {
 
     this.#receivedHeartbeatIntervalTime = heartbeatInterval;
     this.#heartbeatIntervalTime = heartbeatInterval - this.#heartbeatIntervalOffset;
-    this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime, heartbeatInterval);
+    this.refreshHeartbeatTimeout(this.#heartbeatIntervalTime, this.#receivedHeartbeatIntervalTime);
   }
 
   /**
@@ -960,7 +958,6 @@ export default class Gateway {
     let close = false;
     if (this.isStarting) {
       if (this.allowMissingAckOnStartup()) {
-        this.sendHeartbeat();
         this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#heartbeatsMissedDuringStartup} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
       } else {
         this.log('ERROR', 'Missed heartbeats exceeded startupHeartbeatTolerance.');
@@ -985,12 +982,12 @@ export default class Gateway {
 
   private handleSuccessfulHeartbeat(): void {
     this.#heartbeatAck = false;
-    this.sendHeartbeat();
 
     const now = new Date().getTime();
     const message = this.#nextHeartbeatTimestamp !== undefined
       ? `Heartbeat sent ${now - this.#nextHeartbeatTimestamp}ms after scheduled time.`
       : 'nextHeartbeatTimestamp is undefined.';
+    this.sendHeartbeat();
     this.log('DEBUG', message);
   }
 
