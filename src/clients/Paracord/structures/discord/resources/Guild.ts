@@ -608,10 +608,10 @@ export default class Guild {
       return cachedMember.update(member);
     }
 
-
     const voiceState = this.voiceStates.get(userId);
     if (
-      !member.roles.length
+      !user.bot
+      && !member.roles.length
       && this.ownerId !== userId
       && this.#client.user.id !== userId
       && !voiceState
@@ -645,11 +645,11 @@ export default class Guild {
   }
 
   public incrementMemberCount(): void {
-    this.memberCount !== undefined && ++this.memberCount;
+    if (this.memberCount !== undefined) ++this.memberCount;
   }
 
   public decrementMemberCount(): void{
-    this.memberCount !== undefined && --this.memberCount;
+    if (this.memberCount !== undefined) --this.memberCount;
   }
 
   /**
