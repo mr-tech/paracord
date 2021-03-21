@@ -233,6 +233,10 @@ export default class Gateway {
     return this.#nextHeartbeatTimestamp;
   }
 
+  public get memberRequestStates(): Map<string, GuildChunkState> {
+    return this.#requestingMembersStateMap;
+  }
+
   public get requestingMembers(): boolean {
     return !!this.#requestingMembersStateMap.size;
   }
