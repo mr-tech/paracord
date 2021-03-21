@@ -322,18 +322,19 @@ export function isObject(v: unknown): boolean {
 }
 
 export function squashArrays <T>(oldArray: Array<T>, newArray: Array<T>): Array<T> {
+  const newArrayCopy = newArray.slice();
   const removedItems = [];
   for (let i = oldArray.length; i >= 0; --i) {
     const oldItem = oldArray[i];
-    const newIdx = newArray.indexOf(oldItem);
+    const newIdx = newArrayCopy.indexOf(oldItem);
     if (newIdx > -1) { // item already in old array
-      newArray.splice(newIdx, 1);
+      newArrayCopy.splice(newIdx, 1);
     } else { // item not in new array
       removedItems.push(...oldArray.splice(i, 1));
     }
   }
 
-  oldArray.push(...newArray);
+  oldArray.push(...newArrayCopy);
 
   return removedItems;
 }
