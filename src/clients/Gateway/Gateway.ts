@@ -841,12 +841,13 @@ export default class Gateway {
         } else if (type !== null) {
           // back pressure may cause the interval to occur too late, hence this check
           this._checkIfShouldHeartbeat();
-          // defer execution to allow back pressure (which may include critical events like HEARTBEAT_ACK) to process
-          setImmediate(() => {
-            // deferred events will block just as hard on the next pass of the event loop as when they were coming in, hence this second check
-            this._checkIfShouldHeartbeat();
-            this.handleEvent(type, data);
-          });
+          this.handleEvent(type, data);
+          //   // defer execution to allow back pressure (which may include critical events like HEARTBEAT_ACK) to process
+          // setImmediate(() => {
+          //   // deferred events will block just as hard on the next pass of the event loop as when they were coming in, hence this second check
+          //   this._checkIfShouldHeartbeat();
+          //   this.handleEvent(type, data);
+          // });
         } else {
           this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
