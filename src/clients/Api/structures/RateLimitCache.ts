@@ -1,5 +1,6 @@
 import { AxiosInstance } from 'axios';
 import type { ApiRequest } from '.';
+import type Api from '../Api';
 import { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
 import { millisecondsFromNow } from '../../../utils';
 import { IRateLimitState, ResponseData, WrappedRequest } from '../types';
@@ -40,9 +41,9 @@ export default class RateLimitCache {
    * Creates a new rate limit cache.
    * @param autoStartSweep Specify false to not start the sweep interval.
    */
-  public constructor(autoStartSweep = true) {
+  public constructor(autoStartSweep = true, logger?: Api) {
     this.#requestRouteMetaToBucket = new Map();
-    this.#rateLimitMap = new RateLimitMap();
+    this.#rateLimitMap = new RateLimitMap(logger);
     this.#rateLimitTemplateMap = new RateLimitTemplateMap();
     this.#globalRateLimitState = {
       remaining: 0,

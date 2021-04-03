@@ -64,7 +64,7 @@ export type Resume = {
   /** session id */
   session_id: string;
   /** last sequence number received */
-  seq: number;
+  seq: null | number;
 };
 
 // ========================================================================

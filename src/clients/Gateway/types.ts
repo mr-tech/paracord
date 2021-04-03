@@ -2,7 +2,9 @@ import { EventEmitter } from 'events';
 import { UserEvents } from '../../common';
 import Api from '../Api/Api';
 import { IApiResponse } from '../Api/types';
-import { Identify, IdentifyConnectionProperties, GatewayStatusUpdate } from '../../types';
+import {
+  Identify, IdentifyConnectionProperties, GatewayStatusUpdate, RawPresence, RawGuildMember, Snowflake,
+} from '../../types';
 import Gateway from './Gateway';
 
 export interface GatewayOptions {
@@ -24,6 +26,8 @@ export interface GatewayOptions {
   startupHeartbeatTolerance?: number;
   /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
   isStartingFunc?: StartupCheckFunction;
+  /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
+  checkSiblingHeartbeats?: Gateway['checkIfShouldHeartbeat'][];
 }
 
 type ErrorResponse = {
@@ -97,3 +101,13 @@ export type GatewayCloseEvent = {
 }
 
 export type StartupCheckFunction = (x: Gateway) => boolean;
+
+export interface GuildMemberChunk {
+  guild_id: Snowflake;
+  members: Omit<RawGuildMember, 'guild_id'>[];
+  chunk_index: number;
+  chunk_count: number;
+  not_found?: number;
+  presences?: Omit<RawPresence, 'guild_id'>[];
+  nonce?: string;
+}

@@ -6,12 +6,12 @@ import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
 import Role from './structures/discord/resources/Role';
 import { DebugLevel, ILockServiceOptions, UserEvents } from '../../common';
 import {
-  LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, SECOND_IN_MILLISECONDS,
+  LOG_LEVELS, LOG_SOURCES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 import { RemoteApiResponse } from '../../rpc/types';
 import {
   AugmentedRawGuildMember,
-  Identify, RawPresence, RawUser, ReadyEventFields, Snowflake,
+  Identify, RawGuildMember, RawPresence, RawUser, ReadyEventFields, Snowflake,
 } from '../../types';
 import {
   clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
@@ -114,12 +114,6 @@ export default class Paracord extends EventEmitter {
   /** Interval that coordinates gateway logins. */
   #processGatewayQueueInterval?: NodeJS.Timer;
 
-  /** Interval that removes objects from the presence and user caches. */
-  #sweepCachesInterval?:NodeJS.Timer;
-
-  /** Interval that removes object from the redundant presence update cache. */
-  #sweepRecentPresenceUpdatesInterval?: NodeJS.Timer;
-
   /* User-defined event handling behavior. */
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
   #events?: UserEvents;
@@ -130,6 +124,8 @@ export default class Paracord extends EventEmitter {
   #preventLogin: boolean;
 
   #gatewayEvents: EventFunctions;
+
+  #gatewayHeartbeats: Gateway['checkIfShouldHeartbeat'][];
 
   /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
   private static validateParams(token: string): void {
@@ -174,6 +170,7 @@ export default class Paracord extends EventEmitter {
     this.#allowEventsDuringStartup = false;
     this.#preventLogin = false;
     this.safeGatewayIdentifyTimestamp = 0;
+    this.#gatewayHeartbeats = [];
 
     const {
       events, apiOptions, gatewayOptions, filterOptions,
@@ -194,6 +191,8 @@ export default class Paracord extends EventEmitter {
     }
     this.bindTimerFunction();
     this.#gatewayEvents = this.bindEventFunctions();
+    this.handlePresenceRemovedFromGuild = this.handlePresenceRemovedFromGuild.bind(this);
+    this.handleUserRemovedFromGuild = this.handleUserRemovedFromGuild.bind(this);
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -264,7 +263,6 @@ export default class Paracord extends EventEmitter {
 
   /** Binds `this` to functions that are used in timeouts and intervals. */
   private bindTimerFunction(): void {
-    this.sweepCaches = this.sweepCaches.bind(this);
     this.processGatewayQueue = this.processGatewayQueue.bind(this);
   }
 
@@ -366,8 +364,6 @@ export default class Paracord extends EventEmitter {
     await this.enqueueGateways(options);
 
     this.#allowEventsDuringStartup = allowEventsDuringStartup || false;
-
-    this.startSweepInterval();
   }
 
   /** Begins the interval that kicks off gateway logins from the queue. */
@@ -475,7 +471,7 @@ export default class Paracord extends EventEmitter {
       throw Error('shards defined with no shardCount.');
     }
 
-    let wsUrl;
+    let wsUrl: string | undefined;
     if (shardCount === undefined) {
       const { status, data: { url, shards: recommendedShards } } = <GatewayBotResponse> await this.api.request(
         'get',
@@ -509,6 +505,8 @@ export default class Paracord extends EventEmitter {
       throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
     }
 
+    this.#gatewayHeartbeats.push(gateway.checkIfShouldHeartbeat);
+
     ++this.#gatewayWaitCount;
     this.#gateways.set(gateway.id, gateway);
     this.gatewayLoginQueue.push(gateway);
@@ -516,7 +514,7 @@ export default class Paracord extends EventEmitter {
 
   private createGatewayOptions(identity: Identify, wsUrl?: string): GatewayOptions {
     const gatewayOptions: GatewayOptions = {
-      identity, api: this.api, emitter: this, wsUrl,
+      identity, api: this.api, emitter: this, wsUrl, checkSiblingHeartbeats: this.#gatewayHeartbeats,
     };
 
     if (this.#startupHeartbeatTolerance !== undefined) {
@@ -537,13 +535,6 @@ export default class Paracord extends EventEmitter {
     this.#initialized = true;
   }
 
-  /** Begins the intervals that prune caches. */
-  public startSweepInterval(): void {
-    this.#sweepCachesInterval = setInterval(
-      this.sweepCaches,
-      MINUTE_IN_MILLISECONDS,
-    );
-  }
 
   /*
    ********************************
@@ -617,7 +608,7 @@ export default class Paracord extends EventEmitter {
    */
   public handleReady(data: ReadyEventFields, shard: number): void {
     const { user, guilds } = data;
-    this.user = new User(this.#filterOptions?.props, user);
+    this.user = new User(this.#filterOptions?.props, user, this);
 
     this.#guildWaitCount = guilds.length;
     this.log('INFO', `Logged in as ${this.user.tag}.`);
@@ -643,9 +634,9 @@ export default class Paracord extends EventEmitter {
   public clearShardGuilds(shardId: number): void {
     const guilds = this.#guilds;
     if (guilds !== undefined) {
-      for (const [id, guild] of guilds.entries()) {
-        if (guild.shard === shardId) guilds.delete(id);
-      }
+      guilds.forEach((guild) => {
+        if (guild.shard === shardId) this.removeGuild(guild);
+      });
     }
   }
 
@@ -706,8 +697,10 @@ export default class Paracord extends EventEmitter {
       message += ` ${reason}`;
     }
 
+
     this.log('INFO', message);
     this.emit('PARACORD_STARTUP_COMPLETE');
+    // this.removeInactiveUsersFromCache();
   }
 
   /*
@@ -715,6 +708,38 @@ export default class Paracord extends EventEmitter {
    *********** CACHING ************
    ********************************
    */
+
+  // protected removeInactiveUsersFromCache(iterator?: IterableIterator<User>, removedCount = 0): void {
+  //   let throttle = 10000;
+  //   let runAgain = false;
+  //   const iter = iterator ?? this.#users.values();
+  //   for (const user of iter) {
+  //     if (user.activeReferenceCount === 0) {
+  //       this.#users.delete(user.id);
+  //       ++removedCount;
+  //       if (!--throttle) {
+  //         runAgain = true;
+  //         break;
+  //       }
+  //     }
+  //   }
+
+
+  //   if (runAgain) setTimeout(() => this.removeInactiveUsersFromCache(iter, removedCount));
+  //   else {
+  //     // final pass
+  //     setTimeout(() => {
+  //       for (const user of this.#users.values()) {
+  //         if (user.activeReferenceCount === 0) {
+  //           this.#users.delete(user.id);
+  //           ++removedCount;
+  //         }
+  //       }
+
+  //       this.log('INFO', `Removed ${removedCount} inactive users from cache.`);
+  //     });
+  //   }
+  // }
 
   /**
    * Inserts/updates properties of a guild.
@@ -730,9 +755,20 @@ export default class Paracord extends EventEmitter {
    * @param user From Discord - https://discord.com/developers/docs/resources/user#user-object-user-structure
    */
   public upsertUser(user: RawUser): User {
-    const cachedUser = this.#users?.get(user.id)?.update(user) ?? this.#users?.add(user.id, user);
-    cachedUser && this.circularAssignCachedPresence(cachedUser);
+    const cachedUser = this.#users?.get(user.id)?.update(user) ?? this.#users?.add(user.id, user, this);
+    if (cachedUser) this.circularAssignCachedPresence(cachedUser);
     return cachedUser;
+  }
+
+  public removeUserWithNoReferences(user: User): void {
+    if (this.#guilds !== undefined) {
+      // only need to delete from members because 0 active references means no voice states and presences
+      for (const guild of this.#guilds.values()) {
+        guild.members.delete(user.id);
+      }
+    }
+
+    this.#users.delete(user.id);
   }
 
   /**
@@ -752,7 +788,7 @@ export default class Paracord extends EventEmitter {
    * Inserts/updates presence in this client's cache.
    * @param presence From Discord - https://discord.com/developers/docs/topics/gateway#presence-update
    */
-  private upsertPresence(presence: RawPresence): Presence | undefined {
+  private upsertPresence(presence: RawPresence): Presence {
     let cachedPresence = this.#presences.get(presence.user.id);
     if (cachedPresence !== undefined) {
       cachedPresence.update(presence);
@@ -773,6 +809,7 @@ export default class Paracord extends EventEmitter {
     if (cachedPresence !== undefined) {
       user.presence = cachedPresence;
       user.presence.user = user;
+      user.incrementActiveReferenceCount();
     }
   }
 
@@ -785,6 +822,7 @@ export default class Paracord extends EventEmitter {
     if (cachedUser !== undefined) {
       presence.user = cachedUser;
       cachedUser.presence = presence;
+      cachedUser.incrementActiveReferenceCount();
     }
   }
 
@@ -793,10 +831,16 @@ export default class Paracord extends EventEmitter {
    * @param userId Id of the presence's user.
    */
   private deletePresence(userId: Snowflake): void {
-    this.#presences.delete(userId);
-    const user = this.#users.get(userId);
-    if (user !== undefined) {
-      user.presence = undefined;
+    const cachedPresence = this.#presences.get(userId);
+    if (cachedPresence) {
+      this.#presences.delete(userId);
+
+      const { user } = cachedPresence;
+      if (user instanceof User) {
+        user.decrementActiveReferenceCount();
+        // break circular reference just to be safe
+        user.presence = undefined;
+      }
     }
   }
 
@@ -810,13 +854,41 @@ export default class Paracord extends EventEmitter {
 
     if (guild !== undefined) {
       if (cachedPresence !== undefined) {
-        guild.setPresence(cachedPresence);
+        guild.insertCachedPresence(cachedPresence);
       } else {
-        guild.deletePresence(presence.user.id);
+        guild.removePresence(presence.user.id);
       }
     }
 
     return cachedPresence;
+  }
+
+  public removeGuild(guild: Guild): void {
+    Array.from(guild.members.values()).forEach(({ user }) => this.handleUserRemovedFromGuild(user, guild));
+    Array.from(guild.voiceStates.values()).forEach(({ user }) => {
+      user?.decrementActiveReferenceCount();
+    });
+    if (guild.presences) {
+      Array.from(guild.presences.values()).forEach(this.handlePresenceRemovedFromGuild);
+    }
+    this.#guilds?.delete(guild.id);
+  }
+
+  public handleUserRemovedFromGuild(user: User, guild: Guild): void {
+    user.decrementGuildCount();
+    if (user.guildCount === 0) {
+      if (user !== this.user) {
+        this.#users.delete(user.id);
+        user.resetActiveReferenceCount();
+      }
+    } else if (guild.voiceStates.has(user.id)) user.decrementActiveReferenceCount();
+  }
+
+  public handlePresenceRemovedFromGuild(presence: Presence): void {
+    presence.decrementGuildCount();
+    if (presence.guildCount === 0) {
+      this.#presences.delete(presence.user.id);
+    }
   }
 
   // /**
@@ -828,66 +900,6 @@ export default class Paracord extends EventEmitter {
   //   const cachedMember = guild.members.get(member.user.id);
   //   return cachedMember === undefined ? guild.upsertMember(member, this) : cachedMember;
   // }
-
-  /** Removes from presence and user caches users who are no longer in a cached guild. */
-  private async sweepCaches(): Promise<void> {
-    const checkOffset = new Date().getMinutes();
-    if (this.connecting || this.#guilds === undefined || (checkOffset % 5) !== 0) return;
-
-    const deleteIds = Paracord.deDupeResource(checkOffset, this.#users.values(), this.#presences.values());
-
-    await new Promise((resolve) => setTimeout(resolve)); // yield execution to event loop
-    const startTime = new Date().getTime();
-
-    Paracord.trimMembersFromDeleteList(deleteIds, this.#guilds.values());
-
-    let sweptCount = 0;
-    for (const id of deleteIds.values()) {
-      this.clearUserFromCaches(id);
-      ++sweptCount;
-    }
-
-    this.log('INFO', `Swept ${sweptCount} users from caches in ${new Date().getTime() - startTime} ms.`);
-  }
-
-  /** https://stackoverflow.com/questions/6940103/how-do-i-make-an-array-with-unique-elements-i-e-remove-duplicates */
-  private static deDupeResource(currentCheckOffset: number, users: IterableIterator<User>, presences: IterableIterator<Presence>): Set<Snowflake> {
-    const uniqueIdArr: Snowflake[] = [];
-    if (currentCheckOffset % 10 === 0) {
-      for (const { id, checkOffset } of users) {
-        if (checkOffset === currentCheckOffset) uniqueIdArr.push(id);
-      }
-    } else if (currentCheckOffset % 10 === 5) {
-      for (const { user: { id }, checkOffset } of presences) {
-        if (checkOffset === currentCheckOffset) uniqueIdArr.push(id);
-      }
-    }
-
-    return new Set(uniqueIdArr);
-  }
-
-  /**
-   * Remove users referenced in a guild's members or presences from the delete list.
-   * @param deleteIds Unique set of user ids in a map.
-   * @param guilds An iterable of guilds.
-   *  */
-  private static trimMembersFromDeleteList(deleteIds: Set<Snowflake>, guilds: IterableIterator<Guild>): void {
-    for (const { members, presences } of guilds) {
-      const cachedIds = new Set([...presences.keys(), ...members.keys()]);
-      for (const id of cachedIds.values()) {
-        deleteIds.delete(id);
-      }
-    }
-  }
-
-  /**
-   * Delete the user and its presence from this client's cache.
-   * @param id User id.
-   */
-  private clearUserFromCaches(id: Snowflake) {
-    this.#presences.delete(id);
-    this.#users.delete(id);
-  }
 
   /*
    ********************************
@@ -932,14 +944,16 @@ export default class Paracord extends EventEmitter {
    * @param guild Guild object or id in which to search for member.
    * @param memberId Id of the member.
    */
-  public async fetchMember<T extends ResponseData = any>(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse<T> | RemoteApiResponse<T>> { // TODO create cached type
-    let guildId;
+  public async fetchMember(guild: Snowflake | Guild, memberId: Snowflake): Promise<IApiResponse<RawGuildMember> | RemoteApiResponse<RawGuildMember>> { // TODO create cached type
+    let guildId: string;
 
-    if (typeof guild !== 'string') {
+    if (typeof guild === 'string') {
+      guildId = guild;
+    } else {
       ({ id: guildId } = guild);
     }
 
-    const res = await this.request<T>('get', `/guilds/${guildId}/members/${memberId}`);
+    const res = await this.request<RawGuildMember>('get', `/guilds/${guildId}/members/${memberId}`);
 
     if (res.status === 200) {
       const guilds = this.#guilds;

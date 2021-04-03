@@ -80,7 +80,7 @@ export function GUILD_DELETE(this: Paracord, data: UnavailableGuild): Guild | Un
   }
 
   if (!data.unavailable) {
-    this.guilds.delete(data.id);
+    this.removeGuild(guild);
     return guild;
   }
 
@@ -127,7 +127,7 @@ export function VOICE_STATE_UPDATE(this: Paracord, data: AugmentedRawVoiceState)
       return guild.upsertVoiceState(data) ?? data;
     }
 
-    guild.voiceStates.delete(userId);
+    guild.removeVoiceState(userId);
   }
 
   return data;
@@ -156,7 +156,7 @@ export function CHANNEL_DELETE(this: Paracord, data: RawChannel): GuildChannel |
 
   const guild = this.guilds.get(guildId);
 
-  let channel;
+  let channel: GuildChannel | undefined;
   if (guild !== undefined) {
     channel = guild.removeChannel(id);
   }

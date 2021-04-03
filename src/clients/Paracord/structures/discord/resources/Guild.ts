@@ -48,6 +48,9 @@ export default class Guild {
   /** states of members currently in voice channels | undefined; lacks the `guild_id` key */
   #voiceStates: VoiceStateMap | undefined;
 
+  /** The guild owner's member object if cached. */
+  #owner: GuildMember | undefined;
+
   /** guild name (2-100 characters, excluding trailing and leading whitespace) */
   public name: string | undefined;
 
@@ -62,9 +65,6 @@ export default class Guild {
 
   /** id of owner */
   public ownerId: Snowflake | undefined;
-
-  /** The guild owner's member object if cached. */
-  public owner: GuildMember | undefined;
 
   /** The bot's member object. */
   public me: GuildMember | undefined;
@@ -201,6 +201,18 @@ export default class Guild {
     return this.#client;
   }
 
+  public get owner(): GuildMember | undefined {
+    return this.#owner;
+  }
+
+  public set owner(member: GuildMember | undefined) {
+    if (this.#owner !== member) {
+      this.#owner?.user.decrementActiveReferenceCount();
+    }
+    member?.user.incrementActiveReferenceCount();
+    this.#owner = member;
+  }
+
   /** The epoch timestamp of when this guild was created extract from its Id. */
   public get createdOn(): number {
     return timestampFromSnowflake(this.#id);
@@ -289,7 +301,7 @@ export default class Guild {
     }
 
     if (presences !== undefined && this.#presences !== undefined) {
-      presences.forEach((p) => this.insertPresence(p));
+      presences.forEach((p) => this.insertRawPresence(p));
     }
 
     if (voice_states !== undefined && this.#voiceStates !== undefined) {
@@ -590,37 +602,54 @@ export default class Guild {
     const members = this.#members;
     if (members === undefined) return undefined;
 
-    const { user, user: { id } } = member;
-    let cachedMember = members.get(id);
+    const { user, user: { id: userId } } = member;
+    let cachedMember = members.get(userId);
     if (cachedMember !== undefined) {
       return cachedMember.update(member);
     }
 
-    const cachedUser = this.#client.upsertUser(user);
-    cachedMember = members.add(id, member, cachedUser, this);
+    const voiceState = this.voiceStates.get(userId);
+    if (
+      !user.bot
+      && !member.roles.length
+      && this.ownerId !== userId
+      && this.#client.user.id !== userId
+      && !voiceState
+    ) return undefined;
 
-    if (this.owner === undefined && this.ownerId === id) {
+    const cachedUser = this.#client.upsertUser(user);
+    cachedMember = members.add(userId, member, cachedUser, this);
+
+    if (this.ownerId === userId) {
       this.owner = cachedMember;
     }
-    if (this.me === undefined && this.#client.user.id === id) {
+
+    if (this.me === undefined && this.#client.user.id === userId) {
       this.me = cachedMember;
     }
+
+    voiceState?.setMember(cachedMember);
 
     return cachedMember;
   }
 
   public removeMember(id: Snowflake): GuildMember | undefined {
-    const presences = this.#presences;
-    if (presences !== undefined) presences.delete(id);
-    return this.#members && Guild.removeFromCache(this.#members, id);
+    this.removePresence(id);
+    let member: GuildMember | undefined;
+    if (this.#members) member = Guild.removeFromCache<GuildMember, GuildMemberMap>(this.#members, id);
+    if (member) {
+      if (member.roles?.size || member.roleIds.length) member.user.decrementActiveReferenceCount();
+      this.#client.handleUserRemovedFromGuild(member.user, this);
+    }
+    return member;
   }
 
   public incrementMemberCount(): void {
-    this.memberCount !== undefined && ++this.memberCount;
+    if (this.memberCount !== undefined) ++this.memberCount;
   }
 
   public decrementMemberCount(): void{
-    this.memberCount !== undefined && --this.memberCount;
+    if (this.memberCount !== undefined) --this.memberCount;
   }
 
   /**
@@ -684,7 +713,7 @@ export default class Guild {
     const { user_id } = voiceState;
     const cachedVoiceState = voiceStates.get(user_id);
     if (cachedVoiceState !== undefined) {
-      let channel;
+      let channel: GuildChannel | undefined;
       if (voiceState.channel_id !== null && cachedVoiceState.channel.id !== voiceState.channel_id) {
         channel = this.channels.get(voiceState.channel_id);
       }
@@ -695,7 +724,7 @@ export default class Guild {
   }
 
   /**
-   * Add a role to a map of voice states.
+   * Add a voice state to a map of voice states.
    * @param voiceState https://discord.com/developers/docs/resources/voice
    * @param client
    */
@@ -704,7 +733,7 @@ export default class Guild {
     const { user_id: userId, member, channel_id } = voiceState;
     if (voiceStates === undefined || channel_id === null) return undefined;
 
-    let cachedMember;
+    let cachedMember: GuildMember | undefined;
     if (member !== undefined) {
       cachedMember = this.upsertMember(member);
     } else {
@@ -716,17 +745,29 @@ export default class Guild {
     return voiceStates.add(userId, voiceState, user, cachedMember, this, this.channels.get(channel_id));
   }
 
+  /** Remove a voice state from the map of voice states and handle the cached user */
+  public removeVoiceState(id: Snowflake): void {
+    const voiceStates = this.#voiceStates;
+    if (voiceStates === undefined) return;
+
+    const cachedPresence = voiceStates.get(id);
+    cachedPresence?.user?.decrementActiveReferenceCount();
+
+    voiceStates.delete(id);
+  }
+
   /**
-   * Create a map of presences keyed to their user's ids.
+   * Add presence to map of presences.
    * @param presence https://discord.com/developers/docs/topics/gateway#presence-update-presence-update-event-fields
    * @param client
    */
-  private insertPresence(presence: RawPresence): RawPresence | undefined {
+  private insertRawPresence(presence: RawPresence): RawPresence | undefined {
     const presences = this.#presences;
     if (presences === undefined) return undefined;
 
     const cachedPresence = this.#client.updatePresences(presence);
     if (cachedPresence !== undefined) {
+      cachedPresence.incrementGuildCount();
       presences.set(cachedPresence.user.id, cachedPresence);
     }
 
@@ -737,16 +778,28 @@ export default class Guild {
    * Set a presence in this guild's presence cache.
    * @param presence
    */
-  public setPresence(presence: Presence): void {
-    this.#presences?.set(presence.user.id, presence);
+  public insertCachedPresence(presence: Presence): void {
+    if (this.#presences) {
+      const cachedPresence = this.#presences.get(presence.user.id);
+      if (!cachedPresence) {
+        presence.incrementGuildCount();
+        this.#presences.set(presence.user.id, presence);
+      }
+    }
   }
 
   /**
    * Remove a presence from this guild's presence cache.
    * @param userId
    */
-  public deletePresence(userId: Snowflake): void {
-    this.#presences?.delete(userId);
+  public removePresence(userId: Snowflake): void {
+    if (this.#presences) {
+      const presence = this.#presences.get(userId);
+      if (presence) {
+        this.#presences.delete(userId);
+        this.#client.handlePresenceRemovedFromGuild(presence);
+      }
+    }
   }
 
   // /**

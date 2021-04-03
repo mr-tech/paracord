@@ -37,7 +37,7 @@ export default class Lock {
    */
   public acquire(timeOut: number, token?: string): StatusMessage {
     let success = false;
-    let message;
+    let message: string | undefined;
 
     if (this.#token === undefined) {
       token = createUnsafeUuid();
@@ -60,7 +60,7 @@ export default class Lock {
    */
   public release(token: string): StatusMessage {
     let success = false;
-    let message;
+    let message: string | undefined;
 
     if (this.#token === undefined) {
       success = true;
@@ -83,7 +83,7 @@ export default class Lock {
    * @param token The token to set the lock under.
    */
   private lock(timeOut: number, token: string): void {
-    let message;
+    let message: string;
     if (this.#lockTimeout === undefined) {
       message = `Lock acquired. Timeout: ${timeOut}ms. Token: ${token}`;
     } else {

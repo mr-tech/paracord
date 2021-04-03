@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+/* eslint-disable no-console, import/no-duplicates */
 
 import pm2, { StartOptions } from 'pm2';
 import Api from '../Api/Api';
@@ -10,6 +10,13 @@ function validateShard(shard: number, shardCount: number): void {
     throw Error(`shard id ${shard} exceeds max shard id of ${shardCount - 1}`);
   }
 }
+
+// let pm2: null | typeof pm2Type = null;
+
+// import('pm2')
+//   .then((_pm2) => {
+//     pm2 = _pm2;
+//   }).catch(() => { /* do nothing */ });
 
 /** A script that spawns shards into pm2, injecting shard information into the Paracord client. */
 export default class ShardLauncher {
@@ -107,6 +114,8 @@ export default class ShardLauncher {
    * pm2Options
    */
   public async launch(pm2Options: StartOptions = {}): Promise<void> {
+    if (pm2 === null) throw Error('Please install pm2 if you wish to use this shard launcher.');
+
     const shardChunks = this.#shardChunks;
     let shardCount = this.#shardCount;
     let shardIds = this.#shardIds;
@@ -166,6 +175,8 @@ export default class ShardLauncher {
   }
 
   public launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): void {
+    if (pm2 === null) throw Error('Please install pm2 if you wish to use this shard launcher.');
+
     const shardIdsCsv = shardIds.join(',');
     const paracordEnv = {
       PARACORD_TOKEN: this.#token,
@@ -206,6 +217,8 @@ export default class ShardLauncher {
 
   /** Disconnects from pm2 when all chunks have been launched. */
   private detach(err: Error) {
+    if (pm2 === null) return;
+
     if (this.#launchCount && --this.#launchCount === 0) {
       console.log('All shards launched. Disconnecting from pm2.');
       pm2.disconnect();

@@ -41,11 +41,18 @@ export default class GuildMember {
 
   #lastAccessed: number;
 
-  public constructor(filteredProps: FilterOptions['props'] | undefined, member: GuildMemberUpdateEventFields | AugmentedRawGuildMember, user: User, guild: Guild) {
+  public constructor(
+    filteredProps: FilterOptions['props'] | undefined,
+    member: GuildMemberUpdateEventFields | AugmentedRawGuildMember,
+    user: User,
+    guild: Guild,
+  ) {
     this.#filteredProps = filteredProps?.guildMember;
     this.#user = user;
     this.#guild = guild;
     this.#id = user.id;
+
+    user.incrementGuildCount();
 
     const now = new Date().getTime();
     this.#lastAccessed = now;
@@ -113,6 +120,12 @@ export default class GuildMember {
   private updateRoles(arg: IUpdateTypes) {
     const { roles: memberRoleMap } = this;
     const { roles } = arg;
+
+    const currentRoleCount = memberRoleMap?.size || this.roleIds.length;
+    if (currentRoleCount !== roles.length) {
+      if (currentRoleCount === 0) this.user.incrementActiveReferenceCount();
+      else if (roles.length === 0) this.user.decrementActiveReferenceCount();
+    }
 
     if (memberRoleMap !== undefined) {
       const roleIds = Array.from(this.roleIds);
