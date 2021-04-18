@@ -1,5 +1,5 @@
 import {
-  AugmentedRawVoiceState, Snowflake,
+  AugmentedRawVoiceState, ISO8601timestamp, Snowflake,
 } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import Guild from './Guild';
@@ -49,6 +49,8 @@ export default class GuildVoiceState {
 
   /** whether this user is muted by the current user */
   public suppress: boolean | undefined;
+
+  public requestToSpeakTimestamp: ISO8601timestamp | null | undefined;
 
   public constructor(
     filteredProps: FilterOptions['props'] | undefined,
@@ -111,7 +113,8 @@ export default class GuildVoiceState {
     ) this.selfVideo = voiceState.self_video;
     if ((this.#filteredProps === undefined || 'suppress' in this)
     ) this.suppress = voiceState.suppress;
-
+    if ((this.#filteredProps === undefined || 'requestToSpeakTimestamp' in this)
+    ) this.requestToSpeakTimestamp = voiceState.request_to_speak_timestamp;
     return this;
   }
 

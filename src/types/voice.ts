@@ -1,4 +1,4 @@
-import { RawGuildMember, Snowflake } from '.';
+import { ISO8601timestamp, RawGuildMember, Snowflake } from '.';
 
 export type RawVoiceState = {
   /** the guild id this voice state is for */
@@ -25,6 +25,8 @@ export type RawVoiceState = {
   self_video: boolean;
   /** whether this user is muted by the current user */
   suppress: boolean;
+  /** the time at which the user requested to speak */
+  request_to_speak_timestamp?: ISO8601timestamp | null;
 };
 
 // ========================================================================
