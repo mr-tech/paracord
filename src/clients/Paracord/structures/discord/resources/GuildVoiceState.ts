@@ -70,7 +70,6 @@ export default class GuildVoiceState {
     this.#channel = channel;
     this.#userId = voiceState.user_id;
 
-
     this.initialize(voiceState);
   }
 
@@ -115,6 +114,7 @@ export default class GuildVoiceState {
     ) this.suppress = voiceState.suppress;
     if ((this.#filteredProps === undefined || 'requestToSpeakTimestamp' in this)
     ) this.requestToSpeakTimestamp = voiceState.request_to_speak_timestamp;
+
     return this;
   }
 

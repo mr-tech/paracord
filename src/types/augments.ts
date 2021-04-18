@@ -7,7 +7,7 @@ export interface AugmentedRawGuildMember extends RawGuildMember {
 }
 
 export interface AugmentedRawVoiceState extends RawVoiceState {
-  member: AugmentedRawGuildMember;
+  member?: AugmentedRawGuildMember;
 }
 
 export interface AugmentedRawGuild extends RawGuild {

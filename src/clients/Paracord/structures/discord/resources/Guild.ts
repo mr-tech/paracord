@@ -296,16 +296,16 @@ export default class Guild {
       roles.forEach((r) => this.insertRole(r));
     }
 
+    if (voice_states !== undefined && this.#voiceStates !== undefined) {
+      voice_states.forEach((v) => this.upsertVoiceState(v));
+    }
+
     if (members !== undefined && this.#members !== undefined) {
       members.forEach((m) => this.upsertMember(m));
     }
 
     if (presences !== undefined && this.#presences !== undefined) {
       presences.forEach((p) => this.insertRawPresence(p));
-    }
-
-    if (voice_states !== undefined && this.#voiceStates !== undefined) {
-      voice_states.forEach((v) => this.upsertVoiceState(v));
     }
 
     if (emojis !== undefined && this.#emojis !== undefined) {
@@ -598,7 +598,7 @@ export default class Guild {
    * Add a member with some additional information to a map of members.
    * @param member https://discord.com/developers/docs/resources/guild#guild-member-object
    */
-  public upsertMember(member: AugmentedRawGuildMember | GuildMemberUpdateEventFields): GuildMember | undefined {
+  public upsertMember(member: AugmentedRawGuildMember | GuildMemberUpdateEventFields, forceCache = false): GuildMember | undefined {
     const members = this.#members;
     if (members === undefined) return undefined;
 
@@ -610,7 +610,8 @@ export default class Guild {
 
     const voiceState = this.voiceStates.get(userId);
     if (
-      !user.bot
+      !forceCache
+      && !user.bot
       && !member.roles.length
       && this.ownerId !== userId
       && this.#client.user.id !== userId
@@ -717,7 +718,9 @@ export default class Guild {
       if (voiceState.channel_id !== null && cachedVoiceState.channel.id !== voiceState.channel_id) {
         channel = this.channels.get(voiceState.channel_id);
       }
-      return cachedVoiceState.update(voiceState, channel);
+      const updatedVoiceState = cachedVoiceState.update(voiceState, channel);
+      if (voiceState.member) this.upsertMember(voiceState.member, true);
+      return updatedVoiceState;
     }
 
     return this.insertVoiceState(voiceState);
@@ -728,14 +731,14 @@ export default class Guild {
    * @param voiceState https://discord.com/developers/docs/resources/voice
    * @param client
    */
-  public insertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
+  private insertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
     const voiceStates = this.#voiceStates;
     const { user_id: userId, member, channel_id } = voiceState;
     if (voiceStates === undefined || channel_id === null) return undefined;
 
     let cachedMember: GuildMember | undefined;
     if (member !== undefined) {
-      cachedMember = this.upsertMember(member);
+      cachedMember = this.upsertMember(member, true);
     } else {
       cachedMember = this.members.get(userId);
     }
