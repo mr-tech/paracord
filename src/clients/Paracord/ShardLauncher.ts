@@ -1,6 +1,7 @@
 /* eslint-disable no-console, import/no-duplicates */
 
-import pm2, { StartOptions } from 'pm2';
+import type pm2Type from 'pm2';
+import type { StartOptions } from 'pm2';
 import Api from '../Api/Api';
 import { GatewayBotResponse } from '../Gateway/types';
 import { InternalShardIds, ShardLauncherOptions } from './types';
@@ -11,12 +12,12 @@ function validateShard(shard: number, shardCount: number): void {
   }
 }
 
-// let pm2: null | typeof pm2Type = null;
+let pm2: null | typeof pm2Type = null;
 
-// import('pm2')
-//   .then((_pm2) => {
-//     pm2 = _pm2;
-//   }).catch(() => { /* do nothing */ });
+import('pm2')
+  .then((_pm2) => {
+    pm2 = _pm2;
+  }).catch(() => { /* do nothing */ });
 
 /** A script that spawns shards into pm2, injecting shard information into the Paracord client. */
 export default class ShardLauncher {
@@ -91,6 +92,8 @@ export default class ShardLauncher {
    * @param options Optional parameters for this handler.
    */
   public constructor(main: string, options: ShardLauncherOptions) {
+    if (pm2 === null) throw Error("Cannot find module 'pm2'");
+
     ShardLauncher.validateParams(main, options);
     this.#main = main;
     this.#appName = options.appName !== undefined ? options.appName : 'Discord Bot';
