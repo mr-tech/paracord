@@ -1,12 +1,12 @@
 /* eslint-disable prefer-destructuring */
-import { ServiceError } from '@grpc/grpc-js';
+import { GrpcObject, ServiceError } from '@grpc/grpc-js';
 import { ApiRequest } from '../../../clients/Api/structures';
 import { IServerOptions } from '../../../common';
 import { AuthorizationMessage, RateLimitStateMessage, RequestMetaMessage } from '../../structures';
 import { AuthorizationProto } from '../../types';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 
-const definition = loadProtoDefinition('rate_limit');
+const definition: GrpcObject = loadProtoDefinition('rate_limit');
 
 /** Definition for the identity lock rpc service. */
 /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */

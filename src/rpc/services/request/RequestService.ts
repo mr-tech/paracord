@@ -1,5 +1,5 @@
 /* eslint-disable prefer-destructuring */
-import { ServiceError } from '@grpc/grpc-js';
+import { GrpcObject, ServiceError } from '@grpc/grpc-js';
 import { ApiRequest } from '../../../clients/Api/structures';
 import { ResponseData } from '../../../clients/Api/types';
 import { IServerOptions } from '../../../common';
@@ -7,7 +7,7 @@ import { RequestMessage, ResponseMessage } from '../../structures';
 import { RemoteApiResponse, ResponseProto } from '../../types';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 
-const definition = loadProtoDefinition('request');
+const definition: GrpcObject = loadProtoDefinition('request');
 
 /** Definition for the request service. */
 /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */

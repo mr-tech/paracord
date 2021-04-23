@@ -1,5 +1,5 @@
 /* eslint-disable prefer-destructuring */
-import { ServiceError } from '@grpc/grpc-js';
+import { GrpcObject, ServiceError } from '@grpc/grpc-js';
 import { ILockServiceOptions } from '../../../common';
 import { LockRequestMessage, StatusMessage, TokenMessage } from '../../structures';
 import { StatusProto } from '../../types';
@@ -7,7 +7,7 @@ import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 
 const DEFAULT_LOCK_DURATION = 6e3;
 
-const definition = loadProtoDefinition('identify_lock');
+const definition: GrpcObject = loadProtoDefinition('identify_lock');
 
 /** Definition for the identity lock rpc service. */
 /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
