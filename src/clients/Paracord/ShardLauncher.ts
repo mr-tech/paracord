@@ -12,12 +12,8 @@ function validateShard(shard: number, shardCount: number): void {
   }
 }
 
-let pm2: null | typeof pm2Type = null;
-
-import('pm2')
-  .then((_pm2) => {
-    pm2 = _pm2;
-  }).catch(() => { /* do nothing */ });
+const pm2: Promise<null | typeof pm2Type> = import('pm2')
+  .then((_pm2) => _pm2).catch(() => null);
 
 /** A script that spawns shards into pm2, injecting shard information into the Paracord client. */
 export default class ShardLauncher {
@@ -92,8 +88,6 @@ export default class ShardLauncher {
    * @param options Optional parameters for this handler.
    */
   public constructor(main: string, options: ShardLauncherOptions) {
-    if (pm2 === null) throw Error("Cannot find module 'pm2'");
-
     ShardLauncher.validateParams(main, options);
     this.#main = main;
     this.#appName = options.appName !== undefined ? options.appName : 'Discord Bot';
@@ -117,7 +111,8 @@ export default class ShardLauncher {
    * pm2Options
    */
   public async launch(pm2Options: StartOptions = {}): Promise<void> {
-    if (pm2 === null) throw Error("Cannot find module 'pm2'");
+    const _pm2 = await pm2;
+    if (_pm2 === null) throw Error("Cannot find module 'pm2'");
 
     const shardChunks = this.#shardChunks;
     let shardCount = this.#shardCount;
@@ -137,7 +132,7 @@ export default class ShardLauncher {
     }
 
     try {
-      pm2.connect((err) => {
+      _pm2.connect((err) => {
         if (err) {
           console.error(err);
           process.exit(2);
@@ -177,8 +172,9 @@ export default class ShardLauncher {
     return { shardCount, shardIds };
   }
 
-  public launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): void {
-    if (pm2 === null) throw Error("Cannot find module 'pm2'");
+  public async launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): Promise<void> {
+    const _pm2 = await pm2;
+    if (_pm2 === null) throw Error("Cannot find module 'pm2'");
 
     const shardIdsCsv = shardIds.join(',');
     const paracordEnv = {
@@ -197,7 +193,7 @@ export default class ShardLauncher {
       ...pm2Options,
     };
 
-    pm2.start(pm2Config, this.detach);
+    _pm2.start(pm2Config, this.detach);
   }
 
   /** Gets the recommended shard count from Discord. */
@@ -219,12 +215,13 @@ export default class ShardLauncher {
   }
 
   /** Disconnects from pm2 when all chunks have been launched. */
-  private detach(err: Error) {
-    if (pm2 === null) return;
+  private async detach(err: Error) {
+    const _pm2 = await pm2;
+    if (_pm2 === null) return;
 
     if (this.#launchCount && --this.#launchCount === 0) {
       console.log('All shards launched. Disconnecting from pm2.');
-      pm2.disconnect();
+      _pm2.disconnect();
     }
 
     if (err) throw err;
