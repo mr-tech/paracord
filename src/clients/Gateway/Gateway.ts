@@ -94,6 +94,10 @@ export default class Gateway {
 
   #isStartingFunction?: StartupCheckFunction;
 
+  #isStarting: boolean;
+
+  #checkIfStartingInterval?: NodeJS.Timer;
+
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
   #emitter: ExtendedEmitter;
 
@@ -180,12 +184,9 @@ export default class Gateway {
     this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
+    this.#isStarting = true;
     this.bindTimerFunctions();
     this.checkIfShouldHeartbeat = this.checkIfShouldHeartbeat.bind(this);
-  }
-
-  public get isStarting(): boolean {
-    return this.#isStartingFunction !== undefined && this.#isStartingFunction(this);
   }
 
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
@@ -250,6 +251,7 @@ export default class Gateway {
     this.sendHeartbeat = this.sendHeartbeat.bind(this);
     this.refreshHeartbeatTimeout = this.refreshHeartbeatTimeout.bind(this);
     this.refreshHeartbeatAckTimeout = this.refreshHeartbeatAckTimeout.bind(this);
+    this.checkIfStarting = this.checkIfStarting.bind(this);
   }
 
   /*
@@ -590,7 +592,21 @@ export default class Gateway {
     this.log('DEBUG', 'Websocket open.');
 
     this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
+
+    if (this.#isStartingFunction !== undefined) {
+      this.#isStarting = this.#isStartingFunction(this);
+      this.#checkIfStartingInterval = setInterval(this.checkIfStarting, 100);
+    }
+
     this.handleEvent('GATEWAY_OPEN', this);
+  }
+
+  private checkIfStarting() {
+    this.#isStarting = this.#isStartingFunction !== undefined && this.#isStartingFunction(this);
+    if (!this.#isStarting) {
+      if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
+      if (this.#checkIfStartingInterval !== undefined) clearInterval(this.#checkIfStartingInterval);
+    }
   }
 
   /*
@@ -990,7 +1006,7 @@ export default class Gateway {
 
   private handleMissedHeartbeatAck(): void {
     let close = false;
-    if (this.isStarting) {
+    if (this.#isStarting) {
       if (this.allowMissingAckOnStartup()) {
         this.log('WARNING', `Missed heartbeat Ack on startup. ${this.#heartbeatsMissedDuringStartup} out of ${this.#startupHeartbeatTolerance} misses allowed.`);
       } else {
@@ -1030,7 +1046,7 @@ export default class Gateway {
     this.#lastHeartbeatTimestamp = now;
     this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.#sequence);
     this.refreshHeartbeatTimeout();
-    this.refreshHeartbeatAckTimeout();
+    if (this.#heartbeatAckTimeout === undefined) this.refreshHeartbeatAckTimeout();
   }
 
   /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
