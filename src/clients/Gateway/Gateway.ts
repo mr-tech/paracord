@@ -1030,7 +1030,7 @@ export default class Gateway {
     this.#lastHeartbeatTimestamp = now;
     this.send(GATEWAY_OP_CODES.HEARTBEAT, <Heartbeat> this.#sequence);
     this.refreshHeartbeatTimeout();
-    if (this.#heartbeatAckTimeout === undefined) this.refreshHeartbeatAckTimeout();
+    this.refreshHeartbeatAckTimeout();
   }
 
   /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
