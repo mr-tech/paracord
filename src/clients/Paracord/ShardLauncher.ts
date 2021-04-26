@@ -117,7 +117,7 @@ export default class ShardLauncher {
    * pm2Options
    */
   public async launch(pm2Options: StartOptions = {}): Promise<void> {
-    if (pm2 === null) throw Error('Please install pm2 if you wish to use this shard launcher.');
+    if (pm2 === null) throw Error("Cannot find module 'pm2'");
 
     const shardChunks = this.#shardChunks;
     let shardCount = this.#shardCount;
@@ -178,7 +178,7 @@ export default class ShardLauncher {
   }
 
   public launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): void {
-    if (pm2 === null) throw Error('Please install pm2 if you wish to use this shard launcher.');
+    if (pm2 === null) throw Error("Cannot find module 'pm2'");
 
     const shardIdsCsv = shardIds.join(',');
     const paracordEnv = {
