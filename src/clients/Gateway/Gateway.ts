@@ -188,7 +188,7 @@ export default class Gateway {
     this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
-    this.#isStarting = true;
+    this.#isStarting = false;
     this.bindTimerFunctions();
     this.checkIfShouldHeartbeat = this.checkIfShouldHeartbeat.bind(this);
   }
@@ -606,7 +606,7 @@ export default class Gateway {
   }
 
   private checkIfStarting() {
-    this.#isStarting = this.#isStartingFunction !== undefined && this.#isStartingFunction(this);
+    this.#isStarting = !!(this.#isStartingFunction && this.#isStartingFunction(this));
     if (!this.#isStarting) {
       if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
       if (this.#checkIfStartingInterval !== undefined) clearInterval(this.#checkIfStartingInterval);
