@@ -323,7 +323,6 @@ export default class Guild {
       this.unavailable = true;
     } else {
       this.unavailable = false;
-      this.constructCaches(guild);
 
       if (
         (!this.#filteredProps || 'name' in this)
@@ -458,6 +457,8 @@ export default class Guild {
         guild.max_video_channel_users !== undefined
         && (!this.#filteredProps || 'maxVideoChannelUsers' in this)
       ) this.maxVideoChannelUsers = guild.max_video_channel_users;
+
+      this.constructCaches(guild);
     }
 
     return this;
