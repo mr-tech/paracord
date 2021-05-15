@@ -167,7 +167,6 @@ export default class Gateway {
     }
     this.#sequence = null;
     this.#heartbeatAck = true;
-    this.#wsUrl = wsUrl;
     this.#online = false;
     this.#loggingIn = false;
     this.#wsRateLimitCache = {
@@ -187,6 +186,7 @@ export default class Gateway {
     this.#heartbeatsMissedDuringStartup = 0;
     this.#isStartingFunction = isStartingFunc;
     this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
+    this.#wsUrl = wsUrl;
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.#isStarting = false;
@@ -992,7 +992,7 @@ export default class Gateway {
       this.#heartbeatAckTimeout = setTimeout(this.checkHeartbeatAck, this.#receivedHeartbeatIntervalTime);
 
       const now = new Date().getTime();
-      this.#heartbeatExpectedTimestamp = now + this.#receivedHeartbeatIntervalTime;
+      this.#heartbeatExpectedTimestamp = now + (this.#receivedHeartbeatIntervalTime * 2);
     } else {
       this.log('ERROR', 'refreshHeartbeatAckTimeout undefined.');
     }
@@ -1003,6 +1003,9 @@ export default class Gateway {
     const waitingForAck = this.#heartbeatAck === false;
     const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp < new Date().getTime();
     const requestingMembers = this.#requestingMembersStateMap.size;
+
+    console.log('waitingForAck', waitingForAck);
+    console.log('ackIsOverdue', ackIsOverdue);
 
     if (waitingForAck && ackIsOverdue && !requestingMembers) {
       this.handleMissedHeartbeatAck();
