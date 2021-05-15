@@ -166,7 +166,8 @@ export default class Gateway {
       throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
     }
     this.#sequence = null;
-    this.#heartbeatAck = false;
+    this.#heartbeatAck = true;
+    this.#wsUrl = wsUrl;
     this.#online = false;
     this.#loggingIn = false;
     this.#wsRateLimitCache = {
@@ -988,7 +989,7 @@ export default class Gateway {
   private refreshHeartbeatAckTimeout() {
     if (this.#receivedHeartbeatIntervalTime !== undefined) {
       if (this.#heartbeatAckTimeout !== undefined) clearTimeout(this.#heartbeatAckTimeout);
-      this.#heartbeatAckTimeout = setTimeout(this.handleMissedHeartbeatAck, this.#receivedHeartbeatIntervalTime);
+      this.#heartbeatAckTimeout = setTimeout(this.checkHeartbeatAck, this.#receivedHeartbeatIntervalTime);
 
       const now = new Date().getTime();
       this.#heartbeatExpectedTimestamp = now + this.#receivedHeartbeatIntervalTime;

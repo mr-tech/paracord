@@ -430,7 +430,6 @@ export default class Paracord extends EventEmitter {
   private async enqueueGateways(options: ParacordLoginOptions): Promise<void> {
     const { identity } = options;
     let { shards, shardCount } = options;
-    let wsUrl: string | undefined;
 
     if (identity && Array.isArray(identity.shard)) {
       const identityCopy = clone(identity);
@@ -443,7 +442,7 @@ export default class Paracord extends EventEmitter {
           }
         });
       } else {
-        ({ shards, shardCount, wsUrl } = await this.computeShards(shards, shardCount));
+        ({ shards, shardCount } = await this.computeShards(shards, shardCount));
       }
 
       if (shards === undefined || shardCount === undefined) {
@@ -453,7 +452,7 @@ export default class Paracord extends EventEmitter {
           const identityCopy = clone(identity ?? {});
           identityCopy.token = this.token;
           identityCopy.shard = [shard, shardCount];
-          this.addNewGateway(<Identify>identityCopy, wsUrl);
+          this.addNewGateway(<Identify>identityCopy);
         });
       }
     }
@@ -466,18 +465,16 @@ export default class Paracord extends EventEmitter {
    */
   private async computeShards(
     shards: number[] | undefined, shardCount: number | undefined,
-  ): Promise<{shards: number[] | undefined, shardCount: number | undefined, wsUrl: string | undefined}> {
+  ): Promise<{ shards: number[] | undefined, shardCount: number | undefined }> {
     if (shards !== undefined && shardCount === undefined) {
       throw Error('shards defined with no shardCount.');
     }
 
-    let wsUrl: string | undefined;
     if (shardCount === undefined) {
-      const { status, data: { url, shards: recommendedShards } } = <GatewayBotResponse> await this.api.request(
+      const { status, data: { shards: recommendedShards } } = <GatewayBotResponse> await this.api.request(
         'get',
         'gateway/bot',
       );
-      wsUrl = url;
       if (status === 200) {
         shardCount = recommendedShards;
       } else {
@@ -492,15 +489,15 @@ export default class Paracord extends EventEmitter {
       }
     }
 
-    return { shards, shardCount, wsUrl };
+    return { shards, shardCount };
   }
 
   /**
    * Creates gateway and pushes it into cache and login queue.
    * @param identity An object containing information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
    */
-  private addNewGateway(identity: Identify, wsUrl?: string): void {
-    const gatewayOptions = this.createGatewayOptions(identity, wsUrl);
+  private addNewGateway(identity: Identify): void {
+    const gatewayOptions = this.createGatewayOptions(identity);
 
     const gateway = this.setUpGateway(this.token, gatewayOptions);
     if (this.#gateways.get(gateway.id) !== undefined) {
@@ -514,9 +511,9 @@ export default class Paracord extends EventEmitter {
     this.gatewayLoginQueue.push(gateway);
   }
 
-  private createGatewayOptions(identity: Identify, wsUrl?: string): GatewayOptions {
+  private createGatewayOptions(identity: Identify): GatewayOptions {
     const gatewayOptions: GatewayOptions = {
-      identity, api: this.api, emitter: this, wsUrl, checkSiblingHeartbeats: this.#gatewayHeartbeats,
+      identity, api: this.api, emitter: this, checkSiblingHeartbeats: this.#gatewayHeartbeats,
     };
 
     if (this.#startupHeartbeatTolerance !== undefined) {
