@@ -1004,9 +1004,6 @@ export default class Gateway {
     const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp < new Date().getTime();
     const requestingMembers = this.#requestingMembersStateMap.size;
 
-    console.log('waitingForAck', waitingForAck);
-    console.log('ackIsOverdue', ackIsOverdue);
-
     if (waitingForAck && ackIsOverdue && !requestingMembers) {
       this.handleMissedHeartbeatAck();
     }
