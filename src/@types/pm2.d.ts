@@ -1,3 +1,6 @@
+// eslint-disable-next-line spaced-comment
+/// <reference types="node" />
+
 // Type definitions for pm2 2.7.1
 // Definitions by: João Portela https://www.github.com/jportela
 

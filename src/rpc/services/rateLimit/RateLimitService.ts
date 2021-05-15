@@ -9,9 +9,7 @@ import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 const definition: GrpcObject = loadProtoDefinition('rate_limit');
 
 /** Definition for the identity lock rpc service. */
-/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-// @ts-ignore: interface can in fact be extended
-export default class RateLimitService extends definition.RateLimitService {
+export default class RateLimitService extends (definition.RateLimitService as any) {
   /** host:port the service is pointed at. */
   public target: string;
 

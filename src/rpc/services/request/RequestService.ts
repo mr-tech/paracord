@@ -10,9 +10,7 @@ import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 const definition: GrpcObject = loadProtoDefinition('request');
 
 /** Definition for the request service. */
-/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
-// @ts-ignore: interface can in fact be extended
-export default class RequestService extends definition.RequestService {
+export default class RequestService extends (definition.RequestService as any) {
   /** host:port the service is pointed at. */
   public target: string;
 

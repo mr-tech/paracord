@@ -1,21 +1,26 @@
-import { EventEmitter } from 'events';
 import ws from 'ws';
-import type erlpackType from 'erlpack';
+import { EventEmitter } from 'events';
+
+import Api from '../Api/Api';
 import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
+import { IdentifyLockService } from '../../rpc/services';
+import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
+import Identify from './structures/Identify';
+
 import {
   DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
-import { IdentifyLockService } from '../../rpc/services';
-import {
+
+// eslint-disable-next-line import/order
+import type erlpackType from 'erlpack';
+import type { IServiceOptions } from '../Api/types';
+import type {
   GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
 } from '../../types';
-import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
-import Api from '../Api/Api';
-import Identify from './structures/Identify';
-import {
+import type {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, GuildMemberChunk, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
-import { IServiceOptions } from '../Api/types';
+
 
 let erlpack: null | typeof erlpackType = null;
 let encoding = 'json';
@@ -174,7 +179,6 @@ export default class Gateway {
     this.#emitter = emitter ?? new EventEmitter();
     this.#identity = new Identify(coerceTokenToBotLike(token), identity);
     this.#api = api;
-    this.#wsUrl = wsUrl;
     this.#rpcServiceOptions = [];
     this.#events = events;
     this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;

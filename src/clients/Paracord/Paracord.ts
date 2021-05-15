@@ -480,6 +480,8 @@ export default class Paracord extends EventEmitter {
       wsUrl = url;
       if (status === 200) {
         shardCount = recommendedShards;
+      } else {
+        throw Error('failed to retrieve recommended shard count from Discord');
       }
     }
 

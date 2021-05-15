@@ -77,7 +77,7 @@ export interface FilterOptions {
 }
 
 export interface ParacordLoginOptions {
-  identity?: Identify;
+  identity?: Partial<Identify>;
   shards?: number[];
   shardCount?: number;
   unavailableGuildTolerance?: number;
