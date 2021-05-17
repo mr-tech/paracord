@@ -1,7 +1,7 @@
 import { AxiosInstance } from 'axios';
 import type { ApiRequest } from '.';
 import type Api from '../Api';
-import { API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
+import { API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS } from '../../../constants';
 import { millisecondsFromNow } from '../../../utils';
 import { IRateLimitState, ResponseData, WrappedRequest } from '../types';
 import BaseRequest from './BaseRequest';
@@ -32,6 +32,8 @@ export default class RateLimitCache {
     resetTimestamp: number;
   };
 
+  #globalRateLimitMax: number;
+
   /** Return whichever rate limit has the longest remaining wait time before being able to make this request. */
   private static returnStricterResetTimestamp(globalResetAfter: number, rateLimitResetAfter: number) {
     return globalResetAfter > rateLimitResetAfter ? globalResetAfter : rateLimitResetAfter;
@@ -41,7 +43,7 @@ export default class RateLimitCache {
    * Creates a new rate limit cache.
    * @param autoStartSweep Specify false to not start the sweep interval.
    */
-  public constructor(autoStartSweep = true, logger?: Api) {
+  public constructor(autoStartSweep = true, globalRateLimitMax: number, logger?: Api) {
     this.#requestRouteMetaToBucket = new Map();
     this.#rateLimitMap = new RateLimitMap(logger);
     this.#rateLimitTemplateMap = new RateLimitTemplateMap();
@@ -49,6 +51,7 @@ export default class RateLimitCache {
       remaining: 0,
       resetTimestamp: 0,
     };
+    this.#globalRateLimitMax = globalRateLimitMax;
 
     autoStartSweep && this.#rateLimitMap.startSweepInterval();
   }
@@ -192,7 +195,7 @@ export default class RateLimitCache {
   /** Sets the remaining requests back to the known limit. */
   private resetGlobalRateLimit(): void {
     this.#globalRateLimitState.resetTimestamp = 0;
-    this.#globalRateLimitState.remaining = API_GLOBAL_RATE_LIMIT;
+    this.#globalRateLimitState.remaining = this.#globalRateLimitMax;
   }
 
   /**

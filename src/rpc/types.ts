@@ -11,6 +11,7 @@ export interface RpcServerOptions{
   emitter?: EventEmitter;
   apiClient?: Api;
   identifyLock?: Lock;
+  globalRateLimitMax?: number;
 }
 
 export interface IDebugEvent {

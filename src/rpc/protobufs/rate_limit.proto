@@ -12,6 +12,7 @@ message Empty {}
 message RequestMetaMessage {
     string method = 1;
     string url = 2;
+    uint32 priority = 3;
 }
 
 /* AuthorizationMessage represents a server's response to a client's request to authorize a request. */

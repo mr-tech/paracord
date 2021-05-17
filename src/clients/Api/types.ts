@@ -26,6 +26,8 @@ export interface IRequestOptions {
   returnOnRateLimit?: false;
   /** Set to true to not retry the request on a global rate limit. */
   returnOnGlobalRateLimit?: false;
+  /** A known hard value for the bot's global rate limits. Defaults to 50. */
+  globalRateLimitMax?: number;
   /**
    * The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides both "returnOn" options.
    * Leave `undefined` for indefinite retries. `0` is effectively `returnOnRateLimit = true` and `returnOnGlobalRateLimit = true`.

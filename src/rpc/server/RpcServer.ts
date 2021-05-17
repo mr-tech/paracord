@@ -5,7 +5,7 @@ import Api from '../../clients/Api/Api';
 import { RateLimitCache } from '../../clients/Api/structures';
 import { IApiOptions } from '../../clients/Api/types';
 import { DebugLevel } from '../../common';
-import { LOG_LEVELS, LOG_SOURCES } from '../../constants';
+import { API_GLOBAL_RATE_LIMIT, LOG_LEVELS, LOG_SOURCES } from '../../constants';
 import { addIdentifyLockService, addRateLimitService, addRequestService } from '../services';
 import { Lock } from '../structures';
 import { IDebugEvent, RpcServerOptions } from '../types';
@@ -46,7 +46,7 @@ export default class RpcServer extends grpc.Server {
   public constructor(options: RpcServerOptions = {}) {
     super();
     const {
-      host, port, channel, emitter, apiClient, identifyLock,
+      host, port, channel, emitter, globalRateLimitMax, apiClient, identifyLock,
     } = options;
 
     this.#host = host ?? '127.0.0.1';
@@ -55,7 +55,7 @@ export default class RpcServer extends grpc.Server {
     this.emitter = emitter;
     this.apiClient = apiClient;
     this.identifyLock = identifyLock ?? new Lock(this.emitter);
-    this.rateLimitCache = new RateLimitCache(false, apiClient);
+    this.rateLimitCache = new RateLimitCache(false, globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT, apiClient);
   }
 
   /** Establishes the arguments that will be passed to `bindAsync()` when starting the server. */
