@@ -1320,7 +1320,7 @@ export default class Gateway {
     if (this.#sequence === null) {
       this.#sequence = s;
     } else if (s !== null) {
-      if (s > this.#sequence + 1) {
+      if (s !== this.#sequence + 1) {
         this.log(
           'WARNING',
           `Non-consecutive sequence (${this.#sequence} -> ${s})`,
