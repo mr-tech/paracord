@@ -13,6 +13,7 @@ const lockProto = loadProto('identify_lock');
  */
 export default (server: RpcServer): void => {
   server.addService(lockProto.LockService, {
+    // hello: hello.bind(server),
     acquire: acquire.bind(server),
     release: release.bind(server),
   });
@@ -20,9 +21,17 @@ export default (server: RpcServer): void => {
   server.emit('DEBUG', {
     source: LOG_SOURCES.RPC,
     level: LOG_LEVELS.INFO,
-    message: 'The identify lock service has been to the server.',
+    message: 'The identify lock service has been added to the server.',
   });
 };
+
+// function hello(
+//   this: RpcServer,
+// _: void,
+//   callback: (a: TServiceCallbackError) => void,
+// ) {
+//   callback(null);
+// }
 
 function acquire(
   this: RpcServer,

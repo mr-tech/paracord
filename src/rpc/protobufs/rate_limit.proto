@@ -2,6 +2,7 @@ syntax = "proto3";
 
 /* This service is used by clients to navigate rate limits while handling requests locally. */
 service RateLimitService {
+    rpc hello(Empty) returns (Empty);
     rpc authorize(RequestMetaMessage) returns (AuthorizationMessage);
     rpc update(RateLimitStateMessage) returns (Empty);
 }

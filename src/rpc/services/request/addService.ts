@@ -21,6 +21,7 @@ export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}):
   server.apiClient.startQueue();
 
   server.addService(requestProto.RequestService, {
+    hello: hello.bind(server),
     request: request.bind(server),
   });
 
@@ -30,6 +31,14 @@ export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}):
     message: 'The request service has been added to the server.',
   });
 };
+
+function hello(
+  this: RpcServer,
+  _: void,
+  callback: (a: TServiceCallbackError) => void,
+) {
+  callback(null);
+}
 
 async function request(
   this: RpcServer,

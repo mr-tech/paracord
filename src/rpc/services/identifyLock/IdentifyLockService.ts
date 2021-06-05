@@ -10,6 +10,7 @@ const DEFAULT_LOCK_DURATION = 6e3;
 const definition: GrpcObject = loadProtoDefinition('identify_lock');
 
 /** Definition for the identity lock rpc service. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class IdentifyLockService extends (definition.LockService as any) {
   /** host:port the service is pointed at. */
   readonly target: string;
@@ -47,6 +48,19 @@ export default class IdentifyLockService extends (definition.LockService as any)
   public clearToken(): void {
     this._token = undefined;
   }
+
+  // /** Check for healthy connection. */
+  // public hello(): Promise<void> {
+  //   return new Promise((resolve, reject) => {
+  // super.hello(undefined, (err: ServiceError) => {
+  //       if (err !== null) {
+  //         reject(err);
+  //       } else {
+  //         resolve();
+  //       }
+  //     });
+  //   });
+  // }
 
   /** Sends a request to acquire the lock to the server, returning a promise with the parsed response. */
   public acquire(): Promise<StatusMessage> {

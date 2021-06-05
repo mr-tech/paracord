@@ -2,8 +2,11 @@ syntax = "proto3";
 
 /* This service is used by clients who wish to make Discord API requests from a central server that handles rate limit logic. */
 service RequestService {
+    rpc hello(Empty) returns (Empty);
     rpc request(RequestMessage) returns (ResponseMessage);
 }
+
+message Empty {}
 
 /* Request represents a client's Discord API request.
  * It contains the necessary information for the server to make the request on its behalf. */

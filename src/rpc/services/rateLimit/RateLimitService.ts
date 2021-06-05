@@ -9,6 +9,7 @@ import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 const definition: GrpcObject = loadProtoDefinition('rate_limit');
 
 /** Definition for the identity lock rpc service. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class RateLimitService extends (definition.RateLimitService as any) {
   /** host:port the service is pointed at. */
   public target: string;
@@ -31,6 +32,19 @@ export default class RateLimitService extends (definition.RateLimitService as an
 
     this.target = dest;
     this.allowFallback = allowFallback || false;
+  }
+
+  /** Check for healthy connection. */
+  public hello(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      super.hello(undefined, (err: ServiceError) => {
+        if (err !== null) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 
   /**

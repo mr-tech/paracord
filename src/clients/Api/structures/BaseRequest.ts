@@ -12,6 +12,8 @@ export default class BaseRequest {
   /** Key for this specific requests rate limit state in the rate limit cache. */
   public rateLimitKey: string;
 
+  public rateLimitMajorType: string;
+
   /**
    * Standardizes url by stripping the leading `/` if it exists.
    *
@@ -43,7 +45,7 @@ export default class BaseRequest {
 
     const rateLimitKey = `${rateLimitMajorType}-${rateLimitMajorID}-${requestRouteMeta}`;
 
-    return { requestRouteMeta, rateLimitKey };
+    return { rateLimitMajorType, requestRouteMeta, rateLimitKey };
   }
 
   /**
@@ -161,8 +163,9 @@ export default class BaseRequest {
     this.method = method;
     this.url = BaseRequest.stripUrlLeadingSlash(url);
 
-    const { requestRouteMeta, rateLimitKey } = BaseRequest.assignRateLimitMeta(method, url);
+    const { rateLimitMajorType, requestRouteMeta, rateLimitKey } = BaseRequest.assignRateLimitMeta(method, url);
 
+    this.rateLimitMajorType = rateLimitMajorType;
     this.requestRouteMeta = requestRouteMeta;
     this.rateLimitKey = rateLimitKey;
   }

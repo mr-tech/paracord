@@ -15,6 +15,7 @@ const rateLimitProto = loadProto('rate_limit');
 export default (server: RpcServer): void => {
   server.rateLimitCache.startSweepInterval();
   server.addService(rateLimitProto.RateLimitService, {
+    hello: hello.bind(server),
     authorize: authorize.bind(server),
     update: update.bind(server),
   });
@@ -25,6 +26,14 @@ export default (server: RpcServer): void => {
     message: 'The rate limit service has been to the server.',
   });
 };
+
+function hello(
+  this: RpcServer,
+  _: void,
+  callback: (a: TServiceCallbackError) => void,
+) {
+  callback(null);
+}
 
 function authorize(
   this: RpcServer,

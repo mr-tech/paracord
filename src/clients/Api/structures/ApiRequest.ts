@@ -5,6 +5,7 @@ import BaseRequest from './BaseRequest';
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class Request<T extends ResponseData = any> extends BaseRequest {
   /** Data to send in the body of the request.  */
   public data: Record<string, unknown> | undefined;

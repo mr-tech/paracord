@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import axios from 'axios';
 import type { EventEmitter } from 'events';
@@ -41,9 +42,11 @@ export default class Api {
 
   #emitter?: EventEmitter;
 
-  #wrappedAxiosInstance: WrappedRequest;
+  #makeRequest: WrappedRequest;
 
   #rpcServiceOptions?: IServiceOptions;
+
+  #connectingToRpcService: boolean;
 
   private static shouldQueueRequest(request: ApiRequest, globalRateLimited: boolean): boolean {
     const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
@@ -69,7 +72,7 @@ export default class Api {
   }
 
   /** Creates an isolated axios instance for use by this REST handler. */
-  private static createWrappedAxiosInstance(rateLimitCache: RateLimitCache, token: string, requestOptions: IRequestOptions | undefined): WrappedRequest {
+  private static createWrappedRequestMethod(rateLimitCache: RateLimitCache, token: string, requestOptions: IRequestOptions | undefined): WrappedRequest {
     const instance = axios.create({
       baseURL: `${DISCORD_API_URL}/${DISCORD_API_DEFAULT_VERSION}`, // TODO does not support webhooks
       headers: {
@@ -113,9 +116,10 @@ export default class Api {
     this.rpcRequestService;
     this.#rpcRateLimitService;
     this.#allowFallback = false;
+    this.#connectingToRpcService = false;
 
     const botToken = coerceTokenToBotLike(token);
-    this.#wrappedAxiosInstance = Api.createWrappedAxiosInstance(this.#rateLimitCache, botToken, requestOptions);
+    this.#makeRequest = Api.createWrappedRequestMethod(this.#rateLimitCache, botToken, requestOptions);
   }
 
   public get hasRateLimitService(): boolean {
@@ -167,8 +171,9 @@ export default class Api {
   /**
    * Adds the service that has a server make requests to Discord on behalf of the client.
    * @param serviceOptions
+   * @returns `true` is connection was successful.
    */
-  public addRequestService(serviceOptions: IServiceOptions = {}): void {
+  public addRequestService(serviceOptions: IServiceOptions = {}): Promise<boolean> {
     if (
       this.hasRateLimitService
       || this.hasRequestService
@@ -194,13 +199,16 @@ export default class Api {
     }
 
     this.#rpcServiceOptions = serviceOptions;
+
+    return this.checkRpcServiceConnection(this.rpcRequestService);
   }
 
   /**
    * Adds the service that first checks with a server before making a request to Discord.
    * @param serviceOptions
+   * @returns `true` is connection was successful.
    */
-  public addRateLimitService(serviceOptions: IServiceOptions = {}): void {
+  public addRateLimitService(serviceOptions: IServiceOptions = {}): Promise<boolean> {
     if (
       this.hasRateLimitService
       || this.hasRequestService
@@ -226,17 +234,55 @@ export default class Api {
     }
 
     this.#rpcServiceOptions = serviceOptions;
+
+    return this.checkRpcServiceConnection(this.#rpcRateLimitService);
+  }
+
+  /**
+   * @returns `true` is connection was successful.
+   */
+  private async checkRpcServiceConnection(service: RateLimitService | RequestService): Promise<boolean> {
+    try {
+      await service.hello();
+      this.#connectingToRpcService = false;
+      this.log('DEBUG', 'Successfully established connection to Rpc server.');
+      return true;
+    } catch (err) {
+      if (!this.#connectingToRpcService) {
+        if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
+          this.#connectingToRpcService = true;
+          this.reattemptConnectInFuture(1);
+        } else {
+          this.log('ERROR', 'Received unexpected error when connecting to Rpc service.', err);
+        }
+      }
+    }
+
+
+    return false;
   }
 
   // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
-  private recreateRpcService(): void {
+  private async recreateRpcService(): Promise<boolean> {
     if (this.hasRateLimitService) {
       this.#rpcRateLimitService = undefined;
-      this.addRateLimitService(this.#rpcServiceOptions);
-    } else {
-      this.rpcRequestService = undefined;
-      this.addRequestService(this.#rpcServiceOptions);
+      return this.addRateLimitService(this.#rpcServiceOptions);
     }
+
+    this.rpcRequestService = undefined;
+    return this.addRequestService(this.#rpcServiceOptions);
+  }
+
+  private reattemptConnectInFuture(delay: number) {
+    this.log('WARNING', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);
+
+    setTimeout(async () => {
+      const success = await this.recreateRpcService();
+      if (!success) {
+        const newDelay = delay + 1 < 10 ? delay + 1 : 10;
+        this.reattemptConnectInFuture(newDelay);
+      }
+    }, delay * 1e3);
   }
 
   /*
@@ -339,17 +385,23 @@ export default class Api {
    * @param request ApiRequest being made.
    */
   private async handleRequestRemote<T extends ResponseData>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
-    this.emit('DEBUG', {
-      source: LOG_SOURCES.API,
-      level: LOG_LEVELS.DEBUG,
-      message: 'Sending request over Rpc to server.',
-    });
+    this.log('DEBUG', 'Sending request over Rpc to server.', request);
+
+    if (this.#connectingToRpcService) {
+      if (this.#allowFallback) {
+        const message = 'Client is connecting to RPC server. Falling back to handling request locally.';
+        this.log('WARNING', message);
+        return this.handleRequestLocal(request);
+      }
+
+      throw Error('Client is connecting to RPC server. Unable to make request.');
+    }
 
     try {
       return await rpcRequestService.request(request);
     } catch (err) {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
-        this.recreateRpcService();
+        await this.recreateRpcService();
         const message = 'Could not reach RPC server. Falling back to handling request locally.';
         this.log('ERROR', message);
 
@@ -378,9 +430,9 @@ export default class Api {
 
       const { resetAfter, global } = rateLimitState;
       if (resetAfter === 0) {
-        const message = `Sending request: ${request.method} ${request.url}`;
+        const message = 'Sending request.';
         this.log('DEBUG', message, request);
-        return { response: await this.#wrappedAxiosInstance(request), resetAfter: 0 };
+        return { response: await this.#makeRequest(request), resetAfter: 0 };
       }
       request.running = false;
 
@@ -391,12 +443,12 @@ export default class Api {
       request.assignIfStricterWait(new Date().getTime() + resetAfter);
 
       if (!fromQueue) {
-        const message = `Enqueuing request: ${request.method} ${request.url}`;
+        const message = 'Enqueuing request.';
         this.log('DEBUG', message, request);
         return { response: await this.enqueueRequest(request), resetAfter: 0 };
       }
 
-      const message = `Requeuing request: ${request.method} ${request.url}`;
+      const message = 'Requeuing request.';
       this.log('DEBUG', message, request);
 
       return { resetAfter: -1 };
@@ -410,6 +462,17 @@ export default class Api {
    * @param request ApiRequest being made.
    */
   public async authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState | undefined> {
+    if (this.#connectingToRpcService) {
+      if (this.#allowFallback) {
+        const message = 'Client is connecting to RPC server. Fallback is allowed. Allowing request to be made.';
+        this.log('WARNING', message);
+        return undefined;
+      }
+
+      throw Error('Client is connecting to RPC server. Unable to authorize request.');
+    }
+
+
     try {
       const authorizationMessage = await (<RateLimitService> this.#rpcRateLimitService).authorize(request);
 
@@ -431,6 +494,8 @@ export default class Api {
   }
 
   private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T>): Promise<IApiResponse<T>> {
+    this.log('DEBUG', 'Response received.', { request, response });
+
     if (Object.keys(response.headers).length) {
       let rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
         response.headers,
@@ -441,10 +506,11 @@ export default class Api {
         if (this.#requestQueueProcessInterval === undefined) {
           const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
           this.log('WARNING', message);
+        } else {
+          response = await this.handleRateLimitedRequest(request, rateLimitHeaders);
+          rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
+          allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
         }
-        response = await this.handleRateLimitedRequest(request, rateLimitHeaders);
-        rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
-        allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
       }
 
       this.updateRateLimitCache(request, rateLimitHeaders);
@@ -489,7 +555,7 @@ export default class Api {
   }
 
   private async updateRpcCache(request: ApiRequest, rateLimitHeaders: RateLimitHeaders) {
-    if (this.#rpcRateLimitService !== undefined) {
+    if (this.#rpcRateLimitService !== undefined && !this.#connectingToRpcService) {
       try {
         const [global, bucket, limit, remaining, resetAfter] = rateLimitHeaders.rpcArgs;
         await this.#rpcRateLimitService.update(
@@ -497,7 +563,8 @@ export default class Api {
         );
       } catch (err) {
         if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
-          this.recreateRpcService();
+          const success = await this.recreateRpcService();
+          if (!success) throw err;
         } else {
           throw err;
         }

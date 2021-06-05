@@ -3,9 +3,12 @@ syntax = "proto3";
 /* This service is used by clients to offset their gateway identifies.
  * Used to navigate Discord gateway's identify rate limit and throttle identifies on the same host. */
 service LockService {
+    rpc hello(Empty) returns (Empty);
     rpc acquire(LockRequestMessage) returns (StatusMessage);
     rpc release(TokenMessage) returns (StatusMessage);
 }
+
+message Empty { }
 
 /* TokenMessage repesents a unique identifier given to the client by the server on a successful lock().
  * Used as authorization to perform operations on the existing lock.. */
