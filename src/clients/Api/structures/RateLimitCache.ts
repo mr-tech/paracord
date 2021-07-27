@@ -112,7 +112,7 @@ export default class RateLimitCache {
     return wrappedRequest;
   }
 
-  public decrementGlobalRemaining(): void {
+  private decrementGlobalRemaining(): void {
     if (this.globalRateLimitResetAfter === 0) {
       this.#globalRateLimitState.resetTimestamp = new Date().getTime() + API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS;
     }

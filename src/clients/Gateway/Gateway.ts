@@ -616,7 +616,7 @@ export default class Gateway {
 
   /*
    ********************************
-   ******* WEBSOCKET - CLOSE ******
+   ******* WEBSOCKET - ERROR ******
    ********************************
    */
 
