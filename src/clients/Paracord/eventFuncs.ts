@@ -104,11 +104,16 @@ export function PRESENCE_UPDATE(this: Paracord, data: RawPresence): Presence | R
 export function MESSAGE_CREATE(this: Paracord, data: AugmentedRawMessage): AugmentedRawMessage {
   const { guild_id: guildId, member } = data;
 
-  if (data.member !== undefined) {
+  if (data.member !== undefined && guildId !== undefined) {
+    const guild = this.guilds?.get(guildId);
+
     data.member.user = data.author;
     /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
     // @ts-ignore
-    data.member = this.guilds?.get(guildId)?.upsertMember(member) ?? member;
+    data.member = guild?.upsertMember(member) ?? member;
+    /* eslint-disable-next-line @typescript-eslint/ban-ts-comment */
+    // @ts-ignore
+    data.guild = guild;
     data.author = data.member.user;
   }
 
