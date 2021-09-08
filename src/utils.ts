@@ -142,15 +142,14 @@ export function computeChannelOverwrites(perms: bigint, member: GuildMember, gui
   const roleOverwrites: Overwrite[] = [];
   const memberOverwrites: Overwrite[] = [];
   overwrites.forEach((o) => {
-    switch (o.type) {
-      case OVERWRITE_MEMBER_VALUE:
-        if (o.id === member.id) memberOverwrites.push(o);
-        break;
-      case OVERWRITE_ROLE_VALUE:
-        if (o.id !== guild.id && memberRoles.has(o.id)) roleOverwrites.push(o);
-        break;
-      default:
+    if (o.type === OVERWRITE_ROLE_VALUE) {
+      if (o.id === guild.id) {
         perms = _everyoneOverwrites(perms, o);
+      } else if (memberRoles.has(o.id)) {
+        roleOverwrites.push(o);
+      }
+    } else {
+      memberOverwrites.push(o);
     }
   });
 
