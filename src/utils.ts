@@ -153,8 +153,8 @@ export function computeChannelOverwrites(perms: bigint, member: GuildMember, gui
     }
   });
 
-  perms = _roleOverwrites(perms, roleOverwrites);
-  perms = _memberOverwrites(perms, memberOverwrites);
+  perms = _applyOverwrites(perms, roleOverwrites);
+  perms = _applyOverwrites(perms, memberOverwrites);
 
   return perms;
 }
@@ -167,8 +167,8 @@ export function computeChannelOverwrites(perms: bigint, member: GuildMember, gui
  * @returns The new perms.
  */
 function _everyoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
-  perms |= BigInt(overwrite.allow);
   perms &= ~BigInt(overwrite.deny);
+  perms |= BigInt(overwrite.allow);
   return perms;
 }
 
@@ -176,29 +176,20 @@ function _everyoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
  * When computing channel overwrites, applies the role overwrites.
  * @param perms GuildMember's channel-level permissions.
  * @param overwrites Channel's overwrites.
- * @param roles Roles in the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _roleOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
-  for (const o of overwrites) {
-    perms |= BigInt(o.allow);
-    perms &= ~BigInt(o.deny);
-  }
-  return perms;
-}
+function _applyOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
+  let deny = BigInt(0);
+  let allow = BigInt(0);
 
-/**
- * When computing channel overwrites, applies the member overwrites.
- * @param perms GuildMember's channel-level permissions.
- * @param overwrites Channel's overwrites.
- * @param memberId id of the member whose permissions are being checked.
- * @returns The new perms.
- */
-function _memberOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
   for (const o of overwrites) {
-    perms |= BigInt(o.allow);
-    perms &= ~BigInt(o.deny);
+    deny |= BigInt(o.deny);
+    allow |= BigInt(o.allow);
   }
+
+  perms &= ~deny;
+  perms |= allow;
+
   return perms;
 }
 
