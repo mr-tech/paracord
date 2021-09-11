@@ -144,11 +144,11 @@ export function computeChannelOverwrites(perms: bigint, member: GuildMember, gui
   overwrites.forEach((o) => {
     if (o.type === OVERWRITE_ROLE_VALUE) {
       if (o.id === guild.id) {
-        perms = _everyoneOverwrites(perms, o);
+        perms = _applyEveryoneOverwrites(perms, o);
       } else if (memberRoles.has(o.id)) {
         roleOverwrites.push(o);
       }
-    } else {
+    } else if (o.id === member.id) {
       memberOverwrites.push(o);
     }
   });
@@ -166,7 +166,7 @@ export function computeChannelOverwrites(perms: bigint, member: GuildMember, gui
  * @param guildId id of the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _everyoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
+function _applyEveryoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
   perms &= ~BigInt(overwrite.deny);
   perms |= BigInt(overwrite.allow);
   return perms;
