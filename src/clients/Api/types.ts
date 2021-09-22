@@ -1,7 +1,6 @@
-
-import { ChannelCredentials } from '@grpc/grpc-js';
+import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
-import { UserEvents } from '../../common';
+import type { UserEvents } from '../../common';
 import type { ApiRequest } from './structures';
 
 /** Optional parameters for this api handler. */
@@ -28,6 +27,8 @@ export interface IRequestOptions {
   returnOnGlobalRateLimit?: false;
   /** A known hard value for the bot's global rate limits. Defaults to 50. */
   globalRateLimitMax?: number;
+  /** Time in milliseconds to add to 1 second internal global rate limit reset timer. */
+  globalRateLimitResetPadding?: number;
   /**
    * The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides both "returnOn" options.
    * Leave `undefined` for indefinite retries. `0` is effectively `returnOnRateLimit = true` and `returnOnGlobalRateLimit = true`.

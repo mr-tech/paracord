@@ -12,6 +12,7 @@ export interface RpcServerOptions{
   apiClient?: Api;
   identifyLock?: Lock;
   globalRateLimitMax?: number;
+  globalRateLimitResetPadding?: number;
 }
 
 export interface IDebugEvent {

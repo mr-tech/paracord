@@ -4,7 +4,7 @@ import axios from 'axios';
 import type { EventEmitter } from 'events';
 import { DebugLevel } from '../../common';
 import {
-  PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION, DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES, API_GLOBAL_RATE_LIMIT,
+  PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION, DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES, API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
 } from '../../constants';
 
 import { RateLimitService, RequestService } from '../../rpc/services';
@@ -104,7 +104,7 @@ export default class Api {
   public constructor(token: string, options: IApiOptions = {}) {
     Api.validateParams(token);
 
-    this.#rateLimitCache = new RateLimitCache(true, options.requestOptions?.globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT, this);
+    this.#rateLimitCache = new RateLimitCache(true, options.requestOptions?.globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT, options.requestOptions?.globalRateLimitResetPadding ?? API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, this);
     this.#requestQueue = new RequestQueue(this);
     this.#requestQueueProcessInterval;
 

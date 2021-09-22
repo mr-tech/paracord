@@ -34,6 +34,8 @@ export default class RateLimitCache {
 
   #globalRateLimitMax: number;
 
+  #globalRateLimitResetPadding: number;
+
   /** Return whichever rate limit has the longest remaining wait time before being able to make this request. */
   private static returnStricterResetTimestamp(globalResetAfter: number, rateLimitResetAfter: number) {
     return globalResetAfter > rateLimitResetAfter ? globalResetAfter : rateLimitResetAfter;
@@ -43,7 +45,7 @@ export default class RateLimitCache {
    * Creates a new rate limit cache.
    * @param autoStartSweep Specify false to not start the sweep interval.
    */
-  public constructor(autoStartSweep = true, globalRateLimitMax: number, logger?: Api) {
+  public constructor(autoStartSweep = true, globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api) {
     this.#requestRouteMetaToBucket = new Map();
     this.#rateLimitMap = new RateLimitMap(logger);
     this.#rateLimitTemplateMap = new RateLimitTemplateMap();
@@ -52,6 +54,7 @@ export default class RateLimitCache {
       resetTimestamp: 0,
     };
     this.#globalRateLimitMax = globalRateLimitMax;
+    this.#globalRateLimitResetPadding = globalRateLimitResetPadding;
 
     autoStartSweep && this.#rateLimitMap.startSweepInterval();
   }
@@ -114,7 +117,7 @@ export default class RateLimitCache {
 
   private decrementGlobalRemaining(): void {
     if (this.globalRateLimitResetAfter === 0) {
-      this.#globalRateLimitState.resetTimestamp = new Date().getTime() + API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS;
+      this.#globalRateLimitState.resetTimestamp = new Date().getTime() + API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS + this.#globalRateLimitResetPadding;
     }
 
     --this.#globalRateLimitState.remaining;
