@@ -40,7 +40,7 @@ export function timestampNMillisecondsInFuture(milliseconds: number): number {
  */
 export function millisecondsFromNow(timestamp: number): number {
   const now = new Date().getTime();
-  return timestamp < now ? -1 : timestamp - new Date().getTime();
+  return timestamp < now ? -1 : timestamp - now;
 }
 
 // export function guildShardFromID(guildId, shardCount) {

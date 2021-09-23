@@ -134,20 +134,15 @@ export default class RateLimitCache {
     const rateLimit = this.getRateLimitFromCache(request);
 
     if (isGloballyRateLimited) {
-      if (rateLimit !== undefined && this.returnIsRateLimited(request)) {
-        return {
-          resetAfter: RateLimitCache.returnStricterResetTimestamp(this.globalRateLimitResetAfter, rateLimit.resetAfter),
-          global: true,
-        };
-      }
-
-      return { resetAfter: this.globalRateLimitResetAfter, global: true };
+      return {
+        resetAfter: this.globalRateLimitResetAfter,
+        global: true,
+      };
     }
 
     if (rateLimit === undefined) {
       return { resetAfter: 0 };
     }
-
 
     const { resetAfter } = this.returnIsRateLimited(request);
     if (resetAfter === 0) {
