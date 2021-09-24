@@ -505,12 +505,11 @@ export default class Guild {
 
     const memberPermissions = computeGuildPerms({ member, guild: this, stopOnOwnerAdmin: adminOverride });
 
-    const bigIntPermission = BigInt(permission);
-
     if ((memberPermissions & BigInt(PERMISSIONS.ADMINISTRATOR)) && adminOverride) {
       return true;
     }
 
+    const bigIntPermission = BigInt(permission);
     return Boolean(memberPermissions & bigIntPermission);
   }
 
@@ -534,11 +533,11 @@ export default class Guild {
       member, guild: this, channel, stopOnOwnerAdmin,
     });
 
-    const bigIntPermission = BigInt(permission);
-
-    if (bigIntPermission & BigInt(PERMISSIONS.ADMINISTRATOR) && stopOnOwnerAdmin) {
+    if (perms & BigInt(PERMISSIONS.ADMINISTRATOR) && stopOnOwnerAdmin) {
       return true;
     }
+
+    const bigIntPermission = BigInt(permission);
     return Boolean(perms & bigIntPermission);
   }
 
