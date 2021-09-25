@@ -268,7 +268,7 @@ export type RawIntegration = {
   /** user for this integration */
   user: RawUser;
   /** integration account information */
-  account: Account;
+  // account: Account;
   /** when this integration was last synced */
   synced_at: ISO8601timestamp;
 };
