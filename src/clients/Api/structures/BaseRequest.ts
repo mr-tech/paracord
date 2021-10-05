@@ -58,6 +58,7 @@ export default class BaseRequest {
     const key = [];
 
     if (method === 'GET') key.push('ge');
+    else if (method === 'PUT') key.push('pu');
     else if (method === 'POST') key.push('p');
     else if (method === 'PATCH') key.push('u');
     else if (method === 'DELETE') key.push('d');

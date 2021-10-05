@@ -20,7 +20,8 @@ export default class RateLimit {
 
   #template: RateLimitTemplate;
 
-  #allowHeaderOverride: boolean;
+  /** When resetting the rate limit, allows the next response to dictate the reset timestamp. */
+  #allowTimestampOverwrite: boolean;
 
   /**
    * Creates a new rate limit state.
@@ -32,7 +33,7 @@ export default class RateLimit {
     this.#resetTimestamp = resetTimestamp ?? -1;
     this.#limit = limit;
     this.#template = template;
-    this.#allowHeaderOverride = true;
+    this.#allowTimestampOverwrite = true;
 
     this.refreshExpire();
   }
@@ -86,23 +87,23 @@ export default class RateLimit {
    * @param rateLimit
    */
   public assignIfStricter({ remaining, resetTimestamp, limit }: RateLimitState): void {
-    if (resetTimestamp !== undefined && (this.#allowHeaderOverride || remaining < this.#remaining)) {
+    if (resetTimestamp !== undefined && remaining < this.#remaining) {
       this.#remaining = remaining;
     }
-    if (resetTimestamp !== undefined && (this.#allowHeaderOverride || resetTimestamp > this.#resetTimestamp)) {
-      this.#resetTimestamp = resetTimestamp;
-    }
-    if (resetTimestamp !== undefined && (this.#allowHeaderOverride || limit < this.#limit)) {
+    if (resetTimestamp !== undefined && limit < this.#limit) {
       this.#limit = limit;
     }
+    if (resetTimestamp !== undefined && (this.#allowTimestampOverwrite || resetTimestamp > this.#resetTimestamp)) {
+      this.#resetTimestamp = resetTimestamp;
+    }
 
-    this.#allowHeaderOverride = false;
+    this.#allowTimestampOverwrite = false;
   }
 
   /** Sets the remaining requests back to the known limit. */
   private resetRemaining(): void {
     this.#remaining = this.#limit;
     this.#resetTimestamp = new Date().getTime() + this.#template.resetAfter;
-    this.#allowHeaderOverride = true;
+    this.#allowTimestampOverwrite = true;
   }
 }

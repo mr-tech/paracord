@@ -361,10 +361,9 @@ export default class Api {
       this.log('WARNING', message);
     }
 
-    let { response, ...rateLimitState } = await this.sendRequest<T>(request);
+    const { response, ...rateLimitState } = await this.sendRequest<T>(request);
     if (response !== undefined) {
-      response = await this.handleResponse(request, response);
-      return response;
+      return this.handleResponse(request, response);
     }
 
     const customResponse: IApiResponse<T> = {
@@ -497,19 +496,19 @@ export default class Api {
     this.log('DEBUG', 'Response received.', { request, response });
 
     if (Object.keys(response.headers).length) {
-      let rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
+      const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
         response.headers,
       );
 
-      let allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
+      const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
       while (response.status === 429 && allowQueue) {
         if (this.#requestQueueProcessInterval === undefined) {
           const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
           this.log('WARNING', message);
         } else {
-          response = await this.handleRateLimitedRequest(request, rateLimitHeaders);
-          rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(response.headers);
-          allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
+          return new Promise<IApiResponse<T>>((resolve) => {
+            this.handleRateLimitedRequest<T>(request, rateLimitHeaders).then(async (res) => resolve(await this.handleResponse<T>(request, res)));
+          });
         }
       }
 

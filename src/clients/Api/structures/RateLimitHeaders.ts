@@ -52,7 +52,8 @@ export default class RateLimitHeaders {
    * @param bucket From Discord - Id of the rate limit bucket.
    * @param limit From Discord - Number of requests that can be made between rate limit triggers.
    * @param remaining From Discord - Number of requests available before hitting rate limit.
-   * @param resetAfter A localized timestamp of when the rate limit resets.
+   * @param resetAfter From Discord - How long in ms the rate limit resets.
+   * @param resetTimestamp A localized timestamp of when the rate limit resets.
    */
   public constructor(global: boolean, bucket: string | undefined, limit: number, remaining: number, resetAfter: number) {
     this.global = global || false;
