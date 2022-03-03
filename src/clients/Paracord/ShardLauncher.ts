@@ -103,13 +103,6 @@ export default class ShardLauncher {
     this.#shardCount = options.shardCount;
     this.#env = options.env;
     this.#token = options.token;
-
-    this.bindCallbackFunctions();
-  }
-
-  /** Binds `this` to functions used in callbacks. */
-  private bindCallbackFunctions(): void {
-    this.detach = this.detach.bind(this);
   }
 
   /**
@@ -221,7 +214,7 @@ export default class ShardLauncher {
   }
 
   /** Disconnects from pm2 when all chunks have been launched. */
-  private async detach(err: Error) {
+  private detach = async (err: Error) => {
     const pm2 = await pm2Promise;
     if (!pm2) throw Error("Cannot find module 'pm2'");
 

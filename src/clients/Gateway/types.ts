@@ -15,7 +15,7 @@ export interface GatewayOptions {
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
   events?: UserEvents;
   /** Paracord rest API handler. */
-  api: Api;
+  api?: Api;
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
   // keepCase: false;
   /** Websocket url to connect to. */
@@ -69,7 +69,7 @@ export type WebsocketRateLimitCache = {
 
 export type IdentityOptions = {
   /** authentication token */
-  token: string;
+  token?: string;
 
   /** used for Guild Sharding */
   shard?: [number, number]; // (shardId, numShards);
@@ -90,7 +90,7 @@ export type IdentityOptions = {
   guildSubscriptions?: boolean; // true
 
   /** the Gateway Intents you wish to receive */
-  intents?: number;
+  intents: number;
 }
 
 export type GatewayCloseEvent = {

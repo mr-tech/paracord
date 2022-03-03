@@ -78,7 +78,7 @@ export default class Presence {
     const newActivities = [];
 
     for (const rawActivity of rawActivities) {
-      const existingActivity = existingActivities.find(Presence.activityIsSame.bind(null, rawActivity));
+      const existingActivity = existingActivities.find((a) => Presence.activityIsSame(rawActivity, a));
 
       let activity: Activity;
       if (existingActivity === undefined) {

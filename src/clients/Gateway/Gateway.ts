@@ -158,7 +158,9 @@ export default class Gateway {
   public constructor(token: string, options: GatewayOptions) {
     Gateway.validateOptions(options);
     const {
-      emitter, identity, identity: { shard }, api, wsUrl, events, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc, checkSiblingHeartbeats,
+      emitter, identity, identity: { shard }, api, wsUrl, events,
+      heartbeatIntervalOffset, startupHeartbeatTolerance,
+      isStartingFunc, checkSiblingHeartbeats,
     } = options;
 
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
@@ -189,8 +191,6 @@ export default class Gateway {
 
     this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.#isStarting = false;
-    this.bindTimerFunctions();
-    this.checkIfShouldHeartbeat = this.checkIfShouldHeartbeat.bind(this);
   }
 
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
@@ -244,18 +244,6 @@ export default class Gateway {
 
   public get requestingMembers(): boolean {
     return !!this.#requestingMembersStateMap.size;
-  }
-
-  /** Binds `this` to certain methods so that they are able to be called in `setInterval()` and `setTimeout()`. */
-  private bindTimerFunctions(): void {
-    this.login = this.login.bind(this);
-    this.checkHeartbeatAck = this.checkHeartbeatAck.bind(this);
-    this.handleMissedHeartbeatAck = this.handleMissedHeartbeatAck.bind(this);
-    this.checkLocksPromise = this.checkLocksPromise.bind(this);
-    this.sendHeartbeat = this.sendHeartbeat.bind(this);
-    this.refreshHeartbeatTimeout = this.refreshHeartbeatTimeout.bind(this);
-    this.refreshHeartbeatAckTimeout = this.refreshHeartbeatAckTimeout.bind(this);
-    this.checkIfStarting = this.checkIfStarting.bind(this);
   }
 
   /*
@@ -392,7 +380,7 @@ export default class Gateway {
     });
   }
 
-  private async checkLocksPromise(resolve: () => void): Promise<void> {
+  private checkLocksPromise = async (resolve: () => void): Promise<void> => {
     if (await this.acquireLocks()) {
       resolve();
     } else {
@@ -409,7 +397,7 @@ export default class Gateway {
    * Connects to Discord's event gateway.
    * @param _Websocket Ignore. For unittest dependency injection only.
    */
-  public async login(_websocket = ws): Promise<void> {
+  public login = async (_websocket = ws): Promise<void> => {
     if (this.#ws !== undefined) {
       throw Error('Client is already connected.');
     }
@@ -518,10 +506,10 @@ export default class Gateway {
 
   /** Binds `this` to methods used by the websocket. */
   private assignWebsocketMethods(websocket: ws): void {
-    websocket.onopen = this._onopen.bind(this);
-    websocket.onerror = this._onerror.bind(this);
-    websocket.onclose = this._onclose.bind(this);
-    websocket.onmessage = this._onmessage.bind(this);
+    websocket.onopen = this._onopen;
+    websocket.onerror = this._onerror;
+    websocket.onclose = this._onclose;
+    websocket.onmessage = this._onmessage;
   }
 
   /**
@@ -592,7 +580,7 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onopen`. */
-  private _onopen(): void {
+  private _onopen = (): void => {
     this.log('DEBUG', 'Websocket open.');
 
     this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
@@ -605,7 +593,7 @@ export default class Gateway {
     this.handleEvent('GATEWAY_OPEN', this);
   }
 
-  private checkIfStarting() {
+  private checkIfStarting = () => {
     this.#isStarting = !!(this.#isStartingFunction && this.#isStartingFunction(this));
     if (!this.#isStarting) {
       if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
@@ -620,7 +608,7 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onerror`. */
-  private _onerror(err: ws.ErrorEvent): void {
+  private _onerror = (err: ws.ErrorEvent): void => {
     this.log('ERROR', `Websocket error. Message: ${err.message}`);
   }
 
@@ -633,7 +621,7 @@ export default class Gateway {
   /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
    * @param event Object containing information about the close.
    */
-  private _onclose(event: ws.CloseEvent): void {
+  private _onclose = (event: ws.CloseEvent): void => {
     this.#ws = undefined;
     this.#online = false;
     this.#membersRequestCounter = 0;
@@ -833,7 +821,7 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onmessage`. */
-  private _onmessage({ data: raw }: ws.MessageEvent): void {
+  private _onmessage = ({ data: raw }: ws.MessageEvent): void => {
     if (erlpack) {
       if (Buffer.isBuffer(raw)) return this.handleMessage(erlpack.unpack(raw));
       if (raw instanceof SharedArrayBuffer) return this.handleMessage(erlpack.unpack(Buffer.from(new Uint8Array(raw))));
@@ -912,7 +900,7 @@ export default class Gateway {
    * May be passed as array to other gateways so that no one gateway blocks the others from sending timely heartbeats.
    * Now receiving the ACKs on the other hand...
    */
-  public checkIfShouldHeartbeat(): void {
+  public checkIfShouldHeartbeat = (): void => {
     const now = new Date().getTime();
     if (
       this.#heartbeatAck
@@ -972,7 +960,7 @@ export default class Gateway {
   /**
    * Clears old heartbeat timeout and starts a new one.
    */
-  private refreshHeartbeatTimeout() {
+  private refreshHeartbeatTimeout = () => {
     if (this.#heartbeatIntervalTime !== undefined) {
       if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
       this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, this.#heartbeatIntervalTime);
@@ -984,7 +972,7 @@ export default class Gateway {
     }
   }
 
-  private refreshHeartbeatAckTimeout() {
+  private refreshHeartbeatAckTimeout = () => {
     if (this.#receivedHeartbeatIntervalTime !== undefined) {
       if (this.#heartbeatAckTimeout !== undefined) clearTimeout(this.#heartbeatAckTimeout);
       this.#heartbeatAckTimeout = setTimeout(this.checkHeartbeatAck, this.#receivedHeartbeatIntervalTime);
@@ -997,7 +985,7 @@ export default class Gateway {
   }
 
   /** Checks if heartbeat ack was received. */
-  private checkHeartbeatAck() {
+  private checkHeartbeatAck = () => {
     const waitingForAck = this.#heartbeatAck === false;
     const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp < new Date().getTime();
     const requestingMembers = this.#requestingMembersStateMap.size;
@@ -1007,7 +995,7 @@ export default class Gateway {
     }
   }
 
-  private handleMissedHeartbeatAck(): void {
+  private handleMissedHeartbeatAck = (): void => {
     let close = false;
     if (this.#isStarting) {
       if (this.allowMissingAckOnStartup()) {
@@ -1033,7 +1021,7 @@ export default class Gateway {
     return ++this.#heartbeatsMissedDuringStartup <= this.#startupHeartbeatTolerance;
   }
 
-  private sendHeartbeat(): void {
+  private sendHeartbeat = (): void => {
     this.#heartbeatAck = false;
 
     const now = new Date().getTime();

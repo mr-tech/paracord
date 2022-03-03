@@ -13,10 +13,24 @@ import {
 import type { DebugLevel, ILockServiceOptions, UserEvents } from '../../common';
 import type { ReadyEventField } from '../../types';
 import type { IApiOptions } from '../Api/types';
-import type { GatewayBotResponse, GatewayOptions, IdentityOptions } from '../Gateway/types';
-import type { GatewayMap, ParacordLoginOptions, ParacordOptions } from './types';
+import type { GatewayOptions, IdentityOptions, GatewayCloseEvent } from '../Gateway/types';
+import type { GatewayMap, ParacordLoginBaseOptions, ParacordBaseOptions } from './types';
 
-const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
+/**
+   * Determines which shards will be spawned.
+   * @param shards Shard Ids to spawn.
+   * @param shardCount Total number of shards
+   */
+function computeShards(shards: number[], shardCount: number): { shards: number[] | undefined, shardCount: number | undefined } {
+  if (shards === undefined && shardCount !== undefined) {
+    shards = [];
+    for (let i = 0; i < shardCount; ++i) {
+      shards.push(i);
+    }
+  }
+
+  return { shards, shardCount };
+}
 
 /* "Start up" refers to logging in to the gateway and waiting for all the guilds to be returned. By default, events will be suppressed during start up. */
 
@@ -28,11 +42,11 @@ export default class Base extends EventEmitter {
 
   public addRequestService!: Api['addRequestService'];
 
-  /** Discord bot token. */
-  public readonly token: string;
-
   /** Gateways queue to log in. */
   public readonly gatewayLoginQueue: Gateway[];
+
+  /** Discord bot token. */
+  #token: string;
 
   /** Whether or not the `init()` function has already been called. */
   #initialized: boolean;
@@ -48,7 +62,7 @@ export default class Base extends EventEmitter {
 
   /* Internal clients. */
   /** Client through which to make REST API calls to Discord. */
-  #api!: Api;
+  #api?: Api;
 
   /** Gateway clients keyed to their shard #. */
   #gateways: GatewayMap;
@@ -65,7 +79,7 @@ export default class Base extends EventEmitter {
 
   /* State that tracks the start up process. */
   /** Timestamp of the last gateway identify. */
-  public safeGatewayIdentifyTimestamp: number;
+  #safeGatewayIdentifyTimestamp: number;
 
   /** Shard currently in the initial phases of the gateway connection in progress. */
   #startingGateway: Gateway | undefined;
@@ -84,9 +98,6 @@ export default class Base extends EventEmitter {
   /* User-defined event handling behavior. */
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
   #events?: UserEvents;
-
-  /** During startup, if events should be emitted before `PARACORD_STARTUP_COMPLETE` is emitted. `GUILD_CREATE` events will never be emitted during start up. */
-  #allowEventsDuringStartup: boolean;
 
   #preventLogin: boolean;
 
@@ -109,20 +120,20 @@ export default class Base extends EventEmitter {
    * @param token Discord bot token. Will be coerced into a bot token.
    * @param options Settings for this Paracord instance.
    */
-  public constructor(token: string, options: ParacordOptions = {}) {
+  public constructor(token: string, options: ParacordBaseOptions = {}) {
     super();
     Base.validateParams(token);
 
-    this.token = coerceTokenToBotLike(token);
+    this.#token = coerceTokenToBotLike(token);
     this.#initialized = false;
     this.#gateways = new Map();
     this.gatewayLoginQueue = [];
     this.#guildWaitCount = 0;
     this.#gatewayWaitCount = 0;
-    this.#allowEventsDuringStartup = false;
     this.#preventLogin = false;
-    this.safeGatewayIdentifyTimestamp = 0;
     this.#gatewayHeartbeats = [];
+
+    this.#safeGatewayIdentifyTimestamp = 0;
 
     const { events, apiOptions, gatewayOptions } = options;
     this.#events = events;
@@ -132,7 +143,6 @@ export default class Base extends EventEmitter {
     if (options.autoInit !== false) {
       this.init();
     }
-    this.bindTimerFunction();
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -149,22 +159,6 @@ export default class Base extends EventEmitter {
     return this.gatewayLoginQueue.length !== 0 || this.#startingGateway !== undefined;
   }
 
-  /** The api client of this Paracord client. */
-  public get api(): Api {
-    return this.#api;
-  }
-
-  /*
-   ********************************
-   ******** BIND FUNCTIONS ********
-   ********************************
-   */
-
-  /** Binds `this` to functions that are used in timeouts and intervals. */
-  private bindTimerFunction(): void {
-    this.processGatewayQueue = this.processGatewayQueue.bind(this);
-  }
-
   /*
    ********************************
    *********** INTERNAL ***********
@@ -178,14 +172,24 @@ export default class Base extends EventEmitter {
    * @param shard Shard id of the gateway that emitted this event.
    */
   public eventHandler(eventType: string, data: unknown, shard: number): unknown {
+    switch (eventType) {
+      case 'READY':
+        this.handleGatewayReady(<ReadyEventField>data);
+        break;
+      case 'GATEWAY_IDENTIFY':
+        this.handleGatewayIdentify(<Gateway>data);
+        break;
+      case 'GATEWAY_CLOSE':
+        this.handleGatewayClose(<GatewayCloseEvent>data);
+        break;
+      default:
+    }
+
     if (this.#startingGateway?.id === shard && this.#guildWaitCount !== undefined) {
       if (eventType === 'GUILD_CREATE') {
         --this.#guildWaitCount;
         this.checkIfDoneStarting();
-        return undefined;
       }
-
-      return this.#allowEventsDuringStartup ? data : undefined;
     }
 
     return data;
@@ -231,9 +235,11 @@ export default class Base extends EventEmitter {
    * Connects to Discord's gateway and begins receiving and emitting events.
    * @param options Options used when logging in.
    */
-  public async login(options: ParacordLoginOptions): Promise<void> {
+  public async login(options: Partial<ParacordLoginBaseOptions> = {}): Promise<void> {
+    const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
+
     const {
-      unavailableGuildTolerance, unavailableGuildWait, allowEventsDuringStartup, startupHeartbeatTolerance,
+      unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance,
     } = options;
 
     if (!this.#initialized) {
@@ -253,8 +259,6 @@ export default class Base extends EventEmitter {
 
     this.startGatewayLoginInterval();
     await this.enqueueGateways(options);
-
-    this.#allowEventsDuringStartup = allowEventsDuringStartup || false;
   }
 
   /** Begins the interval that kicks off gateway logins from the queue. */
@@ -263,11 +267,9 @@ export default class Base extends EventEmitter {
   }
 
   /** Takes a gateway off of the queue and logs it in. */
-  async processGatewayQueue(): Promise<void> {
+  private processGatewayQueue = async (): Promise<void> => {
     const preventLogin = this.#preventLogin;
-    const {
-      gatewayLoginQueue, safeGatewayIdentifyTimestamp,
-    } = this;
+    const { gatewayLoginQueue } = this;
     const startingGateway = this.#startingGateway;
     const unavailableGuildTolerance = this.#unavailableGuildTolerance;
     const unavailableGuildWait = this.#unavailableGuildWait;
@@ -275,12 +277,12 @@ export default class Base extends EventEmitter {
 
     if (
       !preventLogin
-        && gatewayLoginQueue.length
-        && startingGateway === undefined
-        && now > safeGatewayIdentifyTimestamp
+      && gatewayLoginQueue.length
+      && startingGateway === undefined
+      && now > this.#safeGatewayIdentifyTimestamp
     ) {
       const gateway = <Gateway> this.gatewayLoginQueue.shift();
-      this.safeGatewayIdentifyTimestamp = now + 10 * SECOND_IN_MILLISECONDS; // arbitrary buffer to allow previous to finish
+      this.#safeGatewayIdentifyTimestamp = now + 10 * SECOND_IN_MILLISECONDS; // arbitrary buffer to allow previous to finish
 
       this.#startingGateway = gateway;
       try {
@@ -297,7 +299,7 @@ export default class Base extends EventEmitter {
     }
   }
 
-  private startWithUnavailableGuilds(gateway: Gateway): void {
+  private startWithUnavailableGuilds = (gateway: Gateway): void => {
     const unavailableGuildTolerance = this.#unavailableGuildTolerance;
     const guildWaitCount = this.#guildWaitCount;
     const unavailableGuildWait = this.#unavailableGuildWait;
@@ -316,7 +318,7 @@ export default class Base extends EventEmitter {
   /** Decides shards to spawn and pushes a gateway onto the queue for each one.
    * @param options Options used when logging in.
    */
-  private async enqueueGateways(options: ParacordLoginOptions): Promise<void> {
+  private async enqueueGateways(options: Partial<ParacordLoginBaseOptions>): Promise<void> {
     const { identity } = options;
     let { shards, shardCount } = options;
 
@@ -324,61 +326,28 @@ export default class Base extends EventEmitter {
       const identityCopy = clone<IdentityOptions>(identity);
       this.addNewGateway(identityCopy);
     } else {
+      if (!identity?.intents) throw Error('intents missing on options#identity');
+
       if (shards !== undefined && shardCount !== undefined) {
         shards.forEach((s) => {
           if (s + 1 > <number>shardCount) {
             throw Error(`shard id ${s} exceeds max shard id of ${<number>shardCount - 1}`);
           }
         });
-      } else {
-        ({ shards, shardCount } = await this.computeShards(shards, shardCount));
+      } else if (shards && shardCount) {
+        ({ shards, shardCount } = computeShards(shards, shardCount));
       }
 
       if (shards === undefined || shardCount === undefined) {
         throw Error(`shards ids or shard count are invalid - ids ${shards} , count: ${shardCount}`);
       } else {
         for (const shard of shards) {
-          const identityCopy = clone<IdentityOptions>(identity);
-          identityCopy.token = this.token;
+          const identityCopy: IdentityOptions = identity ? clone<IdentityOptions>(identity) : { token: this.#token, intents: 0 };
           identityCopy.shard = [shard, shardCount];
           this.addNewGateway(identityCopy);
         }
       }
     }
-  }
-
-  /**
-   * Determines which shards will be spawned.
-   * @param shards Shard Ids to spawn.
-   * @param shardCount Total number of shards
-   */
-  private async computeShards(
-    shards: number[] | undefined, shardCount: number | undefined,
-  ): Promise<{ shards: number[] | undefined, shardCount: number | undefined }> {
-    if (shards !== undefined && shardCount === undefined) {
-      throw Error('shards defined with no shardCount.');
-    }
-
-    if (shardCount === undefined) {
-      const { status, data: { shards: recommendedShards } } = <GatewayBotResponse> await this.api.request(
-        'get',
-        'gateway/bot',
-      );
-      if (status === 200) {
-        shardCount = recommendedShards;
-      } else {
-        throw Error('failed to retrieve recommended shard count from Discord');
-      }
-    }
-
-    if (shards === undefined && shardCount !== undefined) {
-      shards = [];
-      for (let i = 0; i < shardCount; ++i) {
-        shards.push(i);
-      }
-    }
-
-    return { shards, shardCount };
   }
 
   /**
@@ -388,7 +357,7 @@ export default class Base extends EventEmitter {
   private addNewGateway(identity: IdentityOptions): void {
     const gatewayOptions = this.createGatewayOptions(identity);
 
-    const gateway = this.setUpGateway(this.token, gatewayOptions);
+    const gateway = this.setUpGateway(this.#token, gatewayOptions);
     if (this.#gateways.get(gateway.id) !== undefined) {
       throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
     }
@@ -402,7 +371,7 @@ export default class Base extends EventEmitter {
 
   private createGatewayOptions(identity: IdentityOptions): GatewayOptions {
     const gatewayOptions: GatewayOptions = {
-      identity, api: this.api, emitter: this, checkSiblingHeartbeats: this.#gatewayHeartbeats,
+      identity, api: this.#api, emitter: this, checkSiblingHeartbeats: this.#gatewayHeartbeats,
     };
 
     if (this.#startupHeartbeatTolerance !== undefined) {
@@ -418,16 +387,15 @@ export default class Base extends EventEmitter {
     if (this.#initialized) {
       throw Error('Client has already been initialized.');
     }
-    this.#api = this.setUpApi(this.token, this.#apiOptions ?? {});
-    this.selfAssignHandlerFunctions();
+    this.#api = this.setUpApi(this.#token, this.#apiOptions ?? {});
     this.#initialized = true;
   }
 
   /*
-   ********************************
-   ************ SETUP *************
-   ********************************
-   */
+  ********************************
+  ************ SETUP *************
+  ********************************
+  */
 
   /**
    * Creates the handler used when handling REST calls to Discord.
@@ -453,7 +421,7 @@ export default class Base extends EventEmitter {
       ...this.#gatewayOptions,
       ...options,
       emitter: this,
-      api: this.api,
+      api: this.#api,
     });
 
     if (this.#gatewayLockServiceOptions) {
@@ -462,13 +430,6 @@ export default class Base extends EventEmitter {
     }
 
     return gateway;
-  }
-
-  /** Assigns some public functions from handlers to this client for easier access. */
-  private selfAssignHandlerFunctions(): void {
-    this.request = this.api.request.bind(this.api);
-    this.addRateLimitService = this.api.addRateLimitService.bind(this.api);
-    this.addRequestService = this.api.addRequestService.bind(this.api);
   }
 
   /**
@@ -484,30 +445,10 @@ export default class Base extends EventEmitter {
   }
 
   /*
-   ********************************
-   ********** START UP ************
-   ********************************
-   */
-
-  /**
-   * Prepares the client for caching guilds on start up.
-   * @param data From Discord - Initial ready event after identify.
-   */
-  public handleReady(data: ReadyEventField): void {
-    const { user, guilds } = data;
-
-    this.#guildWaitCount = guilds.length;
-    this.log('INFO', `Logged in as ${user.username}#${user.discriminator}.`);
-
-    const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
-    this.log('INFO', message);
-
-    if (guilds.length === 0) {
-      this.checkIfDoneStarting();
-    } else {
-      this.#lastGuildTimestamp = new Date().getTime();
-    }
-  }
+  ********************************
+  ********** START UP ************
+  ********************************
+  */
 
   /**
    * Runs with every GUILD_CREATE on initial start up. Decrements counter and emits `PARACORD_STARTUP_COMPLETE` when 0.
@@ -569,5 +510,54 @@ export default class Base extends EventEmitter {
     this.log('INFO', message);
     this.emit('PARACORD_STARTUP_COMPLETE');
     // this.removeInactiveUsersFromCache();
+  }
+
+  /**
+   * Prepares the client for caching guilds on start up.
+   * @param data From Discord - Initial ready event after identify.
+   */
+  private handleGatewayReady(data: ReadyEventField): void {
+    const { user, guilds } = data;
+
+    this.#guildWaitCount = guilds.length;
+    this.log('INFO', `Logged in as ${user.username}#${user.discriminator}.`);
+
+    const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
+    this.log('INFO', message);
+
+    if (guilds.length === 0) {
+      this.checkIfDoneStarting();
+    } else {
+      this.#lastGuildTimestamp = new Date().getTime();
+    }
+  }
+
+  /**
+   * @param identity From a gateway client.
+   */
+  private handleGatewayIdentify(gateway: Gateway): Gateway {
+    this.#safeGatewayIdentifyTimestamp = new Date().getTime() + (6 * SECOND_IN_MILLISECONDS);
+    return gateway;
+  }
+
+  // { gateway, shouldReconnect }: { gateway: Gateway, shouldReconnect: boolean },
+  /**
+   * @param gateway Gateway that emitted the event.
+   * @param shouldReconnect Whether or not to attempt to login again.
+   */
+  private handleGatewayClose(data: GatewayCloseEvent): GatewayCloseEvent {
+    const { gateway, shouldReconnect } = data;
+    if (shouldReconnect) {
+      if (gateway.resumable) {
+        gateway.login();
+      } else if (this.startingGateway === gateway) {
+        this.clearStartingShardState();
+        this.gatewayLoginQueue.unshift(gateway);
+      } else {
+        this.gatewayLoginQueue.push(gateway);
+      }
+    }
+
+    return data;
   }
 }

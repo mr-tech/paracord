@@ -186,10 +186,7 @@ export default class Paracord extends EventEmitter {
     if (options.autoInit !== false) {
       this.init();
     }
-    this.bindTimerFunction();
     this.#gatewayEvents = this.bindEventFunctions();
-    this.handlePresenceRemovedFromGuild = this.handlePresenceRemovedFromGuild.bind(this);
-    this.handleUserRemovedFromGuild = this.handleUserRemovedFromGuild.bind(this);
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -256,11 +253,6 @@ export default class Paracord extends EventEmitter {
     }
 
     return funcs;
-  }
-
-  /** Binds `this` to functions that are used in timeouts and intervals. */
-  private bindTimerFunction(): void {
-    this.processGatewayQueue = this.processGatewayQueue.bind(this);
   }
 
   /*
@@ -371,7 +363,7 @@ export default class Paracord extends EventEmitter {
   }
 
   /** Takes a gateway off of the queue and logs it in. */
-  async processGatewayQueue(): Promise<void> {
+  private processGatewayQueue = async (): Promise<void> => {
     const preventLogin = this.#preventLogin;
     const {
       gatewayLoginQueue, safeGatewayIdentifyTimestamp,
@@ -405,7 +397,7 @@ export default class Paracord extends EventEmitter {
     }
   }
 
-  private startWithUnavailableGuilds(gateway: Gateway): void {
+  private startWithUnavailableGuilds = (gateway: Gateway): void => {
     const unavailableGuildTolerance = this.#unavailableGuildTolerance;
     const guildWaitCount = this.#guildWaitCount;
     const unavailableGuildWait = this.#unavailableGuildWait;
@@ -527,7 +519,6 @@ export default class Paracord extends EventEmitter {
       throw Error('Client has already been initialized.');
     }
     this.#api = this.setUpApi(this.token, this.#apiOptions ?? {});
-    this.selfAssignHandlerFunctions();
     this.#initialized = true;
   }
 
@@ -570,13 +561,6 @@ export default class Paracord extends EventEmitter {
     }
 
     return gateway;
-  }
-
-  /** Assigns some public functions from handlers to this client for easier access. */
-  private selfAssignHandlerFunctions(): void {
-    this.request = this.api.request.bind(this.api);
-    this.addRateLimitService = this.api.addRateLimitService.bind(this.api);
-    this.addRequestService = this.api.addRequestService.bind(this.api);
   }
 
   /**
@@ -867,7 +851,7 @@ export default class Paracord extends EventEmitter {
     this.#guilds?.delete(guild.id);
   }
 
-  public handleUserRemovedFromGuild(user: User, guild: Guild): void {
+  public handleUserRemovedFromGuild = (user: User, guild: Guild): void => {
     user.decrementGuildCount();
     if (user.guildCount === 0) {
       if (user !== this.user) {
@@ -877,7 +861,7 @@ export default class Paracord extends EventEmitter {
     } else if (guild.voiceStates.has(user.id)) user.decrementActiveReferenceCount();
   }
 
-  public handlePresenceRemovedFromGuild(presence: Presence): void {
+  public handlePresenceRemovedFromGuild = (presence: Presence): void => {
     presence.decrementGuildCount();
     if (presence.guildCount === 0) {
       this.#presences.delete(presence.user.id);

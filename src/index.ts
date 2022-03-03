@@ -8,8 +8,15 @@ export { default as Gateway } from './clients/Gateway/Gateway';
 export { default as Api } from './clients/Api/Api';
 export { default as ShardLauncher } from './clients/Paracord/ShardLauncher';
 export { default as Server } from './rpc/server/RpcServer';
-export { default as Base } from './rpc/server/RpcServer';
+export { default as Base } from './clients/Paracord/Base';
 export * as ParacordUtils from './utils';
 export * as constants from './constants';
+export * from './clients/Gateway/types';
+export * from './clients/Api/types';
 
-export * from './clients/Paracord/structures';
+// export * from './clients/Paracord/structures';
+export {
+  ParacordBaseOptions, ParacordOptions, FilterOptions, ParacordLoginBaseOptions, ParacordLoginOptions,
+  ShardLauncherOptions,
+} from './clients/Paracord/types';
+export * from './types';

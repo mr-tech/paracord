@@ -142,7 +142,7 @@ export default class Api {
    * @param message Content of the log
    * @param [data] Data pertinent to the event.
    */
-  public log(level: DebugLevel, message: string, data?: unknown): void {
+  public log = (level: DebugLevel, message: string, data?: unknown): void => {
     this.emit('DEBUG', {
       source: LOG_SOURCES.API,
       level: LOG_LEVELS[level],
@@ -156,7 +156,7 @@ export default class Api {
    * @param type Type of event. (e.g. "DEBUG" or "CHANNEL_CREATE")
    * @param data Data to send with the event.
    */
-  private emit(type: string, data: unknown): void {
+  private emit = (type: string, data: unknown): void => {
     if (this.#emitter !== undefined) {
       this.#emitter.emit(type, data);
     }
@@ -173,7 +173,7 @@ export default class Api {
    * @param serviceOptions
    * @returns `true` is connection was successful.
    */
-  public addRequestService(serviceOptions: IServiceOptions = {}): Promise<boolean> {
+  public addRequestService = (serviceOptions: IServiceOptions = {}): Promise<boolean> => {
     if (
       this.hasRateLimitService
       || this.hasRequestService
@@ -208,7 +208,7 @@ export default class Api {
    * @param serviceOptions
    * @returns `true` is connection was successful.
    */
-  public addRateLimitService(serviceOptions: IServiceOptions = {}): Promise<boolean> {
+  public addRateLimitService = (serviceOptions: IServiceOptions = {}): Promise<boolean> => {
     if (
       this.hasRateLimitService
       || this.hasRequestService
@@ -241,7 +241,7 @@ export default class Api {
   /**
    * @returns `true` is connection was successful.
    */
-  private async checkRpcServiceConnection(service: RateLimitService | RequestService): Promise<boolean> {
+  private checkRpcServiceConnection = async (service: RateLimitService | RequestService): Promise<boolean> => {
     try {
       await service.hello();
       this.#connectingToRpcService = false;
@@ -294,7 +294,7 @@ export default class Api {
    * Starts the request rate limit queue processing.
    * @param interval Time between checks in ms.
    */
-  public startQueue(interval = 100): void {
+  public startQueue = (interval = 100): void => {
     if (this.#requestQueueProcessInterval === undefined) {
       this.log('INFO', 'Starting request queue.');
       this.#requestQueueProcessInterval = this.#requestQueue.startQueue(interval);
@@ -304,7 +304,7 @@ export default class Api {
   }
 
   /** Stops the request rate limit queue processing. */
-  public stopQueue(): void {
+  public stopQueue = (): void => {
     if (this.#requestQueueProcessInterval !== undefined) {
       this.log('INFO', 'Stopping request queue.');
       clearInterval(this.#requestQueueProcessInterval);
@@ -325,7 +325,7 @@ export default class Api {
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
-  public async request<T extends ResponseData = any>(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> {
+  public request = async <T extends ResponseData = any>(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
     const { local, keepCase } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
@@ -354,7 +354,7 @@ export default class Api {
    * @param request The request being sent.
    * @returns axios response.
    */
-  async handleRequestLocal<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
+  private async handleRequestLocal<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
     if (this.#requestQueueProcessInterval === undefined) {
       const message = 'Making a request with a local Api client without a running request queue. Please invoke `startQueue()` on this client so that rate limits may be handled.';
       this.log('WARNING', message);
@@ -413,7 +413,7 @@ export default class Api {
    * Determines how the request will be made based on the client's options and makes it.
    * @param request ApiRequest being made,
    */
-  async sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue?: true): Promise<IResponseState<T>> {
+  public sendRequest = async <T extends ResponseData>(request: ApiRequest, fromQueue?: true): Promise<IResponseState<T>> => {
     try {
       request.running = true;
 
@@ -459,7 +459,7 @@ export default class Api {
    * Gets authorization from the server to make the request.
    * @param request ApiRequest being made.
    */
-  public async authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState | undefined> {
+  private async authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState | undefined> {
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {
         const message = 'Client is connecting to RPC server. Fallback is allowed. Allowing request to be made.';

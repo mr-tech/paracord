@@ -224,19 +224,6 @@ export function constructGuildIcon(guild: Guild, fileType = ''): string | undefi
   return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.iconHash}${fileType ? `.${fileType}` : ''}`;
 }
 
-// /**
-//  * Assigns export functions to an object and binds that object to their `this`.
-//  * @param obj Object to bind to export functions and assign export functions those export functions as properties.
-//  * @param funcs Functions to assign to object.
-//  */
-// export function bindEventFunctionsFromFile(obj: Record<string, unknown> | unknown, funcs: Record<string, unknown>): void {
-//   for (const prop of Object.getOwnPropertyNames(funcs)) {
-//     if (typeof funcs[prop] === 'function') {
-//       obj.events[prop] = funcs[prop].bind(obj);
-//     }
-//   }
-// }
-
 /**
  * Generates a unique Id.
  * https://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript

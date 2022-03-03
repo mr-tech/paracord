@@ -42,7 +42,7 @@ export default class RateLimitMap extends Map<string, RateLimit> {
   }
 
   /** Removes old rate limits from cache. */
-  private sweepExpiredRateLimits(): void {
+  private sweepExpiredRateLimits = (): void => {
     const now = new Date().getTime();
     let count = 0;
     for (const [key, { expires }] of this.entries()) {
@@ -58,10 +58,7 @@ export default class RateLimitMap extends Map<string, RateLimit> {
   }
 
   /** Begins timer for sweeping cache of old rate limits. */
-  public startSweepInterval(): void {
-    this.#sweepInterval = setInterval(
-      this.sweepExpiredRateLimits.bind(this),
-      API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS,
-    );
+  public startSweepInterval = (): void => {
+    this.#sweepInterval = setInterval(this.sweepExpiredRateLimits, API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
   }
 }

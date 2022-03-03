@@ -11,10 +11,10 @@ import type { IApiOptions } from '../Api/types';
 import type Gateway from '../Gateway/Gateway';
 import type { GatewayOptions, IdentityOptions } from '../Gateway/types';
 
-import type {
-  GuildMember, User, Guild, Role, GuildEmoji, GuildChannel, Presence, Activity, Overwrite, CacheMap, GuildVoiceState,
-} from '../..';
 import type Paracord from '.';
+import type {
+  GuildChannel, GuildVoiceState, CacheMap, GuildMember, User, Guild, GuildEmoji, Presence, Activity, Role, Overwrite,
+} from './structures';
 
 export type GatewayMap = Map<number, Gateway>;
 export type RawGuildType = AugmentedRawGuild | UnavailableGuild;
@@ -74,7 +74,17 @@ export interface FilterOptions {
   };
 }
 
-export interface ParacordLoginOptions {
+export interface ParacordLoginBaseOptions {
+  identity: IdentityOptions;
+  shards?: number[];
+  shardCount?: number;
+  unavailableGuildTolerance?: number;
+  unavailableGuildWait?: number;
+  allowEventsDuringStartup?: true;
+  startupHeartbeatTolerance?: number;
+}
+
+export interface ParacordLoginOptions extends ParacordLoginBaseOptions {
   identity: IdentityOptions;
   shards?: number[];
   shardCount?: number;

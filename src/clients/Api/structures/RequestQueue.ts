@@ -47,7 +47,7 @@ export default class RequestQueue {
   }
 
   public startQueue(interval: number): NodeJS.Timer {
-    return setInterval(this.process.bind(this), interval);
+    return setInterval(this.process, interval);
   }
 
   /**
@@ -88,7 +88,7 @@ export default class RequestQueue {
   }
 
   /** Iterates over the queue, sending any requests that are no longer rate limited. */
-  private process(): void {
+  private process = (): void => {
     if (this.length === 0 || this.#processing) return;
 
     try {
