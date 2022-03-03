@@ -1,52 +1,56 @@
-import {
-  ActivityAssets, GuildMembersChunkEventFields, GuildMemberUpdateEventFields, RawActivity, RawChannel, RawEmoji, RawGuild, RawGuildMember, RawMessage, RawPresence, RawRole, RawUser, RawVoiceState, Snowflake, UnavailableGuild,
+import type {
+  ActivityAsset, GuildMembersChunkEventField, GuildMemberUpdateEventField, Activity, Channel, Emoji,
+  Guild, GuildMember, Message, Presence, Role, User, VoiceState, Snowflake, UnavailableGuild,
+  Button, SelectMenu, SelectOption, TextInput,
 } from '.';
 
-export interface AugmentedRawGuildMember extends RawGuildMember {
-  user: RawUser;
+export interface AugmentedGuildMember extends GuildMember {
+  user: User;
 }
 
-export interface AugmentedRawVoiceState extends RawVoiceState {
-  member?: AugmentedRawGuildMember;
+export interface AugmentedVoiceState extends VoiceState {
+  member?: AugmentedGuildMember;
 }
 
-export interface AugmentedRawGuild extends RawGuild {
-  voice_states?: AugmentedRawVoiceState[];
-  presences?: RawPresence[];
-  members?: AugmentedRawGuildMember[];
+export interface AugmentedGuild extends Guild {
+  voice_states?: AugmentedVoiceState[];
+  presences?: Presence[];
+  members?: AugmentedGuildMember[];
+  emojis: GuildEmoji[];
 }
 
-export interface AugmentedGuildMembersChunkEventFields extends GuildMembersChunkEventFields {
-  members: AugmentedRawGuildMember[];
+export interface AugmentedGuildMembersChunkEventFields extends GuildMembersChunkEventField {
+  members: AugmentedGuildMember[];
 }
 
-export interface AugmentedRawMessage extends RawMessage {
-  member: AugmentedRawGuildMember;
+export interface AugmentedMessage extends Message {
+  member: AugmentedGuildMember;
 }
 
-export interface RawGuildEmoji extends RawEmoji {
-  id: Snowflake
+export interface GuildEmoji extends Emoji {
+  id: Snowflake;
 }
 
-export interface AugmentedActivityAssets extends ActivityAssets {
+export interface AugmentedActivityAssets extends ActivityAsset {
   largeImage?: string;
   largeText?: string;
   smallImage?: string;
   smallText?: string;
 }
 
-export type RawWildCard =
-AugmentedRawGuildMember |
-AugmentedRawVoiceState |
+export type MessageComponent = Button | SelectMenu | SelectOption | TextInput;
+
+export type WildCard =
+AugmentedGuildMember |
+AugmentedVoiceState |
 AugmentedGuildMembersChunkEventFields |
-AugmentedRawMessage |
-GuildMemberUpdateEventFields |
-RawUser |
-RawChannel |
-AugmentedRawGuild |
-RawRole |
-RawGuildEmoji |
-RawActivity |
+AugmentedMessage |
+GuildMemberUpdateEventField |
+User |
+Channel |
+AugmentedGuild |
+GuildEmoji |
+Activity |
 AugmentedActivityAssets |
-RawPresence |
+Presence |
 UnavailableGuild

@@ -1,8 +1,9 @@
-import { RawUser, Snowflake } from '../../../../../types';
-import { FilterOptions } from '../../../types';
 import { timestampFromSnowflake } from '../../../../../utils';
-import Presence from './Presence';
-import type Paracord from '../../../Paracord';
+
+import type { User as RawUser, Snowflake, UserFlags } from '../../../../../types';
+import type Paracord from '../../..';
+import type { FilterOptions } from '../../../types';
+import type Presence from './Presence';
 
 let nextCacheCheckOffset = 0;
 
@@ -13,14 +14,16 @@ export default class User {
 
   #lastAccessed: number;
 
-  /** the user's id */
-  #id: Snowflake; // identify
-
   /** how many guilds in this client that this user belongs to (might deprecate) */
   #guildCount: number;
 
   /** how many "active objects" (presences, voice states, guild owner) in this client that this user is referenced by. */
   #activeReferenceCount: number;
+
+  public presence: Presence | undefined;
+
+  /** the user's id */
+  #id: Snowflake; // identify
 
   /** the user's username, not unique across the platform */
   public username: string | undefined; // identify
@@ -35,30 +38,34 @@ export default class User {
   public bot: boolean | undefined; // identify
 
   /** whether the user is an Official Discord System user (part of the urgent message system) */
-  // public system: boolean | undefined; // identify
+  // system?: boolean; // identify
 
   /** whether the user has two factor enabled on their account */
-  // public mfaEnabled: boolean | undefined; // identify
+  // mfa_enabled?: boolean; // identify
+
+  /** the user's banner hash */
+  // banner?: string | null; // identify
+
+  /** the user's banner color encoded as an integer representation of hexadecimal color code */
+  // accent_color?: number | null; // identify
 
   /** the user's chosen language option */
-  // public locale: string | undefined; // identify
+  // locale?: string; // identify
 
   /** whether the email on this account has been verified */
-  // public verified: boolean | undefined; // email
+  // verified?: boolean; // email
 
   /** the user's email */
-  // public email: string | null | undefined; // email
+  // email?: string | null; // email
 
   /** the flags on a user's account */
-  // public flags: number | undefined; // identify
+  public flags: UserFlags | undefined; // identify
 
   /** the type of Nitro subscription on a user's account */
-  // public premiumType: number | undefined; // identify
+  public premiumType: number | undefined; // identify
 
   /** the public flags on a user's account */
   public publicFlags: number | undefined; // identify
-
-  public presence: Presence | undefined;
 
   public constructor(filteredProps: FilterOptions['props'] | undefined, user: RawUser, client: Paracord) {
     this.#client = client;

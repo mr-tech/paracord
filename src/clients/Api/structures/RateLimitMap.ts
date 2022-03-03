@@ -41,7 +41,6 @@ export default class RateLimitMap extends Map<string, RateLimit> {
     return rateLimit;
   }
 
-
   /** Removes old rate limits from cache. */
   private sweepExpiredRateLimits(): void {
     const now = new Date().getTime();

@@ -15,22 +15,21 @@ import {
 import type erlpackType from 'erlpack';
 import type { IServiceOptions } from '../Api/types';
 import type {
-  GatewayPayload, GuildRequestMembers, Hello, ReadyEventFields, Resume,
+  GatewayPayload, GuildRequestMember, Hello, ReadyEventField, Resume,
 } from '../../types';
 import type {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, GuildMemberChunk, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 
-
 let erlpack: null | typeof erlpackType = null;
 let encoding = 'json';
 
+// eslint-disable-next-line import/no-unresolved
 import('erlpack')
   .then((_erlpack) => {
     erlpack = _erlpack;
     encoding = 'etf';
   }).catch(() => { /* do nothing */ });
-
 
 interface GuildChunkState {
   receivedIndexes: number[];
@@ -377,7 +376,7 @@ export default class Gateway {
    * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
    */
   public requestGuildMembers(guildId: string, options: any = { query: '', presences: false, userIds: [] }): boolean {
-    const requiredSendOptions: Partial<GuildRequestMembers> = {
+    const requiredSendOptions: Partial<GuildRequestMember> = {
       limit: 0,
     };
     const snakeOptions = objectKeysCamelToSnake(options);
@@ -388,7 +387,7 @@ export default class Gateway {
 
     this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
 
-    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMembers>{
+    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMember>{
       guild_id: guildId, ...requiredSendOptions, ...snakeOptions, nonce,
     });
   }
@@ -856,7 +855,7 @@ export default class Gateway {
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
-          this.handleReady(<ReadyEventFields><unknown>data);
+          this.handleReady(<ReadyEventField><unknown>data);
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
@@ -901,7 +900,6 @@ export default class Gateway {
     this.updateSequence(sequence);
   }
 
-
   /** Proxy for inline heartbeat checking. */
   private _checkIfShouldHeartbeat(): void {
     if (this.#checkSiblingHeartbeats !== undefined) this.#checkSiblingHeartbeats.forEach((f) => f());
@@ -929,7 +927,7 @@ export default class Gateway {
    * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
    * @param data From Discord.
    */
-  private handleReady(data: ReadyEventFields): void {
+  private handleReady(data: ReadyEventField): void {
     this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
 
     this.#sessionId = data.session_id;
@@ -1089,7 +1087,7 @@ export default class Gateway {
     const sequence = this.#sequence;
     const sessionId = this.#sessionId;
 
-    if (sessionId !== undefined) {
+    if (sessionId !== undefined && sequence !== null) {
       const payload: Resume = {
         token,
         session_id: sessionId,
@@ -1229,7 +1227,7 @@ export default class Gateway {
    * @param data Data of the message.
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
-  private send(op: number, data: Heartbeat | Identify | GuildRequestMembers | Resume): boolean {
+  private send(op: number, data: Heartbeat | Identify | GuildRequestMember | Resume): boolean {
     if (
       this.canSendPacket(op)
       && this.#ws?.readyState === ws.OPEN
@@ -1253,7 +1251,6 @@ export default class Gateway {
 
     return false;
   }
-
 
   /**
    * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).

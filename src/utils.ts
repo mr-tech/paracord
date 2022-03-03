@@ -1,20 +1,18 @@
 /** A class of helper export functions used throughout the library. */
-import Overwrite from './clients/Paracord/structures/discord/objects/Overwrite';
-import Guild from './clients/Paracord/structures/discord/resources/Guild';
-import GuildChannel from './clients/Paracord/structures/discord/resources/GuildChannel';
-import GuildMember from './clients/Paracord/structures/discord/resources/GuildMember';
-import Role from './clients/Paracord/structures/discord/resources/Role';
-import User from './clients/Paracord/structures/discord/resources/User';
 import {
-  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS, OVERWRITE_ROLE_VALUE, OVERWRITE_MEMBER_VALUE,
+  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS, SECOND_IN_MILLISECONDS, OVERWRITE_ROLE_VALUE,
 } from './constants';
+
 import type { Snowflake } from './types';
+import type {
+  GuildMember, Guild, GuildChannel, Role, User, Overwrite,
+} from './clients/Paracord/structures';
 
 /**
  * Returns a new object that is a clone of the original.
  * @param object Object to clone.
  */
-export function clone(object: Record<string, unknown>): Record<string, unknown> {
+export function clone<T>(object: T): T {
   return JSON.parse(JSON.stringify(object));
 }
 

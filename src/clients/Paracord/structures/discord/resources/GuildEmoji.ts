@@ -1,8 +1,7 @@
-import { RawGuildEmoji, Snowflake } from '../../../../../types';
+import { GuildEmoji as RawGuildEmoji, Snowflake } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import { timestampFromSnowflake, squashArrays } from '../../../../../utils';
 import Role from './Role';
-import User from './User';
 import Guild from './Guild';
 
 export default class GuildEmoji {

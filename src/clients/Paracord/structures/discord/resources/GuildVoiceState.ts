@@ -1,5 +1,5 @@
 import {
-  AugmentedRawVoiceState, ISO8601timestamp, Snowflake,
+  VoiceState as AugmentedRawVoiceState, ISO8601timestamp, Snowflake,
 } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import Guild from './Guild';
@@ -112,8 +112,6 @@ export default class GuildVoiceState {
     ) this.selfVideo = voiceState.self_video;
     if ((this.#filteredProps === undefined || 'suppress' in this)
     ) this.suppress = voiceState.suppress;
-    if ((this.#filteredProps === undefined || 'requestToSpeakTimestamp' in this)
-    ) this.requestToSpeakTimestamp = voiceState.request_to_speak_timestamp;
 
     return this;
   }

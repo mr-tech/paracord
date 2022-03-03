@@ -1,34 +1,32 @@
 // // Paracord
 /* eslint-disable max-classes-per-file */
 
-import { Paracord } from '../..';
-import { UserEvents } from '../../common';
-import {
-  RawGuildEmoji, AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, Identify, RawChannel, RawMessage, RawPresence, RawRole, RawUser, Snowflake, UnavailableGuild, GuildMemberUpdateEventFields,
+import type { UserEvents } from '../../common';
+import type {
+  GuildEmoji as RawGuildEmoji, AugmentedGuild as AugmentedRawGuild, AugmentedGuildMember as AugmentedRawGuildMember,
+  AugmentedVoiceState as AugmentedRawVoiceState, Channel as RawChannel, Message as RawMessage,
+  Presence as RawPresence, Role as RawRole, User as RawUser, Snowflake, UnavailableGuild, GuildMemberUpdateEventField,
 } from '../../types';
-import { IApiOptions } from '../Api/types';
-import Gateway from '../Gateway/Gateway';
-import { GatewayOptions } from '../Gateway/types';
-import CacheMap from './structures/CacheMap';
-import Activity from './structures/discord/objects/Activity';
-import Overwrite from './structures/discord/objects/Overwrite';
-import GuildEmoji from './structures/discord/resources/GuildEmoji';
-import Guild from './structures/discord/resources/Guild';
-import GuildChannel from './structures/discord/resources/GuildChannel';
-import GuildMember from './structures/discord/resources/GuildMember';
-import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
-import Presence from './structures/discord/resources/Presence';
-import Role from './structures/discord/resources/Role';
-import User from './structures/discord/resources/User';
+import type { IApiOptions } from '../Api/types';
+import type Gateway from '../Gateway/Gateway';
+import type { GatewayOptions, IdentityOptions } from '../Gateway/types';
+
+import type {
+  GuildMember, User, Guild, Role, GuildEmoji, GuildChannel, Presence, Activity, Overwrite, CacheMap, GuildVoiceState,
+} from '../..';
+import type Paracord from '.';
 
 export type GatewayMap = Map<number, Gateway>;
+export type RawGuildType = AugmentedRawGuild | UnavailableGuild;
 
-export interface ParacordOptions {
+export interface ParacordBaseOptions {
   events?: UserEvents;
   apiOptions?: Partial<IApiOptions>;
   gatewayOptions?: Partial<GatewayOptions>;
   autoInit?: boolean;
-  limits?: Limits
+}
+export interface ParacordOptions extends ParacordBaseOptions {
+  limits?: Limits;
   filterOptions?: FilterOptions;
 }
 
@@ -77,7 +75,7 @@ export interface FilterOptions {
 }
 
 export interface ParacordLoginOptions {
-  identity?: Partial<Identify>;
+  identity: IdentityOptions;
   shards?: number[];
   shardCount?: number;
   unavailableGuildTolerance?: number;
@@ -100,7 +98,7 @@ export type UserMap = CacheMap<User, RawUser>
 export type PresenceMap = CacheMap<Presence, RawPresence>
 export type RoleMap = CacheMap<Role, RawRole>
 export type EmojiMap = CacheMap<GuildEmoji, RawGuildEmoji>
-export type GuildMemberMap = CacheMap<GuildMember, AugmentedRawGuildMember | GuildMemberUpdateEventFields>
+export type GuildMemberMap = CacheMap<GuildMember, AugmentedRawGuildMember | GuildMemberUpdateEventField>
 export type GuildChannelMap = CacheMap<GuildChannel, RawChannel>
 export type VoiceStateMap = CacheMap<GuildVoiceState, AugmentedRawVoiceState>
 
@@ -126,7 +124,6 @@ export interface Message extends RawMessage {
 
 export type EventFunctions = Record<string, EventFunction>;
 export type EventFunction = (...any: unknown[]) => unknown;
-export type RawGuildType = AugmentedRawGuild | UnavailableGuild
 
 // export interface GuildMembersChunk extends AugmentedGuildMembersChunkEventFields{
 //   members: GuildMember[];

@@ -1,6 +1,6 @@
-import { ISO8601timestamp, RawGuildMember, Snowflake } from '.';
+import type { GuildMember, Snowflake, ISO8601timestamp } from '.';
 
-export type RawVoiceState = {
+export type VoiceState = {
   /** the guild id this voice state is for */
   guild_id?: Snowflake;
   /** the channel id this user is connected to */
@@ -8,7 +8,7 @@ export type RawVoiceState = {
   /** the user id this voice state is for */
   user_id: Snowflake;
   /** the guild member this voice state is for */
-  member?: RawGuildMember;
+  member?: GuildMember;
   /** the session id for this voice state */
   session_id: string;
   /** whether this user is deafened by the server */
@@ -26,7 +26,7 @@ export type RawVoiceState = {
   /** whether this user is muted by the current user */
   suppress: boolean;
   /** the time at which the user requested to speak */
-  request_to_speak_timestamp?: ISO8601timestamp | null;
+  request_to_speak_timestamp: ISO8601timestamp | null;
 };
 
 // ========================================================================
@@ -36,8 +36,6 @@ export type VoiceRegion = {
   id: string;
   /** name of the region */
   name: string;
-  /** true if this is a vip-only server */
-  vip: boolean;
   /** true for a single server that is closest to the current user's client */
   optimal: boolean;
   /** whether this is a deprecated voice region (avoid switching to these) */

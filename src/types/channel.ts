@@ -1,19 +1,19 @@
-import {
-  ISO8601timestamp, RawEmoji, RawGuildMember, RawRole, Snowflake, RawUser,
+import type {
+  Snowflake, User, ISO8601timestamp, GuildMember, Role, Emoji, Application, MessageComponent, Sticker, StickerItem, MessageInteraction,
 } from '.';
 
-export type RawChannel = {
+export type Channel = {
   /** the id of this channel */
   id: Snowflake;
   /** the type of channel */
-  type: number;
-  /** the id of the guild */
+  type: ChannelType;
+  /** the id of the guild (may be missing for some channel objects received over gateway guild dispatches) */
   guild_id?: Snowflake;
   /** sorting position of the channel */
   position?: number;
   /** explicit permission overwrites for members and roles */
-  permission_overwrites?: RawOverwrite[];
-  /** the name of the channel (2-100 characters) */
+  permission_overwrites?: Overwrite[];
+  /** the name of the channel (1-100 characters) */
   name?: string;
   /** the channel topic (0-1024 characters) */
   topic?: string | null;
@@ -28,22 +28,72 @@ export type RawChannel = {
   /** amount of seconds a user has to wait before sending another message (0-21600); bots, as well as users with the permission `manage_messages` or `manage_channel`, are unaffected */
   rate_limit_per_user?: number;
   /** the recipients of the DM */
-  recipients?: RawUser[];
-  /** icon hash */
+  recipients?: User[];
+  /** icon hash of the group DM */
   icon?: string | null;
-  /** id of the DM creator */
+  /** id of the creator of the group DM or thread */
   owner_id?: Snowflake;
   /** application id of the group DM creator if it is bot-created */
   application_id?: Snowflake;
-  /** id of the parent category for a channel (each parent category can contain up to 50 channels) */
+  /** for guild channels: id of the parent category for a channel (each parent category can contain up to 50 channels), for threads: id of the text channel this thread was created */
   parent_id?: Snowflake | null;
   /** when the last pinned message was pinned. This may be `null` in events such as `GUILD_CREATE` when a message is not pinned. */
   last_pin_timestamp?: ISO8601timestamp | null;
+  /** voice region id for the voice channel, automatic when set to null */
+  rtc_region?: string | null;
+  /** the camera video quality type of the voice channel, 1 when not present */
+  video_quality_mode?: VideoQualityType;
+  /** an approximate count of messages in a thread, stops counting at 50 */
+  message_count?: number;
+  /** an approximate count of users in a thread, stops counting at 50 */
+  member_count?: number;
+  /** thread-specific fields not needed by other channels */
+  thread_metadata?: ThreadMetadata;
+  /** thread member object for the current user, if they have joined the thread, only included on certain API endpoints */
+  member?: ThreadMember;
+  /** default duration that the clients (not the API) will use for newly created threads, in minutes, to automatically archive the thread after recent activity, can be set to: 60, 1440, 4320, 10080 */
+  default_auto_archive_duration?: number;
+  /** computed permissions for the invoking user in the channel, including overwrites, only included when part of the `resolved` data received on a slash command interaction */
+  permissions?: string;
 };
 
 // ========================================================================
 
-export type RawMessage = {
+export type ChannelType =
+  /** GUILD_TEXT */
+  0 |
+  /** DM */
+  1 |
+  /** GUILD_VOICE */
+  2 |
+  /** GROUP_DM */
+  3 |
+  /** GUILD_CATEGORY */
+  4 |
+  /** GUILD_NEWS */
+  5 |
+  /** GUILD_STORE */
+  6 |
+  /** GUILD_NEWS_THREAD */
+  10 |
+  /** GUILD_PUBLIC_THREAD */
+  11 |
+  /** GUILD_PRIVATE_THREAD */
+  12 |
+  /** GUILD_STAGE_VOICE */
+  13;
+
+// ========================================================================
+
+export type VideoQualityType =
+  /** AUTO */
+  1 |
+  /** FULL */
+  2;
+
+// ========================================================================
+
+export type Message = {
   /** id of the message */
   id: Snowflake;
   /** id of the channel the message was sent in */
@@ -51,9 +101,9 @@ export type RawMessage = {
   /** id of the guild the message was sent in */
   guild_id?: Snowflake;
   /** the author of this message (not guaranteed to be a valid user, see below) */
-  author: RawUser;
+  author: User;
   /** member properties for this message's author */
-  member?: Partial<RawGuildMember>;
+  member?: Partial<GuildMember>;
   /** contents of the message */
   content: string;
   /** when this message was sent */
@@ -65,9 +115,9 @@ export type RawMessage = {
   /** whether this message mentions everyone */
   mention_everyone: boolean;
   /** users specifically mentioned in the message */
-  mentions: RawUser & Partial<RawGuildMember>;
+  mentions: User & Partial<GuildMember>;
   /** roles specifically mentioned in this message */
-  mention_roles: RawRole[];
+  mention_roles: Role[];
   /** channels specifically mentioned in this message */
   mention_channels?: ChannelMention[];
   /** any attached files */
@@ -83,20 +133,34 @@ export type RawMessage = {
   /** if the message is generated by a webhook, this is the webhook's id */
   webhook_id?: Snowflake;
   /** type of message */
-  type: number;
+  type: MessageType;
   /** sent with Rich Presence-related chat embeds */
   activity?: MessageActivity;
   /** sent with Rich Presence-related chat embeds */
-  application?: MessageApplication;
-  /** reference data sent with crossposted messages */
+  application?: Partial<Application>;
+  /** if the message is an Interaction or application-owned webhook, this is the id of the application */
+  application_id?: Snowflake;
+  /** data showing the source of a crosspost, channel follow add, pin, or reply message */
   message_reference?: MessageReference;
   /** message flags combined as a [bitfield](https://en.wikipedia.org/wiki/Bit_field) */
-  flags?: number;
+  flags?: MessageFlags;
+  /** the message associated with the message_reference */
+  referenced_message?: Message | null;
+  /** sent if the message is a response to an Interaction */
+  interaction?: MessageInteraction;
+  /** the thread that was started from this message, includes thread member object */
+  thread?: Channel;
+  /** sent if the message contains components like buttons, action rows, or other interactive components */
+  components?: MessageComponent;
+  /** sent if the message contains stickers */
+  sticker_items?: StickerItem[];
+  /** **Deprecated** the stickers sent with the message */
+  stickers?: Sticker[];
 };
 
 // ========================================================================
 
-export type MessageTypes = [
+export type MessageType =
   /** DEFAULT */
   0 |
   /** RECIPIENT_ADD */
@@ -126,47 +190,32 @@ export type MessageTypes = [
   /** GUILD_DISCOVERY_DISQUALIFIED */
   14 |
   /** GUILD_DISCOVERY_REQUALIFIED */
-  15
-];
+  15 |
+  /** GUILD_DISCOVERY_GRACE_PERIOD_INITIAL_WARNING */
+  16 |
+  /** GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING */
+  17 |
+  /** REPLY */
+  19 |
+  /** APPLICATION_COMMAND */
+  20 |
+  /** GUILD_INVITE_REMINDER */
+  22 |
+  /** CONTEXT_MENU_COMMAND */
+  23;
 
 // ========================================================================
 
 export type MessageActivity = {
   /** type of message activity */
-  type: number;
+  type: MessageActivityType;
   /** party_id from a Rich Presence event */
   party_id?: string;
 };
 
 // ========================================================================
 
-export type MessageApplication = {
-  /** id of the application */
-  id: Snowflake;
-  /** id of the embed's image asset */
-  cover_image?: string;
-  /** application's description */
-  description: string;
-  /** id of the application's icon */
-  icon: string | null;
-  /** name of the application */
-  name: string;
-};
-
-// ========================================================================
-
-export type MessageReference = {
-  /** id of the originating message */
-  message_id?: Snowflake;
-  /** id of the originating message's channel */
-  channel_id: Snowflake;
-  /** id of the originating message's guild */
-  guild_id?: Snowflake;
-};
-
-// ========================================================================
-
-export type MessageActivityTypes = [
+export type MessageActivityType =
   /** JOIN */
   1 |
   /** SPECTATE */
@@ -174,8 +223,7 @@ export type MessageActivityTypes = [
   /** LISTEN */
   3 |
   /** JOIN_REQUEST */
-  5
-];
+  5;
 
 // ========================================================================
 
@@ -184,8 +232,24 @@ export enum MessageFlags {
   IS_CROSSPOST = 1 << 1,
   SUPPRESS_EMBEDS = 1 << 2,
   SOURCE_MESSAGE_DELETED = 1 << 3,
-  URGENT = 1 << 4
+  URGENT = 1 << 4,
+  EPHEMERAL = 1 << 6,
+  LOADING = 1 << 7,
+  FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 1 << 8
 }
+
+// ========================================================================
+
+export type MessageReference = {
+  /** id of the originating message */
+  message_id?: Snowflake;
+  /** id of the originating message's channel */
+  channel_id?: Snowflake;
+  /** id of the originating message's guild */
+  guild_id?: Snowflake;
+  /** when sending, whether to error if the referenced message doesn't exist instead of sending as a normal (non-reply) message, default true */
+  fail_if_not_exists?: boolean;
+};
 
 // ========================================================================
 
@@ -204,12 +268,12 @@ export type Reaction = {
   /** whether the current user reacted using this emoji */
   me: boolean;
   /** emoji information */
-  emoji: Partial<RawEmoji>;
+  emoji: Partial<Emoji>;
 };
 
 // ========================================================================
 
-export type RawOverwrite = {
+export type Overwrite = {
   /** role or user id */
   id: Snowflake;
   /** either 0 (role) or 1 (member) */
@@ -218,6 +282,36 @@ export type RawOverwrite = {
   allow: string;
   /** permission bit set */
   deny: string;
+};
+
+// ========================================================================
+
+export type ThreadMetadata = {
+  /** whether the thread is archived */
+  archived: boolean;
+  /** duration in minutes to automatically archive the thread after recent activity, can be set to: 60, 1440, 4320, 10080 */
+  auto_archive_duration: number;
+  /** timestamp when the thread's archive status was last changed, used for calculating recent activity */
+  archive_timestamp: ISO8601timestamp;
+  /** whether the thread is locked; when a thread is locked, only users with MANAGE_THREADS can unarchive it */
+  locked: boolean;
+  /** whether non-moderators can add other non-moderators to a thread; only available on private threads */
+  invitable?: boolean;
+  /** timestamp when the thread was created; only populated for threads created after 2022-01-09 */
+  create_timestamp?: ISO8601timestamp | null;
+};
+
+// ========================================================================
+
+export type ThreadMember = {
+  /** the id of the thread */
+  id?: Snowflake;
+  /** the id of the user */
+  user_id?: Snowflake;
+  /** the time the current user last joined the thread */
+  join_timestamp: ISO8601timestamp;
+  /** any user-thread settings, currently only used for notifications */
+  flags: number;
 };
 
 // ========================================================================
@@ -255,7 +349,7 @@ export type Embed = {
 
 export type EmbedThumbnail = {
   /** source url of thumbnail (only supports http(s) and attachments) */
-  url?: string;
+  url: string;
   /** a proxied url of the thumbnail */
   proxy_url?: string;
   /** height of thumbnail */
@@ -269,6 +363,8 @@ export type EmbedThumbnail = {
 export type EmbedVideo = {
   /** source url of video */
   url?: string;
+  /** a proxied url of the video */
+  proxy_url?: string;
   /** height of video */
   height?: number;
   /** width of video */
@@ -279,7 +375,7 @@ export type EmbedVideo = {
 
 export type EmbedImage = {
   /** source url of image (only supports http(s) and attachments) */
-  url?: string;
+  url: string;
   /** a proxied url of the image */
   proxy_url?: string;
   /** height of image */
@@ -301,7 +397,7 @@ export type EmbedProvider = {
 
 export type EmbedAuthor = {
   /** name of author */
-  name?: string;
+  name: string;
   /** url of author */
   url?: string;
   /** url of author icon (only supports http(s) and attachments) */
@@ -339,6 +435,10 @@ export type Attachment = {
   id: Snowflake;
   /** name of file attached */
   filename: string;
+  /** description for the file */
+  description?: string;
+  /** the attachment's media type */
+  content_type?: string;
   /** size of file in bytes */
   size: number;
   /** source url of file */
@@ -346,9 +446,11 @@ export type Attachment = {
   /** a proxied url of file */
   proxy_url: string;
   /** height of file (if image) */
-  height: number | null;
+  height?: number | null;
   /** width of file (if image) */
-  width: number | null;
+  width?: number | null;
+  /** whether this attachment is ephemeral */
+  ephemeral?: boolean;
 };
 
 // ========================================================================
@@ -359,29 +461,30 @@ export type ChannelMention = {
   /** id of the guild containing the channel */
   guild_id: Snowflake;
   /** the type of channel */
-  type: number;
+  type: ChannelType;
   /** the name of the channel */
   name: string;
 };
 
 // ========================================================================
 
-export type AllowedMentionTypes = [
+export type AllowedMentionType =
   /** Role Mentions */
   'roles' |
   /** User Mentions */
   'users' |
   /** Everyone Mentions */
-  'everyone'
-];
+  'everyone';
 
 // ========================================================================
 
-export type AllowedMentions = {
+export type AllowedMention = {
   /** An array of allowed mention types to parse from the content. */
-  parse: AllowedMentionTypes[];
+  parse: AllowedMentionType[];
   /** Array of role_ids to mention (Max size of 100) */
   roles: Snowflake[];
   /** Array of user_ids to mention (Max size of 100) */
   users: Snowflake[];
+  /** For replies, whether to mention the author of the message being replied to (default false) */
+  replied_user: boolean;
 };

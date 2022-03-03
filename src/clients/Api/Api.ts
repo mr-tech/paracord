@@ -258,7 +258,6 @@ export default class Api {
       }
     }
 
-
     return false;
   }
 
@@ -470,7 +469,6 @@ export default class Api {
 
       throw Error('Client is connecting to RPC server. Unable to authorize request.');
     }
-
 
     try {
       const authorizationMessage = await (<RateLimitService> this.#rpcRateLimitService).authorize(request);

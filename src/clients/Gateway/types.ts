@@ -3,13 +3,13 @@ import { UserEvents } from '../../common';
 import Api from '../Api/Api';
 import { IApiResponse } from '../Api/types';
 import {
-  Identify, IdentifyConnectionProperties, GatewayStatusUpdate, RawPresence, RawGuildMember, Snowflake,
+  IdentifyConnectionProperties, GatewayPresenceUpdate, Presence, GuildMember, Snowflake,
 } from '../../types';
 import Gateway from './Gateway';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
-  identity: Identify;
+  identity: IdentityOptions;
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventEmitter;
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
@@ -39,7 +39,7 @@ type ErrorResponse = {
 
 export type Heartbeat = number;
 
-export interface GatewayBotResponse extends IApiResponse<any>, ErrorResponse {
+export interface GatewayBotResponse extends IApiResponse, ErrorResponse {
     /** websocket url */
     url: string;
     /** recommended shard count */
@@ -67,7 +67,6 @@ export type WebsocketRateLimitCache = {
   remainingRequests: number;
 }
 
-
 export type IdentityOptions = {
   /** authentication token */
   token: string;
@@ -85,7 +84,7 @@ export type IdentityOptions = {
   largeThreshold?: number; // 50
 
   /** presence structure for initial presence information */
-  presence?: GatewayStatusUpdate;
+  presence?: GatewayPresenceUpdate;
 
   /** enables dispatching of guild subscription events (presence and typing events) */
   guildSubscriptions?: boolean; // true
@@ -104,10 +103,10 @@ export type StartupCheckFunction = (x: Gateway) => boolean;
 
 export interface GuildMemberChunk {
   guild_id: Snowflake;
-  members: Omit<RawGuildMember, 'guild_id'>[];
+  members: Omit<GuildMember, 'guild_id'>[];
   chunk_index: number;
   chunk_count: number;
   not_found?: number;
-  presences?: Omit<RawPresence, 'guild_id'>[];
+  presences?: Omit<Presence, 'guild_id'>[];
   nonce?: string;
 }

@@ -1,4 +1,6 @@
-import { ISO8601timestamp, RawChannel, Snowflake } from '../../../../../types';
+import {
+  ISO8601timestamp, Channel as RawChannel, Snowflake, ChannelType,
+} from '../../../../../types';
 import { timestampFromSnowflake } from '../../../../../utils';
 import { FilterOptions } from '../../../types';
 import Overwrite from '../objects/Overwrite';
@@ -13,7 +15,7 @@ export default class GuildChannel {
   #guild: Guild;
 
   /** the type of channel */
-  public type: number | undefined;
+  public type: ChannelType | undefined;
 
   // /** the id of the guild */
   // public guildId: Snowflake | undefined;

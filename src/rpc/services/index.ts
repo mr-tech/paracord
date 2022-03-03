@@ -1,4 +1,3 @@
-
 /* Identify Lock */
 export { default as addIdentifyLockService } from './identifyLock/addService';
 export { default as IdentifyLockService } from './identifyLock/IdentifyLockService';

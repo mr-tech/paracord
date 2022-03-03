@@ -1,4 +1,3 @@
-
 import type { EventEmitter } from 'events';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import { createUnsafeUuid } from '../../../utils';

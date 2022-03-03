@@ -1,5 +1,4 @@
-
-import { RawOverwrite, Snowflake } from '../../../../../types';
+import { Overwrite as RawOverwrite, Snowflake } from '../../../../../types';
 
 export default class Overwrite {
   /** role or user id */
@@ -20,7 +19,7 @@ export default class Overwrite {
     } = overwrite;
 
     this.id = id;
-    this.type = type;
+    this.type = <0 | 1>type;
     this.allow = allow;
     this.deny = deny;
   }

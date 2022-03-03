@@ -1,4 +1,4 @@
-import { GatewayStatusUpdate, IdentifyConnectionProperties } from '../../../types';
+import { GatewayPresenceUpdate, IdentifyConnectionProperties } from '../../../types';
 import { IdentityOptions } from '../types';
 
 /** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
@@ -19,7 +19,7 @@ export default class Identify {
     #largeThreshold: number | undefined; // 50
 
     /** presence structure for initial presence information */
-    #presence: GatewayStatusUpdate | undefined;
+    #presence: GatewayPresenceUpdate | undefined;
 
     /** enables dispatching of guild subscription events (presence and typing events) */
     #guildSubscriptions: boolean | undefined; // true
@@ -41,7 +41,7 @@ export default class Identify {
       this.#presence = {
         status: 'online',
         afk: false,
-        activities: null,
+        activities: [],
         since: null,
       };
 
@@ -67,7 +67,7 @@ export default class Identify {
         guild_subscription?: boolean,
         intents?: number,
         large_threshold?: number,
-        presence?: GatewayStatusUpdate,
+        presence?: GatewayPresenceUpdate,
         shard?: [number, number]
       } = {
         token: this.token,

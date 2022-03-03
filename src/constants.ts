@@ -103,4 +103,3 @@ export const RPC_CLOSE_CODES = {
 };
 
 export const OVERWRITE_ROLE_VALUE = 0;
-export const OVERWRITE_MEMBER_VALUE = 1;

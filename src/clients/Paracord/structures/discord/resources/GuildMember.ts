@@ -1,5 +1,5 @@
 import {
-  AugmentedRawGuildMember, GuildMemberUpdateEventFields, ISO8601timestamp, Snowflake,
+  GuildMember as AugmentedRawGuildMember, GuildMemberUpdateEventField, ISO8601timestamp, Snowflake,
 } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import Guild from './Guild';
@@ -7,28 +7,34 @@ import Role from './Role';
 import User from './User';
 import { squashArrays } from '../../../../../utils';
 
-type IUpdateTypes = AugmentedRawGuildMember | GuildMemberUpdateEventFields
+type IUpdateTypes = AugmentedRawGuildMember | GuildMemberUpdateEventField;
 
 // export default class GuildMember extends Resource<GuildMember, IUpdateTypes> {
 export default class GuildMember {
   #filteredProps: FilterOptions['props']['guildMember'] | undefined;
 
+  /** the user this guild member represents */
   #user: User;
 
   #guild: Guild;
 
   #id: Snowflake;
 
-  /** this users guild nickname */
-  nick: string | null | undefined;
-
-  /** array of role object ids */
-  roles: Map<Snowflake, Role> | undefined;
-
   #roleIds: Snowflake[] | undefined;
 
+  #lastAccessed: number;
+
+  /** this user's guild nickname */
+  nick: string | null | undefined;
+
+  /** the member's guild avatar hash */
+  avatar: string | null | undefined;
+
+  /** array of role object roles */
+  roles: Map<Snowflake, Role> | undefined;
+
   /** when the user joined the guild */
-  joinedAt: ISO8601timestamp | undefined;
+  joinedAt: ISO8601timestamp | null | undefined;
 
   /** when the user started boosting the guild */
   premiumSince: ISO8601timestamp | null | undefined;
@@ -39,11 +45,18 @@ export default class GuildMember {
   /** whether the user is muted in voice channels */
   mute: boolean | undefined;
 
-  #lastAccessed: number;
+  /** whether the user has not yet passed the guild's Membership Screening requirements */
+  pending: boolean | undefined;
+
+  /** total permissions of the member in the channel, including overwrites, returned when in the interaction object */
+  permissions: string | undefined;
+
+  /** when the user's timeout will expire and the user will be able to communicate in the guild again, null or a time in the past if the user is not timed out */
+  communicationDisabledUntil: ISO8601timestamp | null | undefined;
 
   public constructor(
     filteredProps: FilterOptions['props'] | undefined,
-    member: GuildMemberUpdateEventFields | AugmentedRawGuildMember,
+    member: GuildMemberUpdateEventField | AugmentedRawGuildMember,
     user: User,
     guild: Guild,
   ) {
@@ -105,14 +118,6 @@ export default class GuildMember {
       arg.joined_at !== undefined
       && (!this.#filteredProps || 'joinedAt' in this)
       && arg.joined_at !== this.joinedAt) this.joinedAt = arg.joined_at;
-    if (
-      arg.deaf !== undefined
-      && (!this.#filteredProps || 'deaf' in this)
-      && arg.deaf !== this.deaf) this.deaf = arg.deaf;
-    if (
-      arg.mute !== undefined
-        && (!this.#filteredProps || 'mute' in this)
-        && arg.mute !== this.mute) this.mute = arg.mute;
 
     return this;
   }
@@ -146,7 +151,7 @@ export default class GuildMember {
     }
   }
 
-  private initialize(member: GuildMemberUpdateEventFields | AugmentedRawGuildMember): this {
+  private initialize(member: GuildMemberUpdateEventField | AugmentedRawGuildMember): this {
     this.initializeProperties();
 
     return this.update(member);

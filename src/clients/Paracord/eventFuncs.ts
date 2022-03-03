@@ -1,22 +1,23 @@
 import { SECOND_IN_MILLISECONDS } from '../../constants';
-import {
-  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawMessage, AugmentedRawVoiceState, GuildEmojisUpdateEventFields, GuildMemberAddExtraFields, GuildMemberRemoveEventFields, GuildMemberUpdateEventFields, GuildRoleCreateEventFields, GuildRoleDeleteEventFields, GuildRoleUpdateEventFields, RawChannel, RawEmoji, RawGuildMember, RawPresence, RawUser, RawVoiceState, ReadyEventFields, UnavailableGuild,
+
+import type Gateway from '../Gateway/Gateway';
+import type {
+  AugmentedGuild as AugmentedRawGuild, GuildMemberUpdateEventField, Channel as RawChannel, Presence as RawPresence,
+  AugmentedGuildMember as AugmentedRawGuildMember,
+  AugmentedMessage as AugmentedRawMessage, AugmentedVoiceState as AugmentedRawVoiceState, GuildEmojisUpdateEventField,
+  GuildMemberAddExtraField, GuildMemberRemoveEventField, GuildRoleCreateEventField,
+  GuildRoleDeleteEventField, GuildRoleUpdateEventField, GuildMember as RawGuildMember, User as RawUser,
+  VoiceState as RawVoiceState, ReadyEventField, UnavailableGuild,
 } from '../../types';
-import Gateway from '../Gateway/Gateway';
-import Paracord from './Paracord';
-import GuildEmoji from './structures/discord/resources/GuildEmoji';
-import Guild from './structures/discord/resources/Guild';
-import GuildChannel from './structures/discord/resources/GuildChannel';
-import GuildMember from './structures/discord/resources/GuildMember';
-import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
-import Role from './structures/discord/resources/Role';
-import User from './structures/discord/resources/User';
-import { GatewayCloseEvent } from '../Gateway/types';
-import Presence from './structures/discord/resources/Presence';
+import type { GatewayCloseEvent } from '../Gateway/types';
+import type {
+  Guild, User, Presence, GuildVoiceState, GuildChannel, GuildMember, Role, GuildEmoji,
+} from './structures';
+import type Paracord from '.';
 
 /** The methods in ALL_CAPS correspond to a Discord gateway event (https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events) and are called in the Paracord `.eventHandler()` method. */
 
-export function READY(this: Paracord, data: ReadyEventFields, shard: number): ReadyEventFields {
+export function READY(this: Paracord, data: ReadyEventField, shard: number): ReadyEventField {
   this.handleReady(data, shard);
 
   return data;
@@ -170,8 +171,8 @@ export function CHANNEL_DELETE(this: Paracord, data: RawChannel): GuildChannel |
 }
 
 export function GUILD_MEMBER_ADD(
-  this: Paracord, data: AugmentedRawGuildMember & GuildMemberAddExtraFields,
-): (RawGuildMember & GuildMemberAddExtraFields) | GuildMember {
+  this: Paracord, data: AugmentedRawGuildMember & GuildMemberAddExtraField,
+): (RawGuildMember & GuildMemberAddExtraField) | GuildMember {
   const guild = this.guilds.get(data.guild_id);
   if (guild !== undefined) {
     guild.incrementMemberCount();
@@ -182,15 +183,15 @@ export function GUILD_MEMBER_ADD(
 }
 
 export function GUILD_MEMBER_UPDATE(
-  this: Paracord, data: GuildMemberUpdateEventFields,
-): GuildMember | GuildMemberUpdateEventFields {
+  this: Paracord, data: GuildMemberUpdateEventField,
+): GuildMember | GuildMemberUpdateEventField {
   const { guild_id: guildId } = data;
   const guild = this.guilds.get(guildId);
   return guild?.upsertMember(data) ?? data;
 }
 
 export function GUILD_MEMBER_REMOVE(
-  this: Paracord, data: GuildMemberRemoveEventFields,
+  this: Paracord, data: GuildMemberRemoveEventField,
 ): GuildMember | { user: RawUser } {
   const { guild_id: guildId, user } = data;
   const guild = this.guilds.get(guildId);
@@ -219,32 +220,32 @@ export function GUILD_MEMBER_REMOVE(
 // }
 
 export function GUILD_ROLE_CREATE(
-  this: Paracord, data: GuildRoleCreateEventFields,
-): Role | GuildRoleCreateEventFields {
+  this: Paracord, data: GuildRoleCreateEventField,
+): Role | GuildRoleCreateEventField {
   const { guild_id: guildId, role } = data;
   const guild = this.guilds.get(guildId);
   return guild?.insertRole(role) ?? data;
 }
 
 export function GUILD_ROLE_UPDATE(
-  this: Paracord, data: GuildRoleUpdateEventFields,
-): Role | GuildRoleUpdateEventFields {
+  this: Paracord, data: GuildRoleUpdateEventField,
+): Role | GuildRoleUpdateEventField {
   const { guild_id: guildId, role } = data;
   const guild = this.guilds.get(guildId);
   return guild?.upsertRole(role) ?? data;
 }
 
 export function GUILD_ROLE_DELETE(
-  this: Paracord, data: GuildRoleDeleteEventFields,
-): Role | GuildRoleDeleteEventFields {
+  this: Paracord, data: GuildRoleDeleteEventField,
+): Role | GuildRoleDeleteEventField {
   const { guild_id: guildId, role_id: roleId } = data;
   const guild = this.guilds.get(guildId);
   return guild?.removeRole(roleId) ?? data;
 }
 
 export function GUILE_EMOJIS_UPDATE(
-  this: Paracord, data: GuildEmojisUpdateEventFields,
-): [GuildEmoji[], GuildEmoji[]] | GuildEmojisUpdateEventFields {
+  this: Paracord, data: GuildEmojisUpdateEventField,
+): [GuildEmoji[], GuildEmoji[]] | GuildEmojisUpdateEventField {
   const { guild_id: guildId, emojis } = data;
   const guild = this.guilds.get(guildId);
   return guild?.updateEmojiCache(emojis) ?? data;

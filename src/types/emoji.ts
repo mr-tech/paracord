@@ -1,14 +1,14 @@
-import { RawRole, Snowflake, RawUser } from '.';
+import type { Role, Snowflake, User } from '.';
 
-export type RawEmoji = {
+export type Emoji = {
   /** emoji id */
   id: Snowflake | null;
   /** emoji name */
   name: string | null;
-  /** roles this emoji is whitelisted to */
-  roles?: RawRole[];
+  /** roles allowed to use this emoji */
+  roles?: Role[];
   /** user that created this emoji */
-  user?: RawUser;
+  user?: User;
   /** whether this emoji must be wrapped in colons */
   require_colons?: boolean;
   /** whether this emoji is managed */

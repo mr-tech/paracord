@@ -99,7 +99,7 @@ export default class RateLimitCache {
 
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
   public wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest {
-    const wrappedRequest = <T extends ResponseData = any>(request: ApiRequest<T>) => {
+    const wrappedRequest = <T extends ResponseData>(request: ApiRequest<T>) => {
       const rateLimit = this.getRateLimitFromCache(request);
 
       if (rateLimit !== undefined) {

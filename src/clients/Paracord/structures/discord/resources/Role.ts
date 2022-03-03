@@ -1,4 +1,4 @@
-import { RawRole, Snowflake } from '../../../../../types';
+import { Role as RawRole, Snowflake, RoleTag } from '../../../../../types';
 import { timestampFromSnowflake } from '../../../../../utils';
 import { FilterOptions } from '../../../types';
 import Guild from './Guild';
@@ -19,6 +19,12 @@ export default class Role {
   /** if this role is pinned in the user listing */
   hoist: boolean | undefined;
 
+  /** role icon hash */
+  icon: string | null | undefined;
+
+  /** role unicode emoji */
+  unicodeEmoji: string | null | undefined;
+
   /** position of this role */
   position: number | undefined;
 
@@ -30,6 +36,9 @@ export default class Role {
 
   /** whether this role is mentionable */
   mentionable: boolean | undefined;
+
+  /** the tags this role has */
+  tags: RoleTag | undefined;
 
   public constructor(filteredProps: FilterOptions['props'] | undefined, role: RawRole, guild: Guild) {
     this.#filteredProps = filteredProps?.role;

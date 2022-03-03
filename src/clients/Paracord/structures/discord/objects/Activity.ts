@@ -1,5 +1,5 @@
 import {
-  ActivityEmoji, ActivityParty, ActivitySecrets, AugmentedActivityAssets, RawActivity, ActivityTimestamps, Snowflake,
+  ActivityEmoji, ActivityParty, ActivitySecret, AugmentedActivityAssets, Activity as RawActivity, ActivityTimestamp as RawActivityTimestamp, Snowflake,
 } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 
@@ -19,7 +19,7 @@ export default class Activity {
   public createdAt: number | undefined;
 
   /** unix timestamps for start and/or end of the game */
-  public timestamps: ActivityTimestamps | undefined;
+  public timestamps: RawActivityTimestamp | undefined;
 
   /** application id for the game */
   public applicationId: Snowflake | undefined;
@@ -40,7 +40,7 @@ export default class Activity {
   public assets: AugmentedActivityAssets | undefined;
 
   /** secrets for Rich Presence joining and spectating */
-  public secrets: ActivitySecrets | undefined;
+  public secrets: ActivitySecret | undefined;
 
   /** whether or not the activity is an instanced game session */
   public instance: boolean | undefined;

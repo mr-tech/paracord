@@ -150,7 +150,6 @@ export default class BaseRequest {
       }
     });
 
-
     return key.join('-');
   }
 

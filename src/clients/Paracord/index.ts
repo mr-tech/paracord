@@ -1,31 +1,28 @@
 import { EventEmitter } from 'events';
-import GuildChannel from './structures/discord/resources/GuildChannel';
-import GuildEmoji from './structures/discord/resources/GuildEmoji';
-import GuildMember from './structures/discord/resources/GuildMember';
-import GuildVoiceState from './structures/discord/resources/GuildVoiceState';
-import Role from './structures/discord/resources/Role';
-import { DebugLevel, ILockServiceOptions, UserEvents } from '../../common';
+
+import Api from '../Api/Api';
+import Gateway from '../Gateway/Gateway';
 import {
-  LOG_LEVELS, LOG_SOURCES, SECOND_IN_MILLISECONDS,
-} from '../../constants';
-import { RemoteApiResponse } from '../../rpc/types';
-import {
-  AugmentedRawGuildMember,
-  Identify, RawGuildMember, RawPresence, RawUser, ReadyEventFields, Snowflake,
-} from '../../types';
+  User, Guild, GuildChannel, GuildEmoji, GuildMember, GuildVoiceState, Presence, Role, CacheMap,
+} from './structures';
+
+import * as eventFuncs from './eventFuncs';
+
 import {
   clone, coerceTokenToBotLike, isObject, objectKeysSnakeToCamel,
 } from '../../utils';
-import Api from '../Api/Api';
-import { IApiOptions, IApiResponse, ResponseData } from '../Api/types';
-import Gateway from '../Gateway/Gateway';
-import { GatewayBotResponse, GatewayOptions } from '../Gateway/types';
-import * as eventFuncs from './eventFuncs';
-import CacheMap from './structures/CacheMap';
-import Guild from './structures/discord/resources/Guild';
-import Presence from './structures/discord/resources/Presence';
-import User from './structures/discord/resources/User';
 import {
+  LOG_LEVELS, LOG_SOURCES, SECOND_IN_MILLISECONDS,
+} from '../../constants';
+
+import type { DebugLevel, ILockServiceOptions, UserEvents } from '../../common';
+import type { RemoteApiResponse } from '../../rpc/types';
+import type {
+  AugmentedGuildMember as AugmentedRawGuildMember, GuildMember as RawGuildMember, Presence as RawPresence, User as RawUser, ReadyEventField, Snowflake,
+} from '../../types';
+import type { IApiOptions, IApiResponse, ResponseData } from '../Api/types';
+import type { GatewayBotResponse, GatewayOptions, IdentityOptions } from '../Gateway/types';
+import type {
   DiscordResource, EventFunction, EventFunctions, FilterOptions, GatewayMap, GuildMap, Message,
   ParacordLoginOptions, ParacordOptions, PresenceMap, RawGuildType, UserMap,
 } from './types';
@@ -340,7 +337,7 @@ export default class Paracord extends EventEmitter {
    * Connects to Discord's gateway and begins receiving and emitting events.
    * @param options Options used when logging in.
    */
-  public async login(options: ParacordLoginOptions = {}): Promise<void> {
+  public async login(options: ParacordLoginOptions): Promise<void> {
     const {
       unavailableGuildTolerance, unavailableGuildWait, allowEventsDuringStartup, startupHeartbeatTolerance,
     } = options;
@@ -432,8 +429,8 @@ export default class Paracord extends EventEmitter {
     let { shards, shardCount } = options;
 
     if (identity && Array.isArray(identity.shard)) {
-      const identityCopy = clone(identity);
-      this.addNewGateway(<Identify>identityCopy);
+      const identityCopy = clone<IdentityOptions>(identity);
+      this.addNewGateway(identityCopy);
     } else {
       if (shards !== undefined && shardCount !== undefined) {
         shards.forEach((s) => {
@@ -448,12 +445,12 @@ export default class Paracord extends EventEmitter {
       if (shards === undefined || shardCount === undefined) {
         throw Error(`shards ids or shard count are invalid - ids ${shards} , count: ${shardCount}`);
       } else {
-        shards.forEach((shard) => {
-          const identityCopy = clone(identity ?? {});
+        for (const shard of shards) {
+          const identityCopy = clone<IdentityOptions>(identity);
           identityCopy.token = this.token;
           identityCopy.shard = [shard, shardCount];
-          this.addNewGateway(<Identify>identityCopy);
-        });
+          this.addNewGateway(identityCopy);
+        }
       }
     }
   }
@@ -496,7 +493,7 @@ export default class Paracord extends EventEmitter {
    * Creates gateway and pushes it into cache and login queue.
    * @param identity An object containing information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
    */
-  private addNewGateway(identity: Identify): void {
+  private addNewGateway(identity: IdentityOptions): void {
     const gatewayOptions = this.createGatewayOptions(identity);
 
     const gateway = this.setUpGateway(this.token, gatewayOptions);
@@ -511,7 +508,7 @@ export default class Paracord extends EventEmitter {
     this.gatewayLoginQueue.push(gateway);
   }
 
-  private createGatewayOptions(identity: Identify): GatewayOptions {
+  private createGatewayOptions(identity: IdentityOptions): GatewayOptions {
     const gatewayOptions: GatewayOptions = {
       identity, api: this.api, emitter: this, checkSiblingHeartbeats: this.#gatewayHeartbeats,
     };
@@ -533,7 +530,6 @@ export default class Paracord extends EventEmitter {
     this.selfAssignHandlerFunctions();
     this.#initialized = true;
   }
-
 
   /*
    ********************************
@@ -605,7 +601,7 @@ export default class Paracord extends EventEmitter {
    * Prepares the client for caching guilds on start up.
    * @param data From Discord - Initial ready event after identify.
    */
-  public handleReady(data: ReadyEventFields, shard: number): void {
+  public handleReady(data: ReadyEventField, shard: number): void {
     const { user, guilds } = data;
     this.user = new User(this.#filterOptions?.props, user, this);
 
@@ -696,7 +692,6 @@ export default class Paracord extends EventEmitter {
       message += ` ${reason}`;
     }
 
-
     this.log('INFO', message);
     this.emit('PARACORD_STARTUP_COMPLETE');
     // this.removeInactiveUsersFromCache();
@@ -722,7 +717,6 @@ export default class Paracord extends EventEmitter {
   //       }
   //     }
   //   }
-
 
   //   if (runAgain) setTimeout(() => this.removeInactiveUsersFromCache(iter, removedCount));
   //   else {

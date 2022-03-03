@@ -1,6 +1,6 @@
-import { RawIntegration, Snowflake } from '.';
+import type { Integration, Snowflake } from '.';
 
-export type RawUser = {
+export type User = {
   /** the user's id */
   id: Snowflake; // identify
   /** the user's username, not unique across the platform */
@@ -15,6 +15,10 @@ export type RawUser = {
   system?: boolean; // identify
   /** whether the user has two factor enabled on their account */
   mfa_enabled?: boolean; // identify
+  /** the user's banner hash */
+  banner?: string | null; // identify
+  /** the user's banner color encoded as an integer representation of hexadecimal color code */
+  accent_color?: number | null; // identify
   /** the user's chosen language option */
   locale?: string; // identify
   /** whether the email on this account has been verified */
@@ -22,7 +26,7 @@ export type RawUser = {
   /** the user's email */
   email?: string | null; // email
   /** the flags on a user's account */
-  flags?: number; // identify
+  flags?: UserFlags; // identify
   /** the type of Nitro subscription on a user's account */
   premium_type?: number; // identify
   /** the public flags on a user's account */
@@ -33,31 +37,31 @@ export type RawUser = {
 
 export enum UserFlags {
   None = 0,
-  DiscordEmployee = 1 << 0,
-  PartneredServerOwner = 1 << 1,
-  HypeSquadEvents = 1 << 2,
-  BugHunterLevel1 = 1 << 3,
-  HouseBravery = 1 << 6,
-  HouseBrilliance = 1 << 7,
-  HouseBalance = 1 << 8,
-  EarlySupporter = 1 << 9,
-  TeamUser = 1 << 10,
-  System = 1 << 12,
-  BugHunterLevel2 = 1 << 14,
-  VerifiedBot = 1 << 16,
-  EarlyVerifiedBotDeveloper = 1 << 17
+  STAFF = 1 << 0,
+  PARTNER = 1 << 1,
+  HYPESQUAD = 1 << 2,
+  BUG_HUNTER_LEVEL_1 = 1 << 3,
+  HYPESQUAD_ONLINE_HOUSE_1 = 1 << 6,
+  HYPESQUAD_ONLINE_HOUSE_2 = 1 << 7,
+  HYPESQUAD_ONLINE_HOUSE_3 = 1 << 8,
+  PREMIUM_EARLY_SUPPORTER = 1 << 9,
+  TEAM_PSEUDO_USER = 1 << 10,
+  BUG_HUNTER_LEVEL_2 = 1 << 14,
+  VERIFIED_BOT = 1 << 16,
+  VERIFIED_DEVELOPER = 1 << 17,
+  CERTIFIED_MODERATOR = 1 << 18,
+  BOT_HTTP_INTERACTIONS = 1 << 19
 }
 
 // ========================================================================
 
-export type PremiumTypes = [
+export type PremiumType =
   /** None */
   0 |
   /** Nitro Classic */
   1 |
   /** Nitro */
-  2
-];
+  2;
 
 // ========================================================================
 
@@ -71,7 +75,7 @@ export type Connection = {
   /** whether the connection is revoked */
   revoked?: boolean;
   /** an array of this user's integrations */
-  integrations?: Partial<RawIntegration>[];
+  integrations?: Partial<Integration>[];
   /** whether the connection is verified */
   verified: boolean;
   /** whether friend sync is enabled for this connection */
@@ -84,9 +88,8 @@ export type Connection = {
 
 // ========================================================================
 
-export type VisibilityTypes = [
+export type VisibilityType =
   /** None */
   0 |
   /** Everyone */
-  1
-];
+  1;

@@ -1,5 +1,5 @@
 import {
-  ClientStatus, RawPresence, Snowflake, RawActivity,
+  ClientStatus, Presence as RawPresence, Snowflake, Activity as RawActivity, StatusType,
 } from '../../../../../types';
 import { FilterOptions } from '../../../types';
 import Activity from '../objects/Activity';
@@ -30,7 +30,7 @@ export default class Presence {
   /** how many guilds in this client that this presence belongs to */
   #guildCount: number;
 
-  private static internStatusString(p: RawPresence): 'dnd' | 'idle' | 'online' | 'offline' {
+  private static internStatusString(p: RawPresence): StatusType {
     switch (p.status) {
       case STATUS_DND_STRING:
         return STATUS_DND_STRING;
@@ -69,11 +69,9 @@ export default class Presence {
     return this;
   }
 
-
   public get guildCount(): number {
     return this.#guildCount;
   }
-
 
   private updateActivities(rawActivities: RawActivity[]) {
     const existingActivities = this.activities ?? [];

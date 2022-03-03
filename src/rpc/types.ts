@@ -25,7 +25,6 @@ export interface IDebugEvent {
 //   on(event: 'DEBUG', listener: (x: IDebugEvent) => void): this;
 // }
 
-
 // /**
 //  * @export typedef RpcServerOptions
 //  *
@@ -42,7 +41,6 @@ export interface IDebugEvent {
 //  * @property {import("@grpc/grpc-js").ServerCredentials} creds
 //  * @property {Function} callback
 //  */
-
 
 // /**
 //  * @export typedef StatusMessage

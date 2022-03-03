@@ -1,12 +1,12 @@
-import { RawWildCard, Snowflake } from '../../../types';
+import { WildCard, Snowflake } from '../../../types';
 import { DiscordResource, FilterOptions } from '../types';
 
-interface BaseConstructor<T extends DiscordResource, U extends RawWildCard> {
+interface BaseConstructor<T extends DiscordResource, U extends WildCard> {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   new (filteredProps: FilterOptions['props'] | undefined, value: U, ...args: any[]): T;
 }
 
-export default class CacheMap<T extends DiscordResource, U extends RawWildCard> extends Map<Snowflake, T> {
+export default class CacheMap<T extends DiscordResource, U extends WildCard> extends Map<Snowflake, T> {
   #filteredProps: FilterOptions['props'] | undefined;
 
   #ItemConstructor: BaseConstructor<T, U>;

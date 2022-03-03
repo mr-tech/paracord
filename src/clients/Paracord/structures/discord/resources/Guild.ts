@@ -2,10 +2,13 @@
 
 import { PERMISSIONS } from '../../../../../constants';
 import {
-  AugmentedRawGuild, AugmentedRawGuildMember, AugmentedRawVoiceState, DefaultMessageNotificationLevel, ExplicitContentFilterLevel, GuildFeature, GuildMemberUpdateEventFields, ISO8601timestamp, MFALevel, PremiumTier, RawChannel, RawEmoji, RawGuild, RawGuildEmoji, RawPresence, RawRole, Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion,
+  AugmentedGuild, AugmentedGuildMember, AugmentedVoiceState, DefaultMessageNotificationLevel,
+  ExplicitContentFilterLevel, GuildMemberUpdateEventField, ISO8601timestamp, MFALevel, PremiumTier,
+  Snowflake, SystemChannelFlags, VerificationLevel, VoiceRegion,
+  Channel as RawChannel, GuildEmoji as RawGuildEmoji, Presence as RawPresence, Role as RawRole, GuildFeatureType,
 } from '../../../../../types';
 import { computeChannelPerms, computeGuildPerms, timestampFromSnowflake } from '../../../../../utils';
-import Paracord from '../../../Paracord';
+import Paracord from '../../..';
 import {
   EmojiMap, FilterOptions, GuildChannelMap, GuildMemberMap, PresenceMap, RawGuildType, RoleMap, VoiceStateMap,
 } from '../../../types';
@@ -70,7 +73,7 @@ export default class Guild {
   public me: GuildMember | undefined;
 
   /** voice region id for the guild */
-  public region: VoiceRegion | undefined;
+  public region: VoiceRegion | null | undefined;
 
   /** id of afk channel */
   public afkChannelId: Snowflake | null | undefined;
@@ -98,7 +101,7 @@ export default class Guild {
   public explicitContentFilter: ExplicitContentFilterLevel | undefined;
 
   /** enabled guild features */
-  public features: GuildFeature[] | undefined;
+  public features: GuildFeatureType[] | undefined;
 
   /** required MFA Level for the guild */
   public mfaLevel: MFALevel | undefined;
@@ -283,7 +286,7 @@ export default class Guild {
    ********************************
    */
 
-  private constructCaches(guildData: AugmentedRawGuild): void {
+  private constructCaches(guildData: AugmentedGuild): void {
     const {
       channels, roles, emojis, members, voice_states, presences,
     } = guildData;
@@ -475,9 +478,9 @@ export default class Guild {
     if (roles ?? true) this.#roles = new CacheMap(Role, props);
     if (emojis ?? true) this.#emojis = new CacheMap(GuildEmoji, props);
     if (presences ?? true) this.#presences = new CacheMap(Presence, props);
-    if (guildMembers ?? true) this.#members = new CacheMap(GuildMember, props);
+    if (guildMembers ?? true) this.#members = new CacheMap<GuildMember, AugmentedGuildMember | GuildMemberUpdateEventField>(GuildMember, props);
     if (guildChannels ?? true) this.#channels = new CacheMap(GuildChannel, props);
-    if (guildVoiceStates ?? true) this.#voiceStates = new CacheMap(GuildVoiceState, props);
+    if (guildVoiceStates ?? true) this.#voiceStates = new CacheMap<GuildVoiceState, AugmentedVoiceState>(GuildVoiceState, props);
 
     return this.update(guild);
   }
@@ -589,7 +592,6 @@ export default class Guild {
     return guildChannel;
   }
 
-
   public removeChannel(id: Snowflake): GuildChannel | undefined {
     return this.#channels && Guild.removeFromCache(this.#channels, id);
   }
@@ -598,7 +600,7 @@ export default class Guild {
    * Add a member with some additional information to a map of members.
    * @param member https://discord.com/developers/docs/resources/guild#guild-member-object
    */
-  public upsertMember(member: AugmentedRawGuildMember | GuildMemberUpdateEventFields, forceCache = false): GuildMember | undefined {
+  public upsertMember(member: AugmentedGuildMember | GuildMemberUpdateEventField, forceCache = false): GuildMember | undefined {
     const members = this.#members;
     if (members === undefined) return undefined;
 
@@ -649,7 +651,7 @@ export default class Guild {
     if (this.memberCount !== undefined) ++this.memberCount;
   }
 
-  public decrementMemberCount(): void{
+  public decrementMemberCount(): void {
     if (this.memberCount !== undefined) --this.memberCount;
   }
 
@@ -707,7 +709,7 @@ export default class Guild {
     return [newEmojis, removedEmojis];
   }
 
-  public upsertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
+  public upsertVoiceState(voiceState: AugmentedVoiceState): GuildVoiceState | undefined {
     const voiceStates = this.#voiceStates;
     if (voiceStates === undefined) return undefined;
 
@@ -731,7 +733,7 @@ export default class Guild {
    * @param voiceState https://discord.com/developers/docs/resources/voice
    * @param client
    */
-  private insertVoiceState(voiceState: AugmentedRawVoiceState): GuildVoiceState | undefined {
+  private insertVoiceState(voiceState: AugmentedVoiceState): GuildVoiceState | undefined {
     const voiceStates = this.#voiceStates;
     const { user_id: userId, member, channel_id } = voiceState;
     if (voiceStates === undefined || channel_id === null) return undefined;

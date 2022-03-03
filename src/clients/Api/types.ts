@@ -63,7 +63,7 @@ export interface IServiceOptions {
 
 export type ResponseData = Record<string, any> | Array<unknown>;
 // Request Service
-export interface IApiResponse<T extends ResponseData> {
+export interface IApiResponse<T extends ResponseData = any> {
   /** The HTTP status code of the response. */
   status: number;
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
