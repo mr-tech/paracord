@@ -7,9 +7,9 @@ import {
   GuildScheduledEventUserAddEventField, GuildScheduledEventUserRemoveEventField, IntegrationCreateEventAdditionalField,
   IntegrationUpdateEventAdditionalField, IntegrationDeleteEventField, InviteCreateEventField, InviteDeleteEventField,
   MessageDeleteEventField, MessageDeleteBulkEventField, MessageReactionAddEventField, MessageReactionRemoveEventField,
-  MessageReactionRemoveAllEventField, MessageReactionRemoveEmojiEventField, Presence, Channel, ThreadMember, Message,
+  MessageReactionRemoveAllEventField, MessageReactionRemoveEmojiEventField, Channel, ThreadMember, Message,
   GuildMember, Integration, GuildScheduledEvent, Interaction, TypingStartEventField, VoiceServerUpdateEventField,
-  WebhooksUpdateEventField, StageInstance, User, VoiceState,
+  WebhooksUpdateEventField, StageInstance, User, VoiceState, GuildThread, GuildChannel, AugmentedGuildMember, GatewayPresence,
 } from '.';
 
 export type GATEWAY_OPEN_EVENT = null;
@@ -22,15 +22,15 @@ export type UNAVAILABLE_GUILD = {
   unavailable: true;
 }
 
-export type CHANNEL_CREATE_EVENT = Pick<Channel, 'id'>;
-export type CHANNEL_UPDATE_EVENT = Pick<Channel, 'id'>;
-export type CHANNEL_DELETE_EVENT = Pick<Channel, 'id'>;
+export type CHANNEL_CREATE_EVENT = GuildChannel;
+export type CHANNEL_UPDATE_EVENT = GuildChannel;
+export type CHANNEL_DELETE_EVENT = GuildChannel;
 export type CHANNEL_PINS_UPDATE_EVENT = ChannelPinsUpdateEventField;
 
-export type THREAD_CREATE_EVENT = Pick<Channel, 'id'> & {
+export type THREAD_CREATE_EVENT = GuildThread & {
   newly_created: true;
 };
-export type THREAD_DELETE_EVENT = Pick<Channel, 'id' | 'guild_id' | 'parent_id' | 'type'>;
+export type THREAD_DELETE_EVENT = Pick<Required<Channel>, 'id' | 'guild_id' | 'parent_id' | 'type'>;
 export type THREAD_LIST_SYNC_EVENT = ThreadListSyncEventField;
 export type THREAD_MEMBER_UPDATE_EVENT = ThreadMember & ThreadMemberUpdateEventExtraField;
 export type THREAD_MEMBERS_UPDATE_EVENT = ThreadMembersUpdateEventField;
@@ -40,7 +40,6 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'afk_timeout' |
 'application_id' |
 'banner' |
-'channels' |
 'default_message_notifications' |
 'description' |
 'discovery_splash' |
@@ -54,7 +53,6 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'max_members' |
 'max_video_channel_users' |
 'member_count' |
-'members' |
 'mfa_level' |
 'name' |
 'nsfw_level' |
@@ -63,7 +61,6 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'premium_subscription_count' |
 'premium_progress_bar_enabled' |
 'premium_tier' |
-'presences' |
 'public_updates_channel_id' |
 'region' |
 'roles' |
@@ -72,14 +69,16 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'stage_instances' |
 'stickers' |
 'system_channel_id' |
-'threads' |
 'vanity_url_code' |
 'verification_level' |
-'voice_states'>
-export type STARTUP_GUILD_EVENT = GUILD_CREATE_EVENT | UNAVAILABLE_GUILD
-export type GUILD_UPDATE_EVENT = {
-  guild_id: string;
-} & Pick<Required<Guild>,
+'voice_states'> & {
+  members: AugmentedGuildMember[];
+  channels: GuildChannel[];
+  threads: GuildThread[];
+  presences: GatewayPresence[];
+}
+export type STARTUP_GUILD_EVENT = GUILD_CREATE_EVENT | UNAVAILABLE_GUILD;
+export type GUILD_UPDATE_EVENT = Pick<Required<Guild>,
   'afk_channel_id' |
   'afk_timeout' |
   'application_id' |
@@ -110,11 +109,13 @@ export type GUILD_UPDATE_EVENT = {
   'system_channel_id' |
   'vanity_url_code' |
   'verification_level'
->
+> & {
+  guild_id: string;
+}
 export type GUILD_DELETE_EVENT = {
   id: string;
   unavailable?: true;
- }
+}
 
 export type GUILD_BAN_ADD_EVENT = GuildBanAddEventField;
 
@@ -178,7 +179,7 @@ export type MESSAGE_REACTION_REMOVE_ALL_EVENT = MessageReactionRemoveAllEventFie
 
 export type MESSAGE_REACTION_REMOVE_EMOJI_EVENT = MessageReactionRemoveEmojiEventField;
 
-export type PRESENCE_UPDATE_EVENT = Presence;
+export type PRESENCE_UPDATE_EVENT = GatewayPresence;
 
 export type STAGE_INSTANCE_CREATE_EVENT = StageInstance;
 
