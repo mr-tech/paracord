@@ -43,8 +43,8 @@ export interface AugmentedActivityAssets extends ActivityAsset {
 export type MessageComponent = Button | SelectMenu | SelectOption | TextInput;
 
 export type GuildTextChannel = { type: 0 } & Pick<Required<Channel>,
-'id' |
 'guild_id' |
+'id' |
 'last_message_id' |
 'last_pin_timestamp' |
 'name' |
@@ -57,6 +57,7 @@ export type GuildTextChannel = { type: 0 } & Pick<Required<Channel>,
 
 export type GuildVoiceChannel = { type: 2 } & Pick<Required<Channel>,
 'bitrate' |
+'guild_id' |
 'id' |
 'last_message_id' |
 'name' |
@@ -69,6 +70,7 @@ export type GuildVoiceChannel = { type: 2 } & Pick<Required<Channel>,
 'user_limit'>
 
 export type GuildCategoryChannel = { type: 4 } & Pick<Required<Channel>,
+'guild_id' |
 'id' |
 'name' |
 'nsfw' |
@@ -78,6 +80,7 @@ export type GuildCategoryChannel = { type: 4 } & Pick<Required<Channel>,
 'type'>
 
 export type GuildNewsChannel = { type: 5 } & Pick<Required<Channel>,
+'guild_id' |
 'id' |
 'last_message_id' |
 'last_pin_timestamp' |
@@ -133,6 +136,7 @@ export type GuildPrivateThreadChannel = { type: 12, parent_id: string } & Pick<R
 
 export type GuildStageVoiceChannel = { type: 13 } & Pick<Required<Channel>,
 'bitrate' |
+'guild_id' |
 'id' |
 'name' |
 'nsfw' |
