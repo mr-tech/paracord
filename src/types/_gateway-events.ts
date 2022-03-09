@@ -127,7 +127,18 @@ export type GUILD_STICKERS_UPDATE_EVENT = GuildStickersUpdateEventField;
 
 export type GUILD_INTEGRATIONS_UPDATE_EVENT = GuildIntegrationsUpdateEventField;
 
-export type GUILD_MEMBER_ADD_EVENT = GuildMember & GuildMemberAddExtraField;
+export type GUILD_MEMBER_ADD_EVENT = GuildMemberAddExtraField & Pick<Required<GuildMember>,
+'avatar' |
+'communication_disabled_until' |
+'deaf' |
+'joined_at' |
+'mute' |
+'nick' |
+'pending' |
+'premium_since' |
+'roles' |
+'user'
+>
 
 export type GUILD_MEMBER_REMOVE_EVENT = GuildMemberRemoveEventField;
 
