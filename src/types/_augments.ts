@@ -3,6 +3,8 @@ import type {
   Guild, GuildMember, Message, Presence, User, VoiceState, Snowflake, UnavailableGuild,
   Button, SelectMenu, SelectOption, TextInput,
 } from '.';
+import { GuildRequestMember } from './gateway';
+import { GuildMemberChunk } from '../clients/Gateway/types';
 
 export interface AugmentedGuildMember extends GuildMember {
   user: User;
@@ -148,6 +150,11 @@ export type GuildStageVoiceChannel = { type: 13 } & Pick<Required<Channel>,
 'type' |
 'user_limit'
 >
+
+export type CasedGuildRequestMember = Omit<GuildRequestMember, 'guild_id' | 'user_ids'> & {
+  guildId: GuildRequestMember['guild_id'];
+  userIds: GuildRequestMember['user_ids'];
+}
 
 export type GuildChannel = GuildTextChannel | GuildVoiceChannel | GuildCategoryChannel | GuildNewsChannel | GuildStageVoiceChannel;
 export type GuildThread = GuildNewsThreadChannel | GuildPublicThreadChannel | GuildPrivateThreadChannel;

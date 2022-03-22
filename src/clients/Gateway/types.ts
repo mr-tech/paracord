@@ -3,7 +3,7 @@ import { UserEvents } from '../../common';
 import Api from '../Api/Api';
 import { IApiResponse } from '../Api/types';
 import {
-  IdentifyConnectionProperties, GatewayPresenceUpdate, Presence, GuildMember, Snowflake,
+  IdentifyConnectionProperties, GatewayPresenceUpdate, Presence, Snowflake, AugmentedGuildMember,
 } from '../../types';
 import Gateway from './Gateway';
 
@@ -103,7 +103,7 @@ export type StartupCheckFunction = (x: Gateway) => boolean;
 
 export interface GuildMemberChunk {
   guild_id: Snowflake;
-  members: Omit<GuildMember, 'guild_id'>[];
+  members: Omit<AugmentedGuildMember, 'guild_id'>[];
   chunk_index: number;
   chunk_count: number;
   not_found?: number;

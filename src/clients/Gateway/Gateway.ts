@@ -15,7 +15,7 @@ import {
 import type erlpackType from 'erlpack';
 import type { IServiceOptions } from '../Api/types';
 import type {
-  GatewayPayload, GuildRequestMember, Hello, ReadyEventField, Resume,
+  GatewayPayload, GuildRequestMember, Hello, ReadyEventField, Resume, CasedGuildRequestMember,
 } from '../../types';
 import type {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, GuildMemberChunk, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
@@ -86,7 +86,7 @@ export default class Gateway {
   #receivedHeartbeatIntervalTime?: number;
 
   /** Time between heartbeats with user offset subtracted. */
-  #heartbeatIntervalTime?: number
+  #heartbeatIntervalTime?: number;
 
   #heartbeatIntervalOffset: number;
 
@@ -199,7 +199,7 @@ export default class Gateway {
   }
 
   /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
-  private get shard(): Identify['shard'] {
+  public get shard(): Identify['shard'] {
     return this.#identity.shard !== undefined ? this.#identity.shard : undefined;
   }
 
@@ -363,21 +363,15 @@ export default class Gateway {
    * @param guildId Id of the guild to request members from.
    * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
    */
-  public requestGuildMembers(guildId: string, options: any = { query: '', presences: false, userIds: [] }): boolean {
-    const requiredSendOptions: Partial<GuildRequestMember> = {
-      limit: 0,
-    };
-    const snakeOptions = objectKeysCamelToSnake(options);
+  public requestGuildMembers(options: GuildRequestMember): boolean {
     let { nonce } = options;
     if (nonce === undefined) {
-      nonce = `${guildId}-${++this.#membersRequestCounter}`;
+      nonce = `${options.guild_id}-${++this.#membersRequestCounter}`;
     }
 
     this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
 
-    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, <GuildRequestMember>{
-      guild_id: guildId, ...requiredSendOptions, ...snakeOptions, nonce,
-    });
+    return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
   }
 
   private checkLocksPromise = async (resolve: () => void): Promise<void> => {
@@ -386,7 +380,7 @@ export default class Gateway {
     } else {
       setTimeout(() => this.checkLocksPromise(resolve), SECOND_IN_MILLISECONDS);
     }
-  }
+  };
 
   private loginWaitForLocks(): Promise<void> {
     /** Continuously checks if the response has returned. */
@@ -439,7 +433,7 @@ export default class Gateway {
     } finally {
       this.#loggingIn = false;
     }
-  }
+  };
 
   /** Releases all non-main identity locks. */
   public async releaseIdentifyLocks(): Promise<void> {
@@ -591,7 +585,7 @@ export default class Gateway {
     }
 
     this.handleEvent('GATEWAY_OPEN', this);
-  }
+  };
 
   private checkIfStarting = () => {
     this.#isStarting = !!(this.#isStartingFunction && this.#isStartingFunction(this));
@@ -599,7 +593,7 @@ export default class Gateway {
       if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
       if (this.#checkIfStartingInterval !== undefined) clearInterval(this.#checkIfStartingInterval);
     }
-  }
+  };
 
   /*
    ********************************
@@ -610,7 +604,7 @@ export default class Gateway {
   /** Assigned to websocket `onerror`. */
   private _onerror = (err: ws.ErrorEvent): void => {
     this.log('ERROR', `Websocket error. Message: ${err.message}`);
-  }
+  };
 
   /*
    ********************************
@@ -636,7 +630,7 @@ export default class Gateway {
 
     const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
     this.handleEvent('GATEWAY_CLOSE', gatewayCloseEvent);
-  }
+  };
 
   /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
    * @param code Code that came with the websocket close event.
@@ -828,7 +822,7 @@ export default class Gateway {
     } else if (typeof raw === 'string') return this.handleMessage(JSON.parse(raw));
 
     return undefined;
-  }
+  };
 
   /** Processes incoming messages from Discord's gateway.
    * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
@@ -909,7 +903,7 @@ export default class Gateway {
     ) {
       this.sendHeartbeat();
     }
-  }
+  };
 
   /**
    * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
@@ -970,7 +964,7 @@ export default class Gateway {
     } else {
       this.log('ERROR', 'heartbeatIntervalTime undefined.');
     }
-  }
+  };
 
   private refreshHeartbeatAckTimeout = () => {
     if (this.#receivedHeartbeatIntervalTime !== undefined) {
@@ -982,7 +976,7 @@ export default class Gateway {
     } else {
       this.log('ERROR', 'refreshHeartbeatAckTimeout undefined.');
     }
-  }
+  };
 
   /** Checks if heartbeat ack was received. */
   private checkHeartbeatAck = () => {
@@ -993,7 +987,7 @@ export default class Gateway {
     if (waitingForAck && ackIsOverdue && !requestingMembers) {
       this.handleMissedHeartbeatAck();
     }
-  }
+  };
 
   private handleMissedHeartbeatAck = (): void => {
     let close = false;
@@ -1015,7 +1009,7 @@ export default class Gateway {
       if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
       this.#heartbeatAckTimeout = undefined;
     }
-  }
+  };
 
   private allowMissingAckOnStartup(): boolean {
     return ++this.#heartbeatsMissedDuringStartup <= this.#startupHeartbeatTolerance;
@@ -1030,7 +1024,7 @@ export default class Gateway {
       : 'nextHeartbeatTimestamp is undefined.';
     this._sendHeartbeat();
     this.log('DEBUG', message);
-  }
+  };
 
   private _sendHeartbeat(): void {
     const now = new Date().getTime();

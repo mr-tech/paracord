@@ -58,7 +58,7 @@ export default class Base extends EventEmitter {
   #unavailableGuildWait?: number;
 
   /** Interval that will force shards as ready when within set thresholds. */
-  #startWithUnavailableGuildsInterval?: NodeJS.Timer
+  #startWithUnavailableGuildsInterval?: NodeJS.Timer;
 
   /* Internal clients. */
   /** Client through which to make REST API calls to Discord. */
@@ -216,7 +216,12 @@ export default class Base extends EventEmitter {
    * @param args Any arguments to send with the emitted event.
    */
   public emit(event: string, ...args: unknown[]): boolean {
-    const type = this.#events && this.#events[event];
+    const events = this.#events;
+    if (events === undefined) {
+      return super.emit(event, ...args);
+    }
+
+    const type = events[event];
     if (type !== undefined) {
       args = args.map(Base.ensureCamelProps);
       return super.emit(type, ...args);
@@ -297,7 +302,7 @@ export default class Base extends EventEmitter {
         gatewayLoginQueue.unshift(gateway);
       }
     }
-  }
+  };
 
   private startWithUnavailableGuilds = (gateway: Gateway): void => {
     const unavailableGuildTolerance = this.#unavailableGuildTolerance;
@@ -313,7 +318,7 @@ export default class Base extends EventEmitter {
       this.log('WARNING', message);
       this.checkIfDoneStarting(true);
     }
-  }
+  };
 
   /** Decides shards to spawn and pushes a gateway onto the queue for each one.
    * @param options Options used when logging in.
