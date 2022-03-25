@@ -235,4 +235,4 @@ export type Locale =
 /** Korean - 한국어 */
 'ko';
 
-export type AvailableLocale = Record<Locale, string>;
+export type AvailableLocale = Partial<Record<Locale, string>>;
