@@ -173,7 +173,7 @@ AugmentedActivityAssets |
 Presence |
 UnavailableGuild
 
-export type AvailableLocale =
+export type Locale =
 /** Danish - Dansk */
 'da' |
 /** German - Deutsch */
@@ -233,4 +233,6 @@ export type AvailableLocale =
 /** Chinese, Taiwan - 繁體中文 */
 'zh-TW' |
 /** Korean - 한국어 */
-'ko'
+'ko';
+
+export type AvailableLocale = Record<Locale, string>;
