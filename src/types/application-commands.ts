@@ -1,4 +1,4 @@
-import type { Snowflake, ChannelType } from '.';
+import type { Snowflake, ChannelType, AvailableLocale } from '.';
 
 export type ApplicationCommand = {
   /** unique id of the command */
@@ -11,13 +11,17 @@ export type ApplicationCommand = {
   guild_id?: Snowflake; // all
   /** 1-32 character name */
   name: string; // all
+  /** Localization dictionary for the `name` field. Values follow the same restrictions as `name` */
+  name_localizations?: AvailableLocale; // all
   /** 1-100 character description for `CHAT_INPUT` commands, empty string for `USER` and `MESSAGE` commands */
   description: string; // all
+  /** Localization dictionary for the `description` field. Values follow the same restrictions as `description` */
+  description_localizations?: AvailableLocale; // all
   /** the parameters for the command, max 25 */
   options?: ApplicationCommandOption[]; // CHAT_INPUT
-  /** whether the command is enabled by default when the app is added to a guild */
+  /** whether the command is enabled by default when the app is added to a guild (default `true`) */
   default_permission?: boolean; // all
-  /** auto-incrementing version identifier updated during substantial record changes */
+  /** autoincrementing version identifier updated during substantial record changes */
   version: Snowflake; // all
 };
 
@@ -38,8 +42,12 @@ export type ApplicationCommandOption = {
   type: ApplicationCommandOptionType;
   /** 1-32 character name */
   name: string;
+  /** Localization dictionary for the `name` field. Values follow the same restrictions as `name` */
+  name_localizations?: AvailableLocale;
   /** 1-100 character description */
   description: string;
+  /** Localization dictionary for the `description` field. Values follow the same restrictions as `description` */
+  description_localizations?: AvailableLocale;
   /** if the parameter is required or optional--default `false` */
   required?: boolean;
   /** choices for `STRING`, `INTEGER`, and `NUMBER` types for the user to pick from, max 25 */
@@ -48,9 +56,9 @@ export type ApplicationCommandOption = {
   options?: ApplicationCommandOption[];
   /** if the option is a channel type, the channels shown will be restricted to these types */
   channel_types?: ChannelType[];
-  /** if the option is an `INTEGER` or `NUMBER` type, the minimum value permitted. integer for `INTEGER` options, double for `NUMBER` options */
+  /** if the option is an `INTEGER` or `NUMBER` type, the minimum value permitted */
   min_value?: number;
-  /** if the option is an `INTEGER` or `NUMBER` type, the maximum value permittedinteger for `INTEGER` options, double for `NUMBER` options */
+  /** if the option is an `INTEGER` or `NUMBER` type, the maximum value permitted */
   max_value?: number;
   /** if autocomplete interactions are enabled for this `STRING`, `INTEGER`, or `NUMBER` type option */
   autocomplete?: boolean;
@@ -87,6 +95,8 @@ export type ApplicationCommandOptionType =
 export type ApplicationCommandOptionChoice = {
   /** 1-100 character choice name */
   name: string;
+  /** Localization dictionary for the `name` field. Values follow the same restrictions as `name` */
+  name_localizations?: AvailableLocale;
   /** value of the choice, up to 100 characters if string */
   value: string | number; // *
 };

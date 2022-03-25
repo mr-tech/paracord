@@ -12,7 +12,7 @@ export type Sticker = {
   /** autocomplete/suggestion tags for the sticker (max 200 characters) */
   tags: string;
   /** **Deprecated** previously the sticker asset hash, now an empty string */
-  asset: string;
+  asset?: string;
   /** type of sticker */
   type: StickerType;
   /** type of sticker format */

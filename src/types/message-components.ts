@@ -48,11 +48,11 @@ export type ButtonStyleType =
 export type SelectMenu = {
   /** `3` for a select menu */
   type: 3;
-  /** a developer-defined identifier for the button, max 100 characters */
+  /** a developer-defined identifier for the select menu, max 100 characters */
   custom_id: string;
   /** the choices in the select, max 25 */
   options: SelectOption[];
-  /** custom placeholder text if nothing is selected, max 100 characters */
+  /** custom placeholder text if nothing is selected, max 150 characters */
   placeholder?: string;
   /** the minimum number of items that must be chosen; default 1, min 0, max 25 */
   min_values?: number;
@@ -86,7 +86,7 @@ export type TextInput = {
   custom_id: string;
   /** the Text Input Style */
   style: number;
-  /** the label for this component */
+  /** the label for this component, max 45 characters */
   label: string;
   /** the minimum input length for a text input, min 0, max 4000 */
   min_length?: number;

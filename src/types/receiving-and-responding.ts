@@ -65,7 +65,7 @@ export type InteractionData = {
   component_type?: ComponentType; // Component
   /** the values the user selected */
   values?: SelectOption[]; // Component (Select)
-  /** id the of user or message targetted by a user or [message](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands) command */
+  /** id the of user or message targeted by a user or [message](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands) command */
   target_id?: Snowflake; // [User Command](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/user-commands), [Message Command](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands)
   /** the values submitted by the user */
   components?: MessageComponent[]; // Modal Submit
@@ -161,7 +161,7 @@ export type AutocompleteCallback = {
 export type ModalCallback = {
   /** a developer-defined identifier for the component, max 100 characters */
   custom_id: string;
-  /** the title of the popup modal */
+  /** the title of the popup modal, max 45 characters */
   title: string;
   /** between 1 and 5 (inclusive) components that make up the modal */
   components: MessageComponent[];

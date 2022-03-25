@@ -14,7 +14,7 @@ export type GuildScheduledEvent = {
   /** the name of the scheduled event (1-100 characters) */
   name: string;
   /** the description of the scheduled event (1-1000 characters) */
-  description?: string;
+  description?: string | null;
   /** the time the scheduled event will start */
   scheduled_start_time: ISO8601timestamp;
   /** the time the scheduled event will end, required if entity_type is `EXTERNAL` */
@@ -34,7 +34,7 @@ export type GuildScheduledEvent = {
   /** the number of users subscribed to the scheduled event */
   user_count?: number;
   /** the cover image hash of the scheduled event */
-  image: string | null;
+  image?: string | null;
 };
 
 // ========================================================================

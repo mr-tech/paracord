@@ -21,7 +21,7 @@ export type Application = {
   privacy_policy_url?: string;
   /** partial user object containing info on the owner of the application */
   owner?: Partial<User>;
-  /** if this application is a game sold on Discord, this field will be the summary field for the store page of its primary sku */
+  /** **deprecated**: previously if this application was a game sold on Discord, this field would be the summary field for the store page of its primary SKU; now an empty string */
   summary: string;
   /** the hex encoded key for verification in interactions and the GameSDK's GetTicket */
   verify_key: string;
