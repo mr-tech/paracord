@@ -196,7 +196,7 @@ function _applyOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
  * @param user User whose avatar url to generate.
  * @param fileType File extension of the image.
  */
-export function constructUserAvatarUrl(user: User, fileType = ''): string {
+export function constructUserAvatarUrl(user: Pick<User, 'id' | 'avatar' | 'discriminator'>, fileType = ''): string {
   if (user.avatar === null || user.avatar === undefined) {
     return `${DISCORD_CDN_URL}/embed/avatars/${Number(user.discriminator)
         % 5}${fileType ? `.${fileType}` : ''}`;
@@ -211,10 +211,10 @@ export function constructUserAvatarUrl(user: User, fileType = ''): string {
 
 /**
  * Creates the discord cdn link for a guild's icon.
- * @param guild Guild whose icon url to generate.
+ * @param guild Guild whose icon url to generate.s
  * @param fileType File extension of the image.
  */
-export function constructGuildIcon(guild: Guild, fileType = ''): string | undefined {
+export function constructGuildIcon(guild: Pick<Guild, 'id' | 'iconHash'>, fileType = ''): string | undefined {
   if (guild.iconHash === null || guild.iconHash === undefined) return undefined;
 
   if (guild.iconHash.startsWith('a_')) {
