@@ -75,17 +75,17 @@ export type InteractionData = {
 
 export type ResolvedData = {
   /** the ids and User objects */
-  users?: User;
+  users?: Record<Snowflake, User>;
   /** the ids and partial Member objects */
-  members?: GuildMember;
+  members?: Record<Snowflake, Partial<GuildMember>>;
   /** the ids and Role objects */
-  roles?: Role;
+  roles?: Record<Snowflake, Role>;
   /** the ids and partial Channel objects */
-  channels?: Channel;
+  channels?: Record<Snowflake, Partial<Channel>>;
   /** the ids and partial Message objects */
-  messages?: Message;
+  messages?: Record<Snowflake, Partial<Message>>;
   /** the ids and attachment objects */
-  attachments?: Attachment;
+  attachments?: Record<Snowflake, Attachment>;
 };
 
 // ========================================================================
