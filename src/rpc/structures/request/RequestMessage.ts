@@ -9,7 +9,7 @@ export default class RequestMessage {
   public url: string;
 
   /** Data to send in the body of the request. */
-  public data?: Record<string, unknown>;
+  public data?: Record<string, unknown> | FormData;
 
   /** Headers to send with the request. */
   public headers?: Record<string, unknown>;

@@ -125,7 +125,7 @@ export interface IRequestMessage {
   /** Discord endpoint url. (e.g. channels/123) */
   url: string;
   /** JSON encoded data to send in the body of the request. */
-  data?: undefined | Record<string, unknown>;
+  data?: undefined | Record<string, unknown> | FormData;
   /** JSON encoded headers to send with the request. */
   headers?: undefined | Record<string, unknown>;
 }

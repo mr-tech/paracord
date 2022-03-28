@@ -8,7 +8,7 @@ import BaseRequest from './BaseRequest';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class Request<T extends ResponseData = any> extends BaseRequest {
   /** Data to send in the body of the request.  */
-  public data: Record<string, unknown> | undefined;
+  public data: Record<string, unknown> | FormData | undefined;
 
   /** Additional headers to send with the request. */
   public headers: Record<string, unknown> | undefined;

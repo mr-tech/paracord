@@ -14,7 +14,7 @@ export interface IApiOptions {
 /** Optional parameters for a Discord REST request. */
 export interface IRequestOptions {
   /** Data to send in the body of the request. */
-  data?: Record<string, unknown>;
+  data?: Record<string, unknown> | FormData;
   /** Headers to send with the request. */
   headers?: Record<string, unknown> | undefined;
   /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
