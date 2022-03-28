@@ -1,8 +1,9 @@
-import { EventEmitter } from 'events';
-import { ServerCredentials, ServiceError } from '@grpc/grpc-js';
-import Api from '../clients/Api/Api';
-import { Lock } from './structures';
-import { ResponseData } from '../clients/Api/types';
+import type { ServerCredentials, ServiceError } from '@grpc/grpc-js';
+import type FormData from 'form-data';
+import type { EventEmitter } from 'events';
+import type Api from '../clients/Api/Api';
+import type { ResponseData } from '../clients/Api/types';
+import type { Lock } from './structures';
 
 export interface RpcServerOptions{
   host?: string;

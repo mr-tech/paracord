@@ -1,5 +1,8 @@
-import { IApiResponse, IRequestOptions, ResponseData } from '../types';
 import BaseRequest from './BaseRequest';
+
+// eslint-disable-next-line import/order
+import type FormData from 'form-data';
+import type { IApiResponse, IRequestOptions, ResponseData } from '../types';
 
 /**
  * A request that will be made to Discord's REST API.

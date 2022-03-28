@@ -1,4 +1,5 @@
-import { IRequestMessage, RequestProto } from '../../types';
+import type FormData from 'form-data';
+import type { IRequestMessage, RequestProto } from '../../types';
 
 /** A class for the RequestMessage protobuf */
 export default class RequestMessage {

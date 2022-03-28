@@ -1,5 +1,6 @@
 import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
+import type FormData from 'form-data';
 import type { UserEvents } from '../../common';
 import type { ApiRequest } from './structures';
 

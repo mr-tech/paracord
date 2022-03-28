@@ -71,7 +71,7 @@ export default class Paracord extends EventEmitter {
   #unavailableGuildWait?: number;
 
   /** Interval that will force shards as ready when within set thresholds. */
-  #startWithUnavailableGuildsInterval?: NodeJS.Timer
+  #startWithUnavailableGuildsInterval?: NodeJS.Timer;
 
   /* Internal clients. */
   /** Client through which to make REST API calls to Discord. */
@@ -357,9 +357,7 @@ export default class Paracord extends EventEmitter {
 
   /** Begins the interval that kicks off gateway logins from the queue. */
   private startGatewayLoginInterval(): void {
-    this.#processGatewayQueueInterval = setInterval(
-      this.processGatewayQueue, SECOND_IN_MILLISECONDS,
-    );
+    this.#processGatewayQueueInterval = setInterval(this.processGatewayQueue, SECOND_IN_MILLISECONDS);
   }
 
   /** Takes a gateway off of the queue and logs it in. */
@@ -395,7 +393,7 @@ export default class Paracord extends EventEmitter {
         gatewayLoginQueue.unshift(gateway);
       }
     }
-  }
+  };
 
   private startWithUnavailableGuilds = (gateway: Gateway): void => {
     const unavailableGuildTolerance = this.#unavailableGuildTolerance;
@@ -411,7 +409,7 @@ export default class Paracord extends EventEmitter {
       this.log('WARNING', message);
       this.checkIfDoneStarting(true);
     }
-  }
+  };
 
   /** Decides shards to spawn and pushes a gateway onto the queue for each one.
    * @param options Options used when logging in.
@@ -452,9 +450,7 @@ export default class Paracord extends EventEmitter {
    * @param shards Shard Ids to spawn.
    * @param shardCount Total number of shards
    */
-  private async computeShards(
-    shards: number[] | undefined, shardCount: number | undefined,
-  ): Promise<{ shards: number[] | undefined, shardCount: number | undefined }> {
+  private async computeShards(shards: number[] | undefined, shardCount: number | undefined): Promise<{ shards: number[] | undefined, shardCount: number | undefined }> {
     if (shards !== undefined && shardCount === undefined) {
       throw Error('shards defined with no shardCount.');
     }
@@ -859,14 +855,14 @@ export default class Paracord extends EventEmitter {
         user.resetActiveReferenceCount();
       }
     } else if (guild.voiceStates.has(user.id)) user.decrementActiveReferenceCount();
-  }
+  };
 
   public handlePresenceRemovedFromGuild = (presence: Presence): void => {
     presence.decrementGuildCount();
     if (presence.guildCount === 0) {
       this.#presences.delete(presence.user.id);
     }
-  }
+  };
 
   // /**
   //  * Processes a member object (e.g. from MESSAGE_CREATE, VOICE_STATE_UPDATE, etc.)
