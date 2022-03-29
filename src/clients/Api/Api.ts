@@ -149,7 +149,7 @@ export default class Api {
       message,
       data,
     });
-  }
+  };
 
   /**
    * Emits all events if `this.events` is undefined; otherwise will emit those defined as keys in `this.events` as the paired value.
@@ -160,7 +160,7 @@ export default class Api {
     if (this.#emitter !== undefined) {
       this.#emitter.emit(type, data);
     }
-  }
+  };
 
   /*
    ********************************
@@ -201,7 +201,7 @@ export default class Api {
     this.#rpcServiceOptions = serviceOptions;
 
     return this.checkRpcServiceConnection(this.rpcRequestService);
-  }
+  };
 
   /**
    * Adds the service that first checks with a server before making a request to Discord.
@@ -236,7 +236,7 @@ export default class Api {
     this.#rpcServiceOptions = serviceOptions;
 
     return this.checkRpcServiceConnection(this.#rpcRateLimitService);
-  }
+  };
 
   /**
    * @returns `true` is connection was successful.
@@ -259,7 +259,7 @@ export default class Api {
     }
 
     return false;
-  }
+  };
 
   // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
   private async recreateRpcService(): Promise<boolean> {
@@ -301,7 +301,7 @@ export default class Api {
     } else {
       throw Error('request queue already started');
     }
-  }
+  };
 
   /** Stops the request rate limit queue processing. */
   public stopQueue = (): void => {
@@ -310,7 +310,7 @@ export default class Api {
       clearInterval(this.#requestQueueProcessInterval);
       this.#requestQueueProcessInterval = undefined;
     }
-  }
+  };
 
   /*
    ********************************
@@ -347,7 +347,7 @@ export default class Api {
     }
 
     return response;
-  }
+  };
 
   /**
    * Send the request and handle 429's.
@@ -453,7 +453,7 @@ export default class Api {
     } finally {
       request.running = false;
     }
-  }
+  };
 
   /**
    * Gets authorization from the server to make the request.
@@ -496,6 +496,7 @@ export default class Api {
     if (Object.keys(response.headers).length) {
       const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
         response.headers,
+        response.data.retry_after,
       );
 
       const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
@@ -555,9 +556,7 @@ export default class Api {
     if (this.#rpcRateLimitService !== undefined && !this.#connectingToRpcService) {
       try {
         const [global, bucket, limit, remaining, resetAfter] = rateLimitHeaders.rpcArgs;
-        await this.#rpcRateLimitService.update(
-          request, global, bucket, limit, remaining, resetAfter,
-        );
+        await this.#rpcRateLimitService.update(request, global, bucket, limit, remaining, resetAfter);
       } catch (err) {
         if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
           const success = await this.recreateRpcService();
@@ -581,7 +580,7 @@ export default class Api {
     request.response = undefined;
 
     /** Continuously checks if the response has returned. */
-    function checkRequest<T extends ResponseData>(resolve: (x: IApiResponse<T> | Promise<IApiResponse<T>>) => void): void {
+    function checkRequest(resolve: (x: IApiResponse<T> | Promise<IApiResponse<T>>) => void): void {
       const { response } = request;
       if (response !== undefined) {
         resolve(response);

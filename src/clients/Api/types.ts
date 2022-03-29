@@ -12,12 +12,16 @@ export interface IApiOptions {
   requestOptions?: IRequestOptions;
 }
 
+export type RequestFormDataFunction = () => { data?: Record<string, unknown> | FormData | undefined, headers?: Record<string, unknown> | undefined }
+
 /** Optional parameters for a Discord REST request. */
 export interface IRequestOptions {
   /** Data to send in the body of the request. */
-  data?: Record<string, unknown> | FormData;
+  data?: Record<string, unknown> | undefined;
   /** Headers to send with the request. */
   headers?: Record<string, unknown> | undefined;
+  /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
+  createForm?: RequestFormDataFunction | undefined;
   /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
   local?: boolean;
   /** Whether or not to return the response data with camelCased keys. */
@@ -70,7 +74,7 @@ export interface IApiResponse<T extends ResponseData = any> {
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
   statusText: string;
   /** The data returned by Discord. */
-  data: T;
+  data: T & { retry_after?: number };
 
   headers: Record<string, unknown>;
 

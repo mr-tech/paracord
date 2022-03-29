@@ -1,4 +1,3 @@
-import type FormData from 'form-data';
 import type { IRequestMessage, RequestProto } from '../../types';
 
 /** A class for the RequestMessage protobuf */
@@ -10,7 +9,7 @@ export default class RequestMessage {
   public url: string;
 
   /** Data to send in the body of the request. */
-  public data?: Record<string, unknown> | FormData;
+  public data?: Record<string, unknown>;
 
   /** Headers to send with the request. */
   public headers?: Record<string, unknown>;

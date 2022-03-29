@@ -1,8 +1,8 @@
 import BaseRequest from './BaseRequest';
 
-// eslint-disable-next-line import/order
-import type FormData from 'form-data';
-import type { IApiResponse, IRequestOptions, ResponseData } from '../types';
+import type {
+  IApiResponse, IRequestOptions, ResponseData, RequestFormDataFunction,
+} from '../types';
 
 /**
  * A request that will be made to Discord's REST API.
@@ -11,10 +11,13 @@ import type { IApiResponse, IRequestOptions, ResponseData } from '../types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class Request<T extends ResponseData = any> extends BaseRequest {
   /** Data to send in the body of the request.  */
-  public data: Record<string, unknown> | FormData | undefined;
+  public data: Record<string, unknown> | undefined;
 
   /** Additional headers to send with the request. */
   public headers: Record<string, unknown> | undefined;
+
+  /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
+  public createForm: RequestFormDataFunction | undefined;
 
   /** If queued, will be the response when this request is sent. */
   public response: Promise<IApiResponse<T>> | IApiResponse<T> | undefined;
@@ -44,10 +47,11 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
     super(method, url);
 
     const {
-      data, headers, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
+      data, headers, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
     } = options;
 
     // this.data = data !== undefined ? objectKeysCamelToSnake(data) : data;
+    this.createForm = createForm;
     this.data = data;
     this.headers = headers;
     this.returnOnRateLimit = returnOnRateLimit ?? false;
@@ -58,11 +62,18 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
 
   /** Data relevant to sending this request via axios. */
   public get sendData(): Record<string, unknown> {
+    let data;
+    let headers;
+    if (this.createForm) {
+      ({ data, headers } = this.createForm());
+    } else {
+      ({ data, headers } = this);
+    }
     return {
       method: this.method,
       url: this.url,
-      data: this.data,
-      headers: this.headers,
+      data,
+      headers,
       validateStatus: null, // Tells axios not to throw errors when non-200 response codes are encountered.
     };
   }
