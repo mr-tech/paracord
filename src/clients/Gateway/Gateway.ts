@@ -62,6 +62,9 @@ export default class Gateway {
 
   #wsRateLimitCache: WebsocketRateLimitCache;
 
+  /** Discord gateway version to use. Default: 9 */
+  #version: number;
+
   /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
   #sequence: null | number;
 
@@ -166,6 +169,7 @@ export default class Gateway {
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
       throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
     }
+    this.#version = DISCORD_WS_VERSION;
     this.#sequence = null;
     this.#heartbeatAck = true;
     this.#online = false;
@@ -468,7 +472,7 @@ export default class Gateway {
       )})`;
       this.log('INFO', message);
 
-      return `${data.url}?v=${DISCORD_WS_VERSION}&encoding=${encoding}`;
+      return `${data.url}?v=${this.#version}&encoding=${encoding}`;
     }
 
     this.handleBadStatus(status, statusText, data.message, data.code);
