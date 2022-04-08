@@ -1,10 +1,10 @@
 import type {
   ActivityAsset, GuildMembersChunkEventField, GuildMemberUpdateEventField, Activity, Channel, Emoji,
   Guild, GuildMember, Message, Presence, User, VoiceState, Snowflake, UnavailableGuild,
-  Button, SelectMenu,
+  Button, SelectMenu, SelectOption, TextInput,
 } from '.';
 import { GuildRequestMember } from './gateway';
-import { ButtonStyleType, TextInput } from './message-components';
+import { ButtonStyleType } from './message-components';
 
 export interface AugmentedGuildMember extends GuildMember {
   user: User;
@@ -46,11 +46,11 @@ export type ButtonEmoji = Pick<Emoji, 'name' | 'id' | 'animated'>;
 export type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Required<Pick<Button, 'custom_id'>> & { style: Exclude<ButtonStyleType, 5>, emoji?: ButtonEmoji };
 export type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & { style: 5, emoji?: ButtonEmoji };
 
-export type MessageComponent = NonLinkButton | LinkButton | SelectMenu;
+export type MessageComponent = NonLinkButton | LinkButton | SelectMenu | SelectOption | TextInput;
 
 export type ActionRowComponent = {
   type: 1;
-  components: Array<NonLinkButton | LinkButton> | SelectMenu[] | TextInput[];
+  components: MessageComponent[];
 };
 
 export type GuildTextChannel = { type: 0 } & Pick<Required<Channel>,
