@@ -4,6 +4,7 @@ import type {
   Button, SelectMenu, SelectOption, TextInput,
 } from '.';
 import { GuildRequestMember } from './gateway';
+import { ButtonStyleType } from './message-components';
 
 export interface AugmentedGuildMember extends GuildMember {
   user: User;
@@ -41,7 +42,11 @@ export interface AugmentedActivityAssets extends ActivityAsset {
   smallText?: string;
 }
 
-export type MessageComponent = Button | SelectMenu | SelectOption | TextInput;
+export type ButtonEmoji = Pick<Emoji, 'name' | 'id' | 'animated'>;
+export type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Required<Pick<Button, 'custom_id'>> & { style: Exclude<ButtonStyleType, 5>, emoji?: ButtonEmoji };
+export type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & { style: 5, emoji?: ButtonEmoji };
+
+export type MessageComponent = NonLinkButton | LinkButton | SelectMenu | SelectOption | TextInput;
 
 export type ActionRowComponent = {
   type: 1;
