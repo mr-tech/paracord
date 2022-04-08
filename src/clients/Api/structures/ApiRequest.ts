@@ -16,7 +16,7 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
   /** Additional headers to send with the request. */
   public headers: Record<string, unknown> | undefined;
 
-  /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
+  /** Function to generate form that will be merged into other data. Overwrites overlapping properties in `data` and `headers`. */
   public createForm: RequestFormDataFunction | undefined;
 
   /** If queued, will be the response when this request is sent. */
@@ -66,6 +66,8 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
     let headers;
     if (this.createForm) {
       ({ data, headers } = this.createForm());
+      data = { ...this.data, ...data };
+      headers = { ...this.headers, ...headers };
     } else {
       ({ data, headers } = this);
     }
