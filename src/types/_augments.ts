@@ -43,6 +43,11 @@ export interface AugmentedActivityAssets extends ActivityAsset {
 
 export type MessageComponent = Button | SelectMenu | SelectOption | TextInput;
 
+export type ActionRowComponent = {
+  type: 1;
+  components: MessageComponent[];
+};
+
 export type GuildTextChannel = { type: 0 } & Pick<Required<Channel>,
 'guild_id' |
 'id' |
