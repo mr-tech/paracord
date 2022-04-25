@@ -42,7 +42,7 @@ export interface AugmentedActivityAssets extends ActivityAsset {
   smallText?: string;
 }
 
-export type ButtonEmoji = Pick<Emoji, 'name' | 'id' | 'animated'>;
+export type ButtonEmoji = Pick<Emoji, 'id' | 'animated'>;
 export type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Required<Pick<Button, 'custom_id'>> & { style: Exclude<ButtonStyleType, 5>, emoji?: ButtonEmoji };
 export type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & { style: 5, emoji?: ButtonEmoji };
 
@@ -53,12 +53,11 @@ export type ActionRowComponent = {
   components: Array<NonLinkButton | LinkButton> | SelectMenu[] | TextInput[];
 };
 
-export type GuildTextChannel = { type: 0 } & Pick<Required<Channel>,
+export type GuildTextChannel = { type: 0, name: string } & Pick<Required<Channel>,
 'guild_id' |
 'id' |
 'last_message_id' |
 'last_pin_timestamp' |
-'name' |
 'nsfw' |
 'parent_id' |
 'permission_overwrites' |
@@ -66,12 +65,11 @@ export type GuildTextChannel = { type: 0 } & Pick<Required<Channel>,
 'rate_limit_per_user' |
 'topic'>
 
-export type GuildVoiceChannel = { type: 2 } & Pick<Required<Channel>,
+export type GuildVoiceChannel = { type: 2, name: string } & Pick<Required<Channel>,
 'bitrate' |
 'guild_id' |
 'id' |
 'last_message_id' |
-'name' |
 'parent_id' |
 'permission_overwrites' |
 'position' |
@@ -80,22 +78,20 @@ export type GuildVoiceChannel = { type: 2 } & Pick<Required<Channel>,
 'type' |
 'user_limit'>
 
-export type GuildCategoryChannel = { type: 4 } & Pick<Required<Channel>,
+export type GuildCategoryChannel = { type: 4, name: string } & Pick<Required<Channel>,
 'guild_id' |
 'id' |
-'name' |
 'nsfw' |
 'parent_id' |
 'permission_overwrites' |
 'position' |
 'type'>
 
-export type GuildNewsChannel = { type: 5 } & Pick<Required<Channel>,
+export type GuildNewsChannel = { type: 5, name: string } & Pick<Required<Channel>,
 'guild_id' |
 'id' |
 'last_message_id' |
 'last_pin_timestamp' |
-'name' |
 'nsfw' |
 'parent_id' |
 'permission_overwrites' |
@@ -106,50 +102,46 @@ export type GuildNewsChannel = { type: 5 } & Pick<Required<Channel>,
 
 // export type GuildStoreChannel = { type: 6 } & Pick<Required<Channel>>
 
-export type GuildNewsThreadChannel = { type: 10, parent_id: string } & Pick<Required<Channel>,
+export type GuildNewsThreadChannel = { type: 10, name: string, parent_id: string } & Pick<Required<Channel>,
 'guild_id' |
 'id' |
 'last_message_id' |
 'member' |
 'member_count' |
 'message_count' |
-'name' |
 'owner_id' |
 'rate_limit_per_user' |
 'thread_metadata'
 >
 
-export type GuildPublicThreadChannel = { type: 11, parent_id: string } & Pick<Required<Channel>,
+export type GuildPublicThreadChannel = { type: 11, name: string, parent_id: string } & Pick<Required<Channel>,
 'guild_id' |
 'id' |
 'last_message_id' |
 'member' |
 'member_count' |
 'message_count' |
-'name' |
 'owner_id' |
 'rate_limit_per_user' |
 'thread_metadata'
 >
 
-export type GuildPrivateThreadChannel = { type: 12, parent_id: string } & Pick<Required<Channel>,
+export type GuildPrivateThreadChannel = { type: 12, name: string, parent_id: string } & Pick<Required<Channel>,
 'guild_id' |
 'id' |
 'last_message_id' |
 'member' |
 'member_count' |
 'message_count' |
-'name' |
 'owner_id' |
 'rate_limit_per_user' |
 'thread_metadata'
 >
 
-export type GuildStageVoiceChannel = { type: 13 } & Pick<Required<Channel>,
+export type GuildStageVoiceChannel = { type: 13, name: string } & Pick<Required<Channel>,
 'bitrate' |
 'guild_id' |
 'id' |
-'name' |
 'nsfw' |
 'parent_id' |
 'permission_overwrites' |
