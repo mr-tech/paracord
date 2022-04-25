@@ -14,12 +14,12 @@ export type Channel = {
   /** explicit permission overwrites for members and roles */
   permission_overwrites?: Overwrite[];
   /** the name of the channel (1-100 characters) */
-  name?: string;
+  name?: string | null;
   /** the channel topic (0-1024 characters) */
   topic?: string | null;
   /** whether the channel is nsfw */
   nsfw?: boolean;
-  /** the id of the last message sent in this channel (may not point to an existing or valid message) */
+  /** the id of the last message sent in this channel (or thread for `GUILD_FORUM` channels) (may not point to an existing or valid message or thread) */
   last_message_id?: Snowflake | null;
   /** the bitrate (in bits) of the voice channel */
   bitrate?: number;
@@ -41,8 +41,8 @@ export type Channel = {
   last_pin_timestamp?: ISO8601timestamp | null;
   /** voice region id for the voice channel, automatic when set to null */
   rtc_region?: string | null;
-  /** the camera video quality type of the voice channel, 1 when not present */
-  video_quality_mode?: VideoQualityType;
+  /** the camera video quality mode of the voice channel, 1 when not present */
+  video_quality_mode?: number;
   /** an approximate count of messages in a thread, stops counting at 50 */
   message_count?: number;
   /** an approximate count of users in a thread, stops counting at 50 */
@@ -55,6 +55,8 @@ export type Channel = {
   default_auto_archive_duration?: number;
   /** computed permissions for the invoking user in the channel, including overwrites, only included when part of the `resolved` data received on a slash command interaction */
   permissions?: string;
+  /** channel flags combined as a [bitfield](https://en.wikipedia.org/wiki/Bit_field) */
+  flags?: number;
 };
 
 // ========================================================================
@@ -72,8 +74,6 @@ export type ChannelType =
   4 |
   /** GUILD_NEWS */
   5 |
-  /** GUILD_STORE */
-  6 |
   /** GUILD_NEWS_THREAD */
   10 |
   /** GUILD_PUBLIC_THREAD */
@@ -81,15 +81,26 @@ export type ChannelType =
   /** GUILD_PRIVATE_THREAD */
   12 |
   /** GUILD_STAGE_VOICE */
-  13;
+  13 |
+  /** GUILD_DIRECTORY */
+  14 |
+  /** GUILD_FORUM\* */
+  15;
 
 // ========================================================================
 
-export type VideoQualityType =
+export type VideoQualityMode = [
   /** AUTO */
   1 |
   /** FULL */
-  2;
+  2
+];
+
+// ========================================================================
+
+export enum ChannelFlags {
+  PINNED = 1 << 1
+}
 
 // ========================================================================
 
@@ -151,7 +162,7 @@ export type Message = {
   /** the thread that was started from this message, includes thread member object */
   thread?: Channel;
   /** sent if the message contains components like buttons, action rows, or other interactive components */
-  components?: MessageComponent;
+  components?: MessageComponent[];
   /** sent if the message contains stickers */
   sticker_items?: StickerItem[];
   /** **Deprecated** the stickers sent with the message */

@@ -67,7 +67,7 @@ export type SelectMenu = {
 export type SelectOption = {
   /** the user-facing name of the option, max 100 characters */
   label: string;
-  /** the dev-define value of the option, max 100 characters */
+  /** the dev-defined value of the option, max 100 characters */
   value: string;
   /** an additional description of the option, max 100 characters */
   description?: string;

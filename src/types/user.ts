@@ -36,7 +36,6 @@ export type User = {
 // ========================================================================
 
 export enum UserFlags {
-  None = 0,
   STAFF = 1 << 0,
   PARTNER = 1 << 1,
   HYPESQUAD = 1 << 2,

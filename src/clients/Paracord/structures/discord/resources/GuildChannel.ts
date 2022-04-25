@@ -27,7 +27,7 @@ export default class GuildChannel {
   public permissionOverwrites: Overwrite[] | undefined;
 
   /** the name of the channel (2-100 characters) */
-  public name: string | undefined;
+  public name: string | null | undefined;
 
   /** the channel topic (0-1024 characters) */
   public topic: string | null | undefined;

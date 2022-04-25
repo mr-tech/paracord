@@ -21,8 +21,6 @@ export type Application = {
   privacy_policy_url?: string;
   /** partial user object containing info on the owner of the application */
   owner?: Partial<User>;
-  /** **deprecated**: previously if this application was a game sold on Discord, this field would be the summary field for the store page of its primary SKU; now an empty string */
-  summary: string;
   /** the hex encoded key for verification in interactions and the GameSDK's GetTicket */
   verify_key: string;
   /** if the application belongs to a team, this will be a list of the members of that team */
@@ -36,7 +34,13 @@ export type Application = {
   /** the application's default rich presence invite cover image hash */
   cover_image?: string;
   /** the application's public flags */
-  flags?: ApplicationFlags;
+  flags?: number;
+  /** up to 5 tags describing the content and functionality of the application */
+  tags?: string[];
+  /** settings for the application's default in-app authorization link, if enabled */
+  install_params?: InstallParam;
+  /** the application's default custom authorization link, if enabled */
+  custom_install_url?: string;
 };
 
 // ========================================================================
@@ -51,3 +55,12 @@ export enum ApplicationFlags {
   GATEWAY_MESSAGE_CONTENT = 1 << 18,
   GATEWAY_MESSAGE_CONTENT_LIMITED = 1 << 19
 }
+
+// ========================================================================
+
+export type InstallParam = {
+  /** the scopes to add the application to the server with */
+  scopes: string[];
+  /** the permissions to request for the bot role */
+  permissions: string;
+};

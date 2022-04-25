@@ -19,9 +19,9 @@ export type GatewayURLQueryStringParam = {
   /** Gateway Version to use */
   v: number; // see [Gateway versions](#DOCS_TOPICS_GATEWAY/gateways-gateway-versions)
   /** The encoding of received gateway packets */
-  encoding: string; // 'json' or 'etf'
+  encoding: string; // `json` or `etf`
   /** The (optional) compression of gateway packets */
-  compress?: string; // 'zlib-stream'
+  compress?: string; // `zlib-stream`
 };
 
 // ========================================================================

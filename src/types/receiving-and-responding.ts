@@ -59,6 +59,8 @@ export type InteractionData = {
   resolved?: ResolvedData; // Application Command
   /** the params + values from the user */
   options?: ApplicationCommandInteractionDataOption[]; // Application Command
+  /** the id of the guild the command is registered to */
+  guild_id?: Snowflake; // Application Command
   /** the `custom_id` of the component */
   custom_id?: string; // Component, Modal Submit
   /** the type of the component */

@@ -12,11 +12,11 @@ export type ApplicationCommand = {
   /** 1-32 character name */
   name: string; // all
   /** Localization dictionary for the `name` field. Values follow the same restrictions as `name` */
-  name_localizations?: AvailableLocale; // all
+  name_localizations?: AvailableLocale | null; // all
   /** 1-100 character description for `CHAT_INPUT` commands, empty string for `USER` and `MESSAGE` commands */
   description: string; // all
   /** Localization dictionary for the `description` field. Values follow the same restrictions as `description` */
-  description_localizations?: AvailableLocale; // all
+  description_localizations?: AvailableLocale | null; // all
   /** the parameters for the command, max 25 */
   options?: ApplicationCommandOption[]; // CHAT_INPUT
   /** whether the command is enabled by default when the app is added to a guild (default `true`) */
@@ -43,11 +43,11 @@ export type ApplicationCommandOption = {
   /** 1-32 character name */
   name: string;
   /** Localization dictionary for the `name` field. Values follow the same restrictions as `name` */
-  name_localizations?: AvailableLocale;
+  name_localizations?: AvailableLocale | null;
   /** 1-100 character description */
   description: string;
   /** Localization dictionary for the `description` field. Values follow the same restrictions as `description` */
-  description_localizations?: AvailableLocale;
+  description_localizations?: AvailableLocale | null;
   /** if the parameter is required or optional--default `false` */
   required?: boolean;
   /** choices for `STRING`, `INTEGER`, and `NUMBER` types for the user to pick from, max 25 */
@@ -96,7 +96,7 @@ export type ApplicationCommandOptionChoice = {
   /** 1-100 character choice name */
   name: string;
   /** Localization dictionary for the `name` field. Values follow the same restrictions as `name` */
-  name_localizations?: AvailableLocale;
+  name_localizations?: AvailableLocale | null;
   /** value of the choice, up to 100 characters if string */
   value: string | number; // *
 };

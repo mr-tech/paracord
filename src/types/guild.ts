@@ -78,7 +78,7 @@ export type Guild = {
   max_members?: number;
   /** the vanity url code for the guild */
   vanity_url_code: string | null;
-  /** the description of a Community guild */
+  /** the description of a guild */
   description: string | null;
   /** banner hash */
   banner: string | null;
@@ -186,6 +186,8 @@ export enum SystemChannelFlags {
 // ========================================================================
 
 export type GuildFeatureType =
+  /** guild has access to set an animated guild banner image */
+  'ANIMATED_BANNER' |
   /** guild has access to set an animated guild icon */
   'ANIMATED_ICON' |
   /** guild has access to set a guild banner image */
@@ -252,7 +254,7 @@ export type GuildPreview = {
   approximate_member_count: number;
   /** approximate number of online members in this guild */
   approximate_presence_count: number;
-  /** the description for the guild, if the guild is discoverable */
+  /** the description for the guild */
   description: string | null;
   /** custom guild stickers */
   stickers: Sticker[];
@@ -321,7 +323,7 @@ export type Integration = {
   /** integration type (twitch, youtube, or discord) */
   type: string;
   /** is this integration enabled */
-  enabled: boolean;
+  enabled?: boolean;
   /** is this integration syncing */
   syncing?: boolean;
   /** id that this integration uses for "subscribers" */
@@ -335,7 +337,7 @@ export type Integration = {
   /** user for this integration */
   user?: User;
   /** integration account information */
-  account: IntegrationAccount;
+  account: Account;
   /** when this integration was last synced */
   synced_at?: ISO8601timestamp;
   /** how many subscribers this integration has */
@@ -374,8 +376,6 @@ export type IntegrationApplication = {
   icon: string | null;
   /** the description of the app */
   description: string;
-  /** the summary of the app */
-  summary: string;
   /** the bot associated with this application */
   bot?: User;
 };
