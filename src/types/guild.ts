@@ -337,7 +337,7 @@ export type Integration = {
   /** user for this integration */
   user?: User;
   /** integration account information */
-  account: Account;
+  account: IntegrationAccount;
   /** when this integration was last synced */
   synced_at?: ISO8601timestamp;
   /** how many subscribers this integration has */
