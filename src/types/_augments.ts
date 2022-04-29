@@ -48,11 +48,11 @@ export type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Require
 
 export type Component = ActionRowComponent;
 
-export type MessageComponent = Array<NonLinkButton | LinkButton> | SelectMenu[];
+export type MessageComponent = NonLinkButton | LinkButton | SelectMenu;
 
 export type ActionRowComponent = {
   type: 1;
-  components: MessageComponent | TextInput[];
+  components: Array<MessageComponent | TextInput>;
 };
 
 export type GuildTextChannel = { type: 0, name: string } & Pick<Required<Channel>,
