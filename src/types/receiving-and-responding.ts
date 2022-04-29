@@ -1,6 +1,6 @@
 import type {
   Snowflake, GuildMember, User, Role, Attachment, AllowedMention, Channel, Embed, MessageComponent,
-  SelectOption, ApplicationCommandInteractionDataOption, Message, ApplicationCommandOptionChoice, ComponentType, ApplicationCommandOptionType, MessageFlags,
+  SelectOption, ApplicationCommandInteractionDataOption, Message, ApplicationCommandOptionChoice, ComponentType, ApplicationCommandOptionType, MessageFlags, Component,
 } from '.';
 
 export type Interaction = {
@@ -166,5 +166,5 @@ export type ModalCallback = {
   /** the title of the popup modal, max 45 characters */
   title: string;
   /** between 1 and 5 (inclusive) components that make up the modal */
-  components: MessageComponent[];
+  components: Component[];
 };
