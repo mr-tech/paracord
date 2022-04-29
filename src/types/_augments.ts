@@ -46,11 +46,11 @@ export type ButtonEmoji = Pick<Emoji, 'name' | 'id' | 'animated'>;
 export type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Required<Pick<Button, 'custom_id'>> & { style: Exclude<ButtonStyleType, 5>, emoji?: ButtonEmoji };
 export type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & { style: 5, emoji?: ButtonEmoji };
 
-export type MessageComponent = ActionRowComponent;
+export type MessageComponent = Array<NonLinkButton | LinkButton> | SelectMenu[];
 
 export type ActionRowComponent = {
   type: 1;
-  components: Array<NonLinkButton | LinkButton> | SelectMenu[] | TextInput[];
+  components: MessageComponent | TextInput[];
 };
 
 export type GuildTextChannel = { type: 0, name: string } & Pick<Required<Channel>,
