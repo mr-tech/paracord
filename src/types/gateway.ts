@@ -447,7 +447,7 @@ export type MessageReactionAddEventField = {
   /** the member who reacted if this happened in a guild */
   member?: GuildMember;
   /** the emoji used to react - example */
-  emoji: Partial<Emoji>;
+  emoji: Emoji;
 };
 
 // ========================================================================
@@ -462,7 +462,7 @@ export type MessageReactionRemoveEventField = {
   /** the id of the guild */
   guild_id?: Snowflake;
   /** the emoji used to react - example */
-  emoji: Partial<Emoji>;
+  emoji: Emoji;
 };
 
 // ========================================================================

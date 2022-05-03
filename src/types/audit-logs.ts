@@ -133,7 +133,9 @@ export type AuditLogEventType =
   /** THREAD_UPDATE */
   111 |
   /** THREAD_DELETE */
-  112;
+  112 |
+  /** APPLICATION_COMMAND_PERMISSION_UPDATE */
+  121;
 
 // ========================================================================
 
