@@ -48,6 +48,8 @@ export default class Api {
 
   #connectingToRpcService: boolean;
 
+  #requestOptions: IRequestOptions;
+
   private static shouldQueueRequest(request: ApiRequest, globalRateLimited: boolean): boolean {
     const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
 
@@ -109,6 +111,8 @@ export default class Api {
     this.#requestQueueProcessInterval;
 
     const { emitter, events, requestOptions } = options;
+
+    this.#requestOptions = requestOptions ?? {};
 
     this.#emitter = emitter;
     this.events = events;
@@ -325,8 +329,8 @@ export default class Api {
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
-  public request = async <T extends ResponseData = any>(method: string, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
-    const { local, keepCase } : IRequestOptions = options;
+  public request = async <T extends ResponseData = any>(method: string, url: string, options: IRequestOptions = this.#requestOptions): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
+    const { local = this.#requestOptions.local, keepCase = this.#requestOptions.keepCase } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
       url = url.slice(1);
