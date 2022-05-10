@@ -126,7 +126,7 @@ export type Message = {
   /** whether this message mentions everyone */
   mention_everyone: boolean;
   /** users specifically mentioned in the message */
-  mentions: User & Partial<GuildMember>;
+  mentions: User[];
   /** roles specifically mentioned in this message */
   mention_roles: Role[];
   /** channels specifically mentioned in this message */
