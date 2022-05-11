@@ -1,6 +1,7 @@
 import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import type FormData from 'form-data';
+import type { AxiosRequestConfig } from 'axios';
 import type { UserEvents } from '../../common';
 import type { ApiRequest } from './structures';
 
@@ -82,6 +83,9 @@ export interface IApiResponse<T extends ResponseData = any> {
 
   /** How long the client should wait in ms before trying again. */
   'retry-after'?: number;
+
+  /** The request that was sent. */
+  config?: AxiosRequestConfig;
 }
 
 export type IRateLimitState = {

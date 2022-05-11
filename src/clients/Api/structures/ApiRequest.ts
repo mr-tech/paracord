@@ -61,7 +61,7 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
   }
 
   /** Data relevant to sending this request via axios. */
-  public get sendData(): Record<string, unknown> {
+  public get config(): Record<string, unknown> {
     let data;
     let headers;
     if (this.createForm) {

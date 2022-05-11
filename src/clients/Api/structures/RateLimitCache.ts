@@ -45,7 +45,7 @@ export default class RateLimitCache {
    * Creates a new rate limit cache.
    * @param autoStartSweep Specify false to not start the sweep interval.
    */
-  public constructor(autoStartSweep = true, globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api) {
+  public constructor(autoStartSweep: boolean, globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api) {
     this.#requestRouteMetaToBucket = new Map();
     this.#rateLimitMap = new RateLimitMap(logger);
     this.#rateLimitTemplateMap = new RateLimitTemplateMap();
@@ -56,7 +56,7 @@ export default class RateLimitCache {
     this.#globalRateLimitMax = globalRateLimitMax;
     this.#globalRateLimitResetPadding = globalRateLimitResetPadding;
 
-    autoStartSweep && this.#rateLimitMap.startSweepInterval();
+    if (autoStartSweep) autoStartSweep && this.#rateLimitMap.startSweepInterval();
   }
 
   /**
@@ -109,7 +109,7 @@ export default class RateLimitCache {
       this.decrementGlobalRemaining();
 
       const r = requestFunc.bind(this);
-      return r<T>(request.sendData);
+      return r<T>(request.config);
     };
 
     return wrappedRequest;
