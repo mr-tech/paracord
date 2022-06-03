@@ -44,6 +44,8 @@ export interface IRequestOptions {
   maxRateLimitRetry?: number;
   /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
   transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
+  /** Check if status is okay. Return `false` with throw an error. Default `null` (don't throw). */
+  validateStatus?: null | ((status: number) => boolean);
 }
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */

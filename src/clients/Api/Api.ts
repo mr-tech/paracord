@@ -330,7 +330,7 @@ export default class Api {
    * @returns Response to the request made.
    */
   public request = async <T extends ResponseData = any>(method: string, url: string, options: IRequestOptions = this.#requestOptions): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
-    const { local = this.#requestOptions.local, keepCase = this.#requestOptions.keepCase } : IRequestOptions = options;
+    const { local = this.#requestOptions.local, keepCase = this.#requestOptions.keepCase, validateStatus = this.#requestOptions.validateStatus } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
       url = url.slice(1);
@@ -348,6 +348,10 @@ export default class Api {
     if (!keepCase) {
       if (Array.isArray(response.data)) response.data = (response.data as any[]).map((d) => objectKeysSnakeToCamel(d)) as T;
       else response.data = objectKeysSnakeToCamel(response.data);
+    }
+
+    if (validateStatus && !validateStatus(response.status)) {
+      throw response;
     }
 
     return response;

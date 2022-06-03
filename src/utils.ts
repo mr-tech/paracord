@@ -51,11 +51,7 @@ export function millisecondsFromNow(timestamp: number): number {
  * @param snowflake Discord snowflake.
  */
 export function timestampFromSnowflake(snowflake: Snowflake): number {
-  // eslint-disable-next-line no-undef
-  const bits = BigInt(snowflake)
-    .toString(2)
-    .padStart(64, '0');
-
+  const bits = BigInt(snowflake).toString(2).padStart(64, '0');
   return parseInt(bits.substring(0, 42), 2) + DISCORD_EPOCH;
 }
 
