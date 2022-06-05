@@ -376,7 +376,7 @@ export default class Api {
     const customResponse: IApiResponse<T> = {
       status: 429,
       statusText: 'Too Many Requests',
-      'retry-after': rateLimitState.resetAfter,
+      retry_after: rateLimitState.resetAfter,
       data: <any>{ ...rateLimitState },
       headers: {
         _paracord: true,
@@ -504,7 +504,7 @@ export default class Api {
     if (Object.keys(response.headers).length) {
       const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
         response.headers,
-        response.data.retry_after,
+        // response.data.retry_after,
       );
 
       const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);

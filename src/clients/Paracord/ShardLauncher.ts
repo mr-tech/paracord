@@ -224,5 +224,5 @@ export default class ShardLauncher {
     }
 
     if (err) throw err;
-  }
+  };
 }

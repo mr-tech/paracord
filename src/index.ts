@@ -3,14 +3,17 @@
 /// <reference path="./@types/pm2.d.ts" />
 /// <reference path="./@types/erlpack.d.ts" />
 
-export { default } from './clients/Paracord';
+import Paracord from './clients/Paracord';
+
+export default Paracord;
+
 export { default as Gateway } from './clients/Gateway/Gateway';
 export { default as Api } from './clients/Api/Api';
 export { default as ShardLauncher } from './clients/Paracord/ShardLauncher';
 export { default as Server } from './rpc/server/RpcServer';
 export { default as Base } from './clients/Paracord/Base';
 export * from './utils';
-export * as constants from './constants';
+export * from './constants';
 export * from './clients/Gateway/types';
 export * from './clients/Api/types';
 

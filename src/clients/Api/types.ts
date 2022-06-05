@@ -1,11 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import type FormData from 'form-data';
-import type { AxiosRequestConfig } from 'axios';
 import type { UserEvents } from '../../common';
 import type { ApiRequest } from './structures';
-import { RemoteApiResponse } from '../../rpc/types';
-import Request from './structures/ApiRequest';
+import type { RemoteApiResponse } from '../../rpc/types';
+import type Request from './structures/ApiRequest';
 
 /** Optional parameters for this api handler. */
 export interface IApiOptions {
@@ -81,14 +81,12 @@ export interface IApiResponse<T extends ResponseData = any> {
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
   statusText: string;
   /** The data returned by Discord. */
-  data: T & { retry_after?: number };
+  data: T;
 
   headers: Record<string, unknown>;
 
   /** How long the client should wait in ms before trying again. */
-  'retry-after'?: number;
-
-  isApiError?: true;
+  retry_after?: number;
 }
 
 export type IRateLimitState = {
@@ -105,6 +103,6 @@ export interface ApiError<T = any, D = any> extends Error {
   code?: string;
   request?: any;
   response?: IApiResponse<T> | RemoteApiResponse<T>;
-  isAxiosError: boolean;
+  isApiError: boolean;
   toJSON: () => object;
 }
