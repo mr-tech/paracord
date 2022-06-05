@@ -4,6 +4,8 @@ import type FormData from 'form-data';
 import type { AxiosRequestConfig } from 'axios';
 import type { UserEvents } from '../../common';
 import type { ApiRequest } from './structures';
+import { RemoteApiResponse } from '../../rpc/types';
+import Request from './structures/ApiRequest';
 
 /** Optional parameters for this api handler. */
 export interface IApiOptions {
@@ -86,8 +88,7 @@ export interface IApiResponse<T extends ResponseData = any> {
   /** How long the client should wait in ms before trying again. */
   'retry-after'?: number;
 
-  /** The request that was sent. */
-  config?: AxiosRequestConfig;
+  isApiError?: true;
 }
 
 export type IRateLimitState = {
@@ -97,4 +98,13 @@ export type IRateLimitState = {
 
 export type IResponseState<T extends ResponseData> = IRateLimitState & {
   response?: IApiResponse<T>
+}
+
+export interface ApiError<T = any, D = any> extends Error {
+  config: Request<D>['config'];
+  code?: string;
+  request?: any;
+  response?: IApiResponse<T> | RemoteApiResponse<T>;
+  isAxiosError: boolean;
+  toJSON: () => object;
 }

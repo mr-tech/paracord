@@ -1,9 +1,10 @@
+import type { Method } from 'axios';
 import type { IRequestMessage, RequestProto } from '../../types';
 
 /** A class for the RequestMessage protobuf */
 export default class RequestMessage {
   /** HTTP method of the request. */
-  public method: string;
+  public method: Method;
 
   /** Discord REST endpoint target of the request. (e.g. channels/123) */
   public url: string;

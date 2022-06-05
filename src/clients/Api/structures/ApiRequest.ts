@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig, Method } from 'axios';
 import BaseRequest from './BaseRequest';
 
 import type {
@@ -43,7 +44,7 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
    * @param url Discord REST endpoint target of the request. (e.g. channels/123)
    * @param options Optional parameters for this request.
    */
-  public constructor(method: string, url: string, options: Partial<IRequestOptions> = {}) {
+  public constructor(method: Method, url: string, options: Partial<IRequestOptions> = {}) {
     super(method, url);
 
     const {
@@ -61,7 +62,7 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
   }
 
   /** Data relevant to sending this request via axios. */
-  public get config(): Record<string, unknown> {
+  public get config(): AxiosRequestConfig {
     let data;
     let headers;
     if (this.createForm) {

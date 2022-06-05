@@ -9,7 +9,7 @@ export { default as Api } from './clients/Api/Api';
 export { default as ShardLauncher } from './clients/Paracord/ShardLauncher';
 export { default as Server } from './rpc/server/RpcServer';
 export { default as Base } from './clients/Paracord/Base';
-export * as ParacordUtils from './utils';
+export * from './utils';
 export * as constants from './constants';
 export * from './clients/Gateway/types';
 export * from './clients/Api/types';

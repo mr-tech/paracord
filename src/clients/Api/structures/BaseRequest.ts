@@ -1,7 +1,9 @@
+import type { Method } from 'axios';
+
 /** Basic information in a request to Discord. */
 export default class BaseRequest {
   /** HTTP method of the request. */
-  public method: string
+  public method: Method;
 
   /** Discord REST endpoint target of the request. (e.g. channels/123) */
   public url: string;
@@ -31,7 +33,7 @@ export default class BaseRequest {
    * @param url Discord endpoint the request will be sent to.
    * @returns An object containing the `requestRouteMeta` and `rateLimitKey`.
    */
-  private static assignRateLimitMeta(method: string, url: string) {
+  private static assignRateLimitMeta(method: Method, url: string) {
     const [
       rateLimitMajorType,
       rateLimitMajorID,
@@ -159,7 +161,7 @@ export default class BaseRequest {
    * @param method HTTP method of the request.
    * @param url Discord REST endpoint target of the request. (e.g. channels/123)
    */
-  public constructor(method: string, url: string) {
+  public constructor(method: Method, url: string) {
     this.method = method;
     this.url = BaseRequest.stripUrlLeadingSlash(url);
 

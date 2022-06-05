@@ -1,5 +1,6 @@
 import type { ServerCredentials, ServiceError } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
+import type { Method } from 'axios';
 import type Api from '../clients/Api/Api';
 import type { ResponseData } from '../clients/Api/types';
 import type { Lock } from './structures';
@@ -75,7 +76,7 @@ export type StatusProto = {
 
 export type RequestProto = {
   /** HTTP method of the request. */
-  method: string;
+  method: Method;
   /** Discord endpoint url. (e.g. channels/123) */
   url: string;
   /** JSON encoded data to send in the body of the request. */
@@ -121,7 +122,7 @@ export type RateLimitStateProto = {
 
 export interface IRequestMessage {
   /** HTTP method of the request. */
-  method: string;
+  method: Method;
   /** Discord endpoint url. (e.g. channels/123) */
   url: string;
   /** JSON encoded data to send in the body of the request. */
@@ -132,16 +133,18 @@ export interface IRequestMessage {
 
 export type RequestMetaProto = {
   /** HTTP method of the request. */
-  method: string;
+  method: Method;
   /** Discord endpoint url. (e.g. channels/123) */
   url: string;
 }
 
-export type RemoteApiResponse<T extends ResponseData> = {
+export type RemoteApiResponse<T extends ResponseData = any> = {
   /** The HTTP status code of the response. */
   status: number;
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
   statusText: string;
   /** Data response from Discord not having yet been parsed into json. */
   data: T;
+  /** If the response failed validation. */
+  isApiError?: true;
 }

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import axios from 'axios';
+import axios, { Method } from 'axios';
 import type { EventEmitter } from 'events';
 import { DebugLevel } from '../../common';
 import {
@@ -329,14 +329,14 @@ export default class Api {
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
-  public request = async <T extends ResponseData = any>(method: string, url: string, options: IRequestOptions = this.#requestOptions): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
+  public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = this.#requestOptions): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
     const { local = this.#requestOptions.local, keepCase = this.#requestOptions.keepCase, validateStatus = this.#requestOptions.validateStatus } : IRequestOptions = options;
 
     if (url.startsWith('/')) {
       url = url.slice(1);
     }
 
-    const request = new ApiRequest(method.toUpperCase(), url, options);
+    const request = new ApiRequest(method, url, options);
 
     let response: IApiResponse<T> | RemoteApiResponse<T>;
     if (this.rpcRequestService === undefined || local) {
@@ -351,7 +351,7 @@ export default class Api {
     }
 
     if (validateStatus && !validateStatus(response.status)) {
-      throw response;
+      throw createError(new Error(response.statusText), request.config, response.status, request, response);
     }
 
     return response;
@@ -601,4 +601,42 @@ export default class Api {
 
     return new Promise(checkRequest);
   }
+}
+
+function createError(
+  error: Error & Record<string, any>,
+  config: ApiRequest['config'],
+  code: number,
+  request: ApiRequest,
+  response: IApiResponse | RemoteApiResponse,
+) {
+  error.config = config;
+  if (code) {
+    error.code = code;
+  }
+
+  error.request = request;
+  error.response = response;
+  error.isApiError = true;
+
+  error.toJSON = function toJSON() {
+    return {
+      // Standard
+      message: this.message,
+      name: this.name,
+      // Microsoft
+      description: this.description,
+      number: this.number,
+      // Mozilla
+      fileName: this.fileName,
+      lineNumber: this.lineNumber,
+      columnNumber: this.columnNumber,
+      stack: this.stack,
+      // Axios
+      config: this.config,
+      code: this.code,
+      status: this.response && this.response.status ? this.response.status : null,
+    };
+  };
+  return error;
 }

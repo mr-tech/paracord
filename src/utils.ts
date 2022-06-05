@@ -7,6 +7,8 @@ import type { Snowflake } from './types';
 import type {
   GuildMember, Guild, GuildChannel, Role, User, Overwrite,
 } from './clients/Paracord/structures';
+import { IApiResponse, ApiError } from './clients/Api/types';
+import { RemoteApiResponse } from './rpc/types';
 
 /**
  * Returns a new object that is a clone of the original.
@@ -311,4 +313,8 @@ export function squashArrays <T>(oldArray: Array<T>, newArray: Array<T>): Array<
   oldArray.push(...newArrayCopy);
 
   return removedItems;
+}
+
+export function isApiError(val: unknown): val is ApiError {
+  return typeof val === 'object' && val !== null && (<Record<string, unknown>>val).isApiError === true;
 }

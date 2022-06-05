@@ -55,10 +55,10 @@ export default class RateLimitMap extends Map<string, RateLimit> {
     if (this.#logger) {
       this.#logger.log('DEBUG', `Swept old ${count} old rate limits from cache. (${new Date().getTime() - now}ms)`);
     }
-  }
+  };
 
   /** Begins timer for sweeping cache of old rate limits. */
   public startSweepInterval = (): void => {
     this.#sweepInterval = setInterval(this.sweepExpiredRateLimits, API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
-  }
+  };
 }

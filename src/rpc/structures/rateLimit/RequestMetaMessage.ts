@@ -1,9 +1,10 @@
-import { RequestMetaProto } from '../../types';
+import type { Method } from 'axios';
+import type { RequestMetaProto } from '../../types';
 
 /** A class for the RequestMetaMessage protobuf. */
 export default class RequestMetaMessage {
   /** HTTP method of the request. */
-  public method: string;
+  public method: Method;
 
   /** Discord endpoint url. (e.g. channels/123) */
   public url: string;
@@ -49,7 +50,7 @@ export default class RequestMetaMessage {
    * @param method HTTP method of the request.
    * @param url Discord endpoint url. (e.g. channels/123)
    */
-  public constructor(method: string, url: string) {
+  public constructor(method: Method, url: string) {
     this.method = method;
     this.url = url;
   }
