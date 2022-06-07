@@ -621,21 +621,13 @@ function createError(
 
   error.toJSON = function toJSON() {
     return {
-      // Standard
       message: this.message,
       name: this.name,
-      // Microsoft
-      description: this.description,
-      number: this.number,
-      // Mozilla
-      fileName: this.fileName,
-      lineNumber: this.lineNumber,
-      columnNumber: this.columnNumber,
       stack: this.stack,
-      // Axios
       config: this.config,
       code: this.code,
       status: this.response && this.response.status ? this.response.status : null,
+      data: this.response.data,
     };
   };
   return error;
