@@ -1,7 +1,6 @@
 /* eslint-disable spaced-comment */
 /* eslint-disable @typescript-eslint/triple-slash-reference */
 /// <reference path="./@types/pm2.d.ts" />
-/// <reference path="./@types/erlpack.d.ts" />
 
 import Paracord from './clients/Paracord';
 

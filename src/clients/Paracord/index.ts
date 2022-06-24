@@ -515,6 +515,7 @@ export default class Paracord extends EventEmitter {
       throw Error('Client has already been initialized.');
     }
     this.#api = this.setUpApi(this.token, this.#apiOptions ?? {});
+    this.selfAssignHandlerFunctions();
     this.#initialized = true;
   }
 
@@ -557,6 +558,13 @@ export default class Paracord extends EventEmitter {
     }
 
     return gateway;
+  }
+
+  /** Assigns some public functions from handlers to this client for easier access. */
+  private selfAssignHandlerFunctions(): void {
+    this.request = this.api.request.bind(this.api);
+    this.addRateLimitService = this.api.addRateLimitService.bind(this.api);
+    this.addRequestService = this.api.addRequestService.bind(this.api);
   }
 
   /**

@@ -1,34 +1,35 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import ws from 'ws';
 import { EventEmitter } from 'events';
 
 import Api from '../Api/Api';
 import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
 import { IdentifyLockService } from '../../rpc/services';
-import { coerceTokenToBotLike, objectKeysCamelToSnake } from '../../utils';
+import { coerceTokenToBotLike } from '../../utils';
 import Identify from './structures/Identify';
 
 import {
-  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
+  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS, ZLIB_CHUNKS_SIZE,
 } from '../../constants';
 
 // eslint-disable-next-line import/order
-import type erlpackType from 'erlpack';
+import type ZlibSyncType from 'zlib-sync';
 import type { IServiceOptions } from '../Api/types';
 import type {
-  GatewayPayload, GuildRequestMember, Hello, ReadyEventField, Resume, CasedGuildRequestMember,
+  GatewayPayload, GuildRequestMember, Hello, ReadyEventField, Resume,
 } from '../../types';
 import type {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, GuildMemberChunk, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 
-let erlpack: null | typeof erlpackType = null;
-let encoding = 'json';
+let ZlibSync: null | typeof ZlibSyncType = null;
 
+let Z_SYNC_FLUSH = 0;
 // eslint-disable-next-line import/no-unresolved
-import('erlpack')
-  .then((_erlpack) => {
-    erlpack = _erlpack;
-    encoding = 'etf';
+import('zlib-sync')
+  .then((_zlib) => {
+    ZlibSync = _zlib;
+    ({ Z_SYNC_FLUSH } = _zlib);
   }).catch(() => { /* do nothing */ });
 
 interface GuildChunkState {
@@ -61,6 +62,8 @@ export default class Gateway {
   #wsUrlRetryWait: number;
 
   #wsRateLimitCache: WebsocketRateLimitCache;
+
+  #zlibInflate: null | ZlibSyncType.Inflate = null;
 
   /** Discord gateway version to use. Default: 9 */
   #version: number;
@@ -404,6 +407,15 @@ export default class Gateway {
       throw Error('Already logging in.');
     }
 
+    if (ZlibSync || this.#identity.compress) {
+      if (!ZlibSync) throw Error('zlib-sync is required for compression');
+
+      this.#zlibInflate = new ZlibSync.Inflate({
+        flush: ZlibSync.Z_SYNC_FLUSH,
+        chunkSize: ZLIB_CHUNKS_SIZE,
+      });
+    }
+
     try {
       this.#loggingIn = true;
 
@@ -472,7 +484,7 @@ export default class Gateway {
       )})`;
       this.log('INFO', message);
 
-      return `${data.url}?v=${this.#version}&encoding=${encoding}`;
+      return `${data.url}?v=${this.#version}&encoding=json${this.#zlibInflate ? '&compress=zlib-stream' : ''}`;
     }
 
     this.handleBadStatus(status, statusText, data.message, data.code);
@@ -819,14 +831,38 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onmessage`. */
-  private _onmessage = ({ data: raw }: ws.MessageEvent): void => {
-    if (erlpack) {
-      if (Buffer.isBuffer(raw)) return this.handleMessage(erlpack.unpack(raw));
-      if (raw instanceof SharedArrayBuffer) return this.handleMessage(erlpack.unpack(Buffer.from(new Uint8Array(raw))));
-    } else if (typeof raw === 'string') return this.handleMessage(JSON.parse(raw));
+  private _onmessage = ({ data }: ws.MessageEvent): void => {
+    // if (typeof data === 'string') {
+    //   return this.handleMessage(JSON.parse(data.toString()));
+    // }
 
-    return undefined;
+    if (this.#zlibInflate) {
+      return this.decompress(this.#zlibInflate, data);
+    }
+
+    // return undefined;
+    return this.handleMessage(JSON.parse(data.toString()));
   };
+
+  private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
+    if (data instanceof ArrayBuffer) data = new Uint8Array(data);
+
+    const done = data.length >= 4 && data.readUInt32BE(data.length - 4) === 0xFFFF;
+    if (done) {
+      inflate.push(data, Z_SYNC_FLUSH);
+      if (inflate.err) {
+        this.log('ERROR', `zlib error ${inflate.err}: ${inflate.msg}`);
+        return;
+      }
+
+      data = Buffer.from(inflate.result);
+
+      this.handleMessage(JSON.parse(data.toString()));
+      return;
+    }
+
+    inflate.push(data, false);
+  }
 
   /** Processes incoming messages from Discord's gateway.
    * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
@@ -1220,11 +1256,7 @@ export default class Gateway {
     ) {
       const payload = { op, d: data };
 
-      let packet: string | Buffer;
-      if (erlpack) packet = erlpack.pack(payload);
-      else packet = JSON.stringify(payload);
-
-      this.#ws.send(packet);
+      this.#ws.send(JSON.stringify(payload));
 
       this.updateWsRateLimit();
 
