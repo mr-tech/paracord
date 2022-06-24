@@ -11,12 +11,12 @@ import RateLimitMap from './RateLimitMap';
 import RateLimitTemplateMap from './RateLimitTemplateMap';
 
 /** From Discord - A uid that identifies a group of requests that share a rate limit. */
-type RateLimitBucketUid = string;
+type RateLimitBucketHash = string;
 
 /** Stores the state of all known rate limits this client has encountered. */
 export default class RateLimitCache {
   /** Request meta values to their associated rate limit bucket, if one exists. */
-  #requestRouteMetaToBucket: Map<BaseRequest['requestRouteMeta'], RateLimitBucketUid>;
+  bucketHashes: Map<string, RateLimitBucketHash>;
 
   /** Rate limit keys to their associate rate limit */
   #rateLimitMap: RateLimitMap;
@@ -36,17 +36,12 @@ export default class RateLimitCache {
 
   #globalRateLimitResetPadding: number;
 
-  /** Return whichever rate limit has the longest remaining wait time before being able to make this request. */
-  private static returnStricterResetTimestamp(globalResetAfter: number, rateLimitResetAfter: number) {
-    return globalResetAfter > rateLimitResetAfter ? globalResetAfter : rateLimitResetAfter;
-  }
-
   /**
    * Creates a new rate limit cache.
    * @param autoStartSweep Specify false to not start the sweep interval.
    */
   public constructor(autoStartSweep: boolean, globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api) {
-    this.#requestRouteMetaToBucket = new Map();
+    this.bucketHashes = new Map();
     this.#rateLimitMap = new RateLimitMap(logger);
     this.#rateLimitTemplateMap = new RateLimitTemplateMap();
     this.#globalRateLimitState = {
@@ -88,8 +83,8 @@ export default class RateLimitCache {
 
   /** How long until the rate limit resets in ms. */
   private get globalRateLimitResetAfter(): number {
-    const resetAfter = millisecondsFromNow(this.#globalRateLimitState.resetTimestamp);
-    return resetAfter > 0 ? resetAfter : 0;
+    const waitFor = millisecondsFromNow(this.#globalRateLimitState.resetTimestamp);
+    return waitFor > 0 ? waitFor : 0;
   }
 
   /** Begins timer for sweeping cache of old rate limits. */
@@ -135,23 +130,23 @@ export default class RateLimitCache {
 
     if (isGloballyRateLimited) {
       return {
-        resetAfter: this.globalRateLimitResetAfter,
+        waitFor: this.globalRateLimitResetAfter,
         global: true,
       };
     }
 
     if (rateLimit === undefined) {
-      return { resetAfter: 0 };
+      return { waitFor: 0 };
     }
 
-    const { resetAfter } = this.returnIsRateLimited(request);
-    if (resetAfter === 0) {
+    const { waitFor } = this.isRateLimited(request);
+    if (waitFor === 0) {
       rateLimit.decrementRemaining();
       this.decrementGlobalRemaining();
-      return { resetAfter: 0 };
+      return { waitFor: 0 };
     }
 
-    return { resetAfter: rateLimit.resetAfter };
+    return { waitFor: rateLimit.waitFor };
   }
 
   /**
@@ -160,13 +155,12 @@ export default class RateLimitCache {
    * @param request Request that was made.
    * @param rateLimitHeaders Rate limit values from the response.
    */
-  public update(request: BaseRequest | ApiRequest, rateLimitHeaders: RateLimitHeaders): void {
-    const { requestRouteMeta, rateLimitKey } = request;
-    const { bucket } = rateLimitHeaders;
+  public update(rateLimitKey: string, bucketHashKey: string, rateLimitHeaders: RateLimitHeaders): void {
+    const { bucketHash } = rateLimitHeaders;
 
-    if (bucket !== undefined) {
-      this.#requestRouteMetaToBucket.set(requestRouteMeta, bucket);
-      const template = this.#rateLimitTemplateMap.upsert(bucket, rateLimitHeaders);
+    if (bucketHash !== undefined) {
+      this.bucketHashes.set(bucketHashKey, bucketHash);
+      const template = this.#rateLimitTemplateMap.upsert(bucketHash, rateLimitHeaders);
       this.#rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
     }
   }
@@ -177,17 +171,17 @@ export default class RateLimitCache {
    * @param request The request to reference when checking the rate limit state.
    * @returns `true` if rate limit would get triggered.
    */
-  public returnIsRateLimited(request: BaseRequest | ApiRequest): IRateLimitState {
+  public isRateLimited(request: BaseRequest | ApiRequest): IRateLimitState {
     if (this.isGloballyRateLimited) {
-      return { resetAfter: this.globalRateLimitResetAfter, global: true };
+      return { waitFor: this.globalRateLimitResetAfter, global: true };
     }
 
     const rateLimit = this.getRateLimitFromCache(request);
     if (rateLimit?.isRateLimited) {
-      return { resetAfter: rateLimit.resetAfter };
+      return { waitFor: rateLimit.waitFor };
     }
 
-    return { resetAfter: 0 };
+    return { waitFor: 0 };
   }
 
   /** Sets the remaining requests back to the known limit. */
@@ -203,27 +197,35 @@ export default class RateLimitCache {
    * @return `undefined` when there is no cached rate limit or matching template for this request.
    */
   private getRateLimitFromCache(request: BaseRequest | ApiRequest): RateLimit | undefined {
-    const { requestRouteMeta, rateLimitKey } = request;
+    const { rateLimitKey, bucketHashKey } = request;
 
-    const bucket = this.#requestRouteMetaToBucket.get(requestRouteMeta);
-    if (bucket !== undefined) {
-      return this.#rateLimitMap.get(rateLimitKey) || this.rateLimitFromTemplate(request, bucket);
+    if (rateLimitKey) {
+      const rateLimit = this.#rateLimitMap.get(rateLimitKey);
+      if (rateLimit) return rateLimit;
+    }
+
+    const bucketHash = this.bucketHashes.get(bucketHashKey);
+    if (bucketHash) {
+      return this.rateLimitFromTemplate(request, bucketHash);
     }
 
     return undefined;
+  }
+
+  public getBucket(bucketHashKey: string) {
+    return this.bucketHashes.get(bucketHashKey);
   }
 
   /**
    * Updates this cache using the response headers after making a request.
    *
    * @param request Request that was made.
-   * @param bucketUid uid of the rate limit's bucket.
+   * @param bucketHash uid of the rate limit's bucket.
    */
-  private rateLimitFromTemplate(request: BaseRequest | ApiRequest, bucketUid: string): RateLimit | undefined {
-    const { rateLimitKey } = request;
-
-    const rateLimit = this.#rateLimitTemplateMap.createAssumedRateLimit(bucketUid);
+  private rateLimitFromTemplate(request: BaseRequest | ApiRequest, bucketHash: string): RateLimit | undefined {
+    const rateLimit = this.#rateLimitTemplateMap.createAssumedRateLimit(bucketHash);
     if (rateLimit !== undefined) {
+      const rateLimitKey = request.getRateLimitKey(bucketHash);
       this.#rateLimitMap.set(rateLimitKey, rateLimit);
       return rateLimit;
     }

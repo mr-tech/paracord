@@ -3,7 +3,7 @@ import { AuthorizationProto } from '../../types';
 /** A class for the AuthorizationMessage protobuf. */
 export default class AuthorizationMessage {
   /** How long in ms the client should wait before attempting to authorize this request. */
-  public resetAfter: number
+  public waitFor: number;
 
   /** When rate limited, if the rate limit is global. */
   public global: boolean;
@@ -15,7 +15,7 @@ export default class AuthorizationMessage {
   public static fromProto(message: AuthorizationProto): AuthorizationMessage {
     AuthorizationMessage.validateIncoming(message);
 
-    return new AuthorizationMessage(message.reset_after, message.global);
+    return new AuthorizationMessage(message.wait_for, message.global);
   }
 
   /**
@@ -23,8 +23,8 @@ export default class AuthorizationMessage {
    * @param message Message being sent to client.
    */
   private static validateOutgoing(authorization: AuthorizationMessage): void {
-    if (authorization.resetAfter === undefined) {
-      throw Error("'resetAfter' must be a defined number");
+    if (authorization.waitFor === undefined) {
+      throw Error("'waitFor' must be a defined number");
     }
   }
 
@@ -33,17 +33,17 @@ export default class AuthorizationMessage {
    * @param message Message received by client.
    */
   private static validateIncoming(message: AuthorizationProto): void {
-    if (message.reset_after === undefined) {
-      throw Error("received invalid message. missing property 'reset_after'");
+    if (message.wait_for === undefined) {
+      throw Error("received invalid message. missing property 'wait_for'");
     }
   }
 
   /**
    * Creates a new AuthorizationMessage sent from client to server.
-   * @param resetAfter How long in ms the client should wait before attempting to authorize this request.
+   * @param waitFor How long in ms the client should wait before attempting to authorize this request.
    */
-  public constructor(resetAfter: number, global: boolean) {
-    this.resetAfter = resetAfter;
+  public constructor(waitFor: number, global: boolean) {
+    this.waitFor = waitFor;
     this.global = global;
   }
 
@@ -51,6 +51,6 @@ export default class AuthorizationMessage {
   public get proto(): AuthorizationProto {
     AuthorizationMessage.validateOutgoing(this);
 
-    return { reset_after: this.resetAfter, global: this.global };
+    return { wait_for: this.waitFor, global: this.global };
   }
 }

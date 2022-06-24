@@ -18,7 +18,7 @@ message RequestMetaMessage {
 
 /* AuthorizationMessage represents a server's response to a client's request to authorize a request. */
 message AuthorizationMessage {
-    uint32 reset_after = 1; // How long the client should wait in ms before asking to authorize the request again, if at all. 0 if the request is authorized.
+    uint32 wait_for = 1; // How long the client should wait in ms before asking to authorize the request again, if at all. 0 if the request is authorized.
     bool global = 2;
 }
 
@@ -26,8 +26,9 @@ message AuthorizationMessage {
 message RateLimitStateMessage {
     RequestMetaMessage request_meta = 1;
     bool global = 2;
-    string bucket = 3;
+    string bucket_hash = 3;
     uint32 limit = 4;
     uint32 remaining = 5;
     uint32 reset_after = 6;
+    uint32 retry_after = 7;
 }

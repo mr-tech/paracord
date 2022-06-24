@@ -89,8 +89,17 @@ export interface IApiResponse<T extends ResponseData = any> {
   retry_after?: number;
 }
 
+export interface RateLimitedResponse extends IApiResponse<{
+    retry_after: number;
+    global: boolean;
+    message: string;
+}> {
+  status: 429;
+  statusText: 'Too Many Requests',
+}
+
 export type IRateLimitState = {
-  resetAfter: number;
+  waitFor: number;
   global?: boolean;
 }
 

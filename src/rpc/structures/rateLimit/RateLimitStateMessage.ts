@@ -4,13 +4,13 @@ import RequestMetaMessage from './RequestMetaMessage';
 /** A class for the RateLimitStateMessage protobuf. */
 export default class RateLimitStateMessage {
   /** Meta data from the requests used to identify the rate limit. */
-  public requestMeta: RequestMetaMessage
+  public requestMeta: RequestMetaMessage;
 
   /** From Discord - If the request was globally rate limited. */
   public global: boolean;
 
   /** From Discord - Id of the rate limit bucket. */
-  public bucket: string | undefined;
+  public bucketHash: string | undefined;
 
   /** From Discord - Number of requests that can be made between rate limit triggers. */
   public limit: number;
@@ -20,6 +20,8 @@ export default class RateLimitStateMessage {
 
   /** From Discord - How long in ms the rate limit resets. */
   public resetAfter: number;
+
+  public retryAfter: number | undefined;
 
   /**
    * Translates the rpc message into an instance of this class.
@@ -31,10 +33,11 @@ export default class RateLimitStateMessage {
     return new RateLimitStateMessage(
       RequestMetaMessage.fromProto(message.request_meta),
       message.global,
-      message.bucket,
+      message.bucket_hash,
       message.limit,
       message.remaining,
       message.reset_after,
+      message.retry_after,
     );
   }
 
@@ -46,7 +49,7 @@ export default class RateLimitStateMessage {
     const {
       requestMeta,
       global,
-      bucket,
+      bucketHash,
       remaining,
       resetAfter,
       limit,
@@ -62,7 +65,7 @@ export default class RateLimitStateMessage {
       throw Error("'global' must be a defined boolean if bucket is defined");
     }
 
-    if (bucket !== undefined) {
+    if (bucketHash !== undefined) {
       if (remaining === undefined) {
         throw Error(
           "'remaining' must be a defined number if bucket is defined",
@@ -91,7 +94,7 @@ export default class RateLimitStateMessage {
       throw Error("received invalid message. missing property 'global'");
     }
 
-    if (message.bucket !== undefined) {
+    if (message.bucket_hash !== undefined) {
       if (message.remaining === undefined) {
         throw Error("received invalid message. missing property 'remaining'");
       }
@@ -108,25 +111,28 @@ export default class RateLimitStateMessage {
    * Creates a new RateLimitStateMessage sent from client to server.
    * @param requestMeta Meta data from the requests used to identify the rate limit.
    * @param global From Discord - If the request was globally rate limited.
-   * @param bucket From Discord - Id of the rate limit bucket.
+   * @param bucketHash From Discord - Id of the rate limit bucket.
    * @param limit From Discord - Number of requests that can be made between rate limit triggers.
    * @param remaining From Discord - Number of requests available before hitting rate limit.
    * @param resetAfter From Discord - How long in ms the rate limit resets.
+   * @param retryAfter From Discord - How long in ms the rate limit resets. (Sub limits)
    */
   public constructor(
-    requestMeta:RequestMetaMessage,
+    requestMeta: RequestMetaMessage,
     global: boolean,
-    bucket: string | undefined,
+    bucketHash: string | undefined,
     limit: number,
     remaining: number,
     resetAfter: number,
+    retryAfter: number | undefined,
   ) {
     this.requestMeta = requestMeta;
     this.global = global || false;
-    this.bucket = bucket;
+    this.bucketHash = bucketHash;
     this.limit = limit;
     this.remaining = remaining;
     this.resetAfter = resetAfter;
+    this.retryAfter = retryAfter;
   }
 
   /** The properties of this message formatted for sending over rpc. */
@@ -135,10 +141,11 @@ export default class RateLimitStateMessage {
 
     return {
       request_meta: this.requestMeta.proto,
-      bucket: this.bucket,
+      bucket_hash: this.bucketHash,
       limit: this.limit,
       remaining: this.remaining,
       reset_after: this.resetAfter,
+      retry_after: this.retryAfter,
       global: this.global,
     };
   }

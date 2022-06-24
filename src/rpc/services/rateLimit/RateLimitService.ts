@@ -72,16 +72,17 @@ export default class RateLimitService extends (definition.RateLimitService as an
    * Sends rate limit headers to server so that it can update the cache.
    * @param request The request being authorized.
    */
-  public update(request: ApiRequest, global: boolean, bucket: string | undefined, limit: number, remaining: number, resetAfter: number): Promise<void> {
+  public update(request: ApiRequest, global: boolean, bucketHash: string | undefined, limit: number, remaining: number, resetAfter: number, retryAfter: number | undefined): Promise<void> {
     const { method, url } = request;
     const requestMeta = new RequestMetaMessage(method, url);
     const message = new RateLimitStateMessage(
       requestMeta,
       global,
-      bucket,
+      bucketHash,
       limit,
       remaining,
       resetAfter,
+      retryAfter,
     ).proto;
 
     return new Promise((resolve, reject) => {

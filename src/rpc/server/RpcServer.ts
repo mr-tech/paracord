@@ -3,7 +3,7 @@ import { ServerCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import Api from '../../clients/Api/Api';
 import { RateLimitCache } from '../../clients/Api/structures';
-import { IApiOptions } from '../../clients/Api/types';
+import type { IApiOptions } from '../../clients/Api/types';
 import { DebugLevel } from '../../common';
 import {
   API_GLOBAL_RATE_LIMIT, LOG_LEVELS, LOG_SOURCES, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,

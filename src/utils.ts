@@ -318,3 +318,7 @@ export function squashArrays <T>(oldArray: Array<T>, newArray: Array<T>): Array<
 export function isApiError(val: unknown): val is ApiError {
   return typeof val === 'object' && val !== null && (<Record<string, unknown>>val).isApiError === true;
 }
+
+export function stripLeadingSlash(url: string) {
+  return url.startsWith('/') ? url.slice(1) : url;
+}

@@ -5,6 +5,7 @@ import RpcServer from '../../server/RpcServer';
 import { AuthorizationMessage, RateLimitStateMessage, RequestMetaMessage } from '../../structures';
 import { AuthorizationProto, RateLimitStateProto, TServiceCallbackError } from '../../types';
 import { loadProto } from '../common';
+import Api from '../../../clients/Api/Api';
 
 const rateLimitProto = loadProto('rate_limit');
 
@@ -42,10 +43,13 @@ function authorize(
 ) {
   try {
     const { method, url } = RequestMetaMessage.fromProto(call.request);
-    const request = new BaseRequest(method, url);
-    const { resetAfter, global } = this.rateLimitCache.authorizeRequestFromClient(request);
+    const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
+    const bucketHash = this.rateLimitCache.getBucket(bucketHashKey);
 
-    if (resetAfter === 0) {
+    const request = new BaseRequest(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey);
+    const { waitFor, global } = this.rateLimitCache.authorizeRequestFromClient(request);
+
+    if (waitFor === 0) {
       const message = `Request approved. ${method} ${url}`;
       this.log('DEBUG', message);
     } else {
@@ -53,7 +57,7 @@ function authorize(
       this.log('DEBUG', message);
     }
 
-    const message = new AuthorizationMessage(resetAfter, global ?? false).proto;
+    const message = new AuthorizationMessage(waitFor, global ?? false).proto;
 
     callback(null, message);
   } catch (err) {
@@ -73,26 +77,27 @@ function update(
 ) {
   try {
     const {
-      requestMeta,
+      requestMeta: { method, url },
       global,
-      bucket,
+      bucketHash,
       limit,
       remaining,
       resetAfter,
+      retryAfter,
     } = RateLimitStateMessage.fromProto(call.request);
 
-    const { method, url } = requestMeta;
-    const request = new BaseRequest(method, url);
-
-    if (bucket !== undefined) {
+    if (bucketHash !== undefined) {
       const rateLimitHeaders = new RateLimitHeaders(
         global,
-        bucket,
+        bucketHash,
         limit,
         remaining,
         resetAfter,
+        retryAfter,
       );
-      this.rateLimitCache.update(request, rateLimitHeaders);
+      const [tlr, tlrID, bucketHashKey] = Api.extractBucketHashKey(method, url);
+      const rateLimitKey = BaseRequest.formatRateLimitKey(tlr, tlrID, bucketHash);
+      this.rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
     }
 
     const message = `Rate limit cache updated: ${method} ${url} | Remaining: ${remaining}`;

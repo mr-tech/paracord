@@ -88,7 +88,7 @@ export type RequestProto = {
 export type AuthorizationProto = {
   /** How long the client should wait in ms before asking to authorize the request again, if at all. */
   /* eslint-disable-next-line camelcase */
-  reset_after: number;
+  wait_for: number;
   /** When rate limited, if the rate limit is global. */
   global: boolean;
 }
@@ -108,14 +108,15 @@ export type RateLimitStateProto = {
   /* eslint-disable-next-line camelcase */
   request_meta: RequestMetaProto;
   /** From Discord - the id of the rate limit bucket. */
-  bucket: string | undefined;
+  bucket_hash: string | undefined;
   /** From Discord - number of requests available before hitting rate limit. */
   remaining: number;
   /** From Discord - rate limit request cap. */
   limit: number;
   /** From Discord - How long in ms the rate limit resets. */
-  /* eslint-disable-next-line camelcase */
   reset_after: number;
+  /** From Discord - How long in ms the rate limit resets. (sub limit) */
+  retry_after: number | undefined;
   /** From Discord - If the request was globally rate limited. */
   global: boolean;
 }

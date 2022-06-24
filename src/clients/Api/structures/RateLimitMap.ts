@@ -24,10 +24,10 @@ export default class RateLimitMap extends Map<string, RateLimit> {
    * @param state Rate limit state derived from response headers.
    */
   public upsert(rateLimitKey: string, {
-    remaining, limit, resetTimestamp, resetAfter,
+    remaining, limit, resetTimestamp, resetAfter: waitFor,
   }: RateLimitState, template: RateLimitTemplate): RateLimit {
     const state: RateLimitState = {
-      remaining, limit, resetTimestamp, resetAfter,
+      remaining, limit, resetTimestamp, resetAfter: waitFor,
     };
 
     let rateLimit = this.get(rateLimitKey);

@@ -9,13 +9,17 @@ import {
 
 import { RateLimitService, RequestService } from '../../rpc/services';
 import { RemoteApiResponse } from '../../rpc/types';
-import { coerceTokenToBotLike, objectKeysSnakeToCamel } from '../../utils';
+import { coerceTokenToBotLike, objectKeysSnakeToCamel, stripLeadingSlash } from '../../utils';
 import {
   RateLimitCache, RateLimitHeaders, RequestQueue, ApiRequest,
 } from './structures';
 import {
-  IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState, IServiceOptions, ResponseData, WrappedRequest,
+  IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState, IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse,
 } from './types';
+
+function isRateLimitResponse(response: IApiResponse | RateLimitedResponse): response is RateLimitedResponse {
+  return response.status === 429;
+}
 
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
 export default class Api {
@@ -96,6 +100,54 @@ export default class Api {
 
     /** `axios.request()` decorated with rate limit handling. */
     return rateLimitCache.wrapRequest(instance.request);
+  }
+
+  /**
+   * Takes the method and url "minor parameters" to create a key used in navigating rate limits. Condenses common paths.
+   * @param method HTTP method of the request.
+   * @param rateLimitMinorParameters Request method and parameters in the url following the major parameter.
+   * @returns A key used internally to find related buckets.
+   */
+  public static extractBucketHashKey(method: string, url: string): string[] {
+    const [topLevelResource, topLevelID, ...rateLimitMinorParameters] = stripLeadingSlash(url).split('/');
+
+    const key = [];
+
+    if (method === 'GET') key.push('g');
+    else if (method === 'PUT') key.push('u');
+    else if (method === 'POST') key.push('o');
+    else if (method === 'PATCH') key.push('a');
+    else if (method === 'DELETE') key.push('d');
+
+    for (const param of rateLimitMinorParameters) {
+      switch (param) {
+        case 'channels':
+          key.push('c');
+          break;
+        case 'audit-log':
+          key.push('a');
+          break;
+        case 'members':
+          key.push('m');
+          break;
+        case 'guilds':
+          key.push('g');
+          break;
+        case 'messages':
+          key.push('s');
+          break;
+        case 'roles':
+          key.push('r');
+          break;
+        case 'webhooks':
+          key.push('w');
+          break;
+        default:
+          key.push(param);
+      }
+    }
+
+    return [topLevelResource, topLevelID, key.join('-')];
   }
 
   /**
@@ -213,10 +265,7 @@ export default class Api {
    * @returns `true` is connection was successful.
    */
   public addRateLimitService = (serviceOptions: IServiceOptions = {}): Promise<boolean> => {
-    if (
-      this.hasRateLimitService
-      || this.hasRequestService
-    ) {
+    if (this.hasRateLimitService || this.hasRequestService) {
       throw Error(
         'A rpc service has already been defined for this client. Only one may be added.',
       );
@@ -332,11 +381,9 @@ export default class Api {
   public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = this.#requestOptions): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
     const { local = this.#requestOptions.local, keepCase = this.#requestOptions.keepCase, validateStatus = this.#requestOptions.validateStatus } : IRequestOptions = options;
 
-    if (url.startsWith('/')) {
-      url = url.slice(1);
-    }
-
-    const request = new ApiRequest(method, url, options);
+    const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
+    const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
+    const request = new ApiRequest(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, options);
 
     let response: IApiResponse<T> | RemoteApiResponse<T>;
     if (this.rpcRequestService === undefined || local) {
@@ -364,8 +411,7 @@ export default class Api {
    */
   private async handleRequestLocal<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
     if (this.#requestQueueProcessInterval === undefined) {
-      const message = 'Making a request with a local Api client without a running request queue. Please invoke `startQueue()` on this client so that rate limits may be handled.';
-      this.log('WARNING', message);
+      throw Error('Making a local request without starting the request queue. Call `startQueue()` on this client so that rate limits may be handled.');
     }
 
     const { response, ...rateLimitState } = await this.sendRequest<T>(request);
@@ -376,7 +422,7 @@ export default class Api {
     const customResponse: IApiResponse<T> = {
       status: 429,
       statusText: 'Too Many Requests',
-      retry_after: rateLimitState.resetAfter,
+      retry_after: rateLimitState.waitFor,
       data: <any>{ ...rateLimitState },
       headers: {
         _paracord: true,
@@ -431,14 +477,14 @@ export default class Api {
       }
 
       if (rateLimitState === undefined) {
-        rateLimitState = this.#rateLimitCache.returnIsRateLimited(request);
+        rateLimitState = this.#rateLimitCache.isRateLimited(request);
       }
 
-      const { resetAfter, global } = rateLimitState;
-      if (resetAfter === 0) {
+      const { waitFor, global } = rateLimitState;
+      if (waitFor === 0) {
         const message = 'Sending request.';
         this.log('DEBUG', message, request);
-        return { response: await this.#makeRequest(request), resetAfter: 0 };
+        return { response: await this.#makeRequest(request), waitFor: 0 };
       }
       request.running = false;
 
@@ -446,18 +492,18 @@ export default class Api {
         return rateLimitState;
       }
 
-      request.assignIfStricterWait(new Date().getTime() + resetAfter);
+      request.assignIfStricterWait(new Date().getTime() + waitFor);
 
       if (!fromQueue) {
         const message = 'Enqueuing request.';
         this.log('DEBUG', message, request);
-        return { response: await this.enqueueRequest(request), resetAfter: 0 };
+        return { response: await this.enqueueRequest(request), waitFor: 0 };
       }
 
       const message = 'Requeuing request.';
       this.log('DEBUG', message, request);
 
-      return { resetAfter: -1 };
+      return { waitFor: -1 };
     } finally {
       request.running = false;
     }
@@ -481,12 +527,12 @@ export default class Api {
     try {
       const authorizationMessage = await (<RateLimitService> this.#rpcRateLimitService).authorize(request);
 
-      const { resetAfter, global } = authorizationMessage;
-      if (resetAfter === 0) {
-        return { resetAfter };
+      const { waitFor, global } = authorizationMessage;
+      if (waitFor === 0) {
+        return { waitFor };
       }
 
-      return { resetAfter, global };
+      return { waitFor, global };
     } catch (err) {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
         this.recreateRpcService();
@@ -498,29 +544,26 @@ export default class Api {
     }
   }
 
-  private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T>): Promise<IApiResponse<T>> {
+  private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T> | RateLimitedResponse): Promise<IApiResponse<T> | RateLimitedResponse> {
     this.log('DEBUG', 'Response received.', { request, response });
 
-    if (Object.keys(response.headers).length) {
-      const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
-        response.headers,
-        // response.data.retry_after,
-      );
+    const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
+      response.headers,
+      isRateLimitResponse(response) ? response.data.retry_after : undefined,
+    );
 
-      const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
-      while (response.status === 429 && allowQueue) {
-        if (this.#requestQueueProcessInterval === undefined) {
-          const message = 'A request has been rate limited, queued, and will not be processed. Please invoke `startQueue()` on this client so that rate limited requests may be handled.';
-          this.log('WARNING', message);
-        } else {
-          return new Promise<IApiResponse<T>>((resolve) => {
-            this.handleRateLimitedRequest<T>(request, rateLimitHeaders).then(async (res) => resolve(await this.handleResponse<T>(request, res)));
-          });
-        }
+    const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
+    if (isRateLimitResponse(response) && allowQueue) {
+      if (this.#requestQueueProcessInterval === undefined) {
+        throw Error('Request rate limited without the queue running. Call `startQueue()` on this client so that rate limited requests may be handled.');
       }
 
-      this.updateRateLimitCache(request, rateLimitHeaders);
+      return new Promise<IApiResponse<T> | RateLimitedResponse>((resolve) => {
+        this.handleRateLimitedRequest<T>(request, rateLimitHeaders).then(async (res) => resolve(await this.handleResponse<T>(request, res)));
+      });
     }
+
+    this.updateRateLimitCache(request, rateLimitHeaders);
 
     return response;
   }
@@ -556,15 +599,20 @@ export default class Api {
    * @param rateLimitHeaders Headers from the response.
    */
   private updateRateLimitCache(request: ApiRequest, rateLimitHeaders: RateLimitHeaders) {
-    this.#rateLimitCache.update(request, rateLimitHeaders);
+    const { bucketHash } = rateLimitHeaders;
+    if (bucketHash) {
+      const rateLimitKey = request.getRateLimitKey(bucketHash);
+      const { bucketHashKey } = request;
+      this.#rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
+    }
     this.updateRpcCache(request, rateLimitHeaders);
   }
 
   private async updateRpcCache(request: ApiRequest, rateLimitHeaders: RateLimitHeaders) {
     if (this.#rpcRateLimitService !== undefined && !this.#connectingToRpcService) {
       try {
-        const [global, bucket, limit, remaining, resetAfter] = rateLimitHeaders.rpcArgs;
-        await this.#rpcRateLimitService.update(request, global, bucket, limit, remaining, resetAfter);
+        const [global, bucketHash, limit, remaining, resetAfter, retryAfter] = rateLimitHeaders.rpcArgs;
+        await this.#rpcRateLimitService.update(request, global, bucketHash, limit, remaining, resetAfter, retryAfter);
       } catch (err) {
         if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
           const success = await this.recreateRpcService();

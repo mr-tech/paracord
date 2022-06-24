@@ -8,12 +8,12 @@ export = class RateLimitTemplateMap extends Map<string, RateLimitTemplate> {
    * Insert or updates rate limit template using state.
    * @param state Incoming rate limit state.
    */
-  public upsert(bucket: string, state: RateLimitHeaders): RateLimitTemplate {
-    let rateLimitTemplate = this.get(bucket);
+  public upsert(bucketHash: string, state: RateLimitHeaders): RateLimitTemplate {
+    let rateLimitTemplate = this.get(bucketHash);
 
     if (rateLimitTemplate === undefined) {
       rateLimitTemplate = new RateLimitTemplate(state);
-      this.set(bucket, rateLimitTemplate);
+      this.set(bucketHash, rateLimitTemplate);
     } else {
       rateLimitTemplate.update(state);
     }
@@ -23,10 +23,10 @@ export = class RateLimitTemplateMap extends Map<string, RateLimitTemplate> {
 
   /**
    * Creates a new rate limit from a template if there is one.
-   * @param bucket uid of rate limit bucket.
+   * @param bucketHash uid of rate limit bucket.
    */
-  public createAssumedRateLimit(bucket: string): RateLimit | undefined {
-    const template = this.get(bucket);
+  public createAssumedRateLimit(bucketHash: string): RateLimit | undefined {
+    const template = this.get(bucketHash);
 
     if (template !== undefined) {
       const { limit, limit: remaining } = template;

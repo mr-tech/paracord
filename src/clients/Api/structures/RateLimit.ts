@@ -65,9 +65,9 @@ export default class RateLimit {
   }
 
   /** How long until the rate limit resets in ms. */
-  public get resetAfter(): number {
-    const resetAfter = millisecondsFromNow(this.#resetTimestamp);
-    return resetAfter > 0 ? resetAfter : 0;
+  public get waitFor(): number {
+    const waitFor = millisecondsFromNow(this.#resetTimestamp);
+    return waitFor > 0 ? waitFor : 0;
   }
 
   private refreshExpire(): void {
