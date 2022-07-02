@@ -22,7 +22,7 @@ export default class IdentifyLockService extends (definition.LockService as any)
   readonly duration: number;
 
   /** Unique id given to this client when acquiring the lock. */
-  private _token?: string;
+  private _token?: undefined | string;
 
   /**
    * Creates an identity lock service.

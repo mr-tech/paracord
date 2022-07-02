@@ -65,13 +65,13 @@ export default class Paracord extends EventEmitter {
   #initialized: boolean;
 
   /** During a shard's start up, how many guilds may be unavailable before forcing ready. */
-  #unavailableGuildTolerance?: number;
+  #unavailableGuildTolerance?: undefined | number;
 
   /** During a shard's start up, time in seconds to wait from the last GUILD_CREATE to force ready. */
-  #unavailableGuildWait?: number;
+  #unavailableGuildWait?: undefined | number;
 
   /** Interval that will force shards as ready when within set thresholds. */
-  #startWithUnavailableGuildsInterval?: NodeJS.Timer;
+  #startWithUnavailableGuildsInterval?: undefined | NodeJS.Timer;
 
   /* Internal clients. */
   /** Client through which to make REST API calls to Discord. */
@@ -81,7 +81,7 @@ export default class Paracord extends EventEmitter {
   #gateways: GatewayMap;
 
   /** Identify lock service options passed to the gateway shards. */
-  #gatewayLockServiceOptions?: {
+  #gatewayLockServiceOptions?: undefined | {
     mainServerOptions: ILockServiceOptions,
     serverOptions: ILockServiceOptions[],
   };
@@ -104,16 +104,16 @@ export default class Paracord extends EventEmitter {
   #guildWaitCount: number;
 
   /** Timestamp of last GUILD_CREATE event on start up for the current `#startingGateway`. */
-  #lastGuildTimestamp?: number;
+  #lastGuildTimestamp?: undefined | number;
 
-  #startupHeartbeatTolerance?: number;
+  #startupHeartbeatTolerance?: undefined | number;
 
   /** Interval that coordinates gateway logins. */
-  #processGatewayQueueInterval?: NodeJS.Timer;
+  #processGatewayQueueInterval?: undefined | NodeJS.Timer;
 
   /* User-defined event handling behavior. */
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
-  #events?: UserEvents;
+  #events?: undefined | UserEvents;
 
   /** During startup, if events should be emitted before `PARACORD_STARTUP_COMPLETE` is emitted. `GUILD_CREATE` events will never be emitted during start up. */
   #allowEventsDuringStartup: boolean;
@@ -295,7 +295,7 @@ export default class Paracord extends EventEmitter {
    * @param message Content of the log.
    * @param data Data pertinent to the event.
    */
-  public log(level: DebugLevel, message: string, data?: unknown): void {
+  public log(level: DebugLevel, message: string, data?: undefined | unknown): void {
     this.emit('DEBUG', {
       source: LOG_SOURCES.PARACORD,
       level: LOG_LEVELS[level],
@@ -387,7 +387,7 @@ export default class Paracord extends EventEmitter {
         if (unavailableGuildTolerance !== undefined && unavailableGuildWait !== undefined) {
           this.#startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3);
         }
-      } catch (err) {
+      } catch (err: any) {
         this.log('FATAL', err.message, gateway);
         this.clearStartingShardState();
         gatewayLoginQueue.unshift(gateway);
@@ -627,7 +627,7 @@ export default class Paracord extends EventEmitter {
    * Runs with every GUILD_CREATE on initial start up. Decrements counter and emits `PARACORD_STARTUP_COMPLETE` when 0.
    * @param emptyShard Whether or not the shard started with no guilds.
    */
-  private checkIfDoneStarting(forced?: boolean): void {
+  private checkIfDoneStarting(forced?: undefined | boolean): void {
     const startingGateway = this.#startingGateway;
     const guildWaitCount = this.#guildWaitCount;
 
@@ -674,7 +674,7 @@ export default class Paracord extends EventEmitter {
    * Cleans up Paracord start up process and emits `PARACORD_STARTUP_COMPLETE`.
    * @param reason Reason for the time out.
    */
-  private completeStartup(reason?: string): void {
+  private completeStartup(reason?: undefined | string): void {
     let message = 'Paracord start up complete.';
     if (reason !== undefined) {
       message += ` ${reason}`;
@@ -691,7 +691,7 @@ export default class Paracord extends EventEmitter {
    ********************************
    */
 
-  // protected removeInactiveUsersFromCache(iterator?: IterableIterator<User>, removedCount = 0): void {
+  // protected removeInactiveUsersFromCache(iterator?: undefined | IterableIterator<User>, removedCount = 0): void {
   //   let throttle = 10000;
   //   let runAgain = false;
   //   const iter = iterator ?? this.#users.values();

@@ -10,7 +10,7 @@ export default class ResponseMessage {
   public statusText: string;
 
   /** Data response from Discord not having yet been parsed into json. */
-  public data?: string;
+  public data?: undefined | string;
 
   /**
    * Validate incoming message and translate it into common state.
@@ -51,7 +51,7 @@ export default class ResponseMessage {
    * @param statusText Status message returned by the server. (e.g. "OK" with a 200 status)
    * @param data Data response from Discord not having yet been parsed into json.
    */
-  public constructor(status: number, statusText: string, data?: string) {
+  public constructor(status: number, statusText: string, data?: undefined | string) {
     this.status = status;
     this.statusText = statusText;
     this.data = data;

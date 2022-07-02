@@ -52,23 +52,23 @@ export default class Base extends EventEmitter {
   #initialized: boolean;
 
   /** During a shard's start up, how many guilds may be unavailable before forcing ready. */
-  #unavailableGuildTolerance?: number;
+  #unavailableGuildTolerance?: undefined | number;
 
   /** During a shard's start up, time in seconds to wait from the last GUILD_CREATE to force ready. */
-  #unavailableGuildWait?: number;
+  #unavailableGuildWait?: undefined | number;
 
   /** Interval that will force shards as ready when within set thresholds. */
-  #startWithUnavailableGuildsInterval?: NodeJS.Timer;
+  #startWithUnavailableGuildsInterval?: undefined | NodeJS.Timer;
 
   /* Internal clients. */
   /** Client through which to make REST API calls to Discord. */
-  #api?: Api;
+  #api?: undefined | Api;
 
   /** Gateway clients keyed to their shard #. */
   #gateways: GatewayMap;
 
   /** IdentityOptions lock service options passed to the gateway shards. */
-  #gatewayLockServiceOptions?: {
+  #gatewayLockServiceOptions?: undefined | {
     mainServerOptions: ILockServiceOptions,
     serverOptions: ILockServiceOptions[],
   };
@@ -91,13 +91,13 @@ export default class Base extends EventEmitter {
   #guildWaitCount: number;
 
   /** Timestamp of last GUILD_CREATE event on start up for the current `#startingGateway`. */
-  #lastGuildTimestamp?: number;
+  #lastGuildTimestamp?: undefined | number;
 
-  #startupHeartbeatTolerance?: number;
+  #startupHeartbeatTolerance?: undefined | number;
 
   /* User-defined event handling behavior. */
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
-  #events?: UserEvents;
+  #events?: undefined | UserEvents;
 
   #preventLogin: boolean;
 
@@ -242,10 +242,11 @@ export default class Base extends EventEmitter {
    */
   public async login(options: Partial<ParacordLoginBaseOptions> = {}): Promise<void> {
     const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
+    const loginOptions = clone<Partial<ParacordLoginBaseOptions>>(options);
 
     const {
       unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance,
-    } = options;
+    } = loginOptions;
 
     if (!this.#initialized) {
       this.init();
@@ -256,14 +257,14 @@ export default class Base extends EventEmitter {
     this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
 
     if (PARACORD_SHARD_IDS !== undefined) {
-      options.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
-      options.shardCount = Number(PARACORD_SHARD_COUNT);
-      const message = `Injecting shard settings from shard launcher. Shard Ids: ${options.shards}. Shard count: ${options.shardCount}`;
+      loginOptions.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
+      loginOptions.shardCount = Number(PARACORD_SHARD_COUNT);
+      const message = `Injecting shard settings from shard launcher. Shard Ids: ${loginOptions.shards}. Shard count: ${loginOptions.shardCount}`;
       this.log('INFO', message);
     }
 
     this.startGatewayLoginInterval();
-    await this.enqueueGateways(options);
+    await this.enqueueGateways(loginOptions);
   }
 
   /** Begins the interval that kicks off gateway logins from the queue. */
@@ -296,7 +297,7 @@ export default class Base extends EventEmitter {
         if (unavailableGuildTolerance !== undefined && unavailableGuildWait !== undefined) {
           this.#startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3);
         }
-      } catch (err) {
+      } catch (err: any) {
         this.log('FATAL', err.message, gateway);
         this.clearStartingShardState();
         gatewayLoginQueue.unshift(gateway);

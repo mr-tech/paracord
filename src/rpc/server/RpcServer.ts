@@ -1,5 +1,5 @@
 /* eslint-disable no-sync */
-import { ServerCredentials } from '@grpc/grpc-js';
+import grpc, { ServerCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import Api from '../../clients/Api/Api';
 import { RateLimitCache } from '../../clients/Api/structures';
@@ -12,19 +12,16 @@ import { addIdentifyLockService, addRateLimitService, addRequestService } from '
 import { Lock } from '../structures';
 import { IDebugEvent, RpcServerOptions } from '../types';
 
-/* eslint-disable-next-line @typescript-eslint/no-var-requires */
-const grpc = require('@grpc/grpc-js');
-
 /**
  * Rpc server.
  * @extends grpc.Server
  */
 export default class RpcServer extends grpc.Server {
   /** Emitter for debug logging. */
-  public emitter?: EventEmitter;
+  public emitter?: undefined | EventEmitter;
 
   /** Api client when the "request" service is added. */
-  public apiClient?: Api;
+  public apiClient?: undefined | Api;
 
   /** Cache for rate limits when having client authorize against server. */
   public rateLimitCache: RateLimitCache;
@@ -61,7 +58,7 @@ export default class RpcServer extends grpc.Server {
   }
 
   /** Establishes the arguments that will be passed to `bindAsync()` when starting the server. */
-  private get bindArgs(): [string, ServerCredentials, (e: Error | null, port?: number) => void] {
+  private get bindArgs(): [string, ServerCredentials, (e: Error | null, port?: undefined | number) => void] {
     const callback = (e: Error | null) => {
       if (e !== null) {
         this.emit('DEBUG', {
@@ -72,7 +69,7 @@ export default class RpcServer extends grpc.Server {
       } else {
         try {
           this.start();
-        } catch (err) {
+        } catch (err: any) {
           if (err.message === 'server must be bound in order to start') {
             /* eslint-disable-next-line no-console */
             console.error('server must be bound in order to start. maybe this host:port is already in use?');

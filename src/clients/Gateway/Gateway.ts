@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
-import ws from 'ws';
+import uWs, { WebSocket, WebSocketBehavior } from 'uWebSockets.js';
 import { EventEmitter } from 'events';
 
 import Api from '../Api/Api';
 import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
 import { IdentifyLockService } from '../../rpc/services';
-import { coerceTokenToBotLike } from '../../utils';
+import { coerceTokenToBotLike, isApiError } from '../../utils';
 import Identify from './structures/Identify';
 
 import {
@@ -43,20 +43,22 @@ export default class Gateway {
 
   #loggingIn: boolean;
 
+  #options: GatewayOptions;
+
   /** Client through which to make REST api calls to Discord. */
-  #api?: Api;
+  #api?: undefined | Api;
 
   /** @ Rpc service through which to coordinate identifies with other shards. Will not be released except by time out. Best used for global minimum wait time. */
-  #mainIdentifyLock?: IdentifyLockService;
+  #mainIdentifyLock?: undefined | IdentifyLockService;
 
   /** Rpc service through which to coordinate identifies with other shards. */
   #identifyLocks: IdentifyLockService[] = [];
 
   /** Websocket used to connect to gateway. */
-  #ws?: ws;
+  #ws?: undefined | WebSocket;
 
   /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
-  #wsUrl?: string;
+  #wsUrl?: undefined | string;
 
   /** Time to wait between this client's attempts to connect to the gateway in seconds. */
   #wsUrlRetryWait: number;
@@ -72,52 +74,52 @@ export default class Gateway {
   #sequence: null | number;
 
   /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
-  #sessionId?: string;
+  #sessionId?: undefined | string;
 
   /** If the last heartbeat packet sent to Discord received an ACK. */
   #heartbeatAck: boolean;
 
   /** Time when last heartbeat packet was sent in ms. */
-  #lastHeartbeatTimestamp?: number;
+  #lastHeartbeatTimestamp?: undefined | number;
 
   /** Time when the next heartbeat packet should be sent in ms. */
-  #nextHeartbeatTimestamp?:number;
+  #nextHeartbeatTimestamp?: undefined | number;
 
   /** Node timeout for the next heartbeat. */
-  #heartbeatTimeout?: NodeJS.Timer;
+  #heartbeatTimeout?: undefined | NodeJS.Timer;
 
-  #heartbeatAckTimeout?: NodeJS.Timer;
+  #heartbeatAckTimeout?: undefined | NodeJS.Timer;
 
   /** From Discord - Time between heartbeats. */
-  #receivedHeartbeatIntervalTime?: number;
+  #receivedHeartbeatIntervalTime?: undefined | number;
 
   /** Time between heartbeats with user offset subtracted. */
-  #heartbeatIntervalTime?: number;
+  #heartbeatIntervalTime?: undefined | number;
 
   #heartbeatIntervalOffset: number;
 
-  #heartbeatExpectedTimestamp?: number;
+  #heartbeatExpectedTimestamp?: undefined | number;
 
   #startupHeartbeatTolerance: number;
 
   #heartbeatsMissedDuringStartup: number;
 
-  #isStartingFunction?: StartupCheckFunction;
+  #isStartingFunction?: undefined | StartupCheckFunction;
 
   #isStarting: boolean;
 
-  #checkIfStartingInterval?: NodeJS.Timer;
+  #checkIfStartingInterval?: undefined | NodeJS.Timer;
 
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
   #emitter: ExtendedEmitter;
 
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted value. */
-  #events?: Record<string, string>;
+  #events?: undefined | Record<string, string>;
 
   /** Object passed to Discord when identifying. */
   #identity: Identify;
 
-  #checkSiblingHeartbeats?: Gateway['checkIfShouldHeartbeat'][];
+  #checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
 
   #membersRequestCounter: number;
 
@@ -133,11 +135,11 @@ export default class Gateway {
   // #remoteLoginWait: number;
 
   /** Amount of identifies reported by the last call to /gateway/bot. */
-  public lastKnownSessionLimitData?: SessionLimitData;
+  public lastKnownSessionLimitData?: undefined | SessionLimitData;
 
-  #mainRpcServiceOptions?: IServiceOptions | null;
+  #mainRpcServiceOptions?: undefined | IServiceOptions | null;
 
-  #rpcServiceOptions?: IServiceOptions[];
+  #rpcServiceOptions?: undefined | IServiceOptions[];
 
   private static validateOptions(option: GatewayOptions) {
     if (option.startupHeartbeatTolerance !== undefined && option.isStartingFunc === undefined) {
@@ -172,6 +174,7 @@ export default class Gateway {
     if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
       throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
     }
+    this.#options = options;
     this.#version = DISCORD_WS_VERSION;
     this.#sequence = null;
     this.#heartbeatAck = true;
@@ -226,7 +229,7 @@ export default class Gateway {
   }
 
   /** This gateway's active websocket connection. */
-  public get ws(): ws | undefined {
+  public get ws(): WebSocket | undefined {
     return this.#ws;
   }
 
@@ -398,7 +401,7 @@ export default class Gateway {
    * Connects to Discord's event gateway.
    * @param _Websocket Ignore. For unittest dependency injection only.
    */
-  public login = async (_websocket = ws): Promise<void> => {
+  public login = async (): Promise<void> => {
     if (this.#ws !== undefined) {
       throw Error('Client is already connected.');
     }
@@ -430,14 +433,21 @@ export default class Gateway {
       if (this.#wsUrl !== undefined) {
         this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
 
-        this.#ws = new _websocket(this.#wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+        uWs.App().ws(this.#wsUrl, {
+          maxPayloadLength: GIGABYTE_IN_BYTES,
+          open: this._onopen,
+          message: this._onmessage,
+          close: this._onclose,
+        });
 
-        this.assignWebsocketMethods(this.#ws);
+        // this.assignWebsocketMethods(this.#ws);
+      } else {
+        this.log('ERROR', 'Failed to get websocket url.');
       }
     } catch (err) {
-      if (err.response) {
+      if (isApiError(err)) {
         /* eslint-disable-next-line no-console */
-        console.error(err.response.data.message); // TODO: emit
+        console.error(err.response?.data?.message); // TODO: emit
       } else {
         /* eslint-disable-next-line no-console */
         console.error(err); // TODO: emit
@@ -514,13 +524,13 @@ export default class Gateway {
     }
   }
 
-  /** Binds `this` to methods used by the websocket. */
-  private assignWebsocketMethods(websocket: ws): void {
-    websocket.onopen = this._onopen;
-    websocket.onerror = this._onerror;
-    websocket.onclose = this._onclose;
-    websocket.onmessage = this._onmessage;
-  }
+  // /** Binds `this` to methods used by the websocket. */
+  // private assignWebsocketMethods(websocket: ws): void {
+  //   websocket.onopen = this._onopen;
+  //   websocket.onerror = this._onerror;
+  //   websocket.onclose = this._onclose;
+  //   websocket.onmessage = this._onmessage;
+  // }
 
   /**
    * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
@@ -576,7 +586,7 @@ export default class Gateway {
   //       code = USER_TERMINATE_RECONNECT;
   //     }
 
-  //     this.#ws.close(code);
+  //     this.#ws.end(code);
   //   } else {
   //     /* eslint-disable-next-line no-console */
   //     console.warn('websocket not open');
@@ -590,9 +600,10 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onopen`. */
-  private _onopen = (): void => {
+  private _onopen = (ws: WebSocket): void => {
     this.log('DEBUG', 'Websocket open.');
 
+    this.#ws = ws;
     this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
 
     if (this.#isStartingFunction !== undefined) {
@@ -613,38 +624,27 @@ export default class Gateway {
 
   /*
    ********************************
-   ******* WEBSOCKET - ERROR ******
-   ********************************
-   */
-
-  /** Assigned to websocket `onerror`. */
-  private _onerror = (err: ws.ErrorEvent): void => {
-    this.log('ERROR', `Websocket error. Message: ${err.message}`);
-  };
-
-  /*
-   ********************************
    ****** WEBSOCKET - CLOSE *******
    ********************************
    */
 
   /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
-   * @param event Object containing information about the close.
+   * @param code Object containing information about the close.
    */
-  private _onclose = (event: ws.CloseEvent): void => {
+  private _onclose = (_: WebSocket, code: number): void => {
     this.#ws = undefined;
     this.#online = false;
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
     this.clearHeartbeat();
-    const shouldReconnect = this.handleCloseCode(event.code);
+    const shouldReconnect = this.handleCloseCode(code);
 
     this.#wsRateLimitCache = {
       remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
       resetTimestamp: 0,
     };
 
-    const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
+    const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code, gateway: this };
     this.handleEvent('GATEWAY_CLOSE', gatewayCloseEvent);
   };
 
@@ -652,7 +652,7 @@ export default class Gateway {
    * @param code Code that came with the websocket close event.
    * @return Whether or not the client should attempt to login again.
    */
-  private handleCloseCode(code: ws.CloseEvent['code']): boolean {
+  private handleCloseCode(code: number): boolean {
     const {
       CLEAN,
       GOING_AWAY,
@@ -803,7 +803,7 @@ export default class Gateway {
   private clearSession(): void {
     this.#sessionId = undefined;
     this.#sequence = null;
-    this.#wsUrl = undefined;
+    this.#wsUrl = this.#options.wsUrl;
     this.log('DEBUG', 'Session cleared.');
   }
 
@@ -831,7 +831,7 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onmessage`. */
-  private _onmessage = ({ data }: ws.MessageEvent): void => {
+  private _onmessage = (_: WebSocket, data: ArrayBuffer): void => {
     // if (typeof data === 'string') {
     //   return this.handleMessage(JSON.parse(data.toString()));
     // }
@@ -841,7 +841,7 @@ export default class Gateway {
     }
 
     // return undefined;
-    return this.handleMessage(JSON.parse(data.toString()));
+    return this.handleMessage(JSON.parse(Buffer.from(data).toString()));
   };
 
   private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
@@ -912,7 +912,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
-        this.#ws?.close(GATEWAY_CLOSE_CODES.RECONNECT);
+        this.#ws?.end(GATEWAY_CLOSE_CODES.RECONNECT);
         break;
 
       default:
@@ -1044,7 +1044,7 @@ export default class Gateway {
     }
 
     if (close) {
-      this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+      this.#ws?.end(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
       if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
       this.#heartbeatAckTimeout = undefined;
@@ -1121,7 +1121,7 @@ export default class Gateway {
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
       this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-      this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.#ws?.end(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
 
@@ -1203,7 +1203,7 @@ export default class Gateway {
       }
 
       return true;
-    } catch (err) {
+    } catch (err: any) {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && lock.allowFallback) {
         this.recreateRpcService();
         this.log('WARNING', `Was not able to connect to lock serviceOptions to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
@@ -1230,7 +1230,7 @@ export default class Gateway {
       if (err !== undefined) {
         this.log('DEBUG', `Was not able to release lock. Message: ${err}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
         this.recreateRpcService();
       }
@@ -1250,10 +1250,7 @@ export default class Gateway {
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
   private send(op: number, data: Heartbeat | Identify | GuildRequestMember | Resume): boolean {
-    if (
-      this.canSendPacket(op)
-      && this.#ws?.readyState === ws.OPEN
-    ) {
+    if (this.canSendPacket(op) && this.#ws) {
       const payload = { op, d: data };
 
       this.#ws.send(JSON.stringify(payload));
@@ -1319,9 +1316,9 @@ export default class Gateway {
     );
 
     if (!resumable) {
-      this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+      this.#ws?.end(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
     } else {
-      this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+      this.#ws?.end(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
     }
 
     this.handleEvent('INVALID_SESSION', { gateway: this, resumable });

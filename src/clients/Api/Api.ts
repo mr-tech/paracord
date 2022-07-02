@@ -24,10 +24,10 @@ function isRateLimitResponse(response: IApiResponse | RateLimitedResponse): resp
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
 export default class Api {
   /** When using Rpc, the service through which to pass requests to the server. */
-  public rpcRequestService?: RequestService;
+  public rpcRequestService?: undefined | RequestService;
 
   /** Key:Value mapping this client's events to user's preferred emitted value. */
-  public events?: Record<string, string>;
+  public events?: undefined | Record<string, string>;
 
   /** Contains rate limit state information. For use when not using rpc; or in fallback. */
   #rateLimitCache: RateLimitCache;
@@ -36,19 +36,19 @@ export default class Api {
   #requestQueue: RequestQueue;
 
   /**  Interval for processing rate limited requests on the queue. */
-  #requestQueueProcessInterval?: NodeJS.Timer;
+  #requestQueueProcessInterval?: undefined | NodeJS.Timer;
 
   /** When using Rpc, the service through which to get authorization to make requests. */
-  #rpcRateLimitService?: RateLimitService;
+  #rpcRateLimitService?: undefined | RateLimitService;
 
   /** Whether or not this client should handle requests locally for as long as it cannot connect to the rpc server. */
   #allowFallback: boolean;
 
-  #emitter?: EventEmitter;
+  #emitter?: undefined | EventEmitter;
 
   #makeRequest: WrappedRequest;
 
-  #rpcServiceOptions?: IServiceOptions;
+  #rpcServiceOptions?: undefined | IServiceOptions;
 
   #connectingToRpcService: boolean;
 
@@ -198,7 +198,7 @@ export default class Api {
    * @param message Content of the log
    * @param [data] Data pertinent to the event.
    */
-  public log = (level: DebugLevel, message: string, data?: unknown): void => {
+  public log = (level: DebugLevel, message: string, data?: undefined | unknown): void => {
     this.emit('DEBUG', {
       source: LOG_SOURCES.API,
       level: LOG_LEVELS[level],
@@ -300,7 +300,7 @@ export default class Api {
       this.#connectingToRpcService = false;
       this.log('DEBUG', 'Successfully established connection to Rpc server.');
       return true;
-    } catch (err) {
+    } catch (err: any) {
       if (!this.#connectingToRpcService) {
         if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
           this.#connectingToRpcService = true;
@@ -451,7 +451,7 @@ export default class Api {
 
     try {
       return await rpcRequestService.request(request);
-    } catch (err) {
+    } catch (err: any) {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
         await this.recreateRpcService();
         const message = 'Could not reach RPC server. Falling back to handling request locally.';
@@ -467,7 +467,7 @@ export default class Api {
    * Determines how the request will be made based on the client's options and makes it.
    * @param request ApiRequest being made,
    */
-  public sendRequest = async <T extends ResponseData>(request: ApiRequest, fromQueue?: true): Promise<IResponseState<T>> => {
+  public sendRequest = async <T extends ResponseData>(request: ApiRequest, fromQueue?: undefined | true): Promise<IResponseState<T>> => {
     try {
       request.running = true;
 
@@ -533,7 +533,7 @@ export default class Api {
       }
 
       return { waitFor, global };
-    } catch (err) {
+    } catch (err: any) {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
         this.recreateRpcService();
         const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
@@ -613,7 +613,7 @@ export default class Api {
       try {
         const [global, bucketHash, limit, remaining, resetAfter, retryAfter] = rateLimitHeaders.rpcArgs;
         await this.#rpcRateLimitService.update(request, global, bucketHash, limit, remaining, resetAfter, retryAfter);
-      } catch (err) {
+      } catch (err: any) {
         if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
           const success = await this.recreateRpcService();
           if (!success) throw err;

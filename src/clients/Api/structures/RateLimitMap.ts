@@ -6,12 +6,12 @@ import RateLimitTemplate from './RateLimitTemplate';
 
 /** Rate limit keys to their associated state. */
 export default class RateLimitMap extends Map<string, RateLimit> {
-  #logger?: Api;
+  #logger?: undefined | Api;
 
   /** Interval for sweeping old rate limits from the cache. */
   #sweepInterval: NodeJS.Timer | undefined;
 
-  public constructor(logger?: Api) {
+  public constructor(logger?: undefined | Api) {
     super();
 
     this.#logger = logger;

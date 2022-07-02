@@ -13,23 +13,23 @@ export interface GatewayOptions {
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventEmitter;
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
-  events?: UserEvents;
+  events?: undefined | UserEvents;
   /** Paracord rest API handler. */
-  api?: Api;
+  api?: undefined | Api;
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
   // keepCase: false;
   /** Websocket url to connect to. */
-  wsUrl?: string;
+  wsUrl?: undefined | string;
   /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
-  heartbeatIntervalOffset?: number;
+  heartbeatIntervalOffset?: undefined | number;
   /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */
-  startupHeartbeatTolerance?: number;
+  startupHeartbeatTolerance?: undefined | number;
   /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
-  isStartingFunc?: StartupCheckFunction;
+  isStartingFunc?: undefined | StartupCheckFunction;
   /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
-  checkSiblingHeartbeats?: Gateway['checkIfShouldHeartbeat'][];
+  checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
   /** Discord gateway version to use. Default: 9 */
-  version?: number;
+  version?: undefined | number;
 }
 
 type ErrorResponse = {
@@ -71,25 +71,25 @@ export type WebsocketRateLimitCache = {
 
 export type IdentityOptions = {
   /** authentication token */
-  token?: string;
+  token?: undefined | string;
 
   /** used for Guild Sharding */
-  shard?: [number, number]; // (shardId, numShards);
+  shard?: undefined | [number, number]; // (shardId, numShards);
 
   /** information about the client and how it's connecting */
-  properties?: IdentifyConnectionProperties;
+  properties?: undefined | IdentifyConnectionProperties;
 
   /** whether this connection supports compression of packets */
-  compress?: boolean; // false
+  compress?: undefined | boolean; // false
 
   /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
-  largeThreshold?: number; // 50
+  largeThreshold?: undefined | number; // 50
 
   /** presence structure for initial presence information */
-  presence?: GatewayPresenceUpdate;
+  presence?: undefined | GatewayPresenceUpdate;
 
   /** enables dispatching of guild subscription events (presence and typing events) */
-  guildSubscriptions?: boolean; // true
+  guildSubscriptions?: undefined | boolean; // true
 
   /** the Gateway Intents you wish to receive */
   intents: number;
@@ -108,7 +108,7 @@ export interface GuildMemberChunk {
   members: Omit<AugmentedGuildMember, 'guild_id'>[];
   chunk_index: number;
   chunk_count: number;
-  not_found?: number;
-  presences?: Omit<Presence, 'guild_id'>[];
-  nonce?: string;
+  not_found?: undefined | number;
+  presences?: undefined | Omit<Presence, 'guild_id'>[];
+  nonce?: undefined | string;
 }

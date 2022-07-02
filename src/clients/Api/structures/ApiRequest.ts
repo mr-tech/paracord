@@ -33,7 +33,7 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
   public returnOnGlobalRateLimit: boolean;
 
   /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides either of the "returnOn" options. */
-  public retriesLeft?: number;
+  public retriesLeft?: undefined | number;
 
   public running: boolean;
 

@@ -1,4 +1,5 @@
-/* eslint-disable callback-return */
+import type { UntypedServiceImplementation } from '@grpc/grpc-js';
+import type { PackageDefinition, ServiceDefinition } from '@grpc/proto-loader';
 import { BaseRequest, RateLimitHeaders } from '../../../clients/Api/structures';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import RpcServer from '../../server/RpcServer';
@@ -7,7 +8,11 @@ import { AuthorizationProto, RateLimitStateProto, TServiceCallbackError } from '
 import { loadProto } from '../common';
 import Api from '../../../clients/Api/Api';
 
-const rateLimitProto = loadProto('rate_limit');
+interface ServiceRateLimit extends PackageDefinition {
+  RateLimitService: ServiceDefinition;
+}
+
+const rateLimitProto = loadProto<ServiceRateLimit>('rate_limit');
 
 /**
  * Create callback functions for the rate limit service.
@@ -19,7 +24,7 @@ export default (server: RpcServer): void => {
     hello: hello.bind(server),
     authorize: authorize.bind(server),
     update: update.bind(server),
-  });
+  } as UntypedServiceImplementation);
 
   server.emit('DEBUG', {
     source: LOG_SOURCES.RPC,
@@ -30,7 +35,7 @@ export default (server: RpcServer): void => {
 
 function hello(
   this: RpcServer,
-  _: void,
+  _: unknown,
   callback: (a: TServiceCallbackError) => void,
 ) {
   callback(null);
@@ -60,7 +65,7 @@ function authorize(
     const message = new AuthorizationMessage(waitFor, global ?? false).proto;
 
     callback(null, message);
-  } catch (err) {
+  } catch (err: any) {
     this.emit('DEBUG', {
       source: LOG_SOURCES.RPC,
       level: LOG_LEVELS.ERROR,
@@ -104,7 +109,7 @@ function update(
     this.log('DEBUG', message);
 
     callback(null);
-  } catch (err) {
+  } catch (err: any) {
     this.emit('DEBUG', {
       source: LOG_SOURCES.RPC,
       level: LOG_LEVELS.ERROR,

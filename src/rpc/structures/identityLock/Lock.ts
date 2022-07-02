@@ -11,19 +11,19 @@ import StatusMessage from './StatusMessage';
  */
 export default class Lock {
   /* A unique id given to the client who currently has the lock. `undefined` indicates that the lock is available. */
-  #token?: string | undefined;
+  #token?: undefined | string;
 
   /** The timeout that will unlock the lock after a time specified by the client. */
-  #lockTimeout?: NodeJS.Timeout;
+  #lockTimeout?: undefined | NodeJS.Timeout;
 
   /** Emitter for logging. */
-  #emitter?: EventEmitter;
+  #emitter?: undefined | EventEmitter;
 
   /**
    * Creates a new lock.
    * @param  emitter Emitter for log events.
    */
-  public constructor(emitter?: EventEmitter) {
+  public constructor(emitter?: undefined | EventEmitter) {
     this.#token;
     this.#lockTimeout;
     this.#emitter = emitter;
@@ -34,7 +34,7 @@ export default class Lock {
    * @param timeOut How long in ms to wait before expiring the lock.
    * @param token Unique id given to the last client to acquire the lock.
    */
-  public acquire(timeOut: number, token?: string): StatusMessage {
+  public acquire(timeOut: number, token?: undefined | string): StatusMessage {
     let success = false;
     let message: string | undefined;
 

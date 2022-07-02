@@ -1,4 +1,6 @@
 /* eslint-disable callback-return */
+import { UntypedServiceImplementation } from '@grpc/grpc-js';
+import { PackageDefinition, ServiceDefinition } from '@grpc/proto-loader';
 import Api from '../../../clients/Api/Api';
 import { IApiOptions } from '../../../clients/Api/types';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
@@ -7,7 +9,11 @@ import { RequestMessage, ResponseMessage } from '../../structures';
 import { RequestProto, ResponseProto, TServiceCallbackError } from '../../types';
 import { loadProto } from '../common';
 
-const requestProto = loadProto('request');
+interface ServiceRequest extends PackageDefinition {
+  RequestService: ServiceDefinition;
+}
+
+const requestProto = loadProto<ServiceRequest>('request');
 
 /**
  * Create callback functions for the request service.
@@ -23,7 +29,7 @@ export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}):
   server.addService(requestProto.RequestService, {
     hello: hello.bind(server),
     request: request.bind(server),
-  });
+  } as UntypedServiceImplementation);
 
   server.emit('DEBUG', {
     source: LOG_SOURCES.RPC,
@@ -34,7 +40,7 @@ export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}):
 
 function hello(
   this: RpcServer,
-  _: void,
+  _: unknown,
   callback: (a: TServiceCallbackError) => void,
 ) {
   callback(null);
@@ -61,7 +67,7 @@ async function request(
       null,
       new ResponseMessage(res.status, res.statusText, res.data ? JSON.stringify(res.data) : undefined).proto,
     );
-  } catch (err) {
+  } catch (err: any) {
     if (err.response) {
       callback(err);
     } else {

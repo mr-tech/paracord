@@ -3,7 +3,7 @@ import RateLimit from './RateLimit';
 import RateLimitTemplate from './RateLimitTemplate';
 
 /** Buckets to observed rate limit defaults. */
-export = class RateLimitTemplateMap extends Map<string, RateLimitTemplate> {
+export default class RateLimitTemplateMap extends Map<string, RateLimitTemplate> {
   /**
    * Insert or updates rate limit template using state.
    * @param state Incoming rate limit state.

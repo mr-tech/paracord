@@ -1,11 +1,16 @@
-/* eslint-disable callback-return */
+import type { UntypedServiceImplementation } from '@grpc/grpc-js';
+import type { PackageDefinition, ServiceDefinition } from '@grpc/proto-loader';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import RpcServer from '../../server/RpcServer';
 import { LockRequestMessage, TokenMessage } from '../../structures';
 import { LockRequestProto, StatusProto, TServiceCallbackError } from '../../types';
 import { loadProto } from '../common';
 
-const lockProto = loadProto('identify_lock');
+interface ServiceIdentityLock extends PackageDefinition {
+  LockService: ServiceDefinition;
+}
+
+const lockProto = loadProto<ServiceIdentityLock>('identify_lock');
 
 /**
  * Create callback functions for the identify lock service.
@@ -16,7 +21,7 @@ export default (server: RpcServer): void => {
     // hello: hello.bind(server),
     acquire: acquire.bind(server),
     release: release.bind(server),
-  });
+  } as UntypedServiceImplementation);
 
   server.emit('DEBUG', {
     source: LOG_SOURCES.RPC,
@@ -44,7 +49,7 @@ function acquire(
     const message = this.identifyLock.acquire(timeOut, token);
 
     callback(null, message.proto);
-  } catch (err) {
+  } catch (err: any) {
     this.emit('DEBUG', {
       source: LOG_SOURCES.RPC,
       level: LOG_LEVELS.ERROR,
@@ -78,7 +83,7 @@ function release(
     }
 
     callback(null, message.proto);
-  } catch (err) {
+  } catch (err: any) {
     this.emit('DEBUG', {
       source: LOG_SOURCES.RPC,
       level: LOG_LEVELS.ERROR,
