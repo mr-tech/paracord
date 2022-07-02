@@ -1,6 +1,7 @@
-import { RateLimitHeaders } from '.';
 import RateLimit from './RateLimit';
 import RateLimitTemplate from './RateLimitTemplate';
+
+import type RateLimitHeaders from './RateLimitHeaders';
 
 /** Buckets to observed rate limit defaults. */
 export default class RateLimitTemplateMap extends Map<string, RateLimitTemplate> {

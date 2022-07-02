@@ -1,11 +1,10 @@
-import { EventEmitter } from 'events';
-import { UserEvents } from '../../common';
-import Api from '../Api/Api';
-import { IApiResponse } from '../Api/types';
-import {
+import type { EventEmitter } from 'events';
+import type * as Api from '../Api';
+import type Gateway from './Gateway';
+import type { UserEvents } from '../../@types';
+import type {
   IdentifyConnectionProperties, GatewayPresenceUpdate, Presence, Snowflake, AugmentedGuildMember,
-} from '../../types';
-import Gateway from './Gateway';
+} from '../../discord';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
@@ -15,9 +14,8 @@ export interface GatewayOptions {
   /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
   events?: undefined | UserEvents;
   /** Paracord rest API handler. */
-  api?: undefined | Api;
+  api?: undefined | Api.default;
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
-  // keepCase: false;
   /** Websocket url to connect to. */
   wsUrl?: undefined | string;
   /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
@@ -41,7 +39,7 @@ type ErrorResponse = {
 
 export type Heartbeat = number;
 
-export interface GatewayBotResponse extends IApiResponse, ErrorResponse {
+export interface GatewayBotResponse extends Api.IApiResponse, ErrorResponse {
     /** websocket url */
     url: string;
     /** recommended shard count */
@@ -102,13 +100,3 @@ export type GatewayCloseEvent = {
 }
 
 export type StartupCheckFunction = (x: Gateway) => boolean;
-
-export interface GuildMemberChunk {
-  guild_id: Snowflake;
-  members: Omit<AugmentedGuildMember, 'guild_id'>[];
-  chunk_index: number;
-  chunk_count: number;
-  not_found?: undefined | number;
-  presences?: undefined | Omit<Presence, 'guild_id'>[];
-  nonce?: undefined | string;
-}

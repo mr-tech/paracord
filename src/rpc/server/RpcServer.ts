@@ -1,16 +1,15 @@
 /* eslint-disable no-sync */
 import grpc, { ServerCredentials } from '@grpc/grpc-js';
-import type { EventEmitter } from 'events';
-import Api from '../../clients/Api/Api';
-import { RateLimitCache } from '../../clients/Api/structures';
-import type { IApiOptions } from '../../clients/Api/types';
-import { DebugLevel } from '../../common';
+
+import { Api, RateLimitCache, IApiOptions } from '../../clients';
 import {
   API_GLOBAL_RATE_LIMIT, LOG_LEVELS, LOG_SOURCES, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
 } from '../../constants';
-import { addIdentifyLockService, addRateLimitService, addRequestService } from '../services';
-import { Lock } from '../structures';
-import { IDebugEvent, RpcServerOptions } from '../types';
+import { addRateLimitService, addRequestService } from '../services';
+
+import type { DebugLevel } from '../../@types';
+import type { IDebugEvent, RpcServerOptions } from '../types';
+import type { EventEmitter } from 'events';
 
 /**
  * Rpc server.
@@ -25,9 +24,6 @@ export default class RpcServer extends grpc.Server {
 
   /** Cache for rate limits when having client authorize against server. */
   public rateLimitCache: RateLimitCache;
-
-  /** Lock instance when the "identify lock" service is added. */
-  public identifyLock: Lock;
 
   /** Destination host. */
   #host: string;
@@ -45,7 +41,7 @@ export default class RpcServer extends grpc.Server {
   public constructor(options: RpcServerOptions = {}) {
     super();
     const {
-      host, port, channel, emitter, globalRateLimitMax, globalRateLimitResetPadding, apiClient, identifyLock,
+      host, port, channel, emitter, globalRateLimitMax, globalRateLimitResetPadding, apiClient,
     } = options;
 
     this.#host = host ?? '127.0.0.1';
@@ -53,7 +49,6 @@ export default class RpcServer extends grpc.Server {
     this.#channel = channel ?? grpc.ServerCredentials.createInsecure();
     this.emitter = emitter;
     this.apiClient = apiClient;
-    this.identifyLock = identifyLock ?? new Lock(this.emitter);
     this.rateLimitCache = new RateLimitCache(false, globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT, globalRateLimitResetPadding ?? API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, apiClient);
   }
 
@@ -95,11 +90,6 @@ export default class RpcServer extends grpc.Server {
    */
   public addRequestService(token: string, apiOptions: IApiOptions = {}): void {
     addRequestService(this, token, apiOptions);
-  }
-
-  /** Adds the identify lock service to this server. Allows the server to maintain a lock for clients. */
-  public addLockService(): void {
-    addIdentifyLockService(this);
   }
 
   /** Adds the rate limit service to this server. Stores app-wide rate limits centrally and authorizes requests.. */

@@ -1,25 +1,25 @@
-/* eslint-disable @typescript-eslint/ban-ts-comment */
-import uWs, { WebSocket, WebSocketBehavior } from 'uWebSockets.js';
+import uWs, { WebSocket } from 'uWebSockets.js';
 import { EventEmitter } from 'events';
 
-import Api from '../Api/Api';
-import { DebugLevel, ExtendedEmitter, ILockServiceOptions } from '../../common';
-import { IdentifyLockService } from '../../rpc/services';
+import Api from '../Api';
 import { coerceTokenToBotLike, isApiError } from '../../utils';
-import Identify from './structures/Identify';
-
 import {
-  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS, ZLIB_CHUNKS_SIZE,
+  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES,
+  GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER,
+  GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS,
+  ZLIB_CHUNKS_SIZE,
 } from '../../constants';
 
-// eslint-disable-next-line import/order
+import { GatewayIdentify } from './structures';
+
 import type ZlibSyncType from 'zlib-sync';
-import type { IServiceOptions } from '../Api/types';
+import type { DebugLevel, ExtendedEmitter } from '../../@types';
 import type {
-  GatewayPayload, GuildRequestMember, Hello, ReadyEventField, Resume,
-} from '../../types';
+  GatewayPayload, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT, Hello, ReadyEventField, Resume,
+} from '../../discord';
 import type {
-  GatewayBotResponse, GatewayCloseEvent, GatewayOptions, GuildMemberChunk, Heartbeat, SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
+  GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat,
+  SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
 } from './types';
 
 let ZlibSync: null | typeof ZlibSyncType = null;
@@ -47,12 +47,6 @@ export default class Gateway {
 
   /** Client through which to make REST api calls to Discord. */
   #api?: undefined | Api;
-
-  /** @ Rpc service through which to coordinate identifies with other shards. Will not be released except by time out. Best used for global minimum wait time. */
-  #mainIdentifyLock?: undefined | IdentifyLockService;
-
-  /** Rpc service through which to coordinate identifies with other shards. */
-  #identifyLocks: IdentifyLockService[] = [];
 
   /** Websocket used to connect to gateway. */
   #ws?: undefined | WebSocket;
@@ -117,7 +111,7 @@ export default class Gateway {
   #events?: undefined | Record<string, string>;
 
   /** Object passed to Discord when identifying. */
-  #identity: Identify;
+  #identity: GatewayIdentify;
 
   #checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
 
@@ -125,21 +119,8 @@ export default class Gateway {
 
   #requestingMembersStateMap: Map<string, GuildChunkState>;
 
-  // /** Whether or not to keep all properties on Discord objects in their original snake case. */
-  // #keepCase: false;
-
-  // /** Minimum time to wait between gateway identifies in ms. */
-  // #retryWait: number;
-
-  // /** Time that the shard's identify mutex will be locked for in ms. */
-  // #remoteLoginWait: number;
-
   /** Amount of identifies reported by the last call to /gateway/bot. */
   public lastKnownSessionLimitData?: undefined | SessionLimitData;
-
-  #mainRpcServiceOptions?: undefined | IServiceOptions | null;
-
-  #rpcServiceOptions?: undefined | IServiceOptions[];
 
   private static validateOptions(option: GatewayOptions) {
     if (option.startupHeartbeatTolerance !== undefined && option.isStartingFunc === undefined) {
@@ -147,14 +128,6 @@ export default class Gateway {
     } else if (option.isStartingFunc !== undefined
       && (option.startupHeartbeatTolerance === undefined || option.startupHeartbeatTolerance <= 0)) {
       throw Error("Gateway option 'isStartingFunc' requires 'startupHeartbeatTolerance' larger than 0.");
-    }
-  }
-
-  /** Verifies parameters to set lock are valid. */
-  private static validateLockOptions(options: Partial<ILockServiceOptions>): void {
-    const { duration } = options;
-    if (duration !== undefined && typeof duration !== 'number' && duration <= 0) {
-      throw Error('Lock duration must be a number larger than 0.');
     }
   }
 
@@ -186,11 +159,9 @@ export default class Gateway {
     };
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
-    // this.keepCase = options.keepCase || false;
     this.#emitter = emitter ?? new EventEmitter();
-    this.#identity = new Identify(coerceTokenToBotLike(token), identity);
+    this.#identity = new GatewayIdentify(coerceTokenToBotLike(token), identity);
     this.#api = api;
-    this.#rpcServiceOptions = [];
     this.#events = events;
     this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
     this.#startupHeartbeatTolerance = startupHeartbeatTolerance || 0;
@@ -209,7 +180,7 @@ export default class Gateway {
   }
 
   /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
-  public get shard(): Identify['shard'] {
+  public get shard(): GatewayIdentify['shard'] {
     return this.#identity.shard !== undefined ? this.#identity.shard : undefined;
   }
 
@@ -296,74 +267,6 @@ export default class Gateway {
 
   /*
    ********************************
-   ********* RPC SERVICE **********
-   ********************************
-   */
-
-  /**
-   * Adds the service that will acquire a lock from a serviceOptions(s) before identifying.
-   * @param mainServiceOptions Options for connecting this service to the identify lock serviceOptions. Will not be released except by time out. Best used for global minimum wait time. Pass `null` to ignore.
-   * @param serviceOptions Options for connecting this service to the identify lock serviceOptions. Will be acquired and released in order.
-   */
-  public addIdentifyLockServices(mainServiceOptions: null | Partial<ILockServiceOptions>, ...serviceOptions: Partial<ILockServiceOptions>[]): void {
-    const usedHostPorts: Record<string, number> = {};
-
-    if (mainServiceOptions !== null) {
-      let { port } = mainServiceOptions;
-      if (typeof port === 'string') {
-        port = Number(port);
-      }
-
-      const { host } = mainServiceOptions;
-      usedHostPorts[host ?? '127.0.0.1'] = port ?? 50051; // TODO: move port to constant
-
-      this.#mainIdentifyLock = this.configureLockService(mainServiceOptions);
-    }
-
-    if (serviceOptions.length) {
-      this.#rpcServiceOptions = serviceOptions;
-      serviceOptions.forEach((options) => {
-        const { host } = options;
-        let { port } = options;
-        if (typeof port === 'string') {
-          port = Number(port);
-        }
-
-        if (usedHostPorts[host ?? '127.0.0.1'] === port) {
-          throw Error('Multiple locks specified for the same host:port.');
-        }
-
-        usedHostPorts[host ?? '127.0.0.1'] = port ?? 50051; // TODO: move port to constant
-        this.#identifyLocks.push(this.configureLockService(options));
-      });
-    }
-
-    this.#mainRpcServiceOptions = mainServiceOptions;
-  }
-
-  private configureLockService(serviceOptions: Partial<ILockServiceOptions>): IdentifyLockService {
-    Gateway.validateLockOptions(serviceOptions);
-    const identifyLock = new IdentifyLockService(serviceOptions);
-
-    if (this.#mainRpcServiceOptions === undefined) {
-      const message = `Rpc service created for identify coordination. Connected to: ${identifyLock.target}. Default duration of lock: ${identifyLock.duration}`;
-      this.log('INFO', message);
-    }
-
-    return identifyLock;
-  }
-
-  // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
-  private recreateRpcService(): void {
-    if (this.#mainRpcServiceOptions !== undefined && this.#rpcServiceOptions !== undefined) {
-      this.#mainIdentifyLock = undefined;
-      this.#identifyLocks = [];
-      this.addIdentifyLockServices(this.#mainRpcServiceOptions, ...this.#rpcServiceOptions);
-    }
-  }
-
-  /*
-   ********************************
    ************ PUBLIC ************
    ********************************
    */
@@ -382,19 +285,6 @@ export default class Gateway {
     this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
 
     return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
-  }
-
-  private checkLocksPromise = async (resolve: () => void): Promise<void> => {
-    if (await this.acquireLocks()) {
-      resolve();
-    } else {
-      setTimeout(() => this.checkLocksPromise(resolve), SECOND_IN_MILLISECONDS);
-    }
-  };
-
-  private loginWaitForLocks(): Promise<void> {
-    /** Continuously checks if the response has returned. */
-    return new Promise(this.checkLocksPromise);
   }
 
   /**
@@ -421,10 +311,6 @@ export default class Gateway {
 
     try {
       this.#loggingIn = true;
-
-      if (!this.resumable) {
-        await this.loginWaitForLocks();
-      }
 
       if (this.#wsUrl === undefined) {
         this.#wsUrl = await this.getWebsocketUrl();
@@ -460,15 +346,6 @@ export default class Gateway {
       this.#loggingIn = false;
     }
   };
-
-  /** Releases all non-main identity locks. */
-  public async releaseIdentifyLocks(): Promise<void> {
-    if (this.#identifyLocks.length) {
-      this.#identifyLocks.forEach((l) => {
-        if (l.token !== undefined) this.releaseIdentifyLock(l);
-      });
-    }
-  }
 
   /**
    * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
@@ -538,7 +415,7 @@ export default class Gateway {
    * @param data Data of the event from Discord.
    */
   private async handleEvent(type: string, data: unknown): Promise<void> {
-    if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GuildMemberChunk);
+    if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GUILD_MEMBERS_CHUNK_EVENT);
 
     if (this.#emitter.eventHandler !== undefined) {
       data = await this.#emitter.eventHandler(type, data, this.id);
@@ -547,7 +424,7 @@ export default class Gateway {
     data && this.emit(type, data);
   }
 
-  private handleGuildMemberChunk(data: GuildMemberChunk): void {
+  private handleGuildMemberChunk(data: GUILD_MEMBERS_CHUNK_EVENT): void {
     const {
       nonce, not_found, chunk_count, chunk_index,
     } = data;
@@ -872,8 +749,6 @@ export default class Gateway {
       t: type, s: sequence, op: opCode, d: data,
     } = p;
 
-    // const d = typeof data === 'object' && data?.constructor.name === 'Object' ? objectKeysSnakeToCamel(<Record<string, unknown>>data) : data;
-
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
@@ -1135,112 +1010,7 @@ export default class Gateway {
 
     await this.handleEvent('GATEWAY_IDENTIFY', this);
 
-    this.send(GATEWAY_OP_CODES.IDENTIFY, <Identify> this.#identity.toJSON());
-  }
-
-  /**
-   * Attempts to acquire all the necessary locks to identify.
-   * @returns `true` if acquired locks; `false` if not.
-   */
-  private async acquireLocks(): Promise<boolean> {
-    if (this.#identifyLocks !== undefined) {
-      const acquiredLocks = await this.acquireIdentifyLocks();
-      if (!acquiredLocks) {
-        return false;
-      }
-    }
-
-    if (this.#mainIdentifyLock !== undefined) {
-      const acquiredLock = await this.acquireIdentifyLock(this.#mainIdentifyLock);
-      if (!acquiredLock) {
-        if (this.#identifyLocks !== undefined) {
-          this.#identifyLocks.forEach(this.releaseIdentifyLock);
-        }
-
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * Attempts to acquire all the non-main identify locks in succession, releasing if one fails.
-   * @returns `true` if acquired locks; `false` if not.
-   */
-  private async acquireIdentifyLocks(): Promise<boolean> {
-    if (this.#identifyLocks !== undefined) {
-      const acquiredLocks: IdentifyLockService[] = [];
-
-      for (let i = 0; i < this.#identifyLocks.length; ++i) {
-        const lock = this.#identifyLocks[i]; // for intellisense
-
-        const acquiredLock = await this.acquireIdentifyLock(lock);
-        if (acquiredLock) {
-          acquiredLocks.push(lock);
-        } else {
-          acquiredLocks.forEach(this.releaseIdentifyLock);
-          return false;
-        }
-      }
-    }
-
-    return true;
-  }
-
-  /**
-   * Attempts to acquire an identify lock.
-   * @param lock Lock to acquire.
-   * @returns `true` if acquired lock (or fallback); `false` if not.
-   */
-  private async acquireIdentifyLock(lock: IdentifyLockService): Promise<boolean> {
-    try {
-      const { success, message: err } = await lock.acquire();
-
-      if (!success) {
-        this.log('DEBUG', `Was not able to acquire lock. Message: ${err}`);
-        return false;
-      }
-
-      return true;
-    } catch (err: any) {
-      if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && lock.allowFallback) {
-        this.recreateRpcService();
-        this.log('WARNING', `Was not able to connect to lock serviceOptions to acquire lock: ${lock.target}. Fallback allowed: ${lock.allowFallback}`);
-        return true;
-      }
-
-      if (err !== undefined) {
-        return false;
-      }
-
-      throw err;
-    }
-  }
-
-  /**
-   * Releases the identity lock.
-   * @param lock Lock to release.
-   */
-  private async releaseIdentifyLock(lock: IdentifyLockService): Promise<void> {
-    try {
-      const { message: err } = await lock.release();
-      lock.clearToken();
-
-      if (err !== undefined) {
-        this.log('DEBUG', `Was not able to release lock. Message: ${err}`);
-      }
-    } catch (err: any) {
-      if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
-        this.recreateRpcService();
-      }
-
-      this.log('WARNING', `Was not able to connect to lock serviceOptions to release lock: ${lock.target}.}`);
-
-      if (err.code !== RPC_CLOSE_CODES.LOST_CONNECTION) {
-        throw err;
-      }
-    }
+    this.send(GATEWAY_OP_CODES.IDENTIFY, <GatewayIdentify> this.#identity.toJSON());
   }
 
   /**
@@ -1249,7 +1019,7 @@ export default class Gateway {
    * @param data Data of the message.
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
-  private send(op: number, data: Heartbeat | Identify | GuildRequestMember | Resume): boolean {
+  private send(op: number, data: Heartbeat | GatewayIdentify | GuildRequestMember | Resume): boolean {
     if (this.canSendPacket(op) && this.#ws) {
       const payload = { op, d: data };
 

@@ -1,17 +1,13 @@
 {
   "name": "paracord",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Scalable Discord gateway and API handlers alongside a pre-built client.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "test": "mocha tests/smoke.spec.js tests/suite.spec.js '**/tests/*.spec.js' --exit",
-    "test-nodemon": "nodemon --exec \"mocha tests/smoke.spec.js tests/suite.spec.js 'src/**/tests/*.spec.js'\"",
-    "test-paracord": "nodemon --exec \"mocha tests/smoke.spec.js tests/suite.spec.js 'src/**/tests/*.spec.js' -g Paracord\"",
-    "coverage": "nodemon --exec \"nyc --reporter=html --reporter=text npm run test\"",
-    "tsc:w": "tsc -w",
-    "build": "rm -rf ./dist && tsc && cp -r src/rpc/protobufs dist/rpc/protobufs",
-    "postinstall": "tsc && cp -r src/rpc/protobufs dist/rpc/protobufs"
+    "build": "rimraf dist && tsc -b && cp -r src/rpc/protobufs dist/rpc/protobufs",
+    "build:types": "tsc -p ./tsconfig.json --declaration true --outDir build && api-extractor run",
+    "rebuild": "npm run build && npm run build:types"
   },
   "repository": {
     "type": "git",
@@ -32,7 +28,6 @@
   },
   "devDependencies": {
     "@types/node": "^14.0.5",
-    "@types/ws": "^8.5.3",
     "@typescript-eslint/eslint-plugin": "^5.14.0",
     "@typescript-eslint/parser": "^5.14.0",
     "eslint": "^8.10.0",

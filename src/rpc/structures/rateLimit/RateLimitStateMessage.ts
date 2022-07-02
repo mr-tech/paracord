@@ -1,4 +1,5 @@
 import { RateLimitStateProto } from '../../types';
+
 import RequestMetaMessage from './RequestMetaMessage';
 
 /** A class for the RateLimitStateMessage protobuf. */

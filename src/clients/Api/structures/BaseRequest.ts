@@ -1,5 +1,6 @@
-import type { Method } from 'axios';
 import { stripLeadingSlash } from '../../../utils';
+
+import type { Method } from 'axios';
 
 /** Basic information in a request to Discord. */
 export default class BaseRequest {

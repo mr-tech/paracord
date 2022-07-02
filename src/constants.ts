@@ -1,9 +1,9 @@
-export const PARACORD_VERSION_NUMBER = '0.2';
+export const PARACORD_VERSION_NUMBER = '0.5';
 export const PARACORD_URL = 'https://paracordjs.com/';
 export const SECOND_IN_MILLISECONDS = 1e3;
 export const MINUTE_IN_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
 export const GIGABYTE_IN_BYTES = 1073741824;
-export const DISCORD_WS_VERSION = 9;
+export const DISCORD_WS_VERSION = 10;
 /** Gateway websocket connection rate limit. */
 export const GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
 /** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
@@ -53,25 +53,7 @@ export const GATEWAY_CLOSE_CODES = {
   UNKNOWN: 4999, // Something odd happened. Refer to other ERROR level logging events.
 
 };
-export const CHANNEL_TYPES = {
-  GUILD_TEXT: 0,
-  DM: 1,
-  GUILD_VOICE: 2,
-  GROUP_DM: 3,
-  GUILD_CATEGORY: 4,
-  GUILD_NEWS: 5,
-  GUILD_STORE: 6,
-  GUILD_NEWS_THREAD: 10,
-  GUILD_PUBLIC_THREAD: 11,
-  GUILD_PRIVATE_THREAD: 12,
-  GUILD_STAGE_VOICE: 13,
-};
-// ACTIVITY_TYPES = {
-//   GAME = 0
-//   STREAMIng = 1
-//   LISTENING = 2
-//   CUSTOM = 4
-// }
+
 export const DISCORD_API_URL = 'https://discord.com/api';
 export const DISCORD_API_DEFAULT_VERSION = 9;
 /** Discord epoch (2015-01-01T00:00:00.000Z) */
@@ -79,7 +61,7 @@ export const DISCORD_EPOCH = 1420070400000;
 export const DISCORD_CDN_URL = 'https://cdn.discordapp.com';
 /** A permissions map for operations relevant to the library. */
 export const PERMISSIONS = {
-  ADMINISTRATOR: 0x8,
+  ADMINISTRATOR: BigInt(0x8),
 };
 /** For internal logging. */
 export const LOG_SOURCES = {

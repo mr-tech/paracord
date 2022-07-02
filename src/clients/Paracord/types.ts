@@ -1,46 +1,19 @@
-// // Paracord
-/* eslint-disable max-classes-per-file */
-
-import type { UserEvents } from '../../common';
+import type { UserEvents } from '../../@types';
 import type {
-  GuildEmoji as RawGuildEmoji, AugmentedGuild as AugmentedRawGuild, AugmentedGuildMember as AugmentedRawGuildMember,
-  AugmentedVoiceState as AugmentedRawVoiceState, Channel as RawChannel, Message as RawMessage,
-  Presence as RawPresence, Role as RawRole, User as RawUser, Snowflake, UnavailableGuild, GuildMemberUpdateEventField,
-} from '../../types';
-import type { IApiOptions } from '../Api/types';
-import type Gateway from '../Gateway/Gateway';
-import type { GatewayOptions, IdentityOptions } from '../Gateway/types';
-
-import type Paracord from '.';
-import type {
-  GuildChannel, GuildVoiceState, CacheMap, GuildMember, User, Guild, GuildEmoji, Presence, Activity, Role, Overwrite,
-} from './structures';
+  Snowflake, UnavailableGuild, Message as RawMessage, AugmentedGuild as AugmentedRawGuild,
+} from '../../discord';
+import type { IApiOptions } from '../Api';
+import type Gateway from '../Gateway';
+import type { GatewayOptions, IdentityOptions } from '../Gateway';
 
 export type GatewayMap = Map<number, Gateway>;
 export type RawGuildType = AugmentedRawGuild | UnavailableGuild;
 
-export interface ParacordBaseOptions {
+export interface ParacordOptions {
   events?: UserEvents;
   apiOptions?: Partial<IApiOptions>;
   gatewayOptions?: Partial<GatewayOptions>;
   autoInit?: boolean;
-}
-export interface ParacordOptions extends ParacordBaseOptions {
-  limits?: Limits;
-  filterOptions?: FilterOptions;
-}
-
-export interface Limits {
-  members?: Limit<GuildMember>;
-  presences?: Limit<GuildMember>;
-  users?: Limit<User>;
-}
-
-export interface Limit<T> {
-  amount?: number;
-  cap?: number;
-  expireAfter?: number;
-  expireFunc: (this: Paracord, cache: T[]) => void;
 }
 
 export type GuildCacheOptions = {
@@ -59,22 +32,7 @@ export interface ParacordCacheOptions extends GuildCacheOptions {
 type Primitive = string | number | boolean | null | undefined;
 export type KeysWithType<T> = { [K in keyof T]: T[K] extends Primitive ? K : never }[keyof T];
 
-export interface FilterOptions {
-  caches?: ParacordCacheOptions;
-  props: {
-    guild?: Array<KeysWithType<Guild>>;
-    user?: Array<KeysWithType<User>>;
-    role?: Array<KeysWithType<Role>>;
-    emoji?: Array<KeysWithType<GuildEmoji>>;
-    guildChannel?: Array<KeysWithType<GuildChannel>>;
-    presence?: Array<KeysWithType<Presence>>;
-    guildVoiceState?: Array<KeysWithType<GuildVoiceState>>;
-    guildMember?: Array<KeysWithType<GuildMember>>;
-    activity?: Array<KeysWithType<Activity>>;
-  };
-}
-
-export interface ParacordLoginBaseOptions {
+export interface ParacordLoginOptions {
   identity: IdentityOptions;
   shards?: number[];
   shardCount?: number;
@@ -83,34 +41,6 @@ export interface ParacordLoginBaseOptions {
   allowEventsDuringStartup?: true;
   startupHeartbeatTolerance?: number;
 }
-
-export interface ParacordLoginOptions extends ParacordLoginBaseOptions {
-  identity: IdentityOptions;
-  shards?: number[];
-  shardCount?: number;
-  unavailableGuildTolerance?: number;
-  unavailableGuildWait?: number;
-  allowEventsDuringStartup?: true;
-  startupHeartbeatTolerance?: number;
-}
-
-export type DiscordResource = Guild | GuildMember | GuildChannel | User | Role | GuildEmoji | GuildVoiceState | Presence;
-export type DiscordObject = Activity | Overwrite;
-export type DiscordTypes = DiscordResource | DiscordObject;
-
-// export type FilteredProps<T extends DiscordTypes, U extends RawWildCard> = Array<(FilterOptions['props'] & keyof Base<T, U>)[keyof FilterOptions['props'] & keyof Base<T, U>]>;
-
-// export type GuildProp = KeysWithType<Guild, Primitive | GuildMember | VoiceRegion >;
-
-/* Caches */
-export type GuildMap = CacheMap<Guild, RawGuildType>
-export type UserMap = CacheMap<User, RawUser>
-export type PresenceMap = CacheMap<Presence, RawPresence>
-export type RoleMap = CacheMap<Role, RawRole>
-export type EmojiMap = CacheMap<GuildEmoji, RawGuildEmoji>
-export type GuildMemberMap = CacheMap<GuildMember, AugmentedRawGuildMember | GuildMemberUpdateEventField>
-export type GuildChannelMap = CacheMap<GuildChannel, RawChannel>
-export type VoiceStateMap = CacheMap<GuildVoiceState, AugmentedRawVoiceState>
 
 export type InternalShardIds = number[]
 export interface ShardLauncherOptions{
@@ -128,13 +58,5 @@ export interface ShardLauncherOptions{
   env?: Record<string, unknown>;
 }
 
-export interface Message extends RawMessage {
-  channelId: Snowflake;
-}
-
 export type EventFunctions = Record<string, EventFunction>;
 export type EventFunction = (...any: unknown[]) => unknown;
-
-// export interface GuildMembersChunk extends AugmentedGuildMembersChunkEventFields{
-//   members: GuildMember[];
-// }

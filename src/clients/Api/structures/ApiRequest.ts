@@ -1,6 +1,6 @@
-import type { AxiosRequestConfig, Method } from 'axios';
 import BaseRequest from './BaseRequest';
 
+import type { AxiosRequestConfig, Method } from 'axios';
 import type {
   IApiResponse, IRequestOptions, ResponseData, RequestFormDataFunction,
 } from '../types';
@@ -51,7 +51,6 @@ export default class Request<T extends ResponseData = any> extends BaseRequest {
       data, headers, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
     } = options;
 
-    // this.data = data !== undefined ? objectKeysCamelToSnake(data) : data;
     this.createForm = createForm;
     this.data = data;
     this.headers = headers;

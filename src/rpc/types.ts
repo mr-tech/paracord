@@ -1,9 +1,7 @@
-import type { ServerCredentials, ServiceError } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import type { Method } from 'axios';
-import type Api from '../clients/Api/Api';
-import type { ResponseData } from '../clients/Api/types';
-import type { Lock } from './structures';
+import type { ServerCredentials, ServiceError } from '@grpc/grpc-js';
+import type { Api, ResponseData } from '../clients';
 
 export interface RpcServerOptions{
   host?: string;
@@ -11,7 +9,6 @@ export interface RpcServerOptions{
   channel?: ServerCredentials;
   emitter?: EventEmitter;
   apiClient?: Api;
-  identifyLock?: Lock;
   globalRateLimitMax?: number;
   globalRateLimitResetPadding?: number;
 }
@@ -22,57 +19,7 @@ export interface IDebugEvent {
   message: string
 }
 
-// export interface IDebugEmitter {
-//   on(event: 'DEBUG', listener: (x: IDebugEvent) => void): this;
-// }
-
-// /**
-//  * @export typedef RpcServerOptions
-//  *
-//  * @property {string} [host]
-//  * @property {string|number} [port]
-//  * @property {import("events").EventEmitter} [emitter]
-//  * @property {RpcServerBindArgs} [bindArgs]
-//  */
-
-// /**
-//  * @export typedef RpcServerBindArgs
-//  *
-//  * @property {string|number} port
-//  * @property {import("@grpc/grpc-js").ServerCredentials} creds
-//  * @property {Function} callback
-//  */
-
-// /**
-//  * @export typedef StatusMessage
-//  *
-//  * @property {boolean} success true, the operation was a success; false, the operation failed.
-//  * @property {string} message Reason for the failed operation.
-//  * @property {string} token Unique id given to the last client to acquire the lock.
-//  */
 export type TServiceCallbackError = null | string | ServiceError;
-
-export type LockRequestProto = {
-  /** How long in ms the server should wait before expiring the lock. */
-  /* eslint-disable-next-line camelcase */
-  time_out: number;
-  /** token Unique id given to the last client to acquire the lock. */
-  token: string | undefined;
-}
-
-export type TokenProto = {
-  /** value The string value of the token. */
-  value: string;
-}
-
-export type StatusProto = {
-  /** Whether or not the operation was successful. */
-  success: boolean;
-  /** Reason why the operation failed. */
-  message: string | undefined;
-  /** Unique id given to the last client to acquire the lock. */
-  token: string | undefined;
-}
 
 export type RequestProto = {
   /** HTTP method of the request. */

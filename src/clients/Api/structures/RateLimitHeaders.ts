@@ -1,6 +1,7 @@
-import { RpcArguments } from '../../../common';
 import { SECOND_IN_MILLISECONDS } from '../../../constants';
-import { IApiResponse } from '../types';
+
+import type { RpcArguments } from '../../../@types';
+import type { IApiResponse } from '../types';
 
 /** Representation of rate limit values from the header of a response from Discord. */
 export default class RateLimitHeaders {
@@ -30,7 +31,7 @@ export default class RateLimitHeaders {
    * @param headers Headers from a response.
    * @returns Rate limit state with the bucket hash; or `undefined` if there is no rate limit information.
    */
-  public static extractRateLimitFromHeaders(headers: IApiResponse<any>['headers'], retryAfter: undefined | number): RateLimitHeaders {
+  public static extractRateLimitFromHeaders(headers: IApiResponse['headers'], retryAfter: undefined | number): RateLimitHeaders {
     const {
       'x-ratelimit-global': global,
       'x-ratelimit-bucket': bucketHash,

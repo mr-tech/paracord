@@ -1,19 +1,21 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 import axios, { Method } from 'axios';
-import type { EventEmitter } from 'events';
-import { DebugLevel } from '../../common';
+
+import { RateLimitService, RequestService, RemoteApiResponse } from '../../rpc';
+import { coerceTokenToBotLike, stripLeadingSlash } from '../../utils';
 import {
-  PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION, DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES, API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
+  PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION,
+  DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES,
+  API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
 } from '../../constants';
 
-import { RateLimitService, RequestService } from '../../rpc/services';
-import { RemoteApiResponse } from '../../rpc/types';
-import { coerceTokenToBotLike, objectKeysSnakeToCamel, stripLeadingSlash } from '../../utils';
 import {
   RateLimitCache, RateLimitHeaders, RequestQueue, ApiRequest,
 } from './structures';
-import {
+
+import type { EventEmitter } from 'events';
+import type { DebugLevel } from '../../@types';
+import type {
   IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState, IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse,
 } from './types';
 
@@ -379,7 +381,7 @@ export default class Api {
    * @returns Response to the request made.
    */
   public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = this.#requestOptions): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
-    const { local = this.#requestOptions.local, keepCase = this.#requestOptions.keepCase, validateStatus = this.#requestOptions.validateStatus } : IRequestOptions = options;
+    const { local = this.#requestOptions.local, validateStatus = this.#requestOptions.validateStatus } : IRequestOptions = options;
 
     const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
     const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
@@ -390,11 +392,6 @@ export default class Api {
       response = await this.handleRequestLocal<T>(request);
     } else {
       response = await this.handleRequestRemote(this.rpcRequestService, request);
-    }
-
-    if (!keepCase) {
-      if (Array.isArray(response.data)) response.data = (response.data as any[]).map((d) => objectKeysSnakeToCamel(d)) as T;
-      else response.data = objectKeysSnakeToCamel(response.data);
     }
 
     if (validateStatus && !validateStatus(response.status)) {
@@ -416,7 +413,7 @@ export default class Api {
 
     const { response, ...rateLimitState } = await this.sendRequest<T>(request);
     if (response !== undefined) {
-      return this.handleResponse(request, response);
+      return this.handleResponse(request, response) as unknown as IApiResponse<T>; // TODO: There's nothing more permanent than this "temporary" solution
     }
 
     const customResponse: IApiResponse<T> = {

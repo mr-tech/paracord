@@ -1,7 +1,7 @@
 import grpc, { GrpcObject } from '@grpc/grpc-js';
 import protoLoader, { PackageDefinition } from '@grpc/proto-loader';
 
-import type { IServerOptions } from '../../common';
+import type { IServerOptions } from '../../@types';
 
 /**
  * Load in a protobuf from a file.
@@ -13,9 +13,7 @@ export function loadProto<T extends PackageDefinition>(proto: string): T {
     `protobufs/${proto}.proto`,
   );
 
-  return protoLoader.loadSync(protoPath, {
-    keepCase: true,
-  }) as T;
+  return protoLoader.loadSync(protoPath, { keepCase: true }) as T;
 }
 
 /**

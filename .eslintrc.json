@@ -3,14 +3,7 @@
     "node": true,
     "mocha": true
   },
-  "plugins": [
-    "@typescript-eslint"
-  ],
-  "extends": [
-    "airbnb-base",
-    "plugin:@typescript-eslint/eslint-recommended",
-    "plugin:@typescript-eslint/recommended"
-  ],
+  "plugins": ["@typescript-eslint"],
   "globals": {
     "Atomics": "readonly",
     "SharedArrayBuffer": "readonly",
@@ -18,23 +11,51 @@
   },
   "parser": "@typescript-eslint/parser",
   "parserOptions": {
-    "project": "./tsconfig.json",
-    "ecmaVersion": 2020, // Allows for the parsing of modern ECMAScript features
+    "ecmaVersion": 2020,
     "sourceType": "module" // Allows for the use of imports
   },
+  "extends": ["airbnb-base"],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "extends": ["plugin:@typescript-eslint/eslint-recommended", "plugin:@typescript-eslint/recommended"],
+      "rules": {
+        "@typescript-eslint/explicit-module-boundary-types": "off",
+        "@typescript-eslint/no-empty-function": "off",
+        "@typescript-eslint/no-shadow": "error"
+      },
+      "parserOptions": {
+        "ecmaVersion": 2022,
+        "project": "./tsconfig.json"
+      }
+    }
+  ],
   "rules": {
+    "import/order": [
+      "error",
+      {
+        "groups": [["builtin", "external"], ["parent"], ["sibling", "index"], "type"],
+        "pathGroupsExcludedImportTypes": ["type"],
+        "newlines-between": "always"
+      }
+    ],
+    "no-console": [
+      "warn",
+      {
+        "allow": ["debug", "warn", "error"]
+      }
+    ],
+    "no-multi-str": "off",
     "no-underscore-dangle": "off",
     "no-bitwise": "off",
     "no-plusplus": "off",
     "no-restricted-syntax": "off",
     "no-unused-expressions": "off",
     "no-param-reassign": "off",
+    "no-shadow": "off",
     "global-require": "off",
     "no-use-before-define": "off",
-    "strict": [
-      2,
-      "global"
-    ],
+    "strict": [2, "global"],
     "max-len": "off",
     "camelcase": "off",
     "prefer-const": [
@@ -59,27 +80,13 @@
       {
         "optionalDependencies": true
       }
-    ],
-    "no-shadow": "off",
-    "@typescript-eslint/no-shadow": "error"
+    ]
   },
   "settings": {
-    "import/core-modules": [
-      "axios",
-      "@grpc/grpc-js",
-      "@grpc/proto-loader",
-      "grpc",
-      "pm2",
-      "ws"
-    ],
+    "import/core-modules": ["axios"],
     "import/resolver": {
       "node": {
-        "extensions": [
-          ".js",
-          ".jsx",
-          ".ts",
-          ".tsx"
-        ]
+        "extensions": [".js", ".jsx", ".ts", ".tsx"]
       }
     }
   }

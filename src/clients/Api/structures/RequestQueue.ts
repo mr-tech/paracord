@@ -12,8 +12,8 @@
 
 // TODO(lando): Do some logging on this in prod to make sure it doesn't memory leak.
 
-import { ApiRequest } from '.';
-import Api from '../Api';
+import type Api from '../Api';
+import type ApiRequest from './ApiRequest';
 
 /** A queue for rate limited requests waiting to be sent. */
 export default class RequestQueue {
@@ -107,7 +107,7 @@ export default class RequestQueue {
     } finally {
       this.#processing = false;
     }
-  }
+  };
 
   /**
    * Handles an item on the queue.

@@ -1,11 +1,10 @@
-/* eslint-disable prefer-destructuring */
-import { GrpcObject, ServiceError } from '@grpc/grpc-js';
-import { ApiRequest } from '../../../clients/Api/structures';
-import { ResponseData } from '../../../clients/Api/types';
-import { IServerOptions } from '../../../common';
 import { RequestMessage, ResponseMessage } from '../../structures';
-import { RemoteApiResponse, ResponseProto } from '../../types';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
+
+import type { GrpcObject, ServiceError } from '@grpc/grpc-js';
+import type { ApiRequest, ResponseData } from '../../../clients';
+import type { IServerOptions } from '../../../@types';
+import type { RemoteApiResponse, ResponseProto } from '../../types';
 
 const definition: GrpcObject = loadProtoDefinition('request');
 

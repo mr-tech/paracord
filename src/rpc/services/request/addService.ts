@@ -1,13 +1,13 @@
 /* eslint-disable callback-return */
-import { UntypedServiceImplementation } from '@grpc/grpc-js';
-import { PackageDefinition, ServiceDefinition } from '@grpc/proto-loader';
-import Api from '../../../clients/Api/Api';
-import { IApiOptions } from '../../../clients/Api/types';
+import { Api, IApiOptions } from '../../../clients';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
-import RpcServer from '../../server/RpcServer';
 import { RequestMessage, ResponseMessage } from '../../structures';
-import { RequestProto, ResponseProto, TServiceCallbackError } from '../../types';
 import { loadProto } from '../common';
+
+import type { UntypedServiceImplementation } from '@grpc/grpc-js';
+import type { PackageDefinition, ServiceDefinition } from '@grpc/proto-loader';
+import type RpcServer from '../../server/RpcServer';
+import type { RequestProto, ResponseProto, TServiceCallbackError } from '../../types';
 
 interface ServiceRequest extends PackageDefinition {
   RequestService: ServiceDefinition;
@@ -52,7 +52,7 @@ async function request(
   callback: (a: TServiceCallbackError, b?: ResponseProto) => void,
 ) {
   if (this.apiClient === undefined) {
-    callback("lock doesn't exist");
+    callback('api client not initialize');
     return;
   }
 

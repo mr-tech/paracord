@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { EventEmitter } from 'events';
 import type FormData from 'form-data';
-import type { UserEvents } from '../../common';
+import type { ChannelCredentials } from '@grpc/grpc-js';
+import type { RemoteApiResponse } from '../../rpc';
+import type { UserEvents } from '../../@types';
 import type { ApiRequest } from './structures';
-import type { RemoteApiResponse } from '../../rpc/types';
-import type Request from './structures/ApiRequest';
 
 /** Optional parameters for this api handler. */
 export interface IApiOptions {
@@ -27,8 +26,6 @@ export interface IRequestOptions {
   createForm?: RequestFormDataFunction | undefined;
   /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
   local?: boolean;
-  /** Whether or not to return the response data with camelCased keys. */
-  keepCase?: boolean;
   /** Set to true to not retry the request on a bucket 429 rate limit. */
   returnOnRateLimit?: false;
   /** Set to true to not retry the request on a global rate limit. */
@@ -108,7 +105,7 @@ export type IResponseState<T extends ResponseData> = IRateLimitState & {
 }
 
 export interface ApiError<T = any, D = any> extends Error {
-  config: Request<D>['config'];
+  config: ApiRequest<D>['config'];
   code?: string;
   request?: any;
   response?: IApiResponse<T> | RemoteApiResponse<T>;

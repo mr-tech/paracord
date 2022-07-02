@@ -1,5 +1,6 @@
-import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
 import { millisecondsFromNow } from '../../../utils';
+import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
+
 import type { RateLimitState } from '../types';
 import type RateLimitTemplate from './RateLimitTemplate';
 

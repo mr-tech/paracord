@@ -1,14 +1,14 @@
-/* eslint-disable prefer-destructuring */
-import { GrpcObject, ServiceError } from '@grpc/grpc-js';
-import { ApiRequest } from '../../../clients/Api/structures';
-import { IServerOptions } from '../../../common';
 import { AuthorizationMessage, RateLimitStateMessage, RequestMetaMessage } from '../../structures';
-import { AuthorizationProto } from '../../types';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
+
+import type { GrpcObject, ServiceError } from '@grpc/grpc-js';
+import type { ApiRequest } from '../../../clients';
+import type { IServerOptions } from '../../../@types';
+import type { AuthorizationProto } from '../../types';
 
 const definition: GrpcObject = loadProtoDefinition('rate_limit');
 
-/** Definition for the identity lock rpc service. */
+/** Definition for the identity rate limit rpc service. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class RateLimitService extends (definition.RateLimitService as any) {
   /** host:port the service is pointed at. */
@@ -18,7 +18,7 @@ export default class RateLimitService extends (definition.RateLimitService as an
   public allowFallback: boolean;
 
   /**
-   * Creates an identity lock service.
+   * Creates an rate limit service.
    * @param options Options for this service.
    */
   public constructor(options: Partial<IServerOptions>) {

@@ -1,5 +1,5 @@
-import { ResponseData } from '../../../clients/Api/types';
-import { RemoteApiResponse, ResponseProto } from '../../types';
+import type { ResponseData } from '../../../clients';
+import type { RemoteApiResponse, ResponseProto } from '../../types';
 
 /** A class for the ResponseMessage protobuf */
 export default class ResponseMessage {

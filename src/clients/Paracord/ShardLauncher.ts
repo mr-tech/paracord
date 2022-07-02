@@ -1,16 +1,19 @@
 /* eslint-disable no-console, import/no-duplicates */
 
-import type pm2Type from 'pm2';
+import Api from '../Api';
+
 import type { StartOptions } from 'pm2';
-import Api from '../Api/Api';
-import { GatewayBotResponse } from '../Gateway/types';
-import { InternalShardIds, ShardLauncherOptions } from './types';
+import type pm2Type from 'pm2';
+import type { GatewayBotResponse } from '../Gateway';
+import type { InternalShardIds, ShardLauncherOptions } from './types';
 
-let pm2Promise: null | Promise<typeof pm2Type> = null;
+let pm2: null | typeof pm2Type = null;
 
-try {
-  pm2Promise = require('pm2');
-} catch { /* do nothing */ }
+// eslint-disable-next-line import/no-unresolved
+import('pm2')
+  .then((_pm2) => {
+    pm2 = _pm2;
+  }).catch(() => { /* do nothing */ });
 
 /* eslint-disable-next-line @typescript-eslint/no-var-requires */
 // const pm2: typeof pm2Type = require('pm2');
@@ -110,7 +113,6 @@ export default class ShardLauncher {
    * pm2Options
    */
   public async launch(pm2Options: StartOptions = {}): Promise<void> {
-    const pm2 = await pm2Promise;
     if (!pm2) throw Error("Cannot find module 'pm2'");
 
     const shardChunks = this.#shardChunks;
@@ -172,7 +174,6 @@ export default class ShardLauncher {
   }
 
   public async launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): Promise<void> {
-    const pm2 = await pm2Promise;
     if (!pm2) throw Error("Cannot find module 'pm2'");
 
     const shardIdsCsv = shardIds.join(',');
@@ -215,7 +216,6 @@ export default class ShardLauncher {
 
   /** Disconnects from pm2 when all chunks have been launched. */
   private detach = async (err: Error) => {
-    const pm2 = await pm2Promise;
     if (!pm2) throw Error("Cannot find module 'pm2'");
 
     if (this.#launchCount && --this.#launchCount === 0) {
