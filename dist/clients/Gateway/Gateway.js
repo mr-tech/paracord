@@ -26,7 +26,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const uWebSockets_js_1 = __importDefault(require("uWebSockets.js"));
+const ws_1 = __importDefault(require("ws"));
 const events_1 = require("events");
 const Api_1 = __importDefault(require("../Api"));
 const utils_1 = require("../../utils");
@@ -171,7 +171,7 @@ class Gateway {
         this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
         return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
     }
-    login = async () => {
+    login = async (_websocket = ws_1.default) => {
         if (this.#ws !== undefined) {
             throw Error('Client is already connected.');
         }
@@ -193,12 +193,8 @@ class Gateway {
             }
             if (this.#wsUrl !== undefined) {
                 this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
-                uWebSockets_js_1.default.App().ws(this.#wsUrl, {
-                    maxPayloadLength: constants_1.GIGABYTE_IN_BYTES,
-                    open: this._onopen,
-                    message: this._onmessage,
-                    close: this._onclose,
-                });
+                this.#ws = new _websocket(this.#wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
+                this.assignWebsocketMethods(this.#ws);
             }
             else {
                 this.log('ERROR', 'Failed to get websocket url.');
@@ -247,6 +243,12 @@ class Gateway {
             throw Error(message);
         }
     }
+    assignWebsocketMethods(websocket) {
+        websocket.onopen = this._onopen;
+        websocket.onerror = this._onerror;
+        websocket.onclose = this._onclose;
+        websocket.onmessage = this._onmessage;
+    }
     async handleEvent(type, data) {
         if (type === 'GUILD_MEMBERS_CHUNK')
             this.handleGuildMemberChunk(data);
@@ -276,9 +278,8 @@ class Gateway {
             }
         }
     }
-    _onopen = (ws) => {
+    _onopen = () => {
         this.log('DEBUG', 'Websocket open.');
-        this.#ws = ws;
         this.#wsRateLimitCache.remainingRequests = constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE;
         if (this.#isStartingFunction !== undefined) {
             this.#isStarting = this.#isStartingFunction(this);
@@ -295,18 +296,21 @@ class Gateway {
                 clearInterval(this.#checkIfStartingInterval);
         }
     };
-    _onclose = (_, code) => {
+    _onerror = (err) => {
+        this.log('ERROR', `Websocket error. Message: ${err.message}`);
+    };
+    _onclose = (event) => {
         this.#ws = undefined;
         this.#online = false;
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
         this.clearHeartbeat();
-        const shouldReconnect = this.handleCloseCode(code);
+        const shouldReconnect = this.handleCloseCode(event.code);
         this.#wsRateLimitCache = {
             remainingRequests: constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE,
             resetTimestamp: 0,
         };
-        const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
+        const gatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
         this.handleEvent('GATEWAY_CLOSE', gatewayCloseEvent);
     };
     handleCloseCode(code) {
@@ -446,11 +450,11 @@ class Gateway {
         this.#heartbeatsMissedDuringStartup = 0;
         this.log('DEBUG', 'Heartbeat cleared.');
     }
-    _onmessage = (_, data) => {
+    _onmessage = ({ data }) => {
         if (this.#zlibInflate) {
             return this.decompress(this.#zlibInflate, data);
         }
-        return this.handleMessage(JSON.parse(Buffer.from(data).toString()));
+        return this.handleMessage(JSON.parse(data.toString()));
     };
     decompress(inflate, data) {
         if (data instanceof ArrayBuffer)
@@ -499,7 +503,7 @@ class Gateway {
                 this.handleInvalidSession(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.RECONNECT:
-                this.#ws?.end(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
+                this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
                 break;
             default:
                 this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
@@ -592,7 +596,7 @@ class Gateway {
             close = true;
         }
         if (close) {
-            this.#ws?.end(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+            this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
         }
         else {
             if (this.#heartbeatAckTimeout)
@@ -658,7 +662,7 @@ class Gateway {
         }
         else {
             this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-            this.#ws?.end(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
     }
     async identify() {
@@ -668,7 +672,7 @@ class Gateway {
         this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this.#identity.toJSON());
     }
     send(op, data) {
-        if (this.canSendPacket(op) && this.#ws) {
+        if (this.canSendPacket(op) && this.#ws?.readyState === ws_1.default.OPEN) {
             const payload = { op, d: data };
             this.#ws.send(JSON.stringify(payload));
             this.updateWsRateLimit();
@@ -702,10 +706,10 @@ class Gateway {
     handleInvalidSession(resumable) {
         this.log('INFO', `Received Invalid Session packet. Resumable: ${resumable}`);
         if (!resumable) {
-            this.#ws?.end(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+            this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
         }
         else {
-            this.#ws?.end(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+            this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
         }
         this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
     }

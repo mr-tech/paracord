@@ -1,5 +1,5 @@
 /* eslint-disable no-sync */
-import grpc, { ServerCredentials } from '@grpc/grpc-js';
+import * as grpc from '@grpc/grpc-js';
 
 import { Api, RateLimitCache, IApiOptions } from '../../clients';
 import {
@@ -32,7 +32,7 @@ export default class RpcServer extends grpc.Server {
   #port: string | number;
 
   /** GRPC channel to receive connections with. */
-  #channel: ServerCredentials;
+  #channel: grpc.ServerCredentials;
 
   /**
    * Creates a new rpc Server.
@@ -53,7 +53,7 @@ export default class RpcServer extends grpc.Server {
   }
 
   /** Establishes the arguments that will be passed to `bindAsync()` when starting the server. */
-  private get bindArgs(): [string, ServerCredentials, (e: Error | null, port?: undefined | number) => void] {
+  private get bindArgs(): [string, grpc.ServerCredentials, (e: Error | null, port?: undefined | number) => void] {
     const callback = (e: Error | null) => {
       if (e !== null) {
         this.emit('DEBUG', {

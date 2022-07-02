@@ -1,4 +1,4 @@
-import uWs, { WebSocket } from 'uWebSockets.js';
+import ws from 'ws';
 import { EventEmitter } from 'events';
 
 import Api from '../Api';
@@ -49,7 +49,7 @@ export default class Gateway {
   #api?: undefined | Api;
 
   /** Websocket used to connect to gateway. */
-  #ws?: undefined | WebSocket;
+  #ws?: undefined | ws;
 
   /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
   #wsUrl?: undefined | string;
@@ -200,7 +200,7 @@ export default class Gateway {
   }
 
   /** This gateway's active websocket connection. */
-  public get ws(): WebSocket | undefined {
+  public get ws(): ws | undefined {
     return this.#ws;
   }
 
@@ -291,7 +291,7 @@ export default class Gateway {
    * Connects to Discord's event gateway.
    * @param _Websocket Ignore. For unittest dependency injection only.
    */
-  public login = async (): Promise<void> => {
+  public login = async (_websocket = ws): Promise<void> => {
     if (this.#ws !== undefined) {
       throw Error('Client is already connected.');
     }
@@ -319,14 +319,9 @@ export default class Gateway {
       if (this.#wsUrl !== undefined) {
         this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
 
-        uWs.App().ws(this.#wsUrl, {
-          maxPayloadLength: GIGABYTE_IN_BYTES,
-          open: this._onopen,
-          message: this._onmessage,
-          close: this._onclose,
-        });
+        this.#ws = new _websocket(this.#wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
 
-        // this.assignWebsocketMethods(this.#ws);
+        this.assignWebsocketMethods(this.#ws);
       } else {
         this.log('ERROR', 'Failed to get websocket url.');
       }
@@ -401,13 +396,13 @@ export default class Gateway {
     }
   }
 
-  // /** Binds `this` to methods used by the websocket. */
-  // private assignWebsocketMethods(websocket: ws): void {
-  //   websocket.onopen = this._onopen;
-  //   websocket.onerror = this._onerror;
-  //   websocket.onclose = this._onclose;
-  //   websocket.onmessage = this._onmessage;
-  // }
+  /** Binds `this` to methods used by the websocket. */
+  private assignWebsocketMethods(websocket: ws): void {
+    websocket.onopen = this._onopen;
+    websocket.onerror = this._onerror;
+    websocket.onclose = this._onclose;
+    websocket.onmessage = this._onmessage;
+  }
 
   /**
    * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
@@ -463,7 +458,7 @@ export default class Gateway {
   //       code = USER_TERMINATE_RECONNECT;
   //     }
 
-  //     this.#ws.end(code);
+  //     this.#ws.close(code);
   //   } else {
   //     /* eslint-disable-next-line no-console */
   //     console.warn('websocket not open');
@@ -477,10 +472,9 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onopen`. */
-  private _onopen = (ws: WebSocket): void => {
+  private _onopen = (): void => {
     this.log('DEBUG', 'Websocket open.');
 
-    this.#ws = ws;
     this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
 
     if (this.#isStartingFunction !== undefined) {
@@ -501,27 +495,38 @@ export default class Gateway {
 
   /*
    ********************************
+   ******* WEBSOCKET - ERROR ******
+   ********************************
+   */
+
+  /** Assigned to websocket `onerror`. */
+  private _onerror = (err: ws.ErrorEvent): void => {
+    this.log('ERROR', `Websocket error. Message: ${err.message}`);
+  };
+
+  /*
+   ********************************
    ****** WEBSOCKET - CLOSE *******
    ********************************
    */
 
   /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
-   * @param code Object containing information about the close.
+   * @param event Object containing information about the close.
    */
-  private _onclose = (_: WebSocket, code: number): void => {
+  private _onclose = (event: ws.CloseEvent): void => {
     this.#ws = undefined;
     this.#online = false;
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
     this.clearHeartbeat();
-    const shouldReconnect = this.handleCloseCode(code);
+    const shouldReconnect = this.handleCloseCode(event.code);
 
     this.#wsRateLimitCache = {
       remainingRequests: GATEWAY_MAX_REQUESTS_PER_MINUTE,
       resetTimestamp: 0,
     };
 
-    const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code, gateway: this };
+    const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
     this.handleEvent('GATEWAY_CLOSE', gatewayCloseEvent);
   };
 
@@ -529,7 +534,7 @@ export default class Gateway {
    * @param code Code that came with the websocket close event.
    * @return Whether or not the client should attempt to login again.
    */
-  private handleCloseCode(code: number): boolean {
+  private handleCloseCode(code: ws.CloseEvent['code']): boolean {
     const {
       CLEAN,
       GOING_AWAY,
@@ -708,17 +713,12 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onmessage`. */
-  private _onmessage = (_: WebSocket, data: ArrayBuffer): void => {
-    // if (typeof data === 'string') {
-    //   return this.handleMessage(JSON.parse(data.toString()));
-    // }
-
+  private _onmessage = ({ data }: ws.MessageEvent): void => {
     if (this.#zlibInflate) {
       return this.decompress(this.#zlibInflate, data);
     }
 
-    // return undefined;
-    return this.handleMessage(JSON.parse(Buffer.from(data).toString()));
+    return this.handleMessage(JSON.parse(data.toString()));
   };
 
   private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
@@ -787,7 +787,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
-        this.#ws?.end(GATEWAY_CLOSE_CODES.RECONNECT);
+        this.#ws?.close(GATEWAY_CLOSE_CODES.RECONNECT);
         break;
 
       default:
@@ -919,7 +919,7 @@ export default class Gateway {
     }
 
     if (close) {
-      this.#ws?.end(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     } else {
       if (this.#heartbeatAckTimeout) clearTimeout(this.#heartbeatAckTimeout);
       this.#heartbeatAckTimeout = undefined;
@@ -996,7 +996,7 @@ export default class Gateway {
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
       this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-      this.#ws?.end(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
 
@@ -1020,7 +1020,7 @@ export default class Gateway {
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
   private send(op: number, data: Heartbeat | GatewayIdentify | GuildRequestMember | Resume): boolean {
-    if (this.canSendPacket(op) && this.#ws) {
+    if (this.canSendPacket(op) && this.#ws?.readyState === ws.OPEN) {
       const payload = { op, d: data };
 
       this.#ws.send(JSON.stringify(payload));
@@ -1086,9 +1086,9 @@ export default class Gateway {
     );
 
     if (!resumable) {
-      this.#ws?.end(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
     } else {
-      this.#ws?.end(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+      this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
     }
 
     this.handleEvent('INVALID_SESSION', { gateway: this, resumable });

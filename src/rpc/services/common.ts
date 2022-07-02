@@ -1,5 +1,5 @@
-import grpc, { GrpcObject } from '@grpc/grpc-js';
-import protoLoader, { PackageDefinition } from '@grpc/proto-loader';
+import * as grpc from '@grpc/grpc-js';
+import * as protoLoader from '@grpc/proto-loader';
 
 import type { IServerOptions } from '../../@types';
 
@@ -7,7 +7,7 @@ import type { IServerOptions } from '../../@types';
  * Load in a protobuf from a file.
  * @param proto Name of the proto file.
  */
-export function loadProto<T extends PackageDefinition>(proto: string): T {
+export function loadProto<T extends protoLoader.PackageDefinition>(proto: string): T {
   const protoPath = __filename.replace(
     'services/common.js',
     `protobufs/${proto}.proto`,
@@ -20,7 +20,7 @@ export function loadProto<T extends PackageDefinition>(proto: string): T {
  * Create the proto definition from a loaded into protobuf.
  * @param proto Name of the proto file.
  */
-export function loadProtoDefinition(proto: string): GrpcObject {
+export function loadProtoDefinition(proto: string): grpc.GrpcObject {
   return grpc.loadPackageDefinition(loadProto(proto));
 }
 
