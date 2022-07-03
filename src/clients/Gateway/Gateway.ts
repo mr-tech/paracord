@@ -873,11 +873,13 @@ export default class Gateway {
   private refreshHeartbeatTimeout = () => {
     if (this.#heartbeatIntervalTime !== undefined) {
       if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
-      this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, this.#heartbeatIntervalTime);
 
-      const randomOffset = (Math.floor(Math.random() * 6) * SECOND_IN_MILLISECONDS);
+      const randomOffset = (Math.floor(Math.random() * 5) * SECOND_IN_MILLISECONDS);
+      const nextSendTime = this.#heartbeatIntervalTime - randomOffset;
+      this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, nextSendTime);
+
       const now = new Date().getTime();
-      this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime - randomOffset;
+      this.#nextHeartbeatTimestamp = now + nextSendTime;
     } else {
       this.log('ERROR', 'heartbeatIntervalTime undefined.');
     }
