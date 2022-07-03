@@ -220,14 +220,6 @@ export default class Gateway {
     return this.#nextHeartbeatTimestamp;
   }
 
-  public get memberRequestStates(): Map<string, GuildChunkState> {
-    return this.#requestingMembersStateMap;
-  }
-
-  public get requestingMembers(): boolean {
-    return !!this.#requestingMembersStateMap.size;
-  }
-
   /*
    ********************************
    *********** INTERNAL ***********
@@ -414,10 +406,10 @@ export default class Gateway {
     if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GUILD_MEMBERS_CHUNK_EVENT);
 
     if (this.#emitter.eventHandler !== undefined) {
-      data = await this.#emitter.eventHandler(type, data, this.id);
+      await this.#emitter.eventHandler(type, data, this.id);
+    } else {
+      this.emit(type, data);
     }
-
-    data && this.emit(type, data);
   }
 
   private handleGuildMemberChunk(data: GUILD_MEMBERS_CHUNK_EVENT): void {
@@ -428,12 +420,12 @@ export default class Gateway {
       if (not_found) {
         this.#requestingMembersStateMap.delete(nonce);
       } else {
-        this.updateRestMembersState(nonce, chunk_count, chunk_index);
+        this.updateRequestMembersState(nonce, chunk_count, chunk_index);
       }
     }
   }
 
-  private updateRestMembersState(nonce: string, chunkCount: number, chunkIndex: number) {
+  private updateRequestMembersState(nonce: string, chunkCount: number, chunkIndex: number) {
     const guildChunkState = this.#requestingMembersStateMap.get(nonce);
     if (guildChunkState) {
       const { receivedIndexes } = guildChunkState;
@@ -443,28 +435,6 @@ export default class Gateway {
       }
     }
   }
-
-  // /**
-  //  * Close the websocket.
-  //  * @param option `resume` to reconnect and attempt resume. `reconnect` to reconnect with a new session. Blank to not reconnect.
-  //  */
-  // private terminate(option?: string): void {
-  //   if (this.#ws !== undefined) {
-  //     const { USER_TERMINATE, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT } = GATEWAY_CLOSE_CODES;
-
-  //     let code = USER_TERMINATE;
-  //     if (option === 'resume') {
-  //       code = USER_TERMINATE_RESUMABLE;
-  //     } else if (option === 'reconnect') {
-  //       code = USER_TERMINATE_RECONNECT;
-  //     }
-
-  //     this.#ws.close(code);
-  //   } else {
-  //     /* eslint-disable-next-line no-console */
-  //     console.warn('websocket not open');
-  //   }
-  // }
 
   /*
    ********************************
@@ -483,7 +453,7 @@ export default class Gateway {
       this.#checkIfStartingInterval = setInterval(this.checkIfStarting, 100);
     }
 
-    this.handleEvent('GATEWAY_OPEN', this);
+    this.emit('GATEWAY_OPEN', this);
   };
 
   private checkIfStarting = () => {
@@ -528,7 +498,7 @@ export default class Gateway {
     };
 
     const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
-    this.handleEvent('GATEWAY_CLOSE', gatewayCloseEvent);
+    this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
   };
 
   /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
@@ -760,12 +730,6 @@ export default class Gateway {
           // back pressure may cause the interval to occur too late, hence this check
           this._checkIfShouldHeartbeat();
           this.handleEvent(type, data);
-          //   // defer execution to allow back pressure (which may include critical events like HEARTBEAT_ACK) to process
-          // setImmediate(() => {
-          //   // deferred events will block just as hard on the next pass of the event loop as when they were coming in, hence this second check
-          //   this._checkIfShouldHeartbeat();
-          //   this.handleEvent(type, data);
-          // });
         } else {
           this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
@@ -1012,7 +976,7 @@ export default class Gateway {
       `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`,
     );
 
-    await this.handleEvent('GATEWAY_IDENTIFY', this);
+    this.emit('GATEWAY_IDENTIFY', this);
 
     this.send(GATEWAY_OP_CODES.IDENTIFY, <GatewayIdentify> this.#identity.toJSON());
   }
