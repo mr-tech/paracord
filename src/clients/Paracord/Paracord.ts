@@ -74,7 +74,7 @@ export default class Paracord extends EventEmitter {
   #startingGateway: Gateway | undefined;
 
   /** Gateways left to login on start up before emitting `PARACORD_STARTUP_COMPLETE` event. */
-  #gatewayWaitCount: number;
+  #gatewayWaitCount: null | number;
 
   /** Guilds left to ingest on start up before emitting `PARACORD_STARTUP_COMPLETE` event. */
   #guildWaitCount: number;
@@ -354,7 +354,12 @@ export default class Paracord extends EventEmitter {
 
     this.#gatewayHeartbeats.push(gateway.checkIfShouldHeartbeat);
 
-    ++this.#gatewayWaitCount;
+    if (this.#gatewayWaitCount === null) {
+      this.#gatewayWaitCount = 1;
+    } else {
+      ++this.#gatewayWaitCount;
+    }
+
     this.#gateways.set(gateway.id, gateway);
     this.gatewayLoginQueue.push(gateway);
   }
@@ -435,7 +440,9 @@ export default class Paracord extends EventEmitter {
       if (forced || guildWaitCount === 0) {
         this.completeShardStartup(startingGateway, forced);
 
-        --this.#gatewayWaitCount === 0 && this.completeStartup();
+        if (typeof this.#gatewayWaitCount === 'number' && --this.#gatewayWaitCount === 0) {
+          this.completeStartup();
+        }
       } else if (guildWaitCount !== undefined && guildWaitCount < 0) {
         const message = `Shard ${startingGateway.id} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${this.#guildWaitCount}`;
         this.log('WARNING', message);
@@ -481,7 +488,7 @@ export default class Paracord extends EventEmitter {
 
     this.log('INFO', message);
     this.emit('PARACORD_STARTUP_COMPLETE');
-    // this.removeInactiveUsersFromCache();
+    this.#gatewayWaitCount = null;
   }
 
   /**

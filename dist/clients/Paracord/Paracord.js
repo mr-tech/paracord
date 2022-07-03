@@ -215,7 +215,12 @@ class Paracord extends events_1.EventEmitter {
             throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
         }
         this.#gatewayHeartbeats.push(gateway.checkIfShouldHeartbeat);
-        ++this.#gatewayWaitCount;
+        if (this.#gatewayWaitCount === null) {
+            this.#gatewayWaitCount = 1;
+        }
+        else {
+            ++this.#gatewayWaitCount;
+        }
         this.#gateways.set(gateway.id, gateway);
         this.gatewayLoginQueue.push(gateway);
     }
@@ -258,7 +263,9 @@ class Paracord extends events_1.EventEmitter {
         if (startingGateway !== undefined) {
             if (forced || guildWaitCount === 0) {
                 this.completeShardStartup(startingGateway, forced);
-                --this.#gatewayWaitCount === 0 && this.completeStartup();
+                if (typeof this.#gatewayWaitCount === 'number' && --this.#gatewayWaitCount === 0) {
+                    this.completeStartup();
+                }
             }
             else if (guildWaitCount !== undefined && guildWaitCount < 0) {
                 const message = `Shard ${startingGateway.id} - guildWaitCount is less than 0. This should not happen. guildWaitCount value: ${this.#guildWaitCount}`;
@@ -297,6 +304,7 @@ class Paracord extends events_1.EventEmitter {
         }
         this.log('INFO', message);
         this.emit('PARACORD_STARTUP_COMPLETE');
+        this.#gatewayWaitCount = null;
     }
     handleGatewayReady(data) {
         const { user, guilds } = data;
