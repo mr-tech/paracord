@@ -7,6 +7,7 @@ import {
   DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES,
   GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER,
   GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS,
+  SECOND_IN_MILLISECONDS,
   ZLIB_CHUNKS_SIZE,
 } from '../../constants';
 
@@ -874,8 +875,9 @@ export default class Gateway {
       if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
       this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, this.#heartbeatIntervalTime);
 
+      const randomOffset = (Math.floor(Math.random() * 6) * SECOND_IN_MILLISECONDS);
       const now = new Date().getTime();
-      this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
+      this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime - randomOffset;
     } else {
       this.log('ERROR', 'heartbeatIntervalTime undefined.');
     }

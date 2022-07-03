@@ -2,9 +2,7 @@ import type { EventEmitter } from 'events';
 import type * as Api from '../Api';
 import type Gateway from './Gateway';
 import type { UserEvents } from '../../@types';
-import type {
-  IdentifyConnectionProperties, GatewayPresenceUpdate, Presence, Snowflake, AugmentedGuildMember,
-} from '../../discord';
+import type { IdentifyConnectionProperties, GatewayPresenceUpdate } from '../../discord';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
