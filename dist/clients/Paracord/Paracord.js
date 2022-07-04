@@ -79,12 +79,6 @@ class Paracord extends events_1.EventEmitter {
             case 'READY':
                 this.handleGatewayReady(data);
                 break;
-            case 'GATEWAY_IDENTIFY':
-                this.handleGatewayIdentify(data);
-                break;
-            case 'GATEWAY_CLOSE':
-                this.handleGatewayClose(data);
-                break;
             default:
         }
         if (this.#startingGateway?.id === shard && this.#guildWaitCount !== undefined) {
@@ -104,6 +98,15 @@ class Paracord extends events_1.EventEmitter {
         });
     }
     emit(event, ...args) {
+        switch (event) {
+            case 'GATEWAY_IDENTIFY':
+                this.handleGatewayIdentify(args[0]);
+                break;
+            case 'GATEWAY_CLOSE':
+                this.handleGatewayClose(args[0]);
+                break;
+            default:
+        }
         const events = this.#events;
         if (events === undefined) {
             return super.emit(event, ...args);

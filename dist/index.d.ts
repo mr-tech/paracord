@@ -605,8 +605,6 @@ export declare class Gateway {
     get heartbeatAck(): boolean;
     get lastHeartbeatTimestamp(): number | undefined;
     get nextHeartbeatTimestamp(): number | undefined;
-    get memberRequestStates(): Map<string, GuildChunkState>;
-    get requestingMembers(): boolean;
     private log;
     private emit;
     requestGuildMembers(options: GuildRequestMember): boolean;
@@ -616,7 +614,7 @@ export declare class Gateway {
     private assignWebsocketMethods;
     private handleEvent;
     private handleGuildMemberChunk;
-    private updateRestMembersState;
+    private updateRequestMembersState;
     private _onopen;
     private checkIfStarting;
     private _onerror;
@@ -928,10 +926,6 @@ export declare type GuildCategoryChannel = {
 } & Pick<Required<Channel>, 'guild_id' | 'id' | 'nsfw' | 'parent_id' | 'permission_overwrites' | 'position' | 'type'>;
 
 export declare type GuildChannel = GuildTextChannel | GuildVoiceChannel | GuildCategoryChannel | GuildNewsChannel | GuildStageVoiceChannel;
-
-declare interface GuildChunkState {
-    receivedIndexes: number[];
-}
 
 export declare interface GuildEmoji extends Emoji {
     id: Snowflake;

@@ -139,12 +139,6 @@ class Gateway {
     get nextHeartbeatTimestamp() {
         return this.#nextHeartbeatTimestamp;
     }
-    get memberRequestStates() {
-        return this.#requestingMembersStateMap;
-    }
-    get requestingMembers() {
-        return !!this.#requestingMembersStateMap.size;
-    }
     log(level, message, data = {}) {
         data.shard = this.id;
         this.emit('DEBUG', {
@@ -253,9 +247,11 @@ class Gateway {
         if (type === 'GUILD_MEMBERS_CHUNK')
             this.handleGuildMemberChunk(data);
         if (this.#emitter.eventHandler !== undefined) {
-            data = await this.#emitter.eventHandler(type, data, this.id);
+            await this.#emitter.eventHandler(type, data, this.id);
         }
-        data && this.emit(type, data);
+        else {
+            this.emit(type, data);
+        }
     }
     handleGuildMemberChunk(data) {
         const { nonce, not_found, chunk_count, chunk_index, } = data;
@@ -264,11 +260,11 @@ class Gateway {
                 this.#requestingMembersStateMap.delete(nonce);
             }
             else {
-                this.updateRestMembersState(nonce, chunk_count, chunk_index);
+                this.updateRequestMembersState(nonce, chunk_count, chunk_index);
             }
         }
     }
-    updateRestMembersState(nonce, chunkCount, chunkIndex) {
+    updateRequestMembersState(nonce, chunkCount, chunkIndex) {
         const guildChunkState = this.#requestingMembersStateMap.get(nonce);
         if (guildChunkState) {
             const { receivedIndexes } = guildChunkState;
@@ -285,7 +281,7 @@ class Gateway {
             this.#isStarting = this.#isStartingFunction(this);
             this.#checkIfStartingInterval = setInterval(this.checkIfStarting, 100);
         }
-        this.handleEvent('GATEWAY_OPEN', this);
+        this.emit('GATEWAY_OPEN', this);
     };
     checkIfStarting = () => {
         this.#isStarting = !!(this.#isStartingFunction && this.#isStartingFunction(this));
@@ -311,7 +307,7 @@ class Gateway {
             resetTimestamp: 0,
         };
         const gatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
-        this.handleEvent('GATEWAY_CLOSE', gatewayCloseEvent);
+        this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
     };
     handleCloseCode(code) {
         const { CLEAN, GOING_AWAY, ABNORMAL, UNKNOWN_ERROR, UNKNOWN_OPCODE, DECODE_ERROR, NOT_AUTHENTICATED, AUTHENTICATION_FAILED, ALREADY_AUTHENTICATED, SESSION_NO_LONGER_VALID, INVALID_SEQ, RATE_LIMITED, SESSION_TIMEOUT, INVALID_SHARD, SHARDING_REQUIRED, INVALID_VERSION, INVALID_INTENT, DISALLOWED_INTENT, RECONNECT, SESSION_INVALIDATED, SESSION_INVALIDATED_RESUMABLE, HEARTBEAT_TIMEOUT, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT, USER_TERMINATE, UNKNOWN, } = constants_1.GATEWAY_CLOSE_CODES;
@@ -552,9 +548,11 @@ class Gateway {
         if (this.#heartbeatIntervalTime !== undefined) {
             if (this.#heartbeatTimeout !== undefined)
                 clearTimeout(this.#heartbeatTimeout);
-            this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, this.#heartbeatIntervalTime);
+            const randomOffset = (Math.floor(Math.random() * 5) * constants_1.SECOND_IN_MILLISECONDS);
+            const nextSendTime = this.#heartbeatIntervalTime - randomOffset;
+            this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, nextSendTime);
             const now = new Date().getTime();
-            this.#nextHeartbeatTimestamp = now + this.#heartbeatIntervalTime;
+            this.#nextHeartbeatTimestamp = now + nextSendTime;
         }
         else {
             this.log('ERROR', 'heartbeatIntervalTime undefined.');
@@ -668,7 +666,7 @@ class Gateway {
     async identify() {
         const [shardId, shardCount] = this.shard ?? [0, 1];
         this.log('INFO', `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`);
-        await this.handleEvent('GATEWAY_IDENTIFY', this);
+        this.emit('GATEWAY_IDENTIFY', this);
         this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this.#identity.toJSON());
     }
     send(op, data) {
