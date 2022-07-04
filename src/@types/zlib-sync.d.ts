@@ -1,6 +1,3 @@
-// eslint-disable-next-line spaced-comment
-/// <reference types="node" />
-
 declare module 'zlib-sync' {
   export class Inflate {
     constructor(options: any);

@@ -1,7 +1,7 @@
 {
   "projectFolder": ".",
   "mainEntryPointFilePath": "./build/index.d.ts",
-  "bundledPackages": [],
+  "bundledPackages": ["pm2"],
   "compiler": {
     "tsconfigFilePath": "./tsconfig.json",
     "overrideTsconfig": {

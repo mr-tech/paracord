@@ -15,9 +15,6 @@ import('pm2')
     pm2 = _pm2;
   }).catch(() => { /* do nothing */ });
 
-/* eslint-disable-next-line @typescript-eslint/no-var-requires */
-// const pm2: typeof pm2Type = require('pm2');
-
 function validateShard(shard: number, shardCount: number): void {
   if (shard > shardCount - 1) {
     throw Error(`shard id ${shard} exceeds max shard id of ${shardCount - 1}`);
