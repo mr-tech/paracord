@@ -209,6 +209,9 @@ class Gateway {
             this.#loggingIn = false;
         }
     };
+    close(reconnect = true) {
+        this.#ws?.close(reconnect ? constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT : constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE);
+    }
     async getWebsocketUrl() {
         if (this.#api === undefined) {
             this.#api = new Api_1.default(this.#identity.token);
@@ -548,7 +551,7 @@ class Gateway {
         if (this.#heartbeatIntervalTime !== undefined) {
             if (this.#heartbeatTimeout !== undefined)
                 clearTimeout(this.#heartbeatTimeout);
-            const randomOffset = (Math.floor(Math.random() * 5) * constants_1.SECOND_IN_MILLISECONDS);
+            const randomOffset = Math.random() * 5 * constants_1.SECOND_IN_MILLISECONDS;
             const nextSendTime = this.#heartbeatIntervalTime - randomOffset;
             this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, nextSendTime);
             const now = new Date().getTime();

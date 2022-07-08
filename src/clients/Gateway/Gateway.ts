@@ -336,6 +336,14 @@ export default class Gateway {
   };
 
   /**
+   * Closes the connection.
+   * @param reconnect Whether to reconnect after closing.
+   */
+  public close(reconnect = true) {
+    this.#ws?.close(reconnect ? GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT : GATEWAY_CLOSE_CODES.USER_TERMINATE);
+  }
+
+  /**
    * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
    * @returns Url if status === 200; or undefined if status !== 200.
    */
@@ -692,6 +700,7 @@ export default class Gateway {
     return this.handleMessage(JSON.parse(data.toString()));
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
     if (data instanceof ArrayBuffer) data = new Uint8Array(data);
 
@@ -838,7 +847,7 @@ export default class Gateway {
     if (this.#heartbeatIntervalTime !== undefined) {
       if (this.#heartbeatTimeout !== undefined) clearTimeout(this.#heartbeatTimeout);
 
-      const randomOffset = (Math.floor(Math.random() * 5) * SECOND_IN_MILLISECONDS);
+      const randomOffset = Math.random() * 5 * SECOND_IN_MILLISECONDS;
       const nextSendTime = this.#heartbeatIntervalTime - randomOffset;
       this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, nextSendTime);
 

@@ -608,6 +608,7 @@ export declare class Gateway {
     private emit;
     requestGuildMembers(options: GuildRequestMember): boolean;
     login: (_websocket?: typeof ws) => Promise<void>;
+    close(reconnect?: boolean): void;
     private getWebsocketUrl;
     private handleBadStatus;
     private assignWebsocketMethods;
