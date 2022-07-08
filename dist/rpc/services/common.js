@@ -26,15 +26,27 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.mergeOptionsWithDefaults = exports.loadProtoDefinition = exports.loadProto = void 0;
 const grpc = __importStar(require("@grpc/grpc-js"));
 const protoLoader = __importStar(require("@grpc/proto-loader"));
+/**
+ * Load in a protobuf from a file.
+ * @param proto Name of the proto file.
+ */
 function loadProto(proto) {
     const protoPath = __filename.replace('services/common.js', `protobufs/${proto}.proto`);
     return protoLoader.loadSync(protoPath, { keepCase: true });
 }
 exports.loadProto = loadProto;
+/**
+ * Create the proto definition from a loaded into protobuf.
+ * @param proto Name of the proto file.
+ */
 function loadProtoDefinition(proto) {
     return grpc.loadPackageDefinition(loadProto(proto));
 }
 exports.loadProtoDefinition = loadProtoDefinition;
+/**
+ * Create the parameters passed to a service definition constructor.
+ * @param options
+ */
 function mergeOptionsWithDefaults(options) {
     const host = options.host ?? '127.0.0.1';
     const port = options.port ?? '50051';

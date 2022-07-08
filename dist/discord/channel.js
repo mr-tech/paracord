@@ -1,10 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MessageFlags = exports.ChannelFlags = void 0;
+// ========================================================================
 var ChannelFlags;
 (function (ChannelFlags) {
     ChannelFlags[ChannelFlags["PINNED"] = 2] = "PINNED";
 })(ChannelFlags = exports.ChannelFlags || (exports.ChannelFlags = {}));
+// ========================================================================
 var MessageFlags;
 (function (MessageFlags) {
     MessageFlags[MessageFlags["CROSSPOSTED"] = 1] = "CROSSPOSTED";

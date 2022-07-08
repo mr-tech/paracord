@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ApplicationFlags = void 0;
+// ========================================================================
 var ApplicationFlags;
 (function (ApplicationFlags) {
     ApplicationFlags[ApplicationFlags["GATEWAY_PRESENCE"] = 4096] = "GATEWAY_PRESENCE";

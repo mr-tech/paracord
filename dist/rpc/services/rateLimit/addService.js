@@ -5,6 +5,10 @@ const constants_1 = require("../../../constants");
 const structures_1 = require("../../structures");
 const common_1 = require("../common");
 const rateLimitProto = (0, common_1.loadProto)('rate_limit');
+/**
+ * Create callback functions for the rate limit service.
+ * @param server
+ */
 exports.default = (server) => {
     server.rateLimitCache.startSweepInterval();
     server.addService(rateLimitProto.RateLimitService, {

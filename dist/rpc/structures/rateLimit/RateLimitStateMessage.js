@@ -4,18 +4,33 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const RequestMetaMessage_1 = __importDefault(require("./RequestMetaMessage"));
+/** A class for the RateLimitStateMessage protobuf. */
 class RateLimitStateMessage {
+    /** Meta data from the requests used to identify the rate limit. */
     requestMeta;
+    /** From Discord - If the request was globally rate limited. */
     global;
+    /** From Discord - Id of the rate limit bucket. */
     bucketHash;
+    /** From Discord - Number of requests that can be made between rate limit triggers. */
     limit;
+    /** From Discord - Number of requests available before hitting rate limit. */
     remaining;
+    /** From Discord - How long in ms the rate limit resets. */
     resetAfter;
     retryAfter;
+    /**
+     * Translates the rpc message into an instance of this class.
+     * @param message Message received by server.
+     */
     static fromProto(message) {
         RateLimitStateMessage.validateIncoming(message);
         return new RateLimitStateMessage(RequestMetaMessage_1.default.fromProto(message.request_meta), message.global, message.bucket_hash, message.limit, message.remaining, message.reset_after, message.retry_after);
     }
+    /**
+     * Verifies that the message being sent is valid.
+     * @param message Message being sent to server.
+     */
     static validateOutgoing(message) {
         const { requestMeta, global, bucketHash, remaining, resetAfter, limit, } = message;
         if (requestMeta === undefined
@@ -37,6 +52,10 @@ class RateLimitStateMessage {
             }
         }
     }
+    /**
+     * Validates that the message being received is valid.
+     * @param message Message received by server.
+     */
     static validateIncoming(message) {
         if (message.request_meta === undefined) {
             throw Error("received invalid message. missing property 'request_meta'");
@@ -56,6 +75,16 @@ class RateLimitStateMessage {
             }
         }
     }
+    /**
+     * Creates a new RateLimitStateMessage sent from client to server.
+     * @param requestMeta Meta data from the requests used to identify the rate limit.
+     * @param global From Discord - If the request was globally rate limited.
+     * @param bucketHash From Discord - Id of the rate limit bucket.
+     * @param limit From Discord - Number of requests that can be made between rate limit triggers.
+     * @param remaining From Discord - Number of requests available before hitting rate limit.
+     * @param resetAfter From Discord - How long in ms the rate limit resets.
+     * @param retryAfter From Discord - How long in ms the rate limit resets. (Sub limits)
+     */
     constructor(requestMeta, global, bucketHash, limit, remaining, resetAfter, retryAfter) {
         this.requestMeta = requestMeta;
         this.global = global || false;
@@ -65,6 +94,7 @@ class RateLimitStateMessage {
         this.resetAfter = resetAfter;
         this.retryAfter = retryAfter;
     }
+    /** The properties of this message formatted for sending over rpc. */
     get proto() {
         RateLimitStateMessage.validateOutgoing(this);
         return {

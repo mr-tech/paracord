@@ -4,7 +4,6 @@
     "target": "es2022",
     "outDir": "./dist",
     "rootDir": "./src",
-    "removeComments": true,
     "strict": true,
     "esModuleInterop": true,
     "noImplicitReturns": true,

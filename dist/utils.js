@@ -2,34 +2,66 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.stripLeadingSlash = exports.isApiError = exports.isObject = exports.constructGuildIcon = exports.constructUserAvatarUrl = exports.computeGuildPerms = exports.computeChannelPerms = exports.coerceTokenToBotLike = exports.timestampFromSnowflake = exports.millisecondsFromNow = exports.timestampNMillisecondsInFuture = exports.timestampNSecondsInFuture = exports.clone = void 0;
 const constants_1 = require("./constants");
+/**
+ * Returns a new object that is a clone of the original.
+ * @param object Object to clone.
+ */
 function clone(object) {
     return JSON.parse(JSON.stringify(object));
 }
 exports.clone = clone;
+/**
+ * Returns a timestamp of some time in the future.
+ * @param seconds Number of seconds from now to base the timestamp on.
+ */
 function timestampNSecondsInFuture(seconds) {
     return new Date().getTime() + (Number(seconds) * constants_1.SECOND_IN_MILLISECONDS);
 }
 exports.timestampNSecondsInFuture = timestampNSecondsInFuture;
+/**
+ * Returns a timestamp of some time in the future.
+ * @param milliseconds Number of milliseconds from now to base the timestamp on.
+ */
 function timestampNMillisecondsInFuture(milliseconds) {
     return new Date().getTime() + Number(milliseconds);
 }
 exports.timestampNMillisecondsInFuture = timestampNMillisecondsInFuture;
+/**
+ * Returns a timestamp of some time in the future. -1 if provide timestamp has already passed
+ * @param timestamp Unix timestamp.
+ */
 function millisecondsFromNow(timestamp) {
     const now = new Date().getTime();
     return timestamp < now ? -1 : timestamp - now;
 }
 exports.millisecondsFromNow = millisecondsFromNow;
+/**
+ * Extract a timestamp from a Discord snowflake.
+ * @param snowflake Discord snowflake.
+ */
 function timestampFromSnowflake(snowflake) {
     const bits = BigInt(snowflake).toString(2).padStart(64, '0');
     return parseInt(bits.substring(0, 42), 2) + constants_1.DISCORD_EPOCH;
 }
 exports.timestampFromSnowflake = timestampFromSnowflake;
+/**
+ * This is a bot library. Coerced non-compliant tokens to be bot-like.
+ * @param token Discord token.
+ */
 function coerceTokenToBotLike(token) {
     if (!token.startsWith('Bot '))
         return `Bot ${token}`;
     return token;
 }
 exports.coerceTokenToBotLike = coerceTokenToBotLike;
+/**
+ * Compute a member's channel-level permissions.
+ * @param member GuildMember whose perms to check.
+ * @param guild Guild in which to check the member's permissions.
+ * @param channel Channel in which to check the member's permissions.
+ * @param stopOnOwnerAdmin Whether or not to stop and return the Administrator perm if the user qualifies.
+ * @returns The Administrator perm or the new perms.
+ */
 function computeChannelPerms({ member, guild, channel, stopOnOwnerAdmin = true, }) {
     const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
     if (stopOnOwnerAdmin && guildPerms & constants_1.PERMISSIONS.ADMINISTRATOR) {
@@ -38,6 +70,13 @@ function computeChannelPerms({ member, guild, channel, stopOnOwnerAdmin = true, 
     return computeChannelOverwrites(guildPerms, member, guild, channel);
 }
 exports.computeChannelPerms = computeChannelPerms;
+/**
+ * Compute a member's guild-level permissions.
+ * @param member GuildMember whose perms to check.
+ * @param guild Guild in which to check the member's permissions.
+ * @param stopOnOwnerAdmin Whether or not to stop and return the Administrator perm if the user qualifies.
+ * @returns The Administrator perm or the new perms in BigInt form.
+ */
 function computeGuildPerms({ member, guild, stopOnOwnerAdmin = true }) {
     const { roles: guildRoles } = guild;
     if (guildRoles === undefined)
@@ -55,9 +94,10 @@ function computeGuildPerms({ member, guild, stopOnOwnerAdmin = true }) {
     }
     const everyone = guildRoles.find(({ id }) => id === guild.id);
     if (everyone === undefined)
-        throw Error('no everyone role for this guild');
+        throw Error('no everyone role for this guild'); // should never trigger
     if (everyone.permissions === undefined)
         throw Error('permissions are not cached on roles');
+    // start with @everyone perms
     let perms = BigInt(everyone.permissions);
     for (const role of memberRoles) {
         perms |= BigInt(role.permissions);
@@ -65,6 +105,14 @@ function computeGuildPerms({ member, guild, stopOnOwnerAdmin = true }) {
     return perms;
 }
 exports.computeGuildPerms = computeGuildPerms;
+/**
+ * Compute the channel's overriding permissions against the member's channel-level permissions.
+ * @param perms GuildMember's channel-level permissions.
+ * @param member GuildMember whose perms to check.
+ * @param guild Guild in which to check the member's permissions.
+ * @param channel Channel in which to check the member's permissions.
+ * @returns The new perms.
+ */
 function computeChannelOverwrites(perms, member, guild, channel) {
     const { permission_overwrites: overwrites } = channel;
     if (overwrites === undefined)
@@ -91,11 +139,24 @@ function computeChannelOverwrites(perms, member, guild, channel) {
     perms = _applyOverwrites(perms, memberOverwrites);
     return perms;
 }
+/**
+ * When computing channel overwrites, applies the "@everyone" overwrite.
+ * @param perms GuildMember's channel-level permissions.
+ * @param overwrites Channel's overwrites.
+ * @param guildId id of the guild in which the permissions are being checked.
+ * @returns The new perms.
+ */
 function _applyEveryoneOverwrites(perms, overwrite) {
     perms &= ~BigInt(overwrite.deny);
     perms |= BigInt(overwrite.allow);
     return perms;
 }
+/**
+ * When computing channel overwrites, applies the role overwrites.
+ * @param perms GuildMember's channel-level permissions.
+ * @param overwrites Channel's overwrites.
+ * @returns The new perms.
+ */
 function _applyOverwrites(perms, overwrites) {
     let deny = BigInt(0);
     let allow = BigInt(0);
@@ -107,6 +168,11 @@ function _applyOverwrites(perms, overwrites) {
     perms |= allow;
     return perms;
 }
+/**
+ * Creates the discord cdn link for a user's avatar.
+ * @param user User whose avatar url to generate.
+ * @param fileType File extension of the image.
+ */
 function constructUserAvatarUrl(user, { fileType = 'jpg', animate = false } = {}) {
     if (user.avatar === null) {
         return `${constants_1.DISCORD_CDN_URL}/embed/avatars/${Number(user.discriminator) % 5}.${fileType}`;
@@ -117,6 +183,11 @@ function constructUserAvatarUrl(user, { fileType = 'jpg', animate = false } = {}
     return `${constants_1.DISCORD_CDN_URL}/avatars/${user.id}/${user.avatar}${fileType ? `.${fileType}` : ''}`;
 }
 exports.constructUserAvatarUrl = constructUserAvatarUrl;
+/**
+ * Creates the discord cdn link for a guild's icon.
+ * @param guild Guild whose icon url to generate.s
+ * @param fileType File extension of the image.
+ */
 function constructGuildIcon(guild, fileType = '') {
     if (guild.icon_hash === null || guild.icon_hash === undefined)
         return undefined;

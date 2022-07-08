@@ -1,10 +1,15 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+/* eslint-disable callback-return */
 const clients_1 = require("../../../clients");
 const constants_1 = require("../../../constants");
 const structures_1 = require("../../structures");
 const common_1 = require("../common");
 const requestProto = (0, common_1.loadProto)('request');
+/**
+ * Create callback functions for the request service.
+ * @param server
+ */
 exports.default = (server, token, apiOptions = {}) => {
     apiOptions.requestOptions = apiOptions.requestOptions ?? {};
     apiOptions.requestOptions.transformResponse = (data) => data;

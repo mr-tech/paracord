@@ -34,29 +34,45 @@ const constants_1 = require("../../constants");
 const structures_1 = require("./structures");
 let ZlibSync = null;
 let Z_SYNC_FLUSH = 0;
+// eslint-disable-next-line import/no-unresolved
 Promise.resolve().then(() => __importStar(require('zlib-sync'))).then((_zlib) => {
     ZlibSync = _zlib;
     ({ Z_SYNC_FLUSH } = _zlib);
 }).catch(() => { });
+/** A client to handle a Discord gateway connection. */
 class Gateway {
+    /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     #online;
     #loggingIn;
     #options;
+    /** Client through which to make REST api calls to Discord. */
     #api;
+    /** Websocket used to connect to gateway. */
     #ws;
+    /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
     #wsUrl;
+    /** Time to wait between this client's attempts to connect to the gateway in seconds. */
     #wsUrlRetryWait;
     #wsRateLimitCache;
     #zlibInflate = null;
+    /** Discord gateway version to use. Default: 9 */
     #version;
+    /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
     #sequence;
+    /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
+    /** If the last heartbeat packet sent to Discord received an ACK. */
     #heartbeatAck;
+    /** Time when last heartbeat packet was sent in ms. */
     #lastHeartbeatTimestamp;
+    /** Time when the next heartbeat packet should be sent in ms. */
     #nextHeartbeatTimestamp;
+    /** Node timeout for the next heartbeat. */
     #heartbeatTimeout;
     #heartbeatAckTimeout;
+    /** From Discord - Time between heartbeats. */
     #receivedHeartbeatIntervalTime;
+    /** Time between heartbeats with user offset subtracted. */
     #heartbeatIntervalTime;
     #heartbeatIntervalOffset;
     #heartbeatExpectedTimestamp;
@@ -65,12 +81,16 @@ class Gateway {
     #isStartingFunction;
     #isStarting;
     #checkIfStartingInterval;
+    /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
     #emitter;
+    /** Key:Value mapping DISCORD_EVENT to user's preferred emitted value. */
     #events;
+    /** Object passed to Discord when identifying. */
     #identity;
     #checkSiblingHeartbeats;
     #membersRequestCounter;
     #requestingMembersStateMap;
+    /** Amount of identifies reported by the last call to /gateway/bot. */
     lastKnownSessionLimitData;
     static validateOptions(option) {
         if (option.startupHeartbeatTolerance !== undefined && option.isStartingFunc === undefined) {
@@ -81,6 +101,11 @@ class Gateway {
             throw Error("Gateway option 'isStartingFunc' requires 'startupHeartbeatTolerance' larger than 0.");
         }
     }
+    /**
+     * Creates a new Discord gateway handler.
+     * @param token Discord token. Will be coerced into a bot token.
+     * @param options Optional parameters for this handler.
+     */
     constructor(token, options) {
         Gateway.validateOptions(options);
         const { emitter, identity, identity: { shard }, api, wsUrl, events, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc, checkSiblingHeartbeats, } = options;
@@ -112,33 +137,53 @@ class Gateway {
         this.#wsUrlRetryWait = constants_1.DEFAULT_GATEWAY_BOT_WAIT;
         this.#isStarting = false;
     }
+    /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
     get resumable() {
         return this.#sessionId !== undefined && this.#sequence !== null;
     }
+    /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
     get shard() {
         return this.#identity.shard !== undefined ? this.#identity.shard : undefined;
     }
+    /** The shard id that this gateway is connected to. */
     get id() {
         return this.#identity.shard !== undefined ? this.#identity.shard[0] : 0;
     }
+    /** Whether or not the client is connected to the gateway. */
     get connected() {
         return this.#ws !== undefined;
     }
+    /** Whether or not the client is connected to the gateway. */
     get online() {
         return this.#online;
     }
+    /** This gateway's active websocket connection. */
     get ws() {
         return this.#ws;
     }
+    /** If the last heartbeat packet sent to Discord received an ACK. */
     get heartbeatAck() {
         return this.#heartbeatAck;
     }
+    /** Between Heartbeat/ACK, time when last heartbeat packet was sent in ms. */
     get lastHeartbeatTimestamp() {
         return this.#lastHeartbeatTimestamp;
     }
+    /** Time when the next heartbeat packet should be sent in ms. */
     get nextHeartbeatTimestamp() {
         return this.#nextHeartbeatTimestamp;
     }
+    /*
+     ********************************
+     *********** INTERNAL ***********
+     ********************************
+     */
+    /**
+     * Simple alias for logging events emitted by this client.
+     * @param level Key of the logging level of this message.
+     * @param message Content of the log
+     * @param data Data pertinent to the event.
+     */
     log(level, message, data = {}) {
         data.shard = this.id;
         this.emit('DEBUG', {
@@ -148,6 +193,11 @@ class Gateway {
             data,
         });
     }
+    /**
+     * Emits various events through `this.#emitter`, both Discord and Api. Will emit all events if `this.#events` is undefined; otherwise will only emit those defined as keys in the `this.#events` object.
+     * @param type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
+     * @param data Data to send with the event.
+     */
     emit(type, data) {
         if (this.#emitter !== undefined) {
             if (this.#events !== undefined) {
@@ -157,6 +207,16 @@ class Gateway {
             this.#emitter.emit(type, data, this.id);
         }
     }
+    /*
+     ********************************
+     ************ PUBLIC ************
+     ********************************
+     */
+    /**
+     * Sends a `Request Guild Members` websocket message.
+     * @param guildId Id of the guild to request members from.
+     * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
+     */
     requestGuildMembers(options) {
         let { nonce } = options;
         if (nonce === undefined) {
@@ -165,6 +225,10 @@ class Gateway {
         this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
         return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
     }
+    /**
+     * Connects to Discord's event gateway.
+     * @param _Websocket Ignore. For unittest dependency injection only.
+     */
     login = async (_websocket = ws_1.default) => {
         if (this.#ws !== undefined) {
             throw Error('Client is already connected.');
@@ -196,10 +260,12 @@ class Gateway {
         }
         catch (err) {
             if ((0, utils_1.isApiError)(err)) {
-                console.error(err.response?.data?.message);
+                /* eslint-disable-next-line no-console */
+                console.error(err.response?.data?.message); // TODO: emit
             }
             else {
-                console.error(err);
+                /* eslint-disable-next-line no-console */
+                console.error(err); // TODO: emit
             }
             if (this.#ws !== undefined) {
                 this.#ws = undefined;
@@ -209,9 +275,17 @@ class Gateway {
             this.#loggingIn = false;
         }
     };
+    /**
+     * Closes the connection.
+     * @param reconnect Whether to reconnect after closing.
+     */
     close(reconnect = true) {
         this.#ws?.close(reconnect ? constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT : constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE);
     }
+    /**
+     * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
+     * @returns Url if status === 200; or undefined if status !== 200.
+     */
     async getWebsocketUrl() {
         if (this.#api === undefined) {
             this.#api = new Api_1.default(this.#identity.token);
@@ -228,6 +302,13 @@ class Gateway {
         this.handleBadStatus(status, statusText, data.message, data.code);
         return undefined;
     }
+    /**
+     * Emits logging message and sets a timeout to re-attempt login. Throws on 401 status code.
+     * @param status HTTP status code.
+     * @param statusText Status message from Discord.
+     * @param dataMessage Discord's error message.
+     * @param dataCode Discord's error code.
+     */
     handleBadStatus(status, statusText, dataMessage, dataCode) {
         let message = `Failed to get websocket information from API. Status ${status}. Status text: ${statusText}. Discord code: ${dataCode}. Discord message: ${dataMessage}.`;
         if (status !== 401) {
@@ -236,16 +317,23 @@ class Gateway {
             setTimeout(this.login, this.#wsUrlRetryWait);
         }
         else {
+            // 401 is bad token, unable to continue.
             message += ' Please check your token.';
             throw Error(message);
         }
     }
+    /** Binds `this` to methods used by the websocket. */
     assignWebsocketMethods(websocket) {
         websocket.onopen = this._onopen;
         websocket.onerror = this._onerror;
         websocket.onclose = this._onclose;
         websocket.onmessage = this._onmessage;
     }
+    /**
+     * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
+     * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
+     * @param data Data of the event from Discord.
+     */
     async handleEvent(type, data) {
         if (type === 'GUILD_MEMBERS_CHUNK')
             this.handleGuildMemberChunk(data);
@@ -277,6 +365,12 @@ class Gateway {
             }
         }
     }
+    /*
+     ********************************
+     ******* WEBSOCKET - OPEN *******
+     ********************************
+     */
+    /** Assigned to websocket `onopen`. */
     _onopen = () => {
         this.log('DEBUG', 'Websocket open.');
         this.#wsRateLimitCache.remainingRequests = constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE;
@@ -295,9 +389,23 @@ class Gateway {
                 clearInterval(this.#checkIfStartingInterval);
         }
     };
+    /*
+     ********************************
+     ******* WEBSOCKET - ERROR ******
+     ********************************
+     */
+    /** Assigned to websocket `onerror`. */
     _onerror = (err) => {
         this.log('ERROR', `Websocket error. Message: ${err.message}`);
     };
+    /*
+     ********************************
+     ****** WEBSOCKET - CLOSE *******
+     ********************************
+     */
+    /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
+     * @param event Object containing information about the close.
+     */
     _onclose = (event) => {
         this.#ws = undefined;
         this.#online = false;
@@ -312,6 +420,10 @@ class Gateway {
         const gatewayCloseEvent = { shouldReconnect, code: event.code, gateway: this };
         this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
     };
+    /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
+     * @param code Code that came with the websocket close event.
+     * @return Whether or not the client should attempt to login again.
+     */
     handleCloseCode(code) {
         const { CLEAN, GOING_AWAY, ABNORMAL, UNKNOWN_ERROR, UNKNOWN_OPCODE, DECODE_ERROR, NOT_AUTHENTICATED, AUTHENTICATION_FAILED, ALREADY_AUTHENTICATED, SESSION_NO_LONGER_VALID, INVALID_SEQ, RATE_LIMITED, SESSION_TIMEOUT, INVALID_SHARD, SHARDING_REQUIRED, INVALID_VERSION, INVALID_INTENT, DISALLOWED_INTENT, RECONNECT, SESSION_INVALIDATED, SESSION_INVALIDATED_RESUMABLE, HEARTBEAT_TIMEOUT, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT, USER_TERMINATE, UNKNOWN, } = constants_1.GATEWAY_CLOSE_CODES;
         let message;
@@ -354,7 +466,7 @@ class Gateway {
                 this.clearSession();
                 break;
             case SESSION_NO_LONGER_VALID:
-                message = 'Session is no longer valid. (Reconnecting with new session.)';
+                message = 'Session is no longer valid. (Reconnecting with new session.)'; // Also occurs when trying to resume with a bad or mismatched token (different than identified with).
                 this.clearSession();
                 break;
             case INVALID_SEQ:
@@ -427,12 +539,14 @@ class Gateway {
         this.log(level, `Websocket closed. Code: ${code}. Reason: ${message}`);
         return shouldReconnect;
     }
+    /** Removes current session information. */
     clearSession() {
         this.#sessionId = undefined;
         this.#sequence = null;
         this.#wsUrl = this.#options.wsUrl;
         this.log('DEBUG', 'Session cleared.');
     }
+    /** Clears heartbeat values and clears the heartbeatTimeout. */
     clearHeartbeat() {
         if (this.#heartbeatTimeout)
             clearInterval(this.#heartbeatTimeout);
@@ -449,12 +563,19 @@ class Gateway {
         this.#heartbeatsMissedDuringStartup = 0;
         this.log('DEBUG', 'Heartbeat cleared.');
     }
+    /*
+     ********************************
+     ****** WEBSOCKET MESSAGE *******
+     ********************************
+     */
+    /** Assigned to websocket `onmessage`. */
     _onmessage = ({ data }) => {
         if (this.#zlibInflate) {
             return this.decompress(this.#zlibInflate, data);
         }
         return this.handleMessage(JSON.parse(data.toString()));
     };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     decompress(inflate, data) {
         if (data instanceof ArrayBuffer)
             data = new Uint8Array(data);
@@ -471,6 +592,9 @@ class Gateway {
         }
         inflate.push(data, false);
     }
+    /** Processes incoming messages from Discord's gateway.
+     * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
+     */
     handleMessage(p) {
         const { t: type, s: sequence, op: opCode, d: data, } = p;
         switch (opCode) {
@@ -482,6 +606,7 @@ class Gateway {
                     this.handleResumed();
                 }
                 else if (type !== null) {
+                    // back pressure may cause the interval to occur too late, hence this check
                     this._checkIfShouldHeartbeat();
                     this.handleEvent(type, data);
                 }
@@ -509,12 +634,19 @@ class Gateway {
         }
         this.updateSequence(sequence);
     }
+    /** Proxy for inline heartbeat checking. */
     _checkIfShouldHeartbeat() {
         if (this.#checkSiblingHeartbeats !== undefined)
             this.#checkSiblingHeartbeats.forEach((f) => f());
         else
             this.checkIfShouldHeartbeat();
     }
+    /**
+     * Set inline with the firehose of events to check if the heartbeat needs to be sent.
+     * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
+     * May be passed as array to other gateways so that no one gateway blocks the others from sending timely heartbeats.
+     * Now receiving the ACKs on the other hand...
+     */
     checkIfShouldHeartbeat = () => {
         const now = new Date().getTime();
         if (this.#heartbeatAck
@@ -523,23 +655,36 @@ class Gateway {
             this.sendHeartbeat();
         }
     };
+    /**
+     * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
+     * @param data From Discord.
+     */
     handleReady(data) {
         this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
         this.#sessionId = data.session_id;
         this.#online = true;
         this.handleEvent('READY', data);
     }
+    /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
     handleResumed() {
         this.log('INFO', 'Replay finished. Resuming events.');
         this.#online = true;
         this.handleEvent('RESUMED', null);
     }
+    /**
+     * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
+     * @param data From Discord.
+     */
     handleHello(data) {
         this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
         this.startHeartbeat(data.heartbeat_interval);
         this.connect(this.resumable);
         this.handleEvent('HELLO', data);
     }
+    /**
+     * Starts heartbeat. https://discord.com/developers/docs/topics/gateway#heartbeating
+     * @param heartbeatTimeout From Discord - Number of ms to wait between sending heartbeats.
+     */
     startHeartbeat(heartbeatTimeout) {
         this.#heartbeatAck = true;
         this.#receivedHeartbeatIntervalTime = heartbeatTimeout;
@@ -547,6 +692,9 @@ class Gateway {
         this.refreshHeartbeatTimeout();
         this.refreshHeartbeatAckTimeout();
     }
+    /**
+     * Clears old heartbeat timeout and starts a new one.
+     */
     refreshHeartbeatTimeout = () => {
         if (this.#heartbeatIntervalTime !== undefined) {
             if (this.#heartbeatTimeout !== undefined)
@@ -573,6 +721,7 @@ class Gateway {
             this.log('ERROR', 'refreshHeartbeatAckTimeout undefined.');
         }
     };
+    /** Checks if heartbeat ack was received. */
     checkHeartbeatAck = () => {
         const waitingForAck = this.#heartbeatAck === false;
         const ackIsOverdue = this.#heartbeatExpectedTimestamp === undefined || this.#heartbeatExpectedTimestamp < new Date().getTime();
@@ -625,6 +774,7 @@ class Gateway {
         if (this.#heartbeatAckTimeout === undefined)
             this.refreshHeartbeatAckTimeout();
     }
+    /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
     handleHeartbeatAck() {
         this.#heartbeatAck = true;
         this.handleEvent('HEARTBEAT_ACK', null);
@@ -638,6 +788,7 @@ class Gateway {
             this.log('DEBUG', message);
         }
     }
+    /** Connects to gateway. */
     async connect(resume) {
         if (resume) {
             this.resume();
@@ -646,6 +797,7 @@ class Gateway {
             this.identify();
         }
     }
+    /** Sends a "Resume" payload to Discord's gateway. */
     resume() {
         const message = `Attempting to resume connection. Session Id: ${this.#sessionId}. Sequence: ${this.#sequence}`;
         this.log('INFO', message);
@@ -666,12 +818,19 @@ class Gateway {
             this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
     }
+    /** Sends an "Identify" payload. */
     async identify() {
         const [shardId, shardCount] = this.shard ?? [0, 1];
         this.log('INFO', `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`);
         this.emit('GATEWAY_IDENTIFY', this);
         this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this.#identity.toJSON());
     }
+    /**
+     * Sends a websocket message to Discord.
+     * @param op Gateway Opcode https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
+     * @param data Data of the message.
+     * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
+     */
     send(op, data) {
         if (this.canSendPacket(op) && this.#ws?.readyState === ws_1.default.OPEN) {
             const payload = { op, d: data };
@@ -683,6 +842,11 @@ class Gateway {
         this.log('DEBUG', 'Failed to send payload.', { payload: { op, d: data } });
         return false;
     }
+    /**
+     * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).
+     * @param op Op code of the message to be sent.
+     * @returns true if sending message won't exceed rate limit or padding; false if it will
+     */
     canSendPacket(op) {
         const now = new Date().getTime();
         if (now >= this.#wsRateLimitCache.resetTimestamp) {
@@ -698,12 +862,18 @@ class Gateway {
         }
         return false;
     }
+    /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
     updateWsRateLimit() {
         if (this.#wsRateLimitCache.remainingRequests === constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE) {
             this.#wsRateLimitCache.resetTimestamp = new Date().getTime() + constants_1.MINUTE_IN_MILLISECONDS;
         }
         --this.#wsRateLimitCache.remainingRequests;
     }
+    /**
+     * Handles "Invalid Session" packet from Discord. Will attempt to resume a connection if Discord allows it and there is already a sessionId and sequence.
+     * Otherwise, will send a new identify payload. https://discord.com/developers/docs/topics/gateway#invalid-session
+     * @param resumable Whether or not Discord has said that the connection as able to be resumed.
+     */
     handleInvalidSession(resumable) {
         this.log('INFO', `Received Invalid Session packet. Resumable: ${resumable}`);
         if (!resumable) {
@@ -714,6 +884,10 @@ class Gateway {
         }
         this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
     }
+    /**
+     * Updates the sequence value of Discord's gateway if it's larger than the current.
+     * @param s Sequence value from Discord.
+     */
     updateSequence(s) {
         if (this.#sequence === null) {
             this.#sequence = s;

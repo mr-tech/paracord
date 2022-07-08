@@ -1,14 +1,27 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+/** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
 class GatewayIdentify {
-    shard;
+    /** used for Guild Sharding */
+    shard; // (shardId, numShards);
+    /** authentication token */
     token;
+    /** information about the client and how it's connecting */
     #properties;
-    #compress;
-    #largeThreshold;
+    /** whether this connection supports compression of packets */
+    #compress; // false
+    /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
+    #largeThreshold; // 50
+    /** presence structure for initial presence information */
     #presence;
-    #guildSubscriptions;
+    /** enables dispatching of guild subscription events (presence and typing events) */
+    #guildSubscriptions; // true
+    /** the Gateway Intents you wish to receive */
     #intents;
+    /**
+     * Creates a new Identity object for use with the gateway.
+     * @param identity Properties to add to this identity.
+     */
     constructor(token, identity) {
         this.#properties = {
             $os: process.platform,

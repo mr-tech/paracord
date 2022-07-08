@@ -7,10 +7,13 @@ exports.SECOND_IN_MILLISECONDS = 1e3;
 exports.MINUTE_IN_MILLISECONDS = 60 * exports.SECOND_IN_MILLISECONDS;
 exports.GIGABYTE_IN_BYTES = 1073741824;
 exports.DISCORD_WS_VERSION = 10;
+/** Gateway websocket connection rate limit. */
 exports.GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
+/** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
 exports.GATEWAY_REQUEST_BUFFER = 4;
 exports.DEFAULT_GATEWAY_BOT_WAIT = 5 * exports.SECOND_IN_MILLISECONDS;
 exports.ZLIB_CHUNKS_SIZE = 65535;
+/** https://discord.com/developers/docs/topics/opcodes-and-status-codes */
 exports.GATEWAY_OP_CODES = {
     DISPATCH: 0,
     HEARTBEAT: 1,
@@ -22,6 +25,7 @@ exports.GATEWAY_OP_CODES = {
     HELLO: 10,
     HEARTBEAT_ACK: 11,
 };
+/** https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
 exports.GATEWAY_CLOSE_CODES = {
     CLEAN: 1000,
     GOING_AWAY: 1001,
@@ -41,6 +45,7 @@ exports.GATEWAY_CLOSE_CODES = {
     INVALID_VERSION: 4012,
     INVALID_INTENT: 4013,
     DISALLOWED_INTENT: 4014,
+    // The below are not Discord close events.
     RECONNECT: 4992,
     SESSION_INVALIDATED: 4993,
     SESSION_INVALIDATED_RESUMABLE: 4994,
@@ -48,15 +53,18 @@ exports.GATEWAY_CLOSE_CODES = {
     USER_TERMINATE_RESUMABLE: 4996,
     USER_TERMINATE_RECONNECT: 4997,
     USER_TERMINATE: 4998,
-    UNKNOWN: 4999,
+    UNKNOWN: 4999, // Something odd happened. Refer to other ERROR level logging events.
 };
 exports.DISCORD_API_URL = 'https://discord.com/api';
 exports.DISCORD_API_DEFAULT_VERSION = 9;
+/** Discord epoch (2015-01-01T00:00:00.000Z) */
 exports.DISCORD_EPOCH = 1420070400000;
 exports.DISCORD_CDN_URL = 'https://cdn.discordapp.com';
+/** A permissions map for operations relevant to the library. */
 exports.PERMISSIONS = {
     ADMINISTRATOR: BigInt(0x8),
 };
+/** For internal logging. */
 exports.LOG_SOURCES = {
     GATEWAY: 0,
     API: 1,

@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ActivityFlags = void 0;
+// ========================================================================
 var ActivityFlags;
 (function (ActivityFlags) {
     ActivityFlags[ActivityFlags["INSTANCE"] = 1] = "INSTANCE";

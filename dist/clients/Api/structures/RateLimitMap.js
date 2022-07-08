@@ -5,14 +5,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 const RateLimit_1 = __importDefault(require("./RateLimit"));
+/** Rate limit keys to their associated state. */
 class RateLimitMap extends Map {
     #logger;
+    /** Interval for sweeping old rate limits from the cache. */
     #sweepInterval;
     constructor(logger) {
         super();
         this.#logger = logger;
         this.#sweepInterval = undefined;
     }
+    /**
+     * Inserts rate limit if not exists. Otherwise, updates its state.
+     * @param rateLimitKey Internally-generated key for this state.
+     * @param state Rate limit state derived from response headers.
+     */
     upsert(rateLimitKey, { remaining, limit, resetTimestamp, resetAfter: waitFor, }, template) {
         const state = {
             remaining, limit, resetTimestamp, resetAfter: waitFor,
@@ -27,6 +34,7 @@ class RateLimitMap extends Map {
         }
         return rateLimit;
     }
+    /** Removes old rate limits from cache. */
     sweepExpiredRateLimits = () => {
         const now = new Date().getTime();
         let count = 0;
@@ -40,6 +48,7 @@ class RateLimitMap extends Map {
             this.#logger.log('DEBUG', `Swept old ${count} old rate limits from cache. (${new Date().getTime() - now}ms)`);
         }
     };
+    /** Begins timer for sweeping cache of old rate limits. */
     startSweepInterval = () => {
         this.#sweepInterval = setInterval(this.sweepExpiredRateLimits, constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
     };

@@ -1,4 +1,5 @@
 "use strict";
+/* eslint-disable no-console, import/no-duplicates */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -28,6 +29,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Api_1 = __importDefault(require("../Api"));
 let pm2 = null;
+// eslint-disable-next-line import/no-unresolved
 Promise.resolve().then(() => __importStar(require('pm2'))).then((_pm2) => {
     pm2 = _pm2;
 }).catch(() => { });
@@ -36,15 +38,25 @@ function validateShard(shard, shardCount) {
         throw Error(`shard id ${shard} exceeds max shard id of ${shardCount - 1}`);
     }
 }
+/** A script that spawns shards into pm2, injecting shard information into the Paracord client. */
 class ShardLauncher {
+    /** Relative location of the app's entry point. */
     #main;
+    /** Ids of the shards to start internally. Ignored if `shardChunks` is defined. */
     #shardIds;
+    /** Arrays of shard Ids to launch. Each item will spawn a pm2 process with the designated shards internally. */
     #shardChunks;
+    /** Total number of shards this app will be running across all instances. */
     #shardCount;
+    /** Additional environment variables to load into the app. */
     #env;
+    /** Name that will appear beside the shard number in pm2. */
     #appName;
+    /** Discord token. Used to find recommended shard count. Will be coerced into a bot token. */
     #token;
+    /** Number of shards to be launched. */
     #launchCount;
+    /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
     static validateParams(main, options) {
         const { token, shardIds, shardCount, shardChunks, } = options;
         if (main === undefined) {
@@ -78,6 +90,11 @@ class ShardLauncher {
             });
         }
     }
+    /**
+     * Creates a new shard launcher.
+     * @param main Relative location of the app's entry file.
+     * @param options Optional parameters for this handler.
+     */
     constructor(main, options) {
         ShardLauncher.validateParams(main, options);
         this.#main = main;
@@ -88,12 +105,18 @@ class ShardLauncher {
         this.#env = options.env;
         this.#token = options.token;
     }
+    /**
+     * Launches shards.
+     * pm2Options
+     */
     async launch(pm2Options = {}) {
         if (!pm2)
             throw Error("Cannot find module 'pm2'");
         const shardChunks = this.#shardChunks;
         let shardCount = this.#shardCount;
         let shardIds = this.#shardIds;
+        // const { #shardChunks: shardChunks } = this;
+        // let { #shardCount: shardCount, #shardIds: shardIds } = this;
         if (shardChunks === undefined && shardCount === undefined) {
             ({ shardCount, shardIds } = await this.getShardInfo());
         }
@@ -124,6 +147,7 @@ class ShardLauncher {
             console.error(err);
         }
     }
+    /** Fills missing shard information. */
     async getShardInfo() {
         console.log('Retrieving shard information from API.');
         const shardCount = await this.getRecommendedShards();
@@ -154,6 +178,7 @@ class ShardLauncher {
         };
         pm2.start(pm2Config, this.detach);
     }
+    /** Gets the recommended shard count from Discord. */
     async getRecommendedShards() {
         if (this.#token === undefined)
             throw Error('token required when shardChunks and shardCount are not provided');
@@ -164,6 +189,7 @@ class ShardLauncher {
         }
         throw Error(`Failed to get shard information from API. Status ${status}. Status text: ${statusText}. Discord code: ${data.code}. Discord message: ${data.message}.`);
     }
+    /** Disconnects from pm2 when all chunks have been launched. */
     detach = async (err) => {
         if (!pm2)
             throw Error("Cannot find module 'pm2'");
