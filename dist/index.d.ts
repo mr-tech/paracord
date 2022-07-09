@@ -2952,7 +2952,7 @@ declare class Paracord extends EventEmitter {
      * @param data From Discord.
      * @param shard Shard id of the gateway that emitted this event.
      */
-    eventHandler(eventType: string, data: unknown, shard: number): unknown;
+    eventHandler(eventType: string, data: unknown, shard: Gateway): unknown;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.

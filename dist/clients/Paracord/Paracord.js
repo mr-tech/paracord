@@ -125,7 +125,7 @@ class Paracord extends events_1.EventEmitter {
                 break;
             default:
         }
-        if (this.#startingGateway?.id === shard && this.#guildWaitCount !== undefined) {
+        if (this.#startingGateway === shard && this.#guildWaitCount !== undefined) {
             if (eventType === 'GUILD_CREATE') {
                 --this.#guildWaitCount;
                 this.checkIfDoneStarting();

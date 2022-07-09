@@ -33,9 +33,9 @@ let pm2 = null;
 Promise.resolve().then(() => __importStar(require('pm2'))).then((_pm2) => {
     pm2 = _pm2;
 }).catch(() => { });
-function validateShard(shard, shardCount) {
-    if (shard > shardCount - 1) {
-        throw Error(`shard id ${shard} exceeds max shard id of ${shardCount - 1}`);
+function validateShard(shardId, shardCount) {
+    if (shardId > shardCount - 1) {
+        throw Error(`shard id ${shardId} exceeds max shard id of ${shardCount - 1}`);
     }
 }
 /** A script that spawns shards into pm2, injecting shard information into the Paracord client. */

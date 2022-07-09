@@ -156,7 +156,7 @@ export default class Paracord extends EventEmitter {
    * @param data From Discord.
    * @param shard Shard id of the gateway that emitted this event.
    */
-  public eventHandler(eventType: string, data: unknown, shard: number): unknown {
+  public eventHandler(eventType: string, data: unknown, shard: Gateway): unknown {
     switch (eventType) {
       case 'READY':
         this.handleGatewayReady(<ReadyEventField>data);
@@ -164,7 +164,7 @@ export default class Paracord extends EventEmitter {
       default:
     }
 
-    if (this.#startingGateway?.id === shard && this.#guildWaitCount !== undefined) {
+    if (this.#startingGateway === shard && this.#guildWaitCount !== undefined) {
       if (eventType === 'GUILD_CREATE') {
         --this.#guildWaitCount;
         this.checkIfDoneStarting();
