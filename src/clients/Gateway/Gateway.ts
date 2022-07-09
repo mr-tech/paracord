@@ -233,7 +233,7 @@ export default class Gateway {
    * @param data Data pertinent to the event.
    */
   private log(level: DebugLevel, message: string, data: Record<string, unknown> = {}): void {
-    data.shard = this.id;
+    data.shard = this;
     this.emit('DEBUG', {
       source: LOG_SOURCES.GATEWAY,
       level: LOG_LEVELS[level],
@@ -254,7 +254,7 @@ export default class Gateway {
         type = userType ?? type;
       }
 
-      this.#emitter.emit(type, data, this.id);
+      this.#emitter.emit(type, data, this);
     }
   }
 
@@ -414,7 +414,7 @@ export default class Gateway {
     if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GUILD_MEMBERS_CHUNK_EVENT);
 
     if (this.#emitter.eventHandler !== undefined) {
-      await this.#emitter.eventHandler(type, data, this.id);
+      await this.#emitter.eventHandler(type, data, this);
     } else {
       this.emit(type, data);
     }

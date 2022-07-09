@@ -185,7 +185,7 @@ class Gateway {
      * @param data Data pertinent to the event.
      */
     log(level, message, data = {}) {
-        data.shard = this.id;
+        data.shard = this;
         this.emit('DEBUG', {
             source: constants_1.LOG_SOURCES.GATEWAY,
             level: constants_1.LOG_LEVELS[level],
@@ -204,7 +204,7 @@ class Gateway {
                 const userType = this.#events[type];
                 type = userType ?? type;
             }
-            this.#emitter.emit(type, data, this.id);
+            this.#emitter.emit(type, data, this);
         }
     }
     /*
@@ -338,7 +338,7 @@ class Gateway {
         if (type === 'GUILD_MEMBERS_CHUNK')
             this.handleGuildMemberChunk(data);
         if (this.#emitter.eventHandler !== undefined) {
-            await this.#emitter.eventHandler(type, data, this.id);
+            await this.#emitter.eventHandler(type, data, this);
         }
         else {
             this.emit(type, data);
