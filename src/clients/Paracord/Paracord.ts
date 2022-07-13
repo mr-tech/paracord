@@ -195,24 +195,19 @@ export default class Paracord extends EventEmitter {
    * @param args Any arguments to send with the emitted event.
    */
   public emit(event: string, ...args: unknown[]): boolean {
-    switch (event) {
-      case 'GATEWAY_IDENTIFY':
-        this.handleGatewayIdentify(<Gateway>args[0]);
-        break;
-      case 'GATEWAY_CLOSE':
-        this.handleGatewayClose(<GatewayCloseEvent>args[0]);
-        break;
-      default:
-    }
-
-    const events = this.#events;
-    if (events === undefined) {
-      return super.emit(event, ...args);
-    }
-
-    const type = events[event];
-    if (type !== undefined) {
-      return super.emit(type, ...args);
+    try {
+      const events = this.#events;
+      super.emit(events?.[event] ?? event, ...args);
+    } finally {
+      switch (event) {
+        case 'GATEWAY_IDENTIFY':
+          this.handleGatewayIdentify(<Gateway>args[0]);
+          break;
+        case 'GATEWAY_CLOSE':
+          this.handleGatewayClose(<GatewayCloseEvent>args[0]);
+          break;
+        default:
+      }
     }
 
     return false;
