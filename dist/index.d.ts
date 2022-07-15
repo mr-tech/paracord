@@ -1638,7 +1638,7 @@ export declare type GUILD_BAN_ADD_EVENT = GuildBanAddEventField;
 export declare type GUILD_BAN_REMOVE_EVENT = GuildBanRemoveEventField;
 
 export declare type GUILD_CREATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' | 'afk_timeout' | 'application_id' | 'banner' | 'default_message_notifications' | 'description' | 'discovery_splash' | 'emojis' | 'guild_scheduled_events' | 'features' | 'icon' | 'id' | 'joined_at' | 'large' | 'max_members' | 'max_video_channel_users' | 'member_count' | 'mfa_level' | 'name' | 'nsfw_level' | 'owner_id' | 'preferred_locale' | 'premium_subscription_count' | 'premium_progress_bar_enabled' | 'premium_tier' | 'public_updates_channel_id' | 'region' | 'roles' | 'rules_channel_id' | 'splash' | 'stage_instances' | 'stickers' | 'system_channel_id' | 'vanity_url_code' | 'verification_level'> & {
-    voice_states: Omit<VoiceState, 'guild_id'>[];
+    voice_states: Pick<VoiceState, 'user_id' | 'channel_id' | 'suppress' | 'session_id' | 'self_video' | 'self_mute' | 'self_deaf' | 'request_to_speak_timestamp' | 'mute' | 'deaf'>[];
     members: AugmentedGuildMember[];
     channels: Omit<GuildChannel, 'guild_id'>[];
     threads: GuildThread[];

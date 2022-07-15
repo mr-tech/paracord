@@ -85,7 +85,7 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'system_channel_id' |
 'vanity_url_code' |
 'verification_level'> & {
-  voice_states: Omit<VoiceState, 'guild_id'>[];
+  voice_states: Pick<VoiceState, 'user_id' | 'channel_id' | 'suppress' | 'session_id' | 'self_video' | 'self_mute' | 'self_deaf' | 'request_to_speak_timestamp' | 'mute' | 'deaf'>[];
   members: AugmentedGuildMember[];
   channels: Omit<GuildChannel, 'guild_id'>[];
   threads: GuildThread[];
