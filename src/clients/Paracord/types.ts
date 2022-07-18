@@ -1,7 +1,5 @@
 import type { UserEvents } from '../../@types';
-import type {
-  Snowflake, UnavailableGuild, Message as RawMessage, AugmentedGuild as AugmentedRawGuild,
-} from '../../discord';
+import type { UnavailableGuild, AugmentedGuild as AugmentedRawGuild } from '../../discord';
 import type { IApiOptions } from '../Api';
 import type Gateway from '../Gateway';
 import type { GatewayOptions, IdentityOptions } from '../Gateway';
@@ -14,19 +12,6 @@ export interface ParacordOptions {
   apiOptions?: Partial<IApiOptions>;
   gatewayOptions?: Partial<GatewayOptions>;
   autoInit?: boolean;
-}
-
-export type GuildCacheOptions = {
-  roles?: false;
-  emojis?: false;
-  guildMembers?: false;
-  guildChannels?: false;
-  presences?: false;
-  guildVoiceStates?: false;
-}
-
-export interface ParacordCacheOptions extends GuildCacheOptions {
-  guilds?: false;
 }
 
 type Primitive = string | number | boolean | null | undefined;

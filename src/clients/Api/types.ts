@@ -27,9 +27,9 @@ export interface IRequestOptions {
   /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
   local?: boolean;
   /** Set to true to not retry the request on a bucket 429 rate limit. */
-  returnOnRateLimit?: false;
+  returnOnRateLimit?: boolean;
   /** Set to true to not retry the request on a global rate limit. */
-  returnOnGlobalRateLimit?: false;
+  returnOnGlobalRateLimit?: boolean;
   /** A known hard value for the bot's global rate limits. Defaults to 50. */
   globalRateLimitMax?: number;
   /** Time in milliseconds to add to 1 second internal global rate limit reset timer. */

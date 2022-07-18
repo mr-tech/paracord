@@ -1717,15 +1717,6 @@ export declare type GuildBanRemoveEventField = {
     user: User;
 };
 
-export declare type GuildCacheOptions = {
-    roles?: false;
-    emojis?: false;
-    guildMembers?: false;
-    guildChannels?: false;
-    presences?: false;
-    guildVoiceStates?: false;
-};
-
 export declare type GuildCategoryChannel = {
     type: 4;
     name: string;
@@ -2461,9 +2452,9 @@ export declare interface IRequestOptions {
     /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
     local?: boolean;
     /** Set to true to not retry the request on a bucket 429 rate limit. */
-    returnOnRateLimit?: false;
+    returnOnRateLimit?: boolean;
     /** Set to true to not retry the request on a global rate limit. */
-    returnOnGlobalRateLimit?: false;
+    returnOnGlobalRateLimit?: boolean;
     /** A known hard value for the bot's global rate limits. Defaults to 50. */
     globalRateLimitMax?: number;
     /** Time in milliseconds to add to 1 second internal global rate limit reset timer. */
@@ -3033,10 +3024,6 @@ export default Paracord;
 export declare const PARACORD_URL = "https://paracordjs.com/";
 
 export declare const PARACORD_VERSION_NUMBER = "0.5";
-
-export declare interface ParacordCacheOptions extends GuildCacheOptions {
-    guilds?: false;
-}
 
 export declare interface ParacordLoginOptions {
     identity: IdentityOptions;
