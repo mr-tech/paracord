@@ -26,14 +26,9 @@ function computeShards(shards, shardCount) {
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 class Paracord extends events_1.EventEmitter {
     request;
-    addRateLimitService;
-    addRequestService;
-    /** Gateways queue to log in. */
     gatewayLoginQueue;
     /** Discord bot token. */
     #token;
-    /** Whether or not the `init()` function has already been called. */
-    #initialized;
     /** During a shard's start up, how many guilds may be unavailable before forcing ready. */
     #unavailableGuildTolerance;
     /** During a shard's start up, time in seconds to wait from the last GUILD_CREATE to force ready. */
@@ -80,7 +75,6 @@ class Paracord extends events_1.EventEmitter {
         super();
         Paracord.validateParams(token);
         this.#token = (0, utils_1.coerceTokenToBotLike)(token);
-        this.#initialized = false;
         this.#gateways = new Map();
         this.gatewayLoginQueue = [];
         this.#guildWaitCount = 0;
@@ -92,9 +86,9 @@ class Paracord extends events_1.EventEmitter {
         this.#events = events;
         this.#apiOptions = apiOptions;
         this.#gatewayOptions = gatewayOptions;
-        if (options.autoInit !== false) {
-            this.init();
-        }
+        const api = this.setUpApi(this.#token, this.#apiOptions ?? {});
+        this.#api = api;
+        this.request = api.request.bind(api);
     }
     get startingGateway() {
         return this.#startingGateway;
@@ -183,9 +177,6 @@ class Paracord extends events_1.EventEmitter {
         const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
         const loginOptions = (0, utils_1.clone)(options);
         const { unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance, } = loginOptions;
-        if (!this.#initialized) {
-            this.init();
-        }
         this.#unavailableGuildTolerance = unavailableGuildTolerance;
         this.#unavailableGuildWait = unavailableGuildWait;
         this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
@@ -307,14 +298,6 @@ class Paracord extends events_1.EventEmitter {
             gatewayOptions.isStartingFunc = (gateway) => this.#startingGateway === gateway;
         }
         return gatewayOptions;
-    }
-    /** Sets up the internal handlers for this client. */
-    init() {
-        if (this.#initialized) {
-            throw Error('Client has already been initialized.');
-        }
-        this.#api = this.setUpApi(this.#token, this.#apiOptions ?? {});
-        this.#initialized = true;
     }
     /*
     ********************************

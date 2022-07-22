@@ -31,20 +31,12 @@ function computeShards(shards: number[], shardCount: number): { shards: number[]
 
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 export default class Paracord extends EventEmitter {
-  public request!: Api['request'];
+  public request: Api['request'];
 
-  public addRateLimitService!: Api['addRateLimitService'];
-
-  public addRequestService!: Api['addRequestService'];
-
-  /** Gateways queue to log in. */
   public readonly gatewayLoginQueue: Gateway[];
 
   /** Discord bot token. */
   #token: string;
-
-  /** Whether or not the `init()` function has already been called. */
-  #initialized: boolean;
 
   /** During a shard's start up, how many guilds may be unavailable before forcing ready. */
   #unavailableGuildTolerance?: undefined | number;
@@ -57,7 +49,7 @@ export default class Paracord extends EventEmitter {
 
   /* Internal clients. */
   /** Client through which to make REST API calls to Discord. */
-  #api?: undefined | Api;
+  #api: Api;
 
   /** Gateway clients keyed to their shard #. */
   #gateways: GatewayMap;
@@ -110,7 +102,6 @@ export default class Paracord extends EventEmitter {
     Paracord.validateParams(token);
 
     this.#token = coerceTokenToBotLike(token);
-    this.#initialized = false;
     this.#gateways = new Map();
     this.gatewayLoginQueue = [];
     this.#guildWaitCount = 0;
@@ -125,9 +116,10 @@ export default class Paracord extends EventEmitter {
     this.#apiOptions = apiOptions;
     this.#gatewayOptions = gatewayOptions;
 
-    if (options.autoInit !== false) {
-      this.init();
-    }
+    const api = this.setUpApi(this.#token, this.#apiOptions ?? {});
+    this.#api = api;
+
+    this.request = api.request.bind(api);
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -230,10 +222,6 @@ export default class Paracord extends EventEmitter {
     const {
       unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance,
     } = loginOptions;
-
-    if (!this.#initialized) {
-      this.init();
-    }
 
     this.#unavailableGuildTolerance = unavailableGuildTolerance;
     this.#unavailableGuildWait = unavailableGuildWait;
@@ -374,15 +362,6 @@ export default class Paracord extends EventEmitter {
     }
 
     return gatewayOptions;
-  }
-
-  /** Sets up the internal handlers for this client. */
-  public init(): void {
-    if (this.#initialized) {
-      throw Error('Client has already been initialized.');
-    }
-    this.#api = this.setUpApi(this.#token, this.#apiOptions ?? {});
-    this.#initialized = true;
   }
 
   /*

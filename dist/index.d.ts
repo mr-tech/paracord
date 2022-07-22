@@ -2919,9 +2919,6 @@ export declare const OVERWRITE_ROLE_VALUE = 0;
 declare class Paracord extends EventEmitter {
     #private;
     request: Api['request'];
-    addRateLimitService: Api['addRateLimitService'];
-    addRequestService: Api['addRequestService'];
-    /** Gateways queue to log in. */
     readonly gatewayLoginQueue: Gateway[];
     /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
     private static validateParams;
@@ -2977,8 +2974,6 @@ declare class Paracord extends EventEmitter {
      */
     private addNewGateway;
     private createGatewayOptions;
-    /** Sets up the internal handlers for this client. */
-    init(): void;
     /**
      * Creates the handler used when handling REST calls to Discord.
      * @param token Discord token. Will be coerced to bot token.
@@ -3039,7 +3034,6 @@ export declare interface ParacordOptions {
     events?: UserEvents;
     apiOptions?: Partial<IApiOptions>;
     gatewayOptions?: Partial<GatewayOptions>;
-    autoInit?: boolean;
 }
 
 declare type PermissibleChannel = Pick<GuildChannel, 'id' | 'permission_overwrites'>;

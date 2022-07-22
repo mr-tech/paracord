@@ -11,7 +11,6 @@ export interface ParacordOptions {
   events?: UserEvents;
   apiOptions?: Partial<IApiOptions>;
   gatewayOptions?: Partial<GatewayOptions>;
-  autoInit?: boolean;
 }
 
 type Primitive = string | number | boolean | null | undefined;
