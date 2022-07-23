@@ -317,7 +317,7 @@ export default class Api {
   };
 
   // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
-  private async recreateRpcService(): Promise<boolean> {
+  private recreateRpcService(): Promise<boolean> {
     if (this.hasRateLimitService) {
       this.#rpcRateLimitService = undefined;
       return this.addRateLimitService(this.#rpcServiceOptions);

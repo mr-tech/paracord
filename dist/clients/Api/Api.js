@@ -257,7 +257,7 @@ class Api {
         return false;
     };
     // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
-    async recreateRpcService() {
+    recreateRpcService() {
         if (this.hasRateLimitService) {
             this.#rpcRateLimitService = undefined;
             return this.addRateLimitService(this.#rpcServiceOptions);
