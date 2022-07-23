@@ -274,6 +274,7 @@ declare namespace Api_2 {
         RateLimitTemplate,
         RateLimitTemplateMap,
         RequestQueue,
+        RemoteApiResponse,
         IApiOptions,
         RequestFormDataFunction,
         IRequestOptions,
@@ -3321,7 +3322,7 @@ export declare type ReadyEventField = {
     application: Partial<Application>;
 };
 
-declare type RemoteApiResponse<T extends ResponseData = any> = {
+export declare type RemoteApiResponse<T extends ResponseData = any> = {
     /** The HTTP status code of the response. */
     status: number;
     /** Status message returned by the server. (e.g. "OK" with a 200 status) */

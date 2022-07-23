@@ -1,10 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { RemoteApiResponse } from '../../rpc';
+
 import type { EventEmitter } from 'events';
 import type FormData from 'form-data';
 import type { ChannelCredentials } from '@grpc/grpc-js';
-import type { RemoteApiResponse } from '../../rpc';
 import type { UserEvents } from '../../@types';
 import type { ApiRequest } from './structures';
+
+export type { RemoteApiResponse } from '../../rpc';
 
 /** Optional parameters for this api handler. */
 export interface IApiOptions {
