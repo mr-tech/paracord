@@ -113,7 +113,9 @@ class Api {
                     key.push('w');
                     break;
                 default:
-                    key.push(param);
+                    if (!/^[0-9]/.test(param.charAt(0))) {
+                        key.push(param);
+                    }
             }
         }
         return [topLevelResource, topLevelID, key.join('-')];
