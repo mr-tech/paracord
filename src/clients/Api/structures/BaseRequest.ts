@@ -1,4 +1,4 @@
-import { shortMethod, stripLeadingSlash } from '../../../utils';
+import { stripLeadingSlash } from '../../../utils';
 
 import type { Method } from 'axios';
 
@@ -43,7 +43,7 @@ export default class BaseRequest {
   }
 
   public get logKey(): string {
-    return `${shortMethod(this.method)}-${this.topLevelResource}-${this.bucketHashKey}`;
+    return `${this.topLevelResource}-${this.bucketHashKey}`;
   }
 
   getRateLimitKey(bucketHash?: undefined): undefined | string;

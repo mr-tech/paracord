@@ -33,7 +33,7 @@ class BaseRequest {
         this.rateLimitKey = bucketHash && BaseRequest.formatRateLimitKey(this.topLevelResource, this.topLevelID, bucketHash);
     }
     get logKey() {
-        return `${(0, utils_1.shortMethod)(this.method)}-${this.topLevelResource}-${this.bucketHashKey}`;
+        return `${this.topLevelResource}-${this.bucketHashKey}`;
     }
     getRateLimitKey(bucketHash) {
         if (this.rateLimitKey)
