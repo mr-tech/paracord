@@ -116,7 +116,7 @@ export default class Paracord extends EventEmitter {
     this.#apiOptions = apiOptions;
     this.#gatewayOptions = gatewayOptions;
 
-    const api = new Api(token, { ...(apiOptions ?? {}), emitter: this });
+    const api = options?.api ?? new Api(token, { ...(apiOptions ?? {}), emitter: this });
     this.#api = api;
     this.request = api.request.bind(api);
   }

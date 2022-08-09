@@ -3092,6 +3092,7 @@ export declare interface ParacordOptions {
     events?: UserEvents;
     apiOptions?: Partial<IApiOptions>;
     gatewayOptions?: Partial<GatewayOptions>;
+    api?: Api;
 }
 
 declare type PermissibleChannel = Pick<GuildChannel, 'id' | 'permission_overwrites'>;

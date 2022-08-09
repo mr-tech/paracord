@@ -1,5 +1,6 @@
 import type { UserEvents } from '../../@types';
 import type { UnavailableGuild, AugmentedGuild as AugmentedRawGuild } from '../../discord';
+import type Api from '../Api';
 import type { IApiOptions } from '../Api';
 import type Gateway from '../Gateway';
 import type { GatewayOptions, IdentityOptions } from '../Gateway';
@@ -11,6 +12,7 @@ export interface ParacordOptions {
   events?: UserEvents;
   apiOptions?: Partial<IApiOptions>;
   gatewayOptions?: Partial<GatewayOptions>;
+  api?: Api;
 }
 
 type Primitive = string | number | boolean | null | undefined;
