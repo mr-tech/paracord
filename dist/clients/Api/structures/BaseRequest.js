@@ -15,12 +15,8 @@ class BaseRequest {
     topLevelID;
     /** Key for this specific requests rate limit state in the rate limit cache. (TLR + TLR ID + Bucket Hash) */
     rateLimitKey;
-    logKey;
     static formatRateLimitKey(tlr, tlrID, bucketHash) {
         return `${tlr}-${tlrID}-${bucketHash}`;
-    }
-    static formatLoggableKey(tlr, bucketHash) {
-        return `${tlr}-${bucketHash}`;
     }
     /**
      * Creates a new base request object with its associated rate limit identifiers.
@@ -34,10 +30,10 @@ class BaseRequest {
         this.topLevelResource = topLevelResource;
         this.topLevelID = topLevelID;
         this.bucketHashKey = bucketHashKey;
-        if (bucketHash) {
-            this.rateLimitKey = BaseRequest.formatRateLimitKey(this.topLevelResource, this.topLevelID, bucketHash);
-            this.logKey = BaseRequest.formatLoggableKey(this.topLevelResource, bucketHash);
-        }
+        this.rateLimitKey = bucketHash && BaseRequest.formatRateLimitKey(this.topLevelResource, this.topLevelID, bucketHash);
+    }
+    get logKey() {
+        return this.bucketHashKey;
     }
     getRateLimitKey(bucketHash) {
         if (this.rateLimitKey)

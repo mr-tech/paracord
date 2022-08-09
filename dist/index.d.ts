@@ -793,9 +793,7 @@ export declare class BaseRequest {
     private topLevelID;
     /** Key for this specific requests rate limit state in the rate limit cache. (TLR + TLR ID + Bucket Hash) */
     rateLimitKey: undefined | string;
-    logKey: undefined | string;
     static formatRateLimitKey(tlr: string, tlrID: string, bucketHash: string): string;
-    static formatLoggableKey(tlr: string, bucketHash: string): string;
     /**
      * Creates a new base request object with its associated rate limit identifiers.
      *
@@ -803,6 +801,7 @@ export declare class BaseRequest {
      * @param url Discord REST endpoint target of the request. (e.g. channels/123)
      */
     constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string);
+    get logKey(): string;
     getRateLimitKey(bucketHash?: undefined): undefined | string;
     getRateLimitKey(bucketHash: string): string;
 }

@@ -9,7 +9,7 @@ const BaseRequest_1 = __importDefault(require("./BaseRequest"));
  * @extends BaseRequest
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-class Request extends BaseRequest_1.default {
+class ApiRequest extends BaseRequest_1.default {
     /** Data to send in the body of the request.  */
     data;
     /** Additional headers to send with the request. */
@@ -77,4 +77,4 @@ class Request extends BaseRequest_1.default {
         }
     }
 }
-exports.default = Request;
+exports.default = ApiRequest;
