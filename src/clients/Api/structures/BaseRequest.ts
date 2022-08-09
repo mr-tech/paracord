@@ -22,8 +22,14 @@ export default class BaseRequest {
   /** Key for this specific requests rate limit state in the rate limit cache. (TLR + TLR ID + Bucket Hash) */
   public rateLimitKey: undefined | string;
 
+  public logKey: undefined | string;
+
   public static formatRateLimitKey(tlr: string, tlrID: string, bucketHash: string) {
     return `${tlr}-${tlrID}-${bucketHash}`;
+  }
+
+  public static formatLoggableKey(tlr: string, bucketHash: string) {
+    return `${tlr}-${bucketHash}`;
   }
 
   /**
@@ -39,7 +45,10 @@ export default class BaseRequest {
     this.topLevelResource = topLevelResource;
     this.topLevelID = topLevelID;
     this.bucketHashKey = bucketHashKey;
-    this.rateLimitKey = bucketHash ? this.getRateLimitKey(bucketHash) : undefined;
+    if (bucketHash) {
+      this.rateLimitKey = BaseRequest.formatRateLimitKey(this.topLevelResource, this.topLevelID, bucketHash);
+      this.logKey = BaseRequest.formatLoggableKey(this.topLevelResource, bucketHash);
+    }
   }
 
   getRateLimitKey(bucketHash?: undefined): undefined | string;

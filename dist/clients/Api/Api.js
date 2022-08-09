@@ -461,17 +461,17 @@ class Api {
      * @param headers Response headers.
      * @param request Request being sent.
      */
-    handleRateLimitedRequest(request, rateLimitHeaders) {
+    handleRateLimitedRequest(request, headers) {
         let message;
-        if (rateLimitHeaders.global) {
+        if (headers.global) {
             message = `Request global rate limited: ${request.method} ${request.url}`;
         }
         else {
             message = `Request rate limited: ${request.method} ${request.url}`;
         }
-        this.log('DEBUG', message, rateLimitHeaders, constants_1.API_DEBUG_CODES.RATE_LIMITED);
-        this.updateRateLimitCache(request, rateLimitHeaders);
-        const { resetAfter } = rateLimitHeaders;
+        this.log('DEBUG', message, { request, headers }, constants_1.API_DEBUG_CODES.RATE_LIMITED);
+        this.updateRateLimitCache(request, headers);
+        const { resetAfter } = headers;
         const { waitUntil } = request;
         if (waitUntil === undefined && resetAfter !== undefined) {
             request.assignIfStricterWait(new Date().getTime() + resetAfter);

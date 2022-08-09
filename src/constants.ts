@@ -91,10 +91,12 @@ export const OVERWRITE_ROLE_VALUE = 0;
 
 export const API_DEBUG_CODES = {
   GENERAL: 1,
-  REQUEST_SENT: 2,
-  REQUEST_QUEUED: 3,
-  RESPONSE_RECEIVED: 4,
-  RATE_LIMITED: 5,
+  ERROR: 2,
+  REQUEST_SENT: 3,
+  REQUEST_QUEUED: 4,
+  RESPONSE_RECEIVED: 5,
+  RATE_LIMITED: 6,
 } as const;
+
 export type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
 export type ApiDebugCode = typeof API_DEBUG_CODES[ApiDebugCodeName]

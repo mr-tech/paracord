@@ -1,12 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { RemoteApiResponse } from '../../rpc';
-
 import type { EventEmitter } from 'events';
 import type FormData from 'form-data';
 import type { ChannelCredentials } from '@grpc/grpc-js';
+import type { RemoteApiResponse } from '../../rpc';
 import type { UserEvents } from '../../@types';
-import type { ApiRequest, RateLimitHeaders } from './structures';
 import type { ApiDebugCode, LogLevel, LOG_SOURCES } from '../../constants';
+import type { ApiRequest, RateLimitHeaders } from './structures';
 
 export type { RemoteApiResponse } from '../../rpc';
 
@@ -124,5 +123,14 @@ export interface ApiDebugEvent {
   level: LogLevel,
   message: string,
   code: ApiDebugCode;
-  data?: Error | ApiRequest | { request: ApiRequest, response: IApiResponse | RateLimitedResponse } | RateLimitHeaders,
+  data?: ApiDebugDataType,
 }
+
+export interface ApiDebugData {
+  ERROR: undefined | Error;
+  REQUEST_SENT: ApiRequest;
+  REQUEST_QUEUED: ApiRequest;
+  REQUEST_RECEIVED: { request: ApiRequest, response: IApiResponse | RateLimitedResponse };
+  RATE_LIMITED: { request: ApiRequest, headers: RateLimitHeaders };
+}
+export type ApiDebugDataType = ApiDebugData[keyof ApiDebugData];

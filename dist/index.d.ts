@@ -181,10 +181,7 @@ export declare class Api {
      * @param message Content of the log
      * @param [data] Data pertinent to the event.
      */
-    log: (level: DebugLevel, message: string, data?: Error | RateLimitHeaders | ApiRequest<any> | {
-        request: ApiRequest<any>;
-        response: IApiResponse<any> | RateLimitedResponse;
-    } | undefined, code?: ApiDebugCode) => void;
+    log: (level: DebugLevel, message: string, data?: ApiDebugEvent['data'], code?: ApiDebugCode) => void;
     /**
      * Emits all events if `this.events` is undefined; otherwise will emit those defined as keys in `this.events` as the paired value.
      * @param type Type of event. (e.g. "DEBUG" or "CHANNEL_CREATE")
@@ -286,16 +283,19 @@ declare namespace Api_2 {
         IRateLimitState,
         IResponseState,
         ApiError,
-        ApiDebugEvent
+        ApiDebugEvent,
+        ApiDebugData,
+        ApiDebugDataType
     }
 }
 
 export declare const API_DEBUG_CODES: {
     readonly GENERAL: 1;
-    readonly REQUEST_SENT: 2;
-    readonly REQUEST_QUEUED: 3;
-    readonly RESPONSE_RECEIVED: 4;
-    readonly RATE_LIMITED: 5;
+    readonly ERROR: 2;
+    readonly REQUEST_SENT: 3;
+    readonly REQUEST_QUEUED: 4;
+    readonly RESPONSE_RECEIVED: 5;
+    readonly RATE_LIMITED: 6;
 };
 
 export declare const API_GLOBAL_RATE_LIMIT = 50;
@@ -310,15 +310,28 @@ export declare type ApiDebugCode = typeof API_DEBUG_CODES[ApiDebugCodeName];
 
 export declare type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
 
+export declare interface ApiDebugData {
+    ERROR: undefined | Error;
+    REQUEST_SENT: ApiRequest;
+    REQUEST_QUEUED: ApiRequest;
+    REQUEST_RECEIVED: {
+        request: ApiRequest;
+        response: IApiResponse | RateLimitedResponse;
+    };
+    RATE_LIMITED: {
+        request: ApiRequest;
+        headers: RateLimitHeaders;
+    };
+}
+
+export declare type ApiDebugDataType = ApiDebugData[keyof ApiDebugData];
+
 export declare interface ApiDebugEvent {
     source: typeof LOG_SOURCES.API;
     level: LogLevel;
     message: string;
     code: ApiDebugCode;
-    data?: Error | ApiRequest | {
-        request: ApiRequest;
-        response: IApiResponse | RateLimitedResponse;
-    } | RateLimitHeaders;
+    data?: ApiDebugDataType;
 }
 
 export declare interface ApiError<T = any, D = any> extends Error {
@@ -774,7 +787,9 @@ export declare class BaseRequest {
     private topLevelID;
     /** Key for this specific requests rate limit state in the rate limit cache. (TLR + TLR ID + Bucket Hash) */
     rateLimitKey: undefined | string;
+    logKey: undefined | string;
     static formatRateLimitKey(tlr: string, tlrID: string, bucketHash: string): string;
+    static formatLoggableKey(tlr: string, bucketHash: string): string;
     /**
      * Creates a new base request object with its associated rate limit identifiers.
      *
