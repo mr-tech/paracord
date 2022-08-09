@@ -150,6 +150,7 @@ export declare class Api {
     rpcRequestService?: undefined | RequestService;
     /** Key:Value mapping this client's events to user's preferred emitted value. */
     events?: undefined | Record<string, string>;
+    static isApiDebugEvent(event: unknown): event is ApiDebugEvent;
     private static shouldQueueRequest;
     /**
      * Throws errors and warnings if the parameters passed to the constructor aren't sufficient.
@@ -179,13 +180,17 @@ export declare class Api {
      * @param message Content of the log
      * @param [data] Data pertinent to the event.
      */
-    log: (level: DebugLevel, message: string, data?: undefined | unknown) => void;
+    log: (level: DebugLevel, message: string, data?: Error | RateLimitHeaders | ApiRequest<any> | {
+        request: ApiRequest<any>;
+        response: IApiResponse<any> | RateLimitedResponse;
+    } | undefined, code?: ApiDebugCode) => void;
     /**
      * Emits all events if `this.events` is undefined; otherwise will emit those defined as keys in `this.events` as the paired value.
      * @param type Type of event. (e.g. "DEBUG" or "CHANNEL_CREATE")
      * @param data Data to send with the event.
      */
     private emit;
+    on: (name: ApiDebugCodeName, listener: (event: ApiDebugEvent) => void) => void;
     /**
      * Adds the service that has a server make requests to Discord on behalf of the client.
      * @param serviceOptions
@@ -204,13 +209,6 @@ export declare class Api {
     private checkRpcServiceConnection;
     private recreateRpcService;
     private reattemptConnectInFuture;
-    /**
-     * Starts the request rate limit queue processing.
-     * @param interval Time between checks in ms.
-     */
-    startQueue: (interval?: number) => void;
-    /** Stops the request rate limit queue processing. */
-    stopQueue: () => void;
     /**
      * Makes a request to Discord, handling any rate limits and returning when a non-429 response is received.
      * @param method HTTP method of the request.
@@ -286,9 +284,18 @@ declare namespace Api_2 {
         RateLimitedResponse,
         IRateLimitState,
         IResponseState,
-        ApiError
+        ApiError,
+        ApiDebugEvent
     }
 }
+
+export declare const API_DEBUG_CODES: {
+    readonly GENERAL: 1;
+    readonly REQUEST: 2;
+    readonly REQUEST_QUEUED: 3;
+    readonly RESPONSE: 4;
+    readonly RATE_LIMIT: 5;
+};
 
 export declare const API_GLOBAL_RATE_LIMIT = 50;
 
@@ -297,6 +304,21 @@ export declare const API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS = 1000;
 export declare const API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS = 50;
 
 export declare const API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS: number;
+
+export declare type ApiDebugCode = typeof API_DEBUG_CODES[ApiDebugCodeName];
+
+export declare type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
+
+export declare interface ApiDebugEvent {
+    source: typeof LOG_SOURCES.API;
+    level: LogLevel;
+    message: string;
+    code: ApiDebugCode;
+    data?: Error | ApiRequest | {
+        request: ApiRequest;
+        response: IApiResponse | RateLimitedResponse;
+    } | RateLimitHeaders;
+}
 
 export declare interface ApiError<T = any, D = any> extends Error {
     config: ApiRequest<D>['config'];
@@ -1353,32 +1375,32 @@ export declare class Gateway {
 
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
 export declare const GATEWAY_CLOSE_CODES: {
-    CLEAN: number;
-    GOING_AWAY: number;
-    ABNORMAL: number;
-    UNKNOWN_ERROR: number;
-    UNKNOWN_OPCODE: number;
-    DECODE_ERROR: number;
-    NOT_AUTHENTICATED: number;
-    AUTHENTICATION_FAILED: number;
-    ALREADY_AUTHENTICATED: number;
-    SESSION_NO_LONGER_VALID: number;
-    INVALID_SEQ: number;
-    RATE_LIMITED: number;
-    SESSION_TIMEOUT: number;
-    INVALID_SHARD: number;
-    SHARDING_REQUIRED: number;
-    INVALID_VERSION: number;
-    INVALID_INTENT: number;
-    DISALLOWED_INTENT: number;
-    RECONNECT: number;
-    SESSION_INVALIDATED: number;
-    SESSION_INVALIDATED_RESUMABLE: number;
-    HEARTBEAT_TIMEOUT: number;
-    USER_TERMINATE_RESUMABLE: number;
-    USER_TERMINATE_RECONNECT: number;
-    USER_TERMINATE: number;
-    UNKNOWN: number;
+    readonly CLEAN: 1000;
+    readonly GOING_AWAY: 1001;
+    readonly ABNORMAL: 1006;
+    readonly UNKNOWN_ERROR: 4000;
+    readonly UNKNOWN_OPCODE: 4001;
+    readonly DECODE_ERROR: 4002;
+    readonly NOT_AUTHENTICATED: 4003;
+    readonly AUTHENTICATION_FAILED: 4004;
+    readonly ALREADY_AUTHENTICATED: 4005;
+    readonly SESSION_NO_LONGER_VALID: 4006;
+    readonly INVALID_SEQ: 4007;
+    readonly RATE_LIMITED: 4008;
+    readonly SESSION_TIMEOUT: 4009;
+    readonly INVALID_SHARD: 4010;
+    readonly SHARDING_REQUIRED: 4011;
+    readonly INVALID_VERSION: 4012;
+    readonly INVALID_INTENT: 4013;
+    readonly DISALLOWED_INTENT: 4014;
+    readonly RECONNECT: 4992;
+    readonly SESSION_INVALIDATED: 4993;
+    readonly SESSION_INVALIDATED_RESUMABLE: 4994;
+    readonly HEARTBEAT_TIMEOUT: 4995;
+    readonly USER_TERMINATE_RESUMABLE: 4996;
+    readonly USER_TERMINATE_RECONNECT: 4997;
+    readonly USER_TERMINATE: 4998;
+    readonly UNKNOWN: 4999;
 };
 
 export declare type GATEWAY_IDENTIFY_EVENT = null;
@@ -1388,15 +1410,15 @@ export declare const GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
 
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes */
 export declare const GATEWAY_OP_CODES: {
-    DISPATCH: number;
-    HEARTBEAT: number;
-    IDENTIFY: number;
-    RESUME: number;
-    RECONNECT: number;
-    REQUEST_GUILD_MEMBERS: number;
-    INVALID_SESSION: number;
-    HELLO: number;
-    HEARTBEAT_ACK: number;
+    readonly DISPATCH: 0;
+    readonly HEARTBEAT: 1;
+    readonly IDENTIFY: 2;
+    readonly RESUME: 6;
+    readonly RECONNECT: 7;
+    readonly REQUEST_GUILD_MEMBERS: 8;
+    readonly INVALID_SESSION: 9;
+    readonly HELLO: 10;
+    readonly HEARTBEAT_ACK: 11;
 };
 
 export declare type GATEWAY_OPEN_EVENT = null;
@@ -2097,6 +2119,7 @@ export declare interface IApiOptions {
     emitter?: EventEmitter;
     events?: UserEvents;
     requestOptions?: IRequestOptions;
+    queueLoopInterval?: number;
 }
 
 export declare interface IApiResponse<T extends ResponseData = any> {
@@ -2573,20 +2596,24 @@ export declare type Locale =
 'ko';
 
 export declare const LOG_LEVELS: {
-    FATAL: number;
-    ERROR: number;
-    WARNING: number;
-    INFO: number;
-    DEBUG: number;
+    readonly FATAL: 0;
+    readonly ERROR: 1;
+    readonly WARNING: 2;
+    readonly INFO: 4;
+    readonly DEBUG: 5;
 };
 
 /** For internal logging. */
 export declare const LOG_SOURCES: {
-    GATEWAY: number;
-    API: number;
-    PARACORD: number;
-    RPC: number;
+    readonly GATEWAY: 0;
+    readonly API: 1;
+    readonly PARACORD: 2;
+    readonly RPC: 3;
 };
+
+export declare type LogLevel = typeof LOG_LEVELS[keyof typeof LOG_LEVELS];
+
+export declare type LogSource = typeof LOG_SOURCES[keyof typeof LOG_SOURCES];
 
 export declare type MembershipStateType = 
 /** INVITED */
@@ -3045,7 +3072,7 @@ declare type PermissibleMember = Pick<Required<GuildMember>, 'user' | 'roles'>;
 
 /** A permissions map for operations relevant to the library. */
 export declare const PERMISSIONS: {
-    ADMINISTRATOR: bigint;
+    readonly ADMINISTRATOR: bigint;
 };
 
 export declare type PremiumTier = 
@@ -3131,11 +3158,7 @@ export declare class RateLimitCache {
     #private;
     /** Request meta values to their associated rate limit bucket, if one exists. */
     bucketHashes: Map<string, RateLimitBucketHash>;
-    /**
-     * Creates a new rate limit cache.
-     * @param autoStartSweep Specify false to not start the sweep interval.
-     */
-    constructor(autoStartSweep: boolean, globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api);
+    constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api);
     /**
      * If the request cannot be made without triggering a Discord rate limit.
      * `true` if the rate limit exists and is active. Do no send a request.
@@ -3451,7 +3474,7 @@ export declare type RoleTag = {
 };
 
 export declare const RPC_CLOSE_CODES: {
-    LOST_CONNECTION: number;
+    readonly LOST_CONNECTION: 14;
 };
 
 declare type RpcArguments = [boolean, string | undefined, number, number, number, number | undefined];

@@ -38,11 +38,7 @@ export default class RateLimitCache {
 
   #globalRateLimitResetPadding: number;
 
-  /**
-   * Creates a new rate limit cache.
-   * @param autoStartSweep Specify false to not start the sweep interval.
-   */
-  public constructor(autoStartSweep: boolean, globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api) {
+  public constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api) {
     this.bucketHashes = new Map();
     this.#rateLimitMap = new RateLimitMap(logger);
     this.#rateLimitTemplateMap = new RateLimitTemplateMap();
@@ -53,7 +49,7 @@ export default class RateLimitCache {
     this.#globalRateLimitMax = globalRateLimitMax;
     this.#globalRateLimitResetPadding = globalRateLimitResetPadding;
 
-    if (autoStartSweep) autoStartSweep && this.#rateLimitMap.startSweepInterval();
+    this.#rateLimitMap.startSweepInterval();
   }
 
   /**

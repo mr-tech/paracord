@@ -116,9 +116,8 @@ export default class Paracord extends EventEmitter {
     this.#apiOptions = apiOptions;
     this.#gatewayOptions = gatewayOptions;
 
-    const api = this.setUpApi(this.#token, this.#apiOptions ?? {});
+    const api = new Api(token, { ...(apiOptions ?? {}), emitter: this });
     this.#api = api;
-
     this.request = api.request.bind(api);
   }
 
@@ -268,8 +267,8 @@ export default class Paracord extends EventEmitter {
         if (unavailableGuildTolerance !== undefined && unavailableGuildWait !== undefined) {
           this.#startWithUnavailableGuildsInterval = setInterval(this.startWithUnavailableGuilds.bind(this, gateway), 1e3);
         }
-      } catch (err: any) {
-        this.log('FATAL', err.message, gateway);
+      } catch (err: unknown) {
+        this.log('FATAL', err instanceof Error ? err.message : String(err), gateway);
         this.clearStartingShardState();
         gatewayLoginQueue.unshift(gateway);
       }
@@ -376,12 +375,7 @@ export default class Paracord extends EventEmitter {
    * @param options
    */
   private setUpApi(token: string, options: Partial<IApiOptions>): Api {
-    const api = new Api(token, { ...options, emitter: this });
-    if (api.rpcRequestService === undefined) {
-      api.startQueue();
-    }
-
-    return api;
+    return new Api(token, { ...options, emitter: this });
   }
 
   /**

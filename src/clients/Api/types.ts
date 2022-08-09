@@ -5,7 +5,8 @@ import type { EventEmitter } from 'events';
 import type FormData from 'form-data';
 import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { UserEvents } from '../../@types';
-import type { ApiRequest } from './structures';
+import type { ApiRequest, RateLimitHeaders } from './structures';
+import type { ApiDebugCode, LogLevel, LOG_SOURCES } from '../../constants';
 
 export type { RemoteApiResponse } from '../../rpc';
 
@@ -15,6 +16,7 @@ export interface IApiOptions {
   emitter?: EventEmitter;
   events?: UserEvents;
   requestOptions?: IRequestOptions;
+  queueLoopInterval?: number;
 }
 
 export type RequestFormDataFunction = () => { data?: Record<string, unknown> | FormData | undefined, headers?: Record<string, unknown> | undefined }
@@ -114,4 +116,12 @@ export interface ApiError<T = any, D = any> extends Error {
   response?: IApiResponse<T> | RemoteApiResponse<T>;
   isApiError: boolean;
   toJSON: () => object;
+}
+
+export interface ApiDebugEvent {
+  source: typeof LOG_SOURCES.API,
+  level: LogLevel,
+  message: string,
+  code: ApiDebugCode;
+  data?: Error | ApiRequest | { request: ApiRequest, response: IApiResponse | RateLimitedResponse } | RateLimitHeaders,
 }

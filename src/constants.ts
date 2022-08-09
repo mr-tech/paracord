@@ -21,7 +21,7 @@ export const GATEWAY_OP_CODES = {
   INVALID_SESSION: 9,
   HELLO: 10,
   HEARTBEAT_ACK: 11,
-};
+} as const;
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
 export const GATEWAY_CLOSE_CODES = {
   CLEAN: 1000,
@@ -51,8 +51,7 @@ export const GATEWAY_CLOSE_CODES = {
   USER_TERMINATE_RECONNECT: 4997, // Closed by user. Start new session.
   USER_TERMINATE: 4998, // Closed by user. Do not reconnect.
   UNKNOWN: 4999, // Something odd happened. Refer to other ERROR level logging events.
-
-};
+} as const;
 
 export const DISCORD_API_URL = 'https://discord.com/api';
 export const DISCORD_API_DEFAULT_VERSION = 9;
@@ -62,27 +61,39 @@ export const DISCORD_CDN_URL = 'https://cdn.discordapp.com';
 /** A permissions map for operations relevant to the library. */
 export const PERMISSIONS = {
   ADMINISTRATOR: BigInt(0x8),
-};
+} as const;
 /** For internal logging. */
 export const LOG_SOURCES = {
   GATEWAY: 0,
   API: 1,
   PARACORD: 2,
   RPC: 3,
-};
+} as const;
+export type LogSource = typeof LOG_SOURCES[keyof typeof LOG_SOURCES]
 export const LOG_LEVELS = {
   FATAL: 0,
   ERROR: 1,
   WARNING: 2,
   INFO: 4,
   DEBUG: 5,
-};
+} as const;
+export type LogLevel = typeof LOG_LEVELS[keyof typeof LOG_LEVELS]
 export const API_GLOBAL_RATE_LIMIT = 50;
 export const API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS = 1000;
 export const API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS = 50;
 export const API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = 5 * MINUTE_IN_MILLISECONDS;
 export const RPC_CLOSE_CODES = {
   LOST_CONNECTION: 14,
-};
+} as const;
 
 export const OVERWRITE_ROLE_VALUE = 0;
+
+export const API_DEBUG_CODES = {
+  GENERAL: 1,
+  REQUEST: 2,
+  REQUEST_QUEUED: 3,
+  RESPONSE: 4,
+  RATE_LIMIT: 5,
+} as const;
+export type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
+export type ApiDebugCode = typeof API_DEBUG_CODES[ApiDebugCodeName]

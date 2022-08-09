@@ -86,7 +86,7 @@ class Paracord extends events_1.EventEmitter {
         this.#events = events;
         this.#apiOptions = apiOptions;
         this.#gatewayOptions = gatewayOptions;
-        const api = this.setUpApi(this.#token, this.#apiOptions ?? {});
+        const api = new Api_1.default(token, { ...(apiOptions ?? {}), emitter: this });
         this.#api = api;
         this.request = api.request.bind(api);
     }
@@ -215,7 +215,7 @@ class Paracord extends events_1.EventEmitter {
                 }
             }
             catch (err) {
-                this.log('FATAL', err.message, gateway);
+                this.log('FATAL', err instanceof Error ? err.message : String(err), gateway);
                 this.clearStartingShardState();
                 gatewayLoginQueue.unshift(gateway);
             }
@@ -310,11 +310,7 @@ class Paracord extends events_1.EventEmitter {
      * @param options
      */
     setUpApi(token, options) {
-        const api = new Api_1.default(token, { ...options, emitter: this });
-        if (api.rpcRequestService === undefined) {
-            api.startQueue();
-        }
-        return api;
+        return new Api_1.default(token, { ...options, emitter: this });
     }
     /**
      * Creates the handler used when connecting to Discord's gateway.

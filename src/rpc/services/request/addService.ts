@@ -24,7 +24,6 @@ export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}):
   apiOptions.requestOptions.transformResponse = (data) => data;
 
   server.apiClient = new Api(token, apiOptions);
-  server.apiClient.startQueue();
 
   server.addService(requestProto.RequestService, {
     hello: hello.bind(server),

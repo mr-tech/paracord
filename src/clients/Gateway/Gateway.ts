@@ -350,7 +350,6 @@ export default class Gateway {
   private async getWebsocketUrl(): Promise<string | undefined> {
     if (this.#api === undefined) {
       this.#api = new Api(this.#identity.token);
-      this.#api.startQueue();
     }
 
     const { status, statusText, data } = await this.#api.request<GatewayBotResponse>(

@@ -289,7 +289,6 @@ class Gateway {
     async getWebsocketUrl() {
         if (this.#api === undefined) {
             this.#api = new Api_1.default(this.#identity.token);
-            this.#api.startQueue();
         }
         const { status, statusText, data } = await this.#api.request('get', 'gateway/bot');
         if (status === 200) {

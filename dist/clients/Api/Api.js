@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const axios_1 = __importDefault(require("axios"));
+const events_1 = require("events");
 const rpc_1 = require("../../rpc");
 const utils_1 = require("../../utils");
 const constants_1 = require("../../constants");
@@ -33,6 +34,12 @@ class Api {
     #rpcServiceOptions;
     #connectingToRpcService;
     #requestOptions;
+    static isApiDebugEvent(event) {
+        function hasSource(evt = event) {
+            return !!(event && typeof event === 'object' && 'source' in event);
+        }
+        return hasSource(event) && event.source === constants_1.LOG_SOURCES.API;
+    }
     static shouldQueueRequest(request, globalRateLimited) {
         const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
         if (request.retriesLeft !== undefined) {
@@ -130,9 +137,10 @@ class Api {
      */
     constructor(token, options = {}) {
         Api.validateParams(token);
-        this.#rateLimitCache = new structures_1.RateLimitCache(true, options.requestOptions?.globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, options.requestOptions?.globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, this);
-        this.#requestQueue = new structures_1.RequestQueue(this);
-        this.#requestQueueProcessInterval;
+        this.#rateLimitCache = new structures_1.RateLimitCache(options.requestOptions?.globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, options.requestOptions?.globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, this);
+        const requestQueue = new structures_1.RequestQueue(this);
+        this.#requestQueue = requestQueue;
+        this.#requestQueueProcessInterval = this.#requestQueue.startQueue(options.queueLoopInterval ?? 100);
         const { emitter, events, requestOptions } = options;
         this.#requestOptions = requestOptions ?? {};
         this.#emitter = emitter;
@@ -161,13 +169,16 @@ class Api {
      * @param message Content of the log
      * @param [data] Data pertinent to the event.
      */
-    log = (level, message, data) => {
-        this.emit('DEBUG', {
+    log = (level, message, data, code = constants_1.API_DEBUG_CODES.GENERAL) => {
+        const event = {
             source: constants_1.LOG_SOURCES.API,
             level: constants_1.LOG_LEVELS[level],
             message,
-            data,
-        });
+            code,
+        };
+        if (data)
+            event.data = data;
+        this.emit('DEBUG', event);
     };
     /**
      * Emits all events if `this.events` is undefined; otherwise will emit those defined as keys in `this.events` as the paired value.
@@ -178,6 +189,17 @@ class Api {
         if (this.#emitter !== undefined) {
             this.#emitter.emit(type, data);
         }
+    };
+    on = (name, listener) => {
+        if (!this.#emitter) {
+            this.#emitter = new events_1.EventEmitter();
+        }
+        const code = constants_1.API_DEBUG_CODES[name];
+        this.#emitter.on('DEBUG', (event) => {
+            if (Api.isApiDebugEvent(event) && event.code === code) {
+                listener(event);
+            }
+        });
     };
     /*
      ********************************
@@ -277,32 +299,6 @@ class Api {
     }
     /*
      ********************************
-     ******** REQUEST QUEUE *********
-     ********************************
-     */
-    /**
-     * Starts the request rate limit queue processing.
-     * @param interval Time between checks in ms.
-     */
-    startQueue = (interval = 100) => {
-        if (this.#requestQueueProcessInterval === undefined) {
-            this.log('INFO', 'Starting request queue.');
-            this.#requestQueueProcessInterval = this.#requestQueue.startQueue(interval);
-        }
-        else {
-            throw Error('request queue already started');
-        }
-    };
-    /** Stops the request rate limit queue processing. */
-    stopQueue = () => {
-        if (this.#requestQueueProcessInterval !== undefined) {
-            this.log('INFO', 'Stopping request queue.');
-            clearInterval(this.#requestQueueProcessInterval);
-            this.#requestQueueProcessInterval = undefined;
-        }
-    };
-    /*
-     ********************************
      *********** REQUEST ************
      ********************************
      */
@@ -336,9 +332,6 @@ class Api {
      * @returns axios response.
      */
     async handleRequestLocal(request) {
-        if (this.#requestQueueProcessInterval === undefined) {
-            throw Error('Making a local request without starting the request queue. Call `startQueue()` on this client so that rate limits may be handled.');
-        }
         const { response, ...rateLimitState } = await this.sendRequest(request);
         if (response !== undefined) {
             return this.handleResponse(request, response); // TODO: There's nothing more permanent than this "temporary" solution
@@ -399,7 +392,7 @@ class Api {
             const { waitFor, global } = rateLimitState;
             if (waitFor === 0) {
                 const message = 'Sending request.';
-                this.log('DEBUG', message, request);
+                this.log('DEBUG', message, request, constants_1.API_DEBUG_CODES.REQUEST);
                 return { response: await this.#makeRequest(request), waitFor: 0 };
             }
             request.running = false;
@@ -409,7 +402,7 @@ class Api {
             request.assignIfStricterWait(new Date().getTime() + waitFor);
             if (!fromQueue) {
                 const message = 'Enqueuing request.';
-                this.log('DEBUG', message, request);
+                this.log('DEBUG', message, request, constants_1.API_DEBUG_CODES.REQUEST_QUEUED);
                 return { response: await this.enqueueRequest(request), waitFor: 0 };
             }
             const message = 'Requeuing request.';
@@ -452,13 +445,10 @@ class Api {
         }
     }
     async handleResponse(request, response) {
-        this.log('DEBUG', 'Response received.', { request, response });
+        this.log('DEBUG', 'Response received.', { request, response }, constants_1.API_DEBUG_CODES.RESPONSE);
         const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? response.data.retry_after : undefined);
         const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
         if (isRateLimitResponse(response) && allowQueue) {
-            if (this.#requestQueueProcessInterval === undefined) {
-                throw Error('Request rate limited without the queue running. Call `startQueue()` on this client so that rate limited requests may be handled.');
-            }
             return new Promise((resolve) => {
                 this.handleRateLimitedRequest(request, rateLimitHeaders).then(async (res) => resolve(await this.handleResponse(request, res)));
             });
@@ -479,7 +469,7 @@ class Api {
         else {
             message = `Request rate limited: ${request.method} ${request.url}`;
         }
-        this.log('DEBUG', message, rateLimitHeaders);
+        this.log('DEBUG', message, rateLimitHeaders, constants_1.API_DEBUG_CODES.RATE_LIMIT);
         this.updateRateLimitCache(request, rateLimitHeaders);
         const { resetAfter } = rateLimitHeaders;
         const { waitUntil } = request;

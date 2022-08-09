@@ -14,7 +14,6 @@ exports.default = (server, token, apiOptions = {}) => {
     apiOptions.requestOptions = apiOptions.requestOptions ?? {};
     apiOptions.requestOptions.transformResponse = (data) => data;
     server.apiClient = new clients_1.Api(token, apiOptions);
-    server.apiClient.startQueue();
     server.addService(requestProto.RequestService, {
         hello: hello.bind(server),
         request: request.bind(server),

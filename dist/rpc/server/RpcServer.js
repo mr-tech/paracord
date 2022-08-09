@@ -57,7 +57,7 @@ class RpcServer extends grpc.Server {
         this.#channel = channel ?? grpc.ServerCredentials.createInsecure();
         this.emitter = emitter;
         this.apiClient = apiClient;
-        this.rateLimitCache = new clients_1.RateLimitCache(false, globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, apiClient);
+        this.rateLimitCache = new clients_1.RateLimitCache(globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, apiClient);
     }
     /** Establishes the arguments that will be passed to `bindAsync()` when starting the server. */
     get bindArgs() {

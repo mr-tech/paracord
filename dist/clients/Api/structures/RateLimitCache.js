@@ -19,11 +19,7 @@ class RateLimitCache {
     #globalRateLimitState;
     #globalRateLimitMax;
     #globalRateLimitResetPadding;
-    /**
-     * Creates a new rate limit cache.
-     * @param autoStartSweep Specify false to not start the sweep interval.
-     */
-    constructor(autoStartSweep, globalRateLimitMax, globalRateLimitResetPadding, logger) {
+    constructor(globalRateLimitMax, globalRateLimitResetPadding, logger) {
         this.bucketHashes = new Map();
         this.#rateLimitMap = new RateLimitMap_1.default(logger);
         this.#rateLimitTemplateMap = new RateLimitTemplateMap_1.default();
@@ -33,8 +29,7 @@ class RateLimitCache {
         };
         this.#globalRateLimitMax = globalRateLimitMax;
         this.#globalRateLimitResetPadding = globalRateLimitResetPadding;
-        if (autoStartSweep)
-            autoStartSweep && this.#rateLimitMap.startSweepInterval();
+        this.#rateLimitMap.startSweepInterval();
     }
     /**
      * If the request cannot be made without triggering a Discord rate limit.
