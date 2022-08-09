@@ -173,7 +173,6 @@ export default class Api {
 
     const requestQueue = new RequestQueue(this);
     this.#requestQueue = requestQueue;
-    this.#requestQueue.startQueue(options.queueLoopInterval ?? 100);
 
     const { emitter, events, requestOptions } = options;
 
@@ -197,6 +196,10 @@ export default class Api {
 
   public get hasRequestService(): boolean {
     return this.rpcRequestService !== undefined;
+  }
+
+  public get queue(): RequestQueue {
+    return this.#requestQueue;
   }
 
   /*
@@ -461,9 +464,8 @@ export default class Api {
    * @param request ApiRequest being made,
    */
   public sendRequest = async <T extends ResponseData>(request: ApiRequest, fromQueue?: undefined | true): Promise<IResponseState<T>> => {
+    request.running = true;
     try {
-      request.running = true;
-
       let rateLimitState: IRateLimitState | undefined;
       if (this.hasRateLimitService) {
         rateLimitState = await this.authorizeRequestWithServer(request);
@@ -482,7 +484,7 @@ export default class Api {
       request.running = false;
 
       if (!Api.shouldQueueRequest(request, global ?? false)) {
-        return rateLimitState;
+        return { force: true, waitFor: -1 };
       }
 
       request.assignIfStricterWait(new Date().getTime() + waitFor);
@@ -490,7 +492,7 @@ export default class Api {
       if (!fromQueue) {
         const message = 'Enqueuing request.';
         this.log('DEBUG', message, request, API_DEBUG_CODES.REQUEST_QUEUED);
-        return { response: await this.enqueueRequest(request), waitFor: 0 };
+        return { response: await this.enqueueRequest(request), waitFor: -1 };
       }
 
       const message = 'Requeuing request.';

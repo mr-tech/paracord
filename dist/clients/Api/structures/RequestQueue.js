@@ -31,6 +31,8 @@ class RequestQueue {
         this.#queue = [];
         this.#length = 0;
         this.#apiClient = apiClient;
+        setInterval(this.reallocate, constants_1.HOUR_IN_MILLISECONDS);
+        setInterval(this.processQueue, 100);
     }
     /** The length of the queue. */
     get length() {
@@ -38,10 +40,6 @@ class RequestQueue {
     }
     get allocated() {
         return this.#queue.length;
-    }
-    startQueue(interval) {
-        setInterval(this.reallocate, constants_1.HOUR_IN_MILLISECONDS);
-        setInterval(this.processQueue, interval);
     }
     reallocate() {
         if (!this.#processing) {
@@ -138,8 +136,8 @@ class RequestQueue {
         return false;
     }
     async sendRequest(request) {
-        const { response } = await this.#apiClient.sendRequest(request, true);
-        if (response && response.status !== 429) {
+        const { response, force } = await this.#apiClient.sendRequest(request, true);
+        if (force || (response && response.status !== 429)) {
             request.response = response;
         }
     }

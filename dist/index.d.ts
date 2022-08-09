@@ -174,6 +174,7 @@ export declare class Api {
     constructor(token: string, options?: IApiOptions);
     get hasRateLimitService(): boolean;
     get hasRequestService(): boolean;
+    get queue(): RequestQueue;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -2468,6 +2469,7 @@ export declare type InviteStageInstance = {
 export declare type IRateLimitState = {
     waitFor: number;
     global?: boolean;
+    force?: boolean;
 };
 
 /** Optional parameters for a Discord REST request. */
@@ -3377,7 +3379,6 @@ export declare class RequestQueue {
     /** The length of the queue. */
     get length(): number;
     get allocated(): number;
-    startQueue(interval: number): void;
     private reallocate;
     /**
      * Adds any number of requests to the queue.

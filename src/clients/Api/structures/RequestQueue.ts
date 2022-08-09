@@ -40,6 +40,9 @@ export default class RequestQueue {
     this.#queue = [];
     this.#length = 0;
     this.#apiClient = apiClient;
+
+    setInterval(this.reallocate, HOUR_IN_MILLISECONDS);
+    setInterval(this.processQueue, 100);
   }
 
   /** The length of the queue. */
@@ -49,11 +52,6 @@ export default class RequestQueue {
 
   public get allocated(): number {
     return this.#queue.length;
-  }
-
-  public startQueue(interval: number) {
-    setInterval(this.reallocate, HOUR_IN_MILLISECONDS);
-    setInterval(this.processQueue, interval);
   }
 
   private reallocate() {
@@ -160,8 +158,8 @@ export default class RequestQueue {
   }
 
   private async sendRequest(request: ApiRequest): Promise<void> {
-    const { response } = await this.#apiClient.sendRequest(request, true);
-    if (response && response.status !== 429) {
+    const { response, force } = await this.#apiClient.sendRequest(request, true);
+    if (force || (response && response.status !== 429)) {
       request.response = response;
     }
   }

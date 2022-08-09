@@ -103,6 +103,7 @@ export interface RateLimitedResponse extends IApiResponse<{
 export type IRateLimitState = {
   waitFor: number;
   global?: boolean;
+  force?: boolean;
 }
 
 export type IResponseState<T extends ResponseData> = IRateLimitState & {

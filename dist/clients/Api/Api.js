@@ -138,7 +138,6 @@ class Api {
         this.#rateLimitCache = new structures_1.RateLimitCache(options.requestOptions?.globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, options.requestOptions?.globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, this);
         const requestQueue = new structures_1.RequestQueue(this);
         this.#requestQueue = requestQueue;
-        this.#requestQueue.startQueue(options.queueLoopInterval ?? 100);
         const { emitter, events, requestOptions } = options;
         this.#requestOptions = requestOptions ?? {};
         this.#emitter = emitter;
@@ -155,6 +154,9 @@ class Api {
     }
     get hasRequestService() {
         return this.rpcRequestService !== undefined;
+    }
+    get queue() {
+        return this.#requestQueue;
     }
     /*
      ********************************
@@ -378,8 +380,8 @@ class Api {
      * @param request ApiRequest being made,
      */
     sendRequest = async (request, fromQueue) => {
+        request.running = true;
         try {
-            request.running = true;
             let rateLimitState;
             if (this.hasRateLimitService) {
                 rateLimitState = await this.authorizeRequestWithServer(request);
@@ -395,13 +397,13 @@ class Api {
             }
             request.running = false;
             if (!Api.shouldQueueRequest(request, global ?? false)) {
-                return rateLimitState;
+                return { force: true, waitFor: -1 };
             }
             request.assignIfStricterWait(new Date().getTime() + waitFor);
             if (!fromQueue) {
                 const message = 'Enqueuing request.';
                 this.log('DEBUG', message, request, constants_1.API_DEBUG_CODES.REQUEST_QUEUED);
-                return { response: await this.enqueueRequest(request), waitFor: 0 };
+                return { response: await this.enqueueRequest(request), waitFor: -1 };
             }
             const message = 'Requeuing request.';
             this.log('DEBUG', message, request);
