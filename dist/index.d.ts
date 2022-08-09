@@ -310,7 +310,8 @@ export declare type ApiDebugCode = typeof API_DEBUG_CODES[ApiDebugCodeName];
 
 export declare type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
 
-export declare interface ApiDebugData {
+export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
+    GENERAL: never;
     ERROR: undefined | Error;
     REQUEST_SENT: ApiRequest;
     REQUEST_QUEUED: ApiRequest;
@@ -326,12 +327,12 @@ export declare interface ApiDebugData {
 
 export declare type ApiDebugDataType = ApiDebugData[keyof ApiDebugData];
 
-export declare interface ApiDebugEvent {
+export declare interface ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> {
     source: typeof LOG_SOURCES.API;
     level: LogLevel;
     message: string;
-    code: ApiDebugCode;
-    data?: ApiDebugDataType;
+    code: typeof API_DEBUG_CODES[T];
+    data?: ApiDebugData[T];
 }
 
 export declare interface ApiError<T = any, D = any> extends Error {

@@ -4,7 +4,9 @@ import type FormData from 'form-data';
 import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { RemoteApiResponse } from '../../rpc';
 import type { UserEvents } from '../../@types';
-import type { ApiDebugCode, LogLevel, LOG_SOURCES } from '../../constants';
+import type {
+  API_DEBUG_CODES, ApiDebugCodeName, LogLevel, LOG_SOURCES,
+} from '../../constants';
 import type { ApiRequest, RateLimitHeaders } from './structures';
 
 export type { RemoteApiResponse } from '../../rpc';
@@ -118,15 +120,16 @@ export interface ApiError<T = any, D = any> extends Error {
   toJSON: () => object;
 }
 
-export interface ApiDebugEvent {
+export interface ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> {
   source: typeof LOG_SOURCES.API,
   level: LogLevel,
   message: string,
-  code: ApiDebugCode;
-  data?: ApiDebugDataType,
+  code: typeof API_DEBUG_CODES[T];
+  data?: ApiDebugData[T],
 }
 
-export interface ApiDebugData {
+export interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
+  GENERAL: never;
   ERROR: undefined | Error;
   REQUEST_SENT: ApiRequest;
   REQUEST_QUEUED: ApiRequest;
