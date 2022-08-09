@@ -238,7 +238,7 @@ export default class Api {
     }
   };
 
-  public on = (name: ApiDebugCodeName, listener: (event: ApiDebugEvent) => void) => {
+  public on = <T extends ApiDebugCodeName = ApiDebugCodeName>(name: T, listener: (event: ApiDebugEvent<T>) => void) => {
     if (!this.#emitter) {
       this.#emitter = new EventEmitter();
     }
@@ -246,7 +246,7 @@ export default class Api {
     const code = API_DEBUG_CODES[name];
     this.#emitter.on('DEBUG', (event) => {
       if (Api.isApiDebugEvent(event) && event.code === code) {
-        listener(event);
+        listener(event as ApiDebugEvent<T>);
       }
     });
   };

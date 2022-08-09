@@ -188,7 +188,7 @@ export declare class Api {
      * @param data Data to send with the event.
      */
     private emit;
-    on: (name: ApiDebugCodeName, listener: (event: ApiDebugEvent) => void) => void;
+    on: <T extends "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED" = "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
     /**
      * Adds the service that has a server make requests to Discord on behalf of the client.
      * @param serviceOptions
