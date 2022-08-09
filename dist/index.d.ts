@@ -314,8 +314,12 @@ export declare type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
 export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
     GENERAL: undefined;
     ERROR: unknown;
-    REQUEST_SENT: ApiRequest;
-    REQUEST_QUEUED: ApiRequest;
+    REQUEST_SENT: {
+        request: ApiRequest;
+    };
+    REQUEST_QUEUED: {
+        request: ApiRequest;
+    };
     REQUEST_RECEIVED: {
         request: ApiRequest;
         response: IApiResponse | RateLimitedResponse;

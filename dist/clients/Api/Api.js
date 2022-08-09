@@ -341,7 +341,7 @@ class Api {
      * @param request ApiRequest being made.
      */
     async handleRequestRemote(rpcRequestService, request) {
-        this.log('DEBUG', 'REQUEST_SENT', 'Sending request over Rpc to server.', request);
+        this.log('DEBUG', 'REQUEST_SENT', 'Sending request over Rpc to server.', { request });
         if (this.#connectingToRpcService) {
             if (this.#allowFallback) {
                 const message = 'Client is connecting to RPC server. Falling back to handling request locally.';
@@ -380,7 +380,7 @@ class Api {
             const { waitFor, global } = rateLimitState;
             if (waitFor === 0) {
                 const message = 'Sending request.';
-                this.log('DEBUG', 'REQUEST_SENT', message, request);
+                this.log('DEBUG', 'REQUEST_SENT', message, { request });
                 return { response: await this.#makeRequest(request), waitFor: 0 };
             }
             request.running = false;
@@ -390,11 +390,11 @@ class Api {
             request.assignIfStricterWait(new Date().getTime() + waitFor);
             if (!fromQueue) {
                 const message = 'Enqueuing request.';
-                this.log('DEBUG', 'REQUEST_QUEUED', message, request);
+                this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
                 return { response: await this.enqueueRequest(request), waitFor: -1 };
             }
             const message = 'Requeuing request.';
-            this.log('DEBUG', 'REQUEST_QUEUED', message, request);
+            this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
             return { waitFor: -1 };
         }
         finally {

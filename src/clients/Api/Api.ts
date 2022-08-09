@@ -7,7 +7,8 @@ import { coerceTokenToBotLike, stripLeadingSlash } from '../../utils';
 import {
   PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION,
   DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES,
-  API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, LogSource, API_DEBUG_CODES, ApiDebugCode, ApiDebugCodeName,
+  API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
+  LogSource, API_DEBUG_CODES, ApiDebugCodeName,
 } from '../../constants';
 
 import {
@@ -436,7 +437,7 @@ export default class Api {
    * @param request ApiRequest being made.
    */
   private async handleRequestRemote<T extends ResponseData>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
-    this.log('DEBUG', 'REQUEST_SENT', 'Sending request over Rpc to server.', request);
+    this.log('DEBUG', 'REQUEST_SENT', 'Sending request over Rpc to server.', { request });
 
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {
@@ -481,7 +482,7 @@ export default class Api {
       const { waitFor, global } = rateLimitState;
       if (waitFor === 0) {
         const message = 'Sending request.';
-        this.log('DEBUG', 'REQUEST_SENT', message, request);
+        this.log('DEBUG', 'REQUEST_SENT', message, { request });
         return { response: await this.#makeRequest(request), waitFor: 0 };
       }
       request.running = false;
@@ -494,12 +495,12 @@ export default class Api {
 
       if (!fromQueue) {
         const message = 'Enqueuing request.';
-        this.log('DEBUG', 'REQUEST_QUEUED', message, request);
+        this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
         return { response: await this.enqueueRequest(request), waitFor: -1 };
       }
 
       const message = 'Requeuing request.';
-      this.log('DEBUG', 'REQUEST_QUEUED', message, request);
+      this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
 
       return { waitFor: -1 };
     } finally {
