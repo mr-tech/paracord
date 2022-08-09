@@ -8,12 +8,10 @@ const RateLimit_1 = __importDefault(require("./RateLimit"));
 /** Rate limit keys to their associated state. */
 class RateLimitMap extends Map {
     #logger;
-    /** Interval for sweeping old rate limits from the cache. */
-    #sweepInterval;
     constructor(logger) {
         super();
         this.#logger = logger;
-        this.#sweepInterval = undefined;
+        setInterval(this.sweepExpiredRateLimits, constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
     }
     /**
      * Inserts rate limit if not exists. Otherwise, updates its state.
@@ -45,12 +43,8 @@ class RateLimitMap extends Map {
             }
         }
         if (this.#logger) {
-            this.#logger.log('DEBUG', `Swept old ${count} old rate limits from cache. (${new Date().getTime() - now}ms)`);
+            this.#logger.log('DEBUG', 'GENERAL', `Swept old ${count} old rate limits from cache. (${new Date().getTime() - now}ms)`);
         }
-    };
-    /** Begins timer for sweeping cache of old rate limits. */
-    startSweepInterval = () => {
-        this.#sweepInterval = setInterval(this.sweepExpiredRateLimits, constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
     };
 }
 exports.default = RateLimitMap;

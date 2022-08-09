@@ -10,7 +10,6 @@ const rateLimitProto = (0, common_1.loadProto)('rate_limit');
  * @param server
  */
 exports.default = (server) => {
-    server.rateLimitCache.startSweepInterval();
     server.addService(rateLimitProto.RateLimitService, {
         hello: hello.bind(server),
         authorize: authorize.bind(server),

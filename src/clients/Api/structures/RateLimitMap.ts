@@ -10,14 +10,10 @@ import type { RateLimitState } from '../types';
 export default class RateLimitMap extends Map<string, RateLimit> {
   #logger?: undefined | Api;
 
-  /** Interval for sweeping old rate limits from the cache. */
-  #sweepInterval: NodeJS.Timer | undefined;
-
   public constructor(logger?: undefined | Api) {
     super();
-
     this.#logger = logger;
-    this.#sweepInterval = undefined;
+    setInterval(this.sweepExpiredRateLimits, API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
   }
 
   /**
@@ -55,12 +51,7 @@ export default class RateLimitMap extends Map<string, RateLimit> {
     }
 
     if (this.#logger) {
-      this.#logger.log('DEBUG', `Swept old ${count} old rate limits from cache. (${new Date().getTime() - now}ms)`);
+      this.#logger.log('DEBUG', 'GENERAL', `Swept old ${count} old rate limits from cache. (${new Date().getTime() - now}ms)`);
     }
-  };
-
-  /** Begins timer for sweeping cache of old rate limits. */
-  public startSweepInterval = (): void => {
-    this.#sweepInterval = setInterval(this.sweepExpiredRateLimits, API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
   };
 }

@@ -17,7 +17,7 @@ import {
 import type { DebugLevel } from '../../@types';
 import type {
   IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState,
-  IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse, ApiDebugEvent,
+  IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse, ApiDebugEvent, ApiDebugData,
 } from './types';
 
 function isRateLimitResponse(response: IApiResponse | RateLimitedResponse): response is RateLimitedResponse {
@@ -214,18 +214,21 @@ export default class Api {
    * @param message Content of the log
    * @param [data] Data pertinent to the event.
    */
-  public log = (level: DebugLevel, message: string, data?: ApiDebugEvent['data'], code: ApiDebugCode = API_DEBUG_CODES.GENERAL): void => {
+  public log(level: DebugLevel, code: 'GENERAL', message: string): void
+
+  public log<T extends ApiDebugCodeName>(level: DebugLevel, code: T, message: string, data: ApiDebugData[T]): void
+
+  public log<T extends ApiDebugCodeName>(level: DebugLevel, code: T, message: string, data?: ApiDebugData[T]): void {
     const event: ApiDebugEvent = {
       source: LOG_SOURCES.API,
       level: LOG_LEVELS[level],
       message,
-      code,
+      code: API_DEBUG_CODES[code],
+      data,
     };
 
-    if (data) event.data = data;
-
     this.emit('DEBUG', event);
-  };
+  }
 
   /**
    * Emits all events if `this.events` is undefined; otherwise will emit those defined as keys in `this.events` as the paired value.
@@ -278,12 +281,12 @@ export default class Api {
     if (this.#rpcServiceOptions === undefined) {
       {
         const message = `Rpc service created for sending requests remotely. Connected to: ${this.rpcRequestService.target}`;
-        this.log('INFO', message);
+        this.log('INFO', 'GENERAL', message);
       }
 
       if (!this.#allowFallback) {
         const message = '`allowFallback` option is not true. Requests will fail when unable to connect to the Rpc server.';
-        this.log('WARNING', message);
+        this.log('WARNING', 'GENERAL', message);
       }
     }
 
@@ -310,12 +313,12 @@ export default class Api {
     if (this.#rpcServiceOptions === undefined) {
       {
         const message = `Rpc service created for handling rate limits remotely. Connected to: ${this.#rpcRateLimitService.target}`;
-        this.log('INFO', message);
+        this.log('INFO', 'GENERAL', message);
       }
 
       if (!this.#allowFallback) {
         const message = '`allowFallback` option is not true. Requests will fail when unable to connect to the Rpc server.';
-        this.log('WARNING', message);
+        this.log('WARNING', 'GENERAL', message);
       }
     }
 
@@ -331,7 +334,7 @@ export default class Api {
     try {
       await service.hello();
       this.#connectingToRpcService = false;
-      this.log('DEBUG', 'Successfully established connection to Rpc server.');
+      this.log('DEBUG', 'GENERAL', 'Successfully established connection to Rpc server.');
       return true;
     } catch (err: any) {
       if (!this.#connectingToRpcService) {
@@ -339,7 +342,7 @@ export default class Api {
           this.#connectingToRpcService = true;
           this.reattemptConnectInFuture(1);
         } else {
-          this.log('ERROR', 'Received unexpected error when connecting to Rpc service.', err);
+          this.log('ERROR', 'ERROR', 'Received unexpected error when connecting to Rpc service.', err);
         }
       }
     }
@@ -359,7 +362,7 @@ export default class Api {
   }
 
   private reattemptConnectInFuture(delay: number) {
-    this.log('WARNING', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);
+    this.log('WARNING', 'GENERAL', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);
 
     setTimeout(async () => {
       const success = await this.recreateRpcService();
@@ -433,12 +436,12 @@ export default class Api {
    * @param request ApiRequest being made.
    */
   private async handleRequestRemote<T extends ResponseData>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
-    this.log('DEBUG', 'Sending request over Rpc to server.', request);
+    this.log('DEBUG', 'REQUEST_SENT', 'Sending request over Rpc to server.', request);
 
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {
         const message = 'Client is connecting to RPC server. Falling back to handling request locally.';
-        this.log('WARNING', message);
+        this.log('WARNING', 'GENERAL', message);
         return this.handleRequestLocal(request);
       }
 
@@ -451,7 +454,7 @@ export default class Api {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
         await this.recreateRpcService();
         const message = 'Could not reach RPC server. Falling back to handling request locally.';
-        this.log('ERROR', message);
+        this.log('ERROR', 'ERROR', message, err);
 
         return this.handleRequestLocal(request);
       }
@@ -478,7 +481,7 @@ export default class Api {
       const { waitFor, global } = rateLimitState;
       if (waitFor === 0) {
         const message = 'Sending request.';
-        this.log('DEBUG', message, request, API_DEBUG_CODES.REQUEST_SENT);
+        this.log('DEBUG', 'REQUEST_SENT', message, request);
         return { response: await this.#makeRequest(request), waitFor: 0 };
       }
       request.running = false;
@@ -491,12 +494,12 @@ export default class Api {
 
       if (!fromQueue) {
         const message = 'Enqueuing request.';
-        this.log('DEBUG', message, request, API_DEBUG_CODES.REQUEST_QUEUED);
+        this.log('DEBUG', 'REQUEST_QUEUED', message, request);
         return { response: await this.enqueueRequest(request), waitFor: -1 };
       }
 
       const message = 'Requeuing request.';
-      this.log('DEBUG', message, request);
+      this.log('DEBUG', 'REQUEST_QUEUED', message, request);
 
       return { waitFor: -1 };
     } finally {
@@ -512,7 +515,7 @@ export default class Api {
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {
         const message = 'Client is connecting to RPC server. Fallback is allowed. Allowing request to be made.';
-        this.log('WARNING', message);
+        this.log('WARNING', 'GENERAL', message);
         return undefined;
       }
 
@@ -532,7 +535,7 @@ export default class Api {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
         this.recreateRpcService();
         const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
-        this.log('ERROR', message);
+        this.log('ERROR', 'ERROR', message, err);
         return undefined;
       }
       throw err;
@@ -540,7 +543,7 @@ export default class Api {
   }
 
   private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T> | RateLimitedResponse): Promise<IApiResponse<T> | RateLimitedResponse> {
-    this.log('DEBUG', 'Response received.', { request, response }, API_DEBUG_CODES.RESPONSE_RECEIVED);
+    this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
 
     const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
       response.headers,
@@ -571,7 +574,7 @@ export default class Api {
     } else {
       message = `Request rate limited: ${request.method} ${request.url}`;
     }
-    this.log('DEBUG', message, { request, headers }, API_DEBUG_CODES.RATE_LIMITED);
+    this.log('DEBUG', 'RATE_LIMITED', message, { request, headers });
 
     this.updateRateLimitCache(request, headers);
 

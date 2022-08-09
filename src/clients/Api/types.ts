@@ -120,17 +120,17 @@ export interface ApiError<T = any, D = any> extends Error {
   toJSON: () => object;
 }
 
-export interface ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> {
+export type ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> = {
   source: typeof LOG_SOURCES.API,
   level: LogLevel,
   message: string,
   code: typeof API_DEBUG_CODES[T];
-  data?: ApiDebugData[T],
+  data: ApiDebugData[T];
 }
 
 export interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
-  GENERAL: never;
-  ERROR: undefined | Error;
+  GENERAL: undefined;
+  ERROR: unknown;
   REQUEST_SENT: ApiRequest;
   REQUEST_QUEUED: ApiRequest;
   REQUEST_RECEIVED: { request: ApiRequest, response: IApiResponse | RateLimitedResponse };

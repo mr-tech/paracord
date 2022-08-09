@@ -48,8 +48,6 @@ export default class RateLimitCache {
     };
     this.#globalRateLimitMax = globalRateLimitMax;
     this.#globalRateLimitResetPadding = globalRateLimitResetPadding;
-
-    this.#rateLimitMap.startSweepInterval();
   }
 
   /**
@@ -83,11 +81,6 @@ export default class RateLimitCache {
   private get globalRateLimitResetAfter(): number {
     const waitFor = millisecondsFromNow(this.#globalRateLimitState.resetTimestamp);
     return waitFor > 0 ? waitFor : 0;
-  }
-
-  /** Begins timer for sweeping cache of old rate limits. */
-  public startSweepInterval(): void {
-    this.#rateLimitMap.startSweepInterval();
   }
 
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */

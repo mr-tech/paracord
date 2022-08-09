@@ -158,28 +158,16 @@ class Api {
     get queue() {
         return this.#requestQueue;
     }
-    /*
-     ********************************
-     *********** INTERNAL ***********
-     ********************************
-     */
-    /**
-     * Simple alias for logging events emitted by this client.
-     * @param level Key of the logging level of this message.
-     * @param message Content of the log
-     * @param [data] Data pertinent to the event.
-     */
-    log = (level, message, data, code = constants_1.API_DEBUG_CODES.GENERAL) => {
+    log(level, code, message, data) {
         const event = {
             source: constants_1.LOG_SOURCES.API,
             level: constants_1.LOG_LEVELS[level],
             message,
-            code,
+            code: constants_1.API_DEBUG_CODES[code],
+            data,
         };
-        if (data)
-            event.data = data;
         this.emit('DEBUG', event);
-    };
+    }
     /**
      * Emits all events if `this.events` is undefined; otherwise will emit those defined as keys in `this.events` as the paired value.
      * @param type Type of event. (e.g. "DEBUG" or "CHANNEL_CREATE")
@@ -221,11 +209,11 @@ class Api {
         if (this.#rpcServiceOptions === undefined) {
             {
                 const message = `Rpc service created for sending requests remotely. Connected to: ${this.rpcRequestService.target}`;
-                this.log('INFO', message);
+                this.log('INFO', 'GENERAL', message);
             }
             if (!this.#allowFallback) {
                 const message = '`allowFallback` option is not true. Requests will fail when unable to connect to the Rpc server.';
-                this.log('WARNING', message);
+                this.log('WARNING', 'GENERAL', message);
             }
         }
         this.#rpcServiceOptions = serviceOptions;
@@ -245,11 +233,11 @@ class Api {
         if (this.#rpcServiceOptions === undefined) {
             {
                 const message = `Rpc service created for handling rate limits remotely. Connected to: ${this.#rpcRateLimitService.target}`;
-                this.log('INFO', message);
+                this.log('INFO', 'GENERAL', message);
             }
             if (!this.#allowFallback) {
                 const message = '`allowFallback` option is not true. Requests will fail when unable to connect to the Rpc server.';
-                this.log('WARNING', message);
+                this.log('WARNING', 'GENERAL', message);
             }
         }
         this.#rpcServiceOptions = serviceOptions;
@@ -262,7 +250,7 @@ class Api {
         try {
             await service.hello();
             this.#connectingToRpcService = false;
-            this.log('DEBUG', 'Successfully established connection to Rpc server.');
+            this.log('DEBUG', 'GENERAL', 'Successfully established connection to Rpc server.');
             return true;
         }
         catch (err) {
@@ -272,7 +260,7 @@ class Api {
                     this.reattemptConnectInFuture(1);
                 }
                 else {
-                    this.log('ERROR', 'Received unexpected error when connecting to Rpc service.', err);
+                    this.log('ERROR', 'ERROR', 'Received unexpected error when connecting to Rpc service.', err);
                 }
             }
         }
@@ -288,7 +276,7 @@ class Api {
         return this.addRequestService(this.#rpcServiceOptions);
     }
     reattemptConnectInFuture(delay) {
-        this.log('WARNING', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);
+        this.log('WARNING', 'GENERAL', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);
         setTimeout(async () => {
             const success = await this.recreateRpcService();
             if (!success) {
@@ -353,11 +341,11 @@ class Api {
      * @param request ApiRequest being made.
      */
     async handleRequestRemote(rpcRequestService, request) {
-        this.log('DEBUG', 'Sending request over Rpc to server.', request);
+        this.log('DEBUG', 'REQUEST_SENT', 'Sending request over Rpc to server.', request);
         if (this.#connectingToRpcService) {
             if (this.#allowFallback) {
                 const message = 'Client is connecting to RPC server. Falling back to handling request locally.';
-                this.log('WARNING', message);
+                this.log('WARNING', 'GENERAL', message);
                 return this.handleRequestLocal(request);
             }
             throw Error('Client is connecting to RPC server. Unable to make request.');
@@ -369,7 +357,7 @@ class Api {
             if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
                 await this.recreateRpcService();
                 const message = 'Could not reach RPC server. Falling back to handling request locally.';
-                this.log('ERROR', message);
+                this.log('ERROR', 'ERROR', message, err);
                 return this.handleRequestLocal(request);
             }
             throw err;
@@ -392,7 +380,7 @@ class Api {
             const { waitFor, global } = rateLimitState;
             if (waitFor === 0) {
                 const message = 'Sending request.';
-                this.log('DEBUG', message, request, constants_1.API_DEBUG_CODES.REQUEST_SENT);
+                this.log('DEBUG', 'REQUEST_SENT', message, request);
                 return { response: await this.#makeRequest(request), waitFor: 0 };
             }
             request.running = false;
@@ -402,11 +390,11 @@ class Api {
             request.assignIfStricterWait(new Date().getTime() + waitFor);
             if (!fromQueue) {
                 const message = 'Enqueuing request.';
-                this.log('DEBUG', message, request, constants_1.API_DEBUG_CODES.REQUEST_QUEUED);
+                this.log('DEBUG', 'REQUEST_QUEUED', message, request);
                 return { response: await this.enqueueRequest(request), waitFor: -1 };
             }
             const message = 'Requeuing request.';
-            this.log('DEBUG', message, request);
+            this.log('DEBUG', 'REQUEST_QUEUED', message, request);
             return { waitFor: -1 };
         }
         finally {
@@ -421,7 +409,7 @@ class Api {
         if (this.#connectingToRpcService) {
             if (this.#allowFallback) {
                 const message = 'Client is connecting to RPC server. Fallback is allowed. Allowing request to be made.';
-                this.log('WARNING', message);
+                this.log('WARNING', 'GENERAL', message);
                 return undefined;
             }
             throw Error('Client is connecting to RPC server. Unable to authorize request.');
@@ -438,14 +426,14 @@ class Api {
             if (err.code === constants_1.RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
                 this.recreateRpcService();
                 const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
-                this.log('ERROR', message);
+                this.log('ERROR', 'ERROR', message, err);
                 return undefined;
             }
             throw err;
         }
     }
     async handleResponse(request, response) {
-        this.log('DEBUG', 'Response received.', { request, response }, constants_1.API_DEBUG_CODES.RESPONSE_RECEIVED);
+        this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
         const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? response.data.retry_after : undefined);
         const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
         if (isRateLimitResponse(response) && allowQueue) {
@@ -469,7 +457,7 @@ class Api {
         else {
             message = `Request rate limited: ${request.method} ${request.url}`;
         }
-        this.log('DEBUG', message, { request, headers }, constants_1.API_DEBUG_CODES.RATE_LIMITED);
+        this.log('DEBUG', 'RATE_LIMITED', message, { request, headers });
         this.updateRateLimitCache(request, headers);
         const { resetAfter } = headers;
         const { waitUntil } = request;

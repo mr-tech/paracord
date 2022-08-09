@@ -29,7 +29,6 @@ class RateLimitCache {
         };
         this.#globalRateLimitMax = globalRateLimitMax;
         this.#globalRateLimitResetPadding = globalRateLimitResetPadding;
-        this.#rateLimitMap.startSweepInterval();
     }
     /**
      * If the request cannot be made without triggering a Discord rate limit.
@@ -57,10 +56,6 @@ class RateLimitCache {
     get globalRateLimitResetAfter() {
         const waitFor = (0, utils_1.millisecondsFromNow)(this.#globalRateLimitState.resetTimestamp);
         return waitFor > 0 ? waitFor : 0;
-    }
-    /** Begins timer for sweeping cache of old rate limits. */
-    startSweepInterval() {
-        this.#rateLimitMap.startSweepInterval();
     }
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc) {

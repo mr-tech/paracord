@@ -19,7 +19,6 @@ const rateLimitProto = loadProto<ServiceRateLimit>('rate_limit');
  * @param server
  */
 export default (server: RpcServer): void => {
-  server.rateLimitCache.startSweepInterval();
   server.addService(rateLimitProto.RateLimitService, {
     hello: hello.bind(server),
     authorize: authorize.bind(server),

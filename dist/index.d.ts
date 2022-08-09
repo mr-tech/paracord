@@ -181,7 +181,8 @@ export declare class Api {
      * @param message Content of the log
      * @param [data] Data pertinent to the event.
      */
-    log: (level: DebugLevel, message: string, data?: ApiDebugEvent['data'], code?: ApiDebugCode) => void;
+    log(level: DebugLevel, code: 'GENERAL', message: string): void;
+    log<T extends ApiDebugCodeName>(level: DebugLevel, code: T, message: string, data: ApiDebugData[T]): void;
     /**
      * Emits all events if `this.events` is undefined; otherwise will emit those defined as keys in `this.events` as the paired value.
      * @param type Type of event. (e.g. "DEBUG" or "CHANNEL_CREATE")
@@ -311,8 +312,8 @@ export declare type ApiDebugCode = typeof API_DEBUG_CODES[ApiDebugCodeName];
 export declare type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
 
 export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
-    GENERAL: never;
-    ERROR: undefined | Error;
+    GENERAL: undefined;
+    ERROR: unknown;
     REQUEST_SENT: ApiRequest;
     REQUEST_QUEUED: ApiRequest;
     REQUEST_RECEIVED: {
@@ -327,13 +328,13 @@ export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> 
 
 export declare type ApiDebugDataType = ApiDebugData[keyof ApiDebugData];
 
-export declare interface ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> {
+export declare type ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> = {
     source: typeof LOG_SOURCES.API;
     level: LogLevel;
     message: string;
     code: typeof API_DEBUG_CODES[T];
-    data?: ApiDebugData[T];
-}
+    data: ApiDebugData[T];
+};
 
 export declare interface ApiError<T = any, D = any> extends Error {
     config: ApiRequest<D>['config'];
@@ -3193,8 +3194,6 @@ export declare class RateLimitCache {
     private get globalRateLimitHasRemainingUses();
     /** How long until the rate limit resets in ms. */
     private get globalRateLimitResetAfter();
-    /** Begins timer for sweeping cache of old rate limits. */
-    startSweepInterval(): void;
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest;
     private decrementGlobalRemaining;
@@ -3298,8 +3297,6 @@ export declare class RateLimitMap extends Map<string, RateLimit> {
     upsert(rateLimitKey: string, { remaining, limit, resetTimestamp, resetAfter: waitFor, }: RateLimitState, template: RateLimitTemplate): RateLimit;
     /** Removes old rate limits from cache. */
     private sweepExpiredRateLimits;
-    /** Begins timer for sweeping cache of old rate limits. */
-    startSweepInterval: () => void;
 }
 
 /** The known state of a rate limit. */
