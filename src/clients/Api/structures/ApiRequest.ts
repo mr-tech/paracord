@@ -41,6 +41,15 @@ export default class ApiRequest<T extends ResponseData = any> extends BaseReques
   /** Timestamp of when the request was created. */
   public createdAt: number;
 
+  public startTime: undefined | number;
+
+  public completeTime: undefined | number;
+
+  public get duration(): undefined | number {
+    if (this.startTime === undefined || this.completeTime === undefined) return undefined;
+    return this.completeTime - this.startTime;
+  }
+
   /**
    * Creates a new request object.
    *

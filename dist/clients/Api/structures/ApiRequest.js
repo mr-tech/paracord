@@ -30,6 +30,13 @@ class ApiRequest extends BaseRequest_1.default {
     running;
     /** Timestamp of when the request was created. */
     createdAt;
+    startTime;
+    completeTime;
+    get duration() {
+        if (this.startTime === undefined || this.completeTime === undefined)
+            return undefined;
+        return this.completeTime - this.startTime;
+    }
     /**
      * Creates a new request object.
      *

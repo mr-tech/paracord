@@ -415,6 +415,8 @@ export default class Api {
    */
   private async handleRequestLocal<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
     const { response, ...rateLimitState } = await this.sendRequest<T>(request);
+    request.completeTime = new Date().getTime();
+
     if (response !== undefined) {
       return this.handleResponse(request, response) as unknown as IApiResponse<T>; // TODO: There's nothing more permanent than this "temporary" solution
     }

@@ -374,6 +374,9 @@ export declare class ApiRequest<T extends ResponseData = any> extends BaseReques
     running: boolean;
     /** Timestamp of when the request was created. */
     createdAt: number;
+    startTime: undefined | number;
+    completeTime: undefined | number;
+    get duration(): undefined | number;
     /**
      * Creates a new request object.
      *

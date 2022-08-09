@@ -95,6 +95,7 @@ export default class RateLimitCache {
       this.decrementGlobalRemaining();
 
       const r = requestFunc.bind(this);
+      request.startTime = new Date().getTime();
       return r<T>(request.config);
     };
 

@@ -66,6 +66,7 @@ class RateLimitCache {
             }
             this.decrementGlobalRemaining();
             const r = requestFunc.bind(this);
+            request.startTime = new Date().getTime();
             return r(request.config);
         };
         return wrappedRequest;

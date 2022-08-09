@@ -321,6 +321,7 @@ class Api {
      */
     async handleRequestLocal(request) {
         const { response, ...rateLimitState } = await this.sendRequest(request);
+        request.completeTime = new Date().getTime();
         if (response !== undefined) {
             return this.handleResponse(request, response); // TODO: There's nothing more permanent than this "temporary" solution
         }
