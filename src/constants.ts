@@ -2,6 +2,7 @@ export const PARACORD_VERSION_NUMBER = '0.5';
 export const PARACORD_URL = 'https://paracordjs.com/';
 export const SECOND_IN_MILLISECONDS = 1e3;
 export const MINUTE_IN_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
+export const HOUR_IN_MILLISECONDS = 60 * MINUTE_IN_MILLISECONDS;
 export const GIGABYTE_IN_BYTES = 1073741824;
 export const DISCORD_WS_VERSION = 10;
 /** Gateway websocket connection rate limit. */
@@ -90,10 +91,10 @@ export const OVERWRITE_ROLE_VALUE = 0;
 
 export const API_DEBUG_CODES = {
   GENERAL: 1,
-  REQUEST: 2,
+  REQUEST_SENT: 2,
   REQUEST_QUEUED: 3,
-  RESPONSE: 4,
-  RATE_LIMIT: 5,
+  RESPONSE_RECEIVED: 4,
+  RATE_LIMITED: 5,
 } as const;
 export type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;
 export type ApiDebugCode = typeof API_DEBUG_CODES[ApiDebugCodeName]

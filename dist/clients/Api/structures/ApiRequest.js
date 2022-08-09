@@ -26,7 +26,10 @@ class Request extends BaseRequest_1.default {
     returnOnGlobalRateLimit;
     /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides either of the "returnOn" options. */
     retriesLeft;
+    /** If the request is in flight. */
     running;
+    /** Timestamp of when the request was created. */
+    createdAt;
     /**
      * Creates a new request object.
      *
@@ -44,6 +47,7 @@ class Request extends BaseRequest_1.default {
         this.returnOnGlobalRateLimit = returnOnGlobalRateLimit ?? false;
         this.retriesLeft = maxRateLimitRetry;
         this.running = false;
+        this.createdAt = new Date().getTime();
     }
     /** Data relevant to sending this request via axios. */
     get config() {

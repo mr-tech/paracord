@@ -5,6 +5,13 @@
   for every single item, there's no reason to believe that there would be any tangible benefits in maintaining such an array here.
 */
 Object.defineProperty(exports, "__esModule", { value: true });
+/*
+    TODO(lando): should prevent new requests from cutting in line.
+    A possible solution could be to iterate over the queue and check for a match rateLimitKey.
+    This solution may be preferred over tracking state of the rate limit key, it's simpler.
+ */
+// TODO(lando): Do some logging on this in prod to make sure it doesn't memory leak.
+const constants_1 = require("../../../constants");
 /** A queue for rate limited requests waiting to be sent. */
 class RequestQueue {
     /** Whether or not the `process()` method is already executing. */
@@ -17,7 +24,6 @@ class RequestQueue {
     #apiClient;
     /**
      * Creates a new requests queue for rate limits requests.
-     *
      * @param apiClient Api client through which to emit events.
      */
     constructor(apiClient) {
@@ -30,17 +36,40 @@ class RequestQueue {
     get length() {
         return this.#length;
     }
+    get allocated() {
+        return this.#queue.length;
+    }
     startQueue(interval) {
-        return setInterval(this.process, interval);
+        setInterval(this.reallocate, constants_1.HOUR_IN_MILLISECONDS);
+        setInterval(this.processQueue, interval);
+    }
+    reallocate() {
+        if (!this.#processing) {
+            const oldQueue = this.#queue;
+            this.#queue = [];
+            for (const i of oldQueue) {
+                if (i)
+                    this.#queue.push(i);
+            }
+        }
     }
     /**
      * Adds any number of requests to the queue.
      * @param items Request objects being queued.
      */
     push(...items) {
-        items.forEach((i) => {
-            this.#queue[++this.#length - 1] = i;
-        });
+        for (const item of items) {
+            for (let i = this.#length; i >= 0; --i) {
+                const queueItem = this.#queue[i];
+                if (i === 0) {
+                    this.#queue.push(item);
+                }
+                else if (queueItem && queueItem.createdAt < item.createdAt) {
+                    this.#queue.splice(i + 1, 0, item);
+                }
+            }
+            ++this.#length;
+        }
     }
     /**
      * Removes requests from the queue.
@@ -68,7 +97,7 @@ class RequestQueue {
         }
     }
     /** Iterates over the queue, sending any requests that are no longer rate limited. */
-    process = () => {
+    processQueue = () => {
         if (this.length === 0 || this.#processing)
             return;
         try {

@@ -291,10 +291,10 @@ declare namespace Api_2 {
 
 export declare const API_DEBUG_CODES: {
     readonly GENERAL: 1;
-    readonly REQUEST: 2;
+    readonly REQUEST_SENT: 2;
     readonly REQUEST_QUEUED: 3;
-    readonly RESPONSE: 4;
-    readonly RATE_LIMIT: 5;
+    readonly RESPONSE_RECEIVED: 4;
+    readonly RATE_LIMITED: 5;
 };
 
 export declare const API_GLOBAL_RATE_LIMIT = 50;
@@ -350,7 +350,10 @@ export declare class ApiRequest<T extends ResponseData = any> extends BaseReques
     returnOnGlobalRateLimit: boolean;
     /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides either of the "returnOn" options. */
     retriesLeft?: undefined | number;
+    /** If the request is in flight. */
     running: boolean;
+    /** Timestamp of when the request was created. */
+    createdAt: number;
     /**
      * Creates a new request object.
      *
@@ -2113,6 +2116,8 @@ export declare type Hello = {
 
 export declare type HELLO_EVENT = Hello;
 
+export declare const HOUR_IN_MILLISECONDS: number;
+
 /** Optional parameters for this api handler. */
 export declare interface IApiOptions {
     /** Event emitter through which to emit debug and warning events. */
@@ -3366,13 +3371,14 @@ export declare class RequestQueue {
     #private;
     /**
      * Creates a new requests queue for rate limits requests.
-     *
      * @param apiClient Api client through which to emit events.
      */
     constructor(apiClient: Api);
     /** The length of the queue. */
-    private get length();
-    startQueue(interval: number): NodeJS.Timer;
+    get length(): number;
+    get allocated(): number;
+    startQueue(interval: number): void;
+    private reallocate;
     /**
      * Adds any number of requests to the queue.
      * @param items Request objects being queued.
@@ -3384,7 +3390,7 @@ export declare class RequestQueue {
      */
     private spliceMany;
     /** Iterates over the queue, sending any requests that are no longer rate limited. */
-    private process;
+    private processQueue;
     /**
      * Handles an item on the queue.
      * @param queueIdx Index of the current place in the queue.

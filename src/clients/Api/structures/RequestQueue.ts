@@ -12,6 +12,8 @@
 
 // TODO(lando): Do some logging on this in prod to make sure it doesn't memory leak.
 
+import { HOUR_IN_MILLISECONDS } from '../../../constants';
+
 import type Api from '../Api';
 import type ApiRequest from './ApiRequest';
 
@@ -31,7 +33,6 @@ export default class RequestQueue {
 
   /**
    * Creates a new requests queue for rate limits requests.
-   *
    * @param apiClient Api client through which to emit events.
    */
   public constructor(apiClient: Api) {
@@ -42,12 +43,27 @@ export default class RequestQueue {
   }
 
   /** The length of the queue. */
-  private get length(): number {
+  public get length(): number {
     return this.#length;
   }
 
-  public startQueue(interval: number): NodeJS.Timer {
-    return setInterval(this.process, interval);
+  public get allocated(): number {
+    return this.#queue.length;
+  }
+
+  public startQueue(interval: number) {
+    setInterval(this.reallocate, HOUR_IN_MILLISECONDS);
+    setInterval(this.processQueue, interval);
+  }
+
+  private reallocate() {
+    if (!this.#processing) {
+      const oldQueue = this.#queue;
+      this.#queue = [];
+      for (const i of oldQueue) {
+        if (i) this.#queue.push(i);
+      }
+    }
   }
 
   /**
@@ -55,9 +71,17 @@ export default class RequestQueue {
    * @param items Request objects being queued.
    */
   public push(...items: ApiRequest[]): void {
-    items.forEach((i) => {
-      this.#queue[++this.#length - 1] = i;
-    });
+    for (const item of items) {
+      for (let i = this.#length; i >= 0; --i) {
+        const queueItem = this.#queue[i];
+        if (i === 0) {
+          this.#queue.push(item);
+        } else if (queueItem && queueItem.createdAt < item.createdAt) {
+          this.#queue.splice(i + 1, 0, item);
+        }
+      }
+      ++this.#length;
+    }
   }
 
   /**
@@ -88,7 +112,7 @@ export default class RequestQueue {
   }
 
   /** Iterates over the queue, sending any requests that are no longer rate limited. */
-  private process = (): void => {
+  private processQueue = (): void => {
     if (this.length === 0 || this.#processing) return;
 
     try {

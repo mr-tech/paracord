@@ -16,7 +16,8 @@ import {
 
 import type { DebugLevel } from '../../@types';
 import type {
-  IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState, IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse, ApiDebugEvent,
+  IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState,
+  IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse, ApiDebugEvent,
 } from './types';
 
 function isRateLimitResponse(response: IApiResponse | RateLimitedResponse): response is RateLimitedResponse {
@@ -36,9 +37,6 @@ export default class Api {
 
   /** Rate limited requests queue. For use when not using rpc; or in fallback, */
   #requestQueue: RequestQueue;
-
-  /**  Interval for processing rate limited requests on the queue. */
-  #requestQueueProcessInterval: NodeJS.Timer;
 
   /** When using Rpc, the service through which to get authorization to make requests. */
   #rpcRateLimitService?: undefined | RateLimitService;
@@ -175,7 +173,7 @@ export default class Api {
 
     const requestQueue = new RequestQueue(this);
     this.#requestQueue = requestQueue;
-    this.#requestQueueProcessInterval = this.#requestQueue.startQueue(options.queueLoopInterval ?? 100);
+    this.#requestQueue.startQueue(options.queueLoopInterval ?? 100);
 
     const { emitter, events, requestOptions } = options;
 
@@ -478,7 +476,7 @@ export default class Api {
       const { waitFor, global } = rateLimitState;
       if (waitFor === 0) {
         const message = 'Sending request.';
-        this.log('DEBUG', message, request, API_DEBUG_CODES.REQUEST);
+        this.log('DEBUG', message, request, API_DEBUG_CODES.REQUEST_SENT);
         return { response: await this.#makeRequest(request), waitFor: 0 };
       }
       request.running = false;
@@ -540,7 +538,7 @@ export default class Api {
   }
 
   private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T> | RateLimitedResponse): Promise<IApiResponse<T> | RateLimitedResponse> {
-    this.log('DEBUG', 'Response received.', { request, response }, API_DEBUG_CODES.RESPONSE);
+    this.log('DEBUG', 'Response received.', { request, response }, API_DEBUG_CODES.RESPONSE_RECEIVED);
 
     const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
       response.headers,
@@ -571,7 +569,7 @@ export default class Api {
     } else {
       message = `Request rate limited: ${request.method} ${request.url}`;
     }
-    this.log('DEBUG', message, rateLimitHeaders, API_DEBUG_CODES.RATE_LIMIT);
+    this.log('DEBUG', message, rateLimitHeaders, API_DEBUG_CODES.RATE_LIMITED);
 
     this.updateRateLimitCache(request, rateLimitHeaders);
 

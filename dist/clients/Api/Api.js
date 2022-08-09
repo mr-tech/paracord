@@ -23,8 +23,6 @@ class Api {
     #rateLimitCache;
     /** Rate limited requests queue. For use when not using rpc; or in fallback, */
     #requestQueue;
-    /**  Interval for processing rate limited requests on the queue. */
-    #requestQueueProcessInterval;
     /** When using Rpc, the service through which to get authorization to make requests. */
     #rpcRateLimitService;
     /** Whether or not this client should handle requests locally for as long as it cannot connect to the rpc server. */
@@ -140,7 +138,7 @@ class Api {
         this.#rateLimitCache = new structures_1.RateLimitCache(options.requestOptions?.globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, options.requestOptions?.globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, this);
         const requestQueue = new structures_1.RequestQueue(this);
         this.#requestQueue = requestQueue;
-        this.#requestQueueProcessInterval = this.#requestQueue.startQueue(options.queueLoopInterval ?? 100);
+        this.#requestQueue.startQueue(options.queueLoopInterval ?? 100);
         const { emitter, events, requestOptions } = options;
         this.#requestOptions = requestOptions ?? {};
         this.#emitter = emitter;
@@ -392,7 +390,7 @@ class Api {
             const { waitFor, global } = rateLimitState;
             if (waitFor === 0) {
                 const message = 'Sending request.';
-                this.log('DEBUG', message, request, constants_1.API_DEBUG_CODES.REQUEST);
+                this.log('DEBUG', message, request, constants_1.API_DEBUG_CODES.REQUEST_SENT);
                 return { response: await this.#makeRequest(request), waitFor: 0 };
             }
             request.running = false;
@@ -445,7 +443,7 @@ class Api {
         }
     }
     async handleResponse(request, response) {
-        this.log('DEBUG', 'Response received.', { request, response }, constants_1.API_DEBUG_CODES.RESPONSE);
+        this.log('DEBUG', 'Response received.', { request, response }, constants_1.API_DEBUG_CODES.RESPONSE_RECEIVED);
         const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? response.data.retry_after : undefined);
         const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
         if (isRateLimitResponse(response) && allowQueue) {
@@ -469,7 +467,7 @@ class Api {
         else {
             message = `Request rate limited: ${request.method} ${request.url}`;
         }
-        this.log('DEBUG', message, rateLimitHeaders, constants_1.API_DEBUG_CODES.RATE_LIMIT);
+        this.log('DEBUG', message, rateLimitHeaders, constants_1.API_DEBUG_CODES.RATE_LIMITED);
         this.updateRateLimitCache(request, rateLimitHeaders);
         const { resetAfter } = rateLimitHeaders;
         const { waitUntil } = request;
