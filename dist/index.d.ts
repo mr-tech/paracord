@@ -320,7 +320,7 @@ export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> 
     REQUEST_QUEUED: {
         request: ApiRequest;
     };
-    REQUEST_RECEIVED: {
+    RESPONSE_RECEIVED: {
         request: ApiRequest;
         response: IApiResponse | RateLimitedResponse;
     };

@@ -133,7 +133,7 @@ export interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
   ERROR: unknown;
   REQUEST_SENT: { request: ApiRequest };
   REQUEST_QUEUED: { request: ApiRequest };
-  REQUEST_RECEIVED: { request: ApiRequest, response: IApiResponse | RateLimitedResponse };
+  RESPONSE_RECEIVED: { request: ApiRequest, response: IApiResponse | RateLimitedResponse };
   RATE_LIMITED: { request: ApiRequest, headers: RateLimitHeaders };
 }
 export type ApiDebugDataType = ApiDebugData[keyof ApiDebugData];
