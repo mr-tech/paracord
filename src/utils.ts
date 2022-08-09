@@ -237,3 +237,14 @@ export function isApiError(val: unknown): val is ApiError {
 export function stripLeadingSlash(url: string) {
   return url.startsWith('/') ? url.slice(1) : url;
 }
+
+export function shortMethod(method: string) {
+  switch (method.toUpperCase()) {
+    case 'GET': return 'g';
+    case 'PUT': return 'p';
+    case 'POST': return 'o';
+    case 'PATCH': return 'a';
+    case 'DELETE': return 'd';
+    default: return '';
+  }
+}

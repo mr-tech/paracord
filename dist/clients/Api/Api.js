@@ -88,17 +88,7 @@ class Api {
      */
     static extractBucketHashKey(method, url) {
         const [topLevelResource, topLevelID, ...rateLimitMinorParameters] = (0, utils_1.stripLeadingSlash)(url).split('/');
-        const key = [];
-        if (method === 'GET')
-            key.push('g');
-        else if (method === 'PUT')
-            key.push('u');
-        else if (method === 'POST')
-            key.push('o');
-        else if (method === 'PATCH')
-            key.push('a');
-        else if (method === 'DELETE')
-            key.push('d');
+        const key = [(0, utils_1.shortMethod)(method)];
         for (const param of rateLimitMinorParameters) {
             switch (param) {
                 case 'channels':

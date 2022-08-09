@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.stripLeadingSlash = exports.isApiError = exports.isObject = exports.constructGuildIcon = exports.constructUserAvatarUrl = exports.computeGuildPerms = exports.computeChannelPerms = exports.coerceTokenToBotLike = exports.timestampFromSnowflake = exports.millisecondsFromNow = exports.timestampNMillisecondsInFuture = exports.timestampNSecondsInFuture = exports.clone = void 0;
+exports.shortMethod = exports.stripLeadingSlash = exports.isApiError = exports.isObject = exports.constructGuildIcon = exports.constructUserAvatarUrl = exports.computeGuildPerms = exports.computeChannelPerms = exports.coerceTokenToBotLike = exports.timestampFromSnowflake = exports.millisecondsFromNow = exports.timestampNMillisecondsInFuture = exports.timestampNSecondsInFuture = exports.clone = void 0;
 const constants_1 = require("./constants");
 /**
  * Returns a new object that is a clone of the original.
@@ -209,3 +209,14 @@ function stripLeadingSlash(url) {
     return url.startsWith('/') ? url.slice(1) : url;
 }
 exports.stripLeadingSlash = stripLeadingSlash;
+function shortMethod(method) {
+    switch (method.toUpperCase()) {
+        case 'GET': return 'g';
+        case 'PUT': return 'p';
+        case 'POST': return 'o';
+        case 'PATCH': return 'a';
+        case 'DELETE': return 'd';
+        default: return '';
+    }
+}
+exports.shortMethod = shortMethod;

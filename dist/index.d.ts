@@ -3632,6 +3632,8 @@ export declare interface ShardLauncherOptions {
     env?: Record<string, unknown>;
 }
 
+export declare function shortMethod(method: string): "" | "a" | "p" | "g" | "o" | "d";
+
 export declare type Snowflake = string;
 
 export declare type STAGE_INSTANCE_CREATE_EVENT = StageInstance;

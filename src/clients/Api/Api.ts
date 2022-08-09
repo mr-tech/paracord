@@ -3,7 +3,7 @@ import axios, { Method } from 'axios';
 import { EventEmitter } from 'events';
 
 import { RateLimitService, RequestService, RemoteApiResponse } from '../../rpc';
-import { coerceTokenToBotLike, stripLeadingSlash } from '../../utils';
+import { coerceTokenToBotLike, shortMethod, stripLeadingSlash } from '../../utils';
 import {
   PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION,
   DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES,
@@ -119,13 +119,7 @@ export default class Api {
   public static extractBucketHashKey(method: string, url: string): string[] {
     const [topLevelResource, topLevelID, ...rateLimitMinorParameters] = stripLeadingSlash(url).split('/');
 
-    const key = [];
-
-    if (method === 'GET') key.push('g');
-    else if (method === 'PUT') key.push('u');
-    else if (method === 'POST') key.push('o');
-    else if (method === 'PATCH') key.push('a');
-    else if (method === 'DELETE') key.push('d');
+    const key = [shortMethod(method)];
 
     for (const param of rateLimitMinorParameters) {
       switch (param) {
