@@ -321,7 +321,6 @@ class Api {
      */
     async handleRequestLocal(request) {
         const { response, ...rateLimitState } = await this.sendRequest(request);
-        request.completeTime = new Date().getTime();
         if (response !== undefined) {
             return this.handleResponse(request, response); // TODO: There's nothing more permanent than this "temporary" solution
         }
@@ -434,12 +433,15 @@ class Api {
         }
     }
     async handleResponse(request, response) {
+        request.completeTime = new Date().getTime();
         this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
         const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? response.data.retry_after : undefined);
         const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
         if (isRateLimitResponse(response) && allowQueue) {
-            return new Promise((resolve) => {
-                this.handleRateLimitedRequest(request, rateLimitHeaders).then(async (res) => resolve(await this.handleResponse(request, res)));
+            return new Promise((resolve, reject) => {
+                this.handleRateLimitedRequest(request, rateLimitHeaders)
+                    .then(async (res) => resolve(await this.handleResponse(request, res)))
+                    .catch((err) => reject(err));
             });
         }
         this.updateRateLimitCache(request, rateLimitHeaders);

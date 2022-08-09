@@ -415,7 +415,6 @@ export default class Api {
    */
   private async handleRequestLocal<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
     const { response, ...rateLimitState } = await this.sendRequest<T>(request);
-    request.completeTime = new Date().getTime();
 
     if (response !== undefined) {
       return this.handleResponse(request, response) as unknown as IApiResponse<T>; // TODO: There's nothing more permanent than this "temporary" solution
@@ -546,6 +545,8 @@ export default class Api {
   }
 
   private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T> | RateLimitedResponse): Promise<IApiResponse<T> | RateLimitedResponse> {
+    request.completeTime = new Date().getTime();
+
     this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
 
     const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
@@ -555,8 +556,10 @@ export default class Api {
 
     const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
     if (isRateLimitResponse(response) && allowQueue) {
-      return new Promise<IApiResponse<T> | RateLimitedResponse>((resolve) => {
-        this.handleRateLimitedRequest<T>(request, rateLimitHeaders).then(async (res) => resolve(await this.handleResponse<T>(request, res)));
+      return new Promise<IApiResponse<T> | RateLimitedResponse>((resolve, reject) => {
+        this.handleRateLimitedRequest<T>(request, rateLimitHeaders)
+          .then(async (res) => resolve(await this.handleResponse<T>(request, res)))
+          .catch((err) => reject(err));
       });
     }
 
