@@ -227,7 +227,7 @@ export declare class Api {
      * @param request ApiRequest being made,
      */
     sendRequest<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>>;
-    sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<undefined | IApiResponse<T>>;
+    sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | IApiResponse<T>>;
     /**
      * Gets authorization from the server to make the request.
      * @param request ApiRequest being made.
@@ -315,9 +315,11 @@ export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> 
     };
     REQUEST_QUEUED: {
         request: ApiRequest;
+        reason: string;
     };
     REQUEST_REQUEUED: {
         request: ApiRequest;
+        reason: string;
     };
     RESPONSE_RECEIVED: {
         request: ApiRequest;

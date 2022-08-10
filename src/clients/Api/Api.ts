@@ -209,7 +209,7 @@ export default class Api {
   }
 
   public get maxExceeded() {
-    return this.#maxConcurrency === undefined || this.#inFlight < this.#maxConcurrency;
+    return !!this.#maxConcurrency && this.#inFlight < this.#maxConcurrency;
   }
 
   /*
@@ -455,10 +455,12 @@ export default class Api {
    */
   public async sendRequest <T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>>
 
-  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<undefined | IApiResponse<T>>
+  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | IApiResponse<T>>
 
-  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue?: boolean): Promise<undefined | IApiResponse<T>> {
+  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue?: boolean): Promise<string | IApiResponse<T>> {
     ++this.#inFlight;
+
+    let reason;
     try {
       if (!this.maxExceeded) {
         let rateLimitState: IRateLimitState | undefined;
@@ -487,7 +489,7 @@ export default class Api {
           }
 
           return response;
-        } // else: waitFor > 0
+        }
 
         request.assignIfStricter(new Date().getTime() + waitFor);
 
@@ -504,13 +506,18 @@ export default class Api {
           };
           throw createError(new Error(customResponse.statusText), request.config, customResponse.status, request, customResponse);
         } // request can be queued
+
+        reason = 'rate limited';
+      } else {
+        // max exceeded || waitFor > 0
+        reason = 'max concurrency exceed';
       }
 
       if (!fromQueue) {
-        return this.queueRequest(request);
+        return this.queueRequest(request, reason);
       } // request came from queue
 
-      return undefined;
+      return reason;
     } finally {
       --this.#inFlight;
     }
@@ -561,7 +568,7 @@ export default class Api {
     response: RateLimitedResponse,
     headers: RateLimitHeaders,
     fromQueue: boolean,
-  ): Promise<undefined | IApiResponse<T>> {
+  ): Promise<string | IApiResponse<T>> {
     const { resetAfter } = headers;
     const { waitUntil } = request;
     if (waitUntil === undefined && resetAfter !== undefined) {
@@ -577,7 +584,7 @@ export default class Api {
     this.log('DEBUG', 'RATE_LIMITED', message, { request, headers, queued: fromQueue });
 
     if (Api.allowQueue(request, headers.global ?? false)) {
-      return fromQueue ? undefined : this.queueRequest<T>(request);
+      return fromQueue ? 'rate limited' : this.queueRequest<T>(request, 'rate limited');
     }
 
     throw createError(new Error(response.statusText), request.config, response.status, request, response);
@@ -588,9 +595,9 @@ export default class Api {
    * @param request The Api Request to queue.
    * @returns Resolves as the response to the request.
    */
-  private queueRequest<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
+  private queueRequest<T extends ResponseData>(request: ApiRequest, reason: string): Promise<IApiResponse<T>> {
     const message = 'Queuing request.';
-    this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
+    this.log('DEBUG', 'REQUEST_QUEUED', message, { request, reason });
 
     return new Promise((resolve, reject) => {
       try {

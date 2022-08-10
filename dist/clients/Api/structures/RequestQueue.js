@@ -67,12 +67,12 @@ class RequestQueue {
     async sendRequest(queuedItem) {
         try {
             const response = await this.#apiClient.sendRequest(queuedItem.request, true);
-            if (response) {
+            if (typeof response !== 'string') {
                 queuedItem.resolve(response);
             }
             else {
                 const message = 'Requeuing request.';
-                this.#apiClient.log('DEBUG', 'REQUEST_REQUEUED', message, { request: queuedItem.request });
+                this.#apiClient.log('DEBUG', 'REQUEST_REQUEUED', message, { request: queuedItem.request, reason: response });
                 this.push(queuedItem);
             }
         }

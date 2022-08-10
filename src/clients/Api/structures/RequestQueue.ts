@@ -45,6 +45,7 @@ export default class RequestQueue {
     const remove: QueuedRequest[] = [];
     for (const item of this.#queue) {
       if (this.#apiClient.maxExceeded) break;
+
       if (this.processIteration(item)) {
         remove.push(item);
       }
@@ -74,11 +75,11 @@ export default class RequestQueue {
   private async sendRequest(queuedItem: QueuedRequest): Promise<void> {
     try {
       const response = await this.#apiClient.sendRequest(queuedItem.request, true);
-      if (response) {
+      if (typeof response !== 'string') {
         queuedItem.resolve(response);
       } else {
         const message = 'Requeuing request.';
-        this.#apiClient.log('DEBUG', 'REQUEST_REQUEUED', message, { request: queuedItem.request });
+        this.#apiClient.log('DEBUG', 'REQUEST_REQUEUED', message, { request: queuedItem.request, reason: response });
         this.push(queuedItem);
       }
     } catch (err) {

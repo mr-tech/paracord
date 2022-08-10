@@ -156,7 +156,7 @@ class Api {
         return this.#requestQueue;
     }
     get maxExceeded() {
-        return this.#maxConcurrency === undefined || this.#inFlight < this.#maxConcurrency;
+        return !!this.#maxConcurrency && this.#inFlight < this.#maxConcurrency;
     }
     log(level, code, message, data) {
         const event = {
@@ -345,6 +345,7 @@ class Api {
     }
     async sendRequest(request, fromQueue) {
         ++this.#inFlight;
+        let reason;
         try {
             if (!this.maxExceeded) {
                 let rateLimitState;
@@ -364,7 +365,7 @@ class Api {
                         return this.handleRateLimitResponse(request, response, rateLimitHeaders, !!fromQueue);
                     }
                     return response;
-                } // else: waitFor > 0
+                }
                 request.assignIfStricter(new Date().getTime() + waitFor);
                 if (!Api.allowQueue(request, global ?? false)) {
                     const customResponse = {
@@ -379,11 +380,16 @@ class Api {
                     };
                     throw createError(new Error(customResponse.statusText), request.config, customResponse.status, request, customResponse);
                 } // request can be queued
+                reason = 'rate limited';
+            }
+            else {
+                // max exceeded || waitFor > 0
+                reason = 'max concurrency exceed';
             }
             if (!fromQueue) {
-                return this.queueRequest(request);
+                return this.queueRequest(request, reason);
             } // request came from queue
-            return undefined;
+            return reason;
         }
         finally {
             --this.#inFlight;
@@ -440,7 +446,7 @@ class Api {
         }
         this.log('DEBUG', 'RATE_LIMITED', message, { request, headers, queued: fromQueue });
         if (Api.allowQueue(request, headers.global ?? false)) {
-            return fromQueue ? undefined : this.queueRequest(request);
+            return fromQueue ? 'rate limited' : this.queueRequest(request, 'rate limited');
         }
         throw createError(new Error(response.statusText), request.config, response.status, request, response);
     }
@@ -449,9 +455,9 @@ class Api {
      * @param request The Api Request to queue.
      * @returns Resolves as the response to the request.
      */
-    queueRequest(request) {
+    queueRequest(request, reason) {
         const message = 'Queuing request.';
-        this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
+        this.log('DEBUG', 'REQUEST_QUEUED', message, { request, reason });
         return new Promise((resolve, reject) => {
             try {
                 const queuedRequest = new structures_1.QueuedRequest(request, resolve, reject);

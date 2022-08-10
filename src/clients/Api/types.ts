@@ -128,8 +128,8 @@ export interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
   GENERAL: undefined;
   ERROR: unknown;
   REQUEST_SENT: { request: ApiRequest };
-  REQUEST_QUEUED: { request: ApiRequest };
-  REQUEST_REQUEUED: { request: ApiRequest };
+  REQUEST_QUEUED: { request: ApiRequest, reason: string };
+  REQUEST_REQUEUED: { request: ApiRequest, reason: string };
   RESPONSE_RECEIVED: { request: ApiRequest, response: IApiResponse | RateLimitedResponse };
   RATE_LIMITED: { request: ApiRequest, headers: RateLimitHeaders, queued: boolean };
 }
