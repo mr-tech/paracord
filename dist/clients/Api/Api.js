@@ -40,12 +40,14 @@ class Api {
     }
     static shouldQueueRequest(request, globalRateLimited) {
         const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
-        if (returnOnRateLimit && !globalRateLimited)
-            return false;
-        if (returnOnGlobalRateLimit && globalRateLimited)
-            return false;
         if (request.retriesLeft !== undefined) {
             if (--request.retriesLeft <= 0)
+                return false;
+        }
+        else {
+            if (returnOnRateLimit && !globalRateLimited)
+                return false;
+            if (returnOnGlobalRateLimit && globalRateLimited)
                 return false;
         }
         return true;
@@ -331,7 +333,6 @@ class Api {
      * @param request ApiRequest being made.
      */
     async handleRequestRemote(rpcRequestService, request) {
-        this.log('DEBUG', 'REQUEST_SENT', 'Sending request over Rpc to server.', { request });
         if (this.#connectingToRpcService) {
             if (this.#allowFallback) {
                 const message = 'Client is connecting to RPC server. Falling back to handling request locally.';
@@ -424,17 +425,16 @@ class Api {
     }
     async handleResponse(request, response) {
         request.completeTime = new Date().getTime();
-        this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
         const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? response.data.retry_after : undefined);
-        const allowQueue = Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false);
-        if (isRateLimitResponse(response) && allowQueue) {
+        this.updateRateLimitCache(request, rateLimitHeaders);
+        this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
+        if (isRateLimitResponse(response) && Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false)) {
             return new Promise((resolve, reject) => {
                 this.handleRateLimitedRequest(request, rateLimitHeaders)
                     .then(async (res) => resolve(await this.handleResponse(request, res)))
                     .catch((err) => reject(err));
             });
         }
-        this.updateRateLimitCache(request, rateLimitHeaders);
         return response;
     }
     /**
@@ -451,7 +451,6 @@ class Api {
             message = `Request rate limited: ${request.method} ${request.url}`;
         }
         this.log('DEBUG', 'RATE_LIMITED', message, { request, headers });
-        this.updateRateLimitCache(request, headers);
         const { resetAfter } = headers;
         const { waitUntil } = request;
         if (waitUntil === undefined && resetAfter !== undefined) {
