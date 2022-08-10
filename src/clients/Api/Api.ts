@@ -65,11 +65,11 @@ export default class Api {
   private static shouldQueueRequest(request: ApiRequest, globalRateLimited: boolean): boolean {
     const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
 
+    if (returnOnRateLimit && !globalRateLimited) return false;
+    if (returnOnGlobalRateLimit && globalRateLimited) return false;
+
     if (request.retriesLeft !== undefined) {
       if (--request.retriesLeft <= 0) return false;
-    } else {
-      if (returnOnRateLimit && !globalRateLimited) return false;
-      if (returnOnGlobalRateLimit && globalRateLimited) return false;
     }
 
     return true;
