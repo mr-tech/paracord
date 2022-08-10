@@ -53,7 +53,7 @@ export default class Api {
 
   #connectingToRpcService: boolean;
 
-  #requestOptions: IRequestOptions;
+  #defaultRequestOptions: IRequestOptions;
 
   /** Number of requests that can be running simultaneously. */
   #maxConcurrency: undefined | number;
@@ -181,7 +181,7 @@ export default class Api {
       emitter, events, requestOptions, maxConcurrency,
     } = options;
 
-    this.#requestOptions = requestOptions ?? {};
+    this.#defaultRequestOptions = requestOptions ?? {};
 
     this.#emitter = emitter;
     this.events = events;
@@ -209,7 +209,7 @@ export default class Api {
   }
 
   public get maxExceeded() {
-    return !!this.#maxConcurrency && this.#inFlight < this.#maxConcurrency;
+    return !!this.#maxConcurrency && this.#inFlight > this.#maxConcurrency;
   }
 
   /*
@@ -399,12 +399,20 @@ export default class Api {
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
-  public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = this.#requestOptions): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
-    const { local = this.#requestOptions.local, validateStatus = this.#requestOptions.validateStatus } : IRequestOptions = options;
+  public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
+    const { local, validateStatus }: IRequestOptions = { ...this.#defaultRequestOptions, ...options };
 
     const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
     const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
-    const request = new ApiRequest(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, options);
+    const request = new ApiRequest(
+      method,
+      url,
+      topLevelResource,
+      topLevelID,
+      bucketHash,
+      bucketHashKey,
+      options,
+    );
 
     let response: IApiResponse<T> | RemoteApiResponse<T>;
     if (this.rpcRequestService === undefined || local) {

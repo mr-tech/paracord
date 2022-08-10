@@ -31,7 +31,7 @@ class Api {
     #makeRequest;
     #rpcServiceOptions;
     #connectingToRpcService;
-    #requestOptions;
+    #defaultRequestOptions;
     /** Number of requests that can be running simultaneously. */
     #maxConcurrency;
     /** Number of requests sent that have not received a response. */
@@ -135,7 +135,7 @@ class Api {
         const requestQueue = new structures_1.RequestQueue(this);
         this.#requestQueue = requestQueue;
         const { emitter, events, requestOptions, maxConcurrency, } = options;
-        this.#requestOptions = requestOptions ?? {};
+        this.#defaultRequestOptions = requestOptions ?? {};
         this.#emitter = emitter;
         this.events = events;
         this.rpcRequestService;
@@ -156,7 +156,7 @@ class Api {
         return this.#requestQueue;
     }
     get maxExceeded() {
-        return !!this.#maxConcurrency && this.#inFlight < this.#maxConcurrency;
+        return !!this.#maxConcurrency && this.#inFlight > this.#maxConcurrency;
     }
     log(level, code, message, data) {
         const event = {
@@ -300,8 +300,8 @@ class Api {
      * @param options Optional parameters for a Discord REST request.
      * @returns Response to the request made.
      */
-    request = async (method, url, options = this.#requestOptions) => {
-        const { local = this.#requestOptions.local, validateStatus = this.#requestOptions.validateStatus } = options;
+    request = async (method, url, options = {}) => {
+        const { local, validateStatus } = { ...this.#defaultRequestOptions, ...options };
         const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
         const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
         const request = new structures_1.ApiRequest(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, options);

@@ -51,7 +51,15 @@ export default class ApiRequest extends BaseRequest {
    * @param url Discord REST endpoint target of the request. (e.g. channels/123)
    * @param options Optional parameters for this request.
    */
-  public constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string, options: Partial<IRequestOptions> = {}) {
+  public constructor(
+    method: Method,
+    url: string,
+    topLevelResource: string,
+    topLevelID: string,
+    bucketHash: undefined | string,
+    bucketHashKey: string,
+    options: Partial<IRequestOptions> = {},
+  ) {
     super(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey);
 
     const {
