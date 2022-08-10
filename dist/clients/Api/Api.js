@@ -301,10 +301,11 @@ class Api {
      * @returns Response to the request made.
      */
     request = async (method, url, options = {}) => {
-        const { local, validateStatus } = { ...this.#defaultRequestOptions, ...options };
+        const merged = { ...this.#defaultRequestOptions, ...options };
+        const { local, validateStatus } = merged;
         const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
         const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
-        const request = new structures_1.ApiRequest(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, options);
+        const request = new structures_1.ApiRequest(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, merged);
         let response;
         if (this.rpcRequestService === undefined || local) {
             response = await this.sendRequest(request);

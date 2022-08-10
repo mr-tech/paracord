@@ -400,7 +400,8 @@ export default class Api {
    * @returns Response to the request made.
    */
   public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
-    const { local, validateStatus }: IRequestOptions = { ...this.#defaultRequestOptions, ...options };
+    const merged = { ...this.#defaultRequestOptions, ...options };
+    const { local, validateStatus }: IRequestOptions = merged;
 
     const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
     const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
@@ -411,7 +412,7 @@ export default class Api {
       topLevelID,
       bucketHash,
       bucketHashKey,
-      options,
+      merged,
     );
 
     let response: IApiResponse<T> | RemoteApiResponse<T>;
