@@ -41,6 +41,7 @@ function authorize(call, callback) {
         }
         const message = new structures_1.AuthorizationMessage(waitFor, global ?? false).proto;
         callback(null, message);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }
     catch (err) {
         this.emit('DEBUG', {
@@ -63,6 +64,7 @@ function update(call, callback) {
         const message = `Rate limit cache updated: ${method} ${url} | Remaining: ${remaining}`;
         this.log('DEBUG', message);
         callback(null);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }
     catch (err) {
         this.emit('DEBUG', {

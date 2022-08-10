@@ -49,7 +49,11 @@ export default class RpcServer extends grpc.Server {
     this.#channel = channel ?? grpc.ServerCredentials.createInsecure();
     this.emitter = emitter;
     this.apiClient = apiClient;
-    this.rateLimitCache = new RateLimitCache(globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT, globalRateLimitResetPadding ?? API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, apiClient);
+    this.rateLimitCache = new RateLimitCache(
+      globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT,
+      globalRateLimitResetPadding ?? API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
+      apiClient,
+    );
   }
 
   /** Establishes the arguments that will be passed to `bindAsync()` when starting the server. */
@@ -64,19 +68,22 @@ export default class RpcServer extends grpc.Server {
       } else {
         try {
           this.start();
-        } catch (err: any) {
-          if (err.message === 'server must be bound in order to start') {
-            /* eslint-disable-next-line no-console */
-            console.error('server must be bound in order to start. maybe this host:port is already in use?');
+          const message = `Rpc server running at http://${this.#host}:${this.#port}`;
+          this.emit('DEBUG', {
+            source: LOG_SOURCES.RPC,
+            level: LOG_LEVELS.INFO,
+            message,
+          });
+        } catch (err: unknown) {
+          if (err instanceof Error) {
+            if (err.message === 'server must be bound in order to start') {
+              /* eslint-disable-next-line no-console */
+              console.error('server must be bound in order to start. maybe this host:port is already in use?');
+            }
+          } else {
+            throw err;
           }
         }
-
-        const message = `Rpc server running at http://${this.#host}:${this.#port}`;
-        this.emit('DEBUG', {
-          source: LOG_SOURCES.RPC,
-          level: LOG_LEVELS.INFO,
-          message,
-        });
       }
     };
 

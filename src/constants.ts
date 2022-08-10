@@ -94,8 +94,9 @@ export const API_DEBUG_CODES = {
   ERROR: 2,
   REQUEST_SENT: 3,
   REQUEST_QUEUED: 4,
-  RESPONSE_RECEIVED: 5,
-  RATE_LIMITED: 6,
+  REQUEST_REQUEUED: 5,
+  RESPONSE_RECEIVED: 6,
+  RATE_LIMITED: 7,
 } as const;
 
 export type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;

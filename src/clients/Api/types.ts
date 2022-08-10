@@ -18,6 +18,7 @@ export interface IApiOptions {
   events?: UserEvents;
   requestOptions?: IRequestOptions;
   queueLoopInterval?: number;
+  maxConcurrency?: number;
 }
 
 export type RequestFormDataFunction = () => { data?: Record<string, unknown> | FormData | undefined, headers?: Record<string, unknown> | undefined }
@@ -104,15 +105,10 @@ export interface RateLimitedResponse extends IApiResponse<{
 export type IRateLimitState = {
   waitFor: number;
   global?: boolean;
-  force?: boolean;
 }
 
-export type IResponseState<T extends ResponseData> = IRateLimitState & {
-  response?: IApiResponse<T>
-}
-
-export interface ApiError<T = any, D = any> extends Error {
-  config: ApiRequest<D>['config'];
+export interface ApiError<T = any> extends Error {
+  config: ApiRequest['config'];
   code?: string;
   request?: any;
   response?: IApiResponse<T> | RemoteApiResponse<T>;
@@ -133,7 +129,8 @@ export interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
   ERROR: unknown;
   REQUEST_SENT: { request: ApiRequest };
   REQUEST_QUEUED: { request: ApiRequest };
+  REQUEST_REQUEUED: { request: ApiRequest };
   RESPONSE_RECEIVED: { request: ApiRequest, response: IApiResponse | RateLimitedResponse };
-  RATE_LIMITED: { request: ApiRequest, headers: RateLimitHeaders };
+  RATE_LIMITED: { request: ApiRequest, headers: RateLimitHeaders, queued: boolean };
 }
 export type ApiDebugDataType = ApiDebugData[keyof ApiDebugData];

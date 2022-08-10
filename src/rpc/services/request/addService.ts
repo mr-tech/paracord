@@ -45,7 +45,7 @@ function hello(
   callback(null);
 }
 
-async function request(
+function request(
   this: RpcServer,
   call: { request: RequestProto },
   callback: (a: TServiceCallbackError, b?: ResponseProto) => void,
@@ -60,12 +60,15 @@ async function request(
       method, url, data, headers,
     } = RequestMessage.fromProto(call.request);
 
-    const res = await this.apiClient.request(method, url, { data, headers });
-
-    callback(
-      null,
-      new ResponseMessage(res.status, res.statusText, res.data ? JSON.stringify(res.data) : undefined).proto,
-    );
+    this.apiClient.request(method, url, { data, headers })
+      .then((res) => {
+        callback(
+          null,
+          new ResponseMessage(res.status, res.statusText, res.data ? JSON.stringify(res.data) : undefined).proto,
+        );
+      })
+      .catch((err) => callback(err));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     if (err.response) {
       callback(err);

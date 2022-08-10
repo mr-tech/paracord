@@ -388,7 +388,7 @@ export default class Gateway {
       message += ` Trying again in ${this.#wsUrlRetryWait} seconds.`;
       this.log('WARNING', message);
 
-      setTimeout(this.login, this.#wsUrlRetryWait);
+      setTimeout(() => { void this.login(); }, this.#wsUrlRetryWait);
     } else {
       // 401 is bad token, unable to continue.
       message += ' Please check your token.';
@@ -728,6 +728,8 @@ export default class Gateway {
       t: type, s: sequence, op: opCode, d: data,
     } = p;
 
+    this.updateSequence(sequence);
+
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
@@ -737,7 +739,7 @@ export default class Gateway {
         } else if (type !== null) {
           // back pressure may cause the interval to occur too late, hence this check
           this._checkIfShouldHeartbeat();
-          this.handleEvent(type, data);
+          void this.handleEvent(type, data);
         } else {
           this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
@@ -766,8 +768,6 @@ export default class Gateway {
       default:
         this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
     }
-
-    this.updateSequence(sequence);
   }
 
   /** Proxy for inline heartbeat checking. */
@@ -803,7 +803,7 @@ export default class Gateway {
     this.#sessionId = data.session_id;
     this.#online = true;
 
-    this.handleEvent('READY', data);
+    void this.handleEvent('READY', data);
   }
 
   /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
@@ -811,7 +811,7 @@ export default class Gateway {
     this.log('INFO', 'Replay finished. Resuming events.');
     this.#online = true;
 
-    this.handleEvent('RESUMED', null);
+    void this.handleEvent('RESUMED', null);
   }
 
   /**
@@ -823,7 +823,7 @@ export default class Gateway {
     this.startHeartbeat(data.heartbeat_interval);
     this.connect(this.resumable);
 
-    this.handleEvent('HELLO', data);
+    void this.handleEvent('HELLO', data);
   }
 
   /**
@@ -928,7 +928,7 @@ export default class Gateway {
   /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
   private handleHeartbeatAck(): void {
     this.#heartbeatAck = true;
-    this.handleEvent('HEARTBEAT_ACK', null);
+    void this.handleEvent('HEARTBEAT_ACK', null);
 
     if (this.#heartbeatAckTimeout) {
       clearTimeout(this.#heartbeatAckTimeout);
@@ -943,7 +943,7 @@ export default class Gateway {
   }
 
   /** Connects to gateway. */
-  private async connect(resume: boolean): Promise<void> {
+  private connect(resume: boolean): void {
     if (resume) {
       this.resume();
     } else {
@@ -967,7 +967,7 @@ export default class Gateway {
         seq: sequence,
       };
 
-      this.handleEvent('GATEWAY_RESUME', payload);
+      void this.handleEvent('GATEWAY_RESUME', payload);
 
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
@@ -977,7 +977,7 @@ export default class Gateway {
   }
 
   /** Sends an "Identify" payload. */
-  private async identify(): Promise<void> {
+  private identify(): void {
     const [shardId, shardCount] = this.shard ?? [0, 1];
     this.log(
       'INFO',
@@ -1067,7 +1067,7 @@ export default class Gateway {
       this.#ws?.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
     }
 
-    this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
+    void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
   }
 
   /**

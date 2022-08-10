@@ -1,5 +1,6 @@
 export { default as ApiRequest } from './ApiRequest';
 export { default as BaseRequest } from './BaseRequest';
+export { default as QueuedRequest } from './QueuedRequest';
 export { default as RateLimit } from './RateLimit';
 export { default as RateLimitCache } from './RateLimitCache';
 export { default as RateLimitHeaders } from './RateLimitHeaders';

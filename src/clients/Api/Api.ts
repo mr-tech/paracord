@@ -12,12 +12,12 @@ import {
 } from '../../constants';
 
 import {
-  RateLimitCache, RateLimitHeaders, RequestQueue, ApiRequest,
+  RateLimitCache, RateLimitHeaders, RequestQueue, ApiRequest, QueuedRequest,
 } from './structures';
 
 import type { DebugLevel } from '../../@types';
 import type {
-  IApiOptions, IApiResponse, IRateLimitState, IRequestOptions, IResponseState,
+  IApiOptions, IRateLimitState, IRequestOptions, IApiResponse,
   IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse, ApiDebugEvent, ApiDebugData,
 } from './types';
 
@@ -55,6 +55,12 @@ export default class Api {
 
   #requestOptions: IRequestOptions;
 
+  /** Number of requests that can be running simultaneously. */
+  #maxConcurrency: undefined | number;
+
+  /** Number of requests sent that have not received a response. */
+  #inFlight = 0;
+
   public static isApiDebugEvent(event: unknown): event is ApiDebugEvent {
     function hasSource(evt = event): evt is { source: LogSource } {
       return !!(event && typeof event === 'object' && 'source' in event);
@@ -62,7 +68,7 @@ export default class Api {
     return hasSource(event) && event.source === LOG_SOURCES.API;
   }
 
-  private static shouldQueueRequest(request: ApiRequest, globalRateLimited: boolean): boolean {
+  private static allowQueue(request: ApiRequest, globalRateLimited: boolean): boolean {
     const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
 
     if (request.retriesLeft !== undefined) {
@@ -171,7 +177,9 @@ export default class Api {
     const requestQueue = new RequestQueue(this);
     this.#requestQueue = requestQueue;
 
-    const { emitter, events, requestOptions } = options;
+    const {
+      emitter, events, requestOptions, maxConcurrency,
+    } = options;
 
     this.#requestOptions = requestOptions ?? {};
 
@@ -182,6 +190,7 @@ export default class Api {
     this.#rpcRateLimitService;
     this.#allowFallback = false;
     this.#connectingToRpcService = false;
+    this.#maxConcurrency = maxConcurrency;
 
     const botToken = coerceTokenToBotLike(token);
     this.#makeRequest = Api.createWrappedRequestMethod(this.#rateLimitCache, botToken, requestOptions);
@@ -197,6 +206,10 @@ export default class Api {
 
   public get queue(): RequestQueue {
     return this.#requestQueue;
+  }
+
+  public get maxExceeded() {
+    return this.#maxConcurrency === undefined || this.#inFlight < this.#maxConcurrency;
   }
 
   /*
@@ -361,12 +374,15 @@ export default class Api {
   private reattemptConnectInFuture(delay: number) {
     this.log('WARNING', 'GENERAL', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);
 
-    setTimeout(async () => {
-      const success = await this.recreateRpcService();
-      if (!success) {
-        const newDelay = delay + 1 < 10 ? delay + 1 : 10;
-        this.reattemptConnectInFuture(newDelay);
-      }
+    setTimeout(() => {
+      this.recreateRpcService()
+        .then((success) => {
+          if (!success) {
+            const newDelay = delay + 1 < 10 ? delay + 1 : 10;
+            this.reattemptConnectInFuture(newDelay);
+          }
+        })
+        .catch((err) => { throw err; });
     }, delay * 1e3);
   }
 
@@ -392,7 +408,7 @@ export default class Api {
 
     let response: IApiResponse<T> | RemoteApiResponse<T>;
     if (this.rpcRequestService === undefined || local) {
-      response = await this.handleRequestLocal<T>(request);
+      response = await this.sendRequest<T>(request);
     } else {
       response = await this.handleRequestRemote(this.rpcRequestService, request);
     }
@@ -405,31 +421,6 @@ export default class Api {
   };
 
   /**
-   * Send the request and handle 429's.
-   * @param request The request being sent.
-   * @returns axios response.
-   */
-  private async handleRequestLocal<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
-    const { response, ...rateLimitState } = await this.sendRequest<T>(request);
-
-    if (response !== undefined) {
-      return this.handleResponse(request, response) as unknown as IApiResponse<T>; // TODO: There's nothing more permanent than this "temporary" solution
-    }
-
-    const customResponse: IApiResponse<T> = {
-      status: 429,
-      statusText: 'Too Many Requests',
-      retry_after: rateLimitState.waitFor,
-      data: <any>{ ...rateLimitState },
-      headers: {
-        _paracord: true,
-        'x-ratelimit-global': rateLimitState.global ?? false,
-      },
-    };
-    return customResponse;
-  }
-
-  /**
    * Sends the request to the rpc server for handling.
    * @param request ApiRequest being made.
    */
@@ -438,7 +429,7 @@ export default class Api {
       if (this.#allowFallback) {
         const message = 'Client is connecting to RPC server. Falling back to handling request locally.';
         this.log('WARNING', 'GENERAL', message);
-        return this.handleRequestLocal(request);
+        return this.sendRequest<T>(request);
       }
 
       throw Error('Client is connecting to RPC server. Unable to make request.');
@@ -452,7 +443,7 @@ export default class Api {
         const message = 'Could not reach RPC server. Falling back to handling request locally.';
         this.log('ERROR', 'ERROR', message, err);
 
-        return this.handleRequestLocal(request);
+        return this.sendRequest<T>(request);
       }
       throw err;
     }
@@ -462,46 +453,68 @@ export default class Api {
    * Determines how the request will be made based on the client's options and makes it.
    * @param request ApiRequest being made,
    */
-  public sendRequest = async <T extends ResponseData>(request: ApiRequest, fromQueue?: undefined | true): Promise<IResponseState<T>> => {
-    request.running = true;
+  public async sendRequest <T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>>
+
+  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<undefined | IApiResponse<T>>
+
+  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue?: boolean): Promise<undefined | IApiResponse<T>> {
+    ++this.#inFlight;
     try {
-      let rateLimitState: IRateLimitState | undefined;
-      if (this.hasRateLimitService) {
-        rateLimitState = await this.authorizeRequestWithServer(request);
-      }
+      if (!this.maxExceeded) {
+        let rateLimitState: IRateLimitState | undefined;
+        if (this.hasRateLimitService) {
+          rateLimitState = await this.authorizeRequestWithServer(request);
+        }
+        if (rateLimitState === undefined) {
+          rateLimitState = this.#rateLimitCache.isRateLimited(request);
+        }
+        const { waitFor, global } = rateLimitState;
 
-      if (rateLimitState === undefined) {
-        rateLimitState = this.#rateLimitCache.isRateLimited(request);
-      }
+        if (waitFor === 0) {
+          const response = await this.#makeRequest(request);
 
-      const { waitFor, global } = rateLimitState;
-      if (waitFor === 0) {
-        const message = 'Sending request.';
-        this.log('DEBUG', 'REQUEST_SENT', message, { request });
-        return { response: await this.#makeRequest(request), waitFor: 0 };
-      }
-      request.running = false;
+          const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
+            response.headers,
+            isRateLimitResponse(response) ? response.data.retry_after : undefined,
+          );
 
-      if (!Api.shouldQueueRequest(request, global ?? false)) {
-        return { force: true, waitFor: -1 };
-      }
+          this.updateRateLimitCache(request, rateLimitHeaders);
 
-      request.assignIfStricterWait(new Date().getTime() + waitFor);
+          this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
+
+          if (isRateLimitResponse(response)) {
+            return this.handleRateLimitResponse<T>(request, response, rateLimitHeaders, !!fromQueue);
+          }
+
+          return response;
+        } // else: waitFor > 0
+
+        request.assignIfStricter(new Date().getTime() + waitFor);
+
+        if (!Api.allowQueue(request, global ?? false)) {
+          const customResponse: IApiResponse<T> = {
+            status: 429,
+            statusText: 'Too Many Requests',
+            retry_after: waitFor,
+            data: <any>{ ...rateLimitState },
+            headers: {
+              _paracord: true,
+              'x-ratelimit-global': global ?? false,
+            },
+          };
+          throw createError(new Error(customResponse.statusText), request.config, customResponse.status, request, customResponse);
+        } // request can be queued
+      }
 
       if (!fromQueue) {
-        const message = 'Enqueuing request.';
-        this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
-        return { response: await this.enqueueRequest(request), waitFor: -1 };
-      }
+        return this.queueRequest(request);
+      } // request came from queue
 
-      const message = 'Requeuing request.';
-      this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
-
-      return { waitFor: -1 };
+      return undefined;
     } finally {
-      request.running = false;
+      --this.#inFlight;
     }
-  };
+  }
 
   /**
    * Gets authorization from the server to make the request.
@@ -529,7 +542,7 @@ export default class Api {
       return { waitFor, global };
     } catch (err: any) {
       if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
-        this.recreateRpcService();
+        await this.recreateRpcService();
         const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
         this.log('ERROR', 'ERROR', message, err);
         return undefined;
@@ -538,50 +551,55 @@ export default class Api {
     }
   }
 
-  private async handleResponse<T extends ResponseData>(request: ApiRequest, response: IApiResponse<T> | RateLimitedResponse): Promise<IApiResponse<T> | RateLimitedResponse> {
-    request.completeTime = new Date().getTime();
-
-    const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
-      response.headers,
-      isRateLimitResponse(response) ? response.data.retry_after : undefined,
-    );
-
-    this.updateRateLimitCache(request, rateLimitHeaders);
-
-    this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
-
-    if (isRateLimitResponse(response) && Api.shouldQueueRequest(request, rateLimitHeaders.global ?? false)) {
-      return new Promise<IApiResponse<T> | RateLimitedResponse>((resolve, reject) => {
-        this.handleRateLimitedRequest<T>(request, rateLimitHeaders)
-          .then(async (res) => resolve(await this.handleResponse<T>(request, res)))
-          .catch((err) => reject(err));
-      });
-    }
-
-    return response;
-  }
-
   /**
    * Updates the rate limit state and queues the request.
    * @param headers Response headers.
    * @param request Request being sent.
    */
-  private handleRateLimitedRequest<T extends ResponseData>(request: ApiRequest, headers: RateLimitHeaders): Promise<IApiResponse<T>> {
+  private async handleRateLimitResponse<T extends ResponseData>(
+    request: ApiRequest,
+    response: RateLimitedResponse,
+    headers: RateLimitHeaders,
+    fromQueue: boolean,
+  ): Promise<undefined | IApiResponse<T>> {
+    const { resetAfter } = headers;
+    const { waitUntil } = request;
+    if (waitUntil === undefined && resetAfter !== undefined) {
+      request.assignIfStricter(new Date().getTime() + resetAfter);
+    }
+
     let message: string;
     if (headers.global) {
       message = `Request global rate limited: ${request.method} ${request.url}`;
     } else {
       message = `Request rate limited: ${request.method} ${request.url}`;
     }
-    this.log('DEBUG', 'RATE_LIMITED', message, { request, headers });
+    this.log('DEBUG', 'RATE_LIMITED', message, { request, headers, queued: fromQueue });
 
-    const { resetAfter } = headers;
-    const { waitUntil } = request;
-    if (waitUntil === undefined && resetAfter !== undefined) {
-      request.assignIfStricterWait(new Date().getTime() + resetAfter);
+    if (Api.allowQueue(request, headers.global ?? false)) {
+      return fromQueue ? undefined : this.queueRequest<T>(request);
     }
 
-    return this.enqueueRequest(request);
+    throw createError(new Error(response.statusText), request.config, response.status, request, response);
+  }
+
+  /**
+   * Puts the Api Request onto the queue to be executed when the rate limit has reset.
+   * @param request The Api Request to queue.
+   * @returns Resolves as the response to the request.
+   */
+  private queueRequest<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
+    const message = 'Queuing request.';
+    this.log('DEBUG', 'REQUEST_QUEUED', message, { request });
+
+    return new Promise((resolve, reject) => {
+      try {
+        const queuedRequest = new QueuedRequest(request, resolve, reject);
+        this.#requestQueue.push(queuedRequest);
+      } catch (err) {
+        reject(err);
+      }
+    });
   }
 
   /**
@@ -596,7 +614,7 @@ export default class Api {
       const { bucketHashKey } = request;
       this.#rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
     }
-    this.updateRpcCache(request, rateLimitHeaders);
+    void this.updateRpcCache(request, rateLimitHeaders);
   }
 
   private async updateRpcCache(request: ApiRequest, rateLimitHeaders: RateLimitHeaders) {
@@ -613,32 +631,6 @@ export default class Api {
         }
       }
     }
-  }
-
-  /**
-   * Puts the Api Request onto the queue to be executed when the rate limit has reset.
-   * @param request The Api Request to queue.
-   * @returns Resolves as the response to the request.
-   */
-  private enqueueRequest<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>> {
-    // request.timeout = new Date().getTime() + timeout;
-
-    this.#requestQueue.push(request);
-    request.response = undefined;
-
-    /** Continuously checks if the response has returned. */
-    function checkRequest(resolve: (x: IApiResponse<T> | Promise<IApiResponse<T>>) => void): void {
-      const { response } = request;
-      if (response !== undefined) {
-        resolve(response);
-      } else {
-        setTimeout(() => checkRequest(resolve));
-      }
-
-      // } else if (timeout < new Date().getTime()) { } - keeping this temporarily for posterity
-    }
-
-    return new Promise(checkRequest);
   }
 }
 

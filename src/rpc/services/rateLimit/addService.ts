@@ -64,6 +64,7 @@ function authorize(
     const message = new AuthorizationMessage(waitFor, global ?? false).proto;
 
     callback(null, message);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     this.emit('DEBUG', {
       source: LOG_SOURCES.RPC,
@@ -108,6 +109,7 @@ function update(
     this.log('DEBUG', message);
 
     callback(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (err: any) {
     this.emit('DEBUG', {
       source: LOG_SOURCES.RPC,

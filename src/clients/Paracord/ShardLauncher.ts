@@ -122,10 +122,8 @@ export default class ShardLauncher {
 
     return new Promise<void>((resolve, reject) => {
       try {
-        pm2.connect((err) => {
-          if (err) {
-            return reject(err);
-          }
+        pm2.connect((err: null | Error) => {
+          if (err) reject(err);
 
           const promises = [];
           if (shardChunks !== undefined) {
@@ -137,7 +135,8 @@ export default class ShardLauncher {
             this.#launchCount = 1;
             promises.push(this.launchShard(<number[]>shardIds, <number>shardCount, pm2Options));
           }
-          return Promise.allSettled<void>(promises).finally(() => {
+
+          Promise.allSettled<void>(promises).finally(() => {
             console.log('All shards launched. Disconnecting from pm2.');
             pm2.disconnect();
             resolve();

@@ -1,16 +1,14 @@
 import BaseRequest from './BaseRequest';
 
 import type { AxiosRequestConfig, Method } from 'axios';
-import type {
-  IApiResponse, IRequestOptions, ResponseData, RequestFormDataFunction,
-} from '../types';
+import type { IRequestOptions, RequestFormDataFunction } from '../types';
 
 /**
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export default class ApiRequest<T extends ResponseData = any> extends BaseRequest {
+export default class ApiRequest extends BaseRequest {
   /** Data to send in the body of the request.  */
   public data: Record<string, unknown> | undefined;
 
@@ -19,9 +17,6 @@ export default class ApiRequest<T extends ResponseData = any> extends BaseReques
 
   /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
   public createForm: RequestFormDataFunction | undefined;
-
-  /** If queued, will be the response when this request is sent. */
-  public response: Promise<IApiResponse<T>> | IApiResponse<T> | undefined;
 
   /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
   public waitUntil: number | undefined;
@@ -32,11 +27,10 @@ export default class ApiRequest<T extends ResponseData = any> extends BaseReques
   /** Set to true to not retry the request on a global rate limit. */
   public returnOnGlobalRateLimit: boolean;
 
+  public attempts = 0;
+
   /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides either of the "returnOn" options. */
   public retriesLeft?: undefined | number;
-
-  /** If the request is in flight. */
-  public running: boolean;
 
   /** Timestamp of when the request was created. */
   public createdAt: number;
@@ -70,7 +64,6 @@ export default class ApiRequest<T extends ResponseData = any> extends BaseReques
     this.returnOnRateLimit = returnOnRateLimit ?? false;
     this.returnOnGlobalRateLimit = returnOnGlobalRateLimit ?? false;
     this.retriesLeft = maxRateLimitRetry;
-    this.running = false;
     this.createdAt = new Date().getTime();
   }
 
@@ -96,7 +89,7 @@ export default class ApiRequest<T extends ResponseData = any> extends BaseReques
    * Strictness is defined by the value that decreases the chance of getting rate limited.
    * @param waitUntil A timestamp of when the request will first be available to try again when queued due to rate limits.
    */
-  public assignIfStricterWait(waitUntil: number): void {
+  public assignIfStricter(waitUntil: number): void {
     if (this.waitUntil === undefined || this.waitUntil < waitUntil) {
       this.waitUntil = waitUntil;
     }

@@ -313,7 +313,7 @@ class Gateway {
         if (status !== 401) {
             message += ` Trying again in ${this.#wsUrlRetryWait} seconds.`;
             this.log('WARNING', message);
-            setTimeout(this.login, this.#wsUrlRetryWait);
+            setTimeout(() => { void this.login(); }, this.#wsUrlRetryWait);
         }
         else {
             // 401 is bad token, unable to continue.
@@ -596,6 +596,7 @@ class Gateway {
      */
     handleMessage(p) {
         const { t: type, s: sequence, op: opCode, d: data, } = p;
+        this.updateSequence(sequence);
         switch (opCode) {
             case constants_1.GATEWAY_OP_CODES.DISPATCH:
                 if (type === 'READY') {
@@ -607,7 +608,7 @@ class Gateway {
                 else if (type !== null) {
                     // back pressure may cause the interval to occur too late, hence this check
                     this._checkIfShouldHeartbeat();
-                    this.handleEvent(type, data);
+                    void this.handleEvent(type, data);
                 }
                 else {
                     this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
@@ -631,7 +632,6 @@ class Gateway {
             default:
                 this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
-        this.updateSequence(sequence);
     }
     /** Proxy for inline heartbeat checking. */
     _checkIfShouldHeartbeat() {
@@ -662,13 +662,13 @@ class Gateway {
         this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
         this.#sessionId = data.session_id;
         this.#online = true;
-        this.handleEvent('READY', data);
+        void this.handleEvent('READY', data);
     }
     /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
     handleResumed() {
         this.log('INFO', 'Replay finished. Resuming events.');
         this.#online = true;
-        this.handleEvent('RESUMED', null);
+        void this.handleEvent('RESUMED', null);
     }
     /**
      * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
@@ -678,7 +678,7 @@ class Gateway {
         this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
         this.startHeartbeat(data.heartbeat_interval);
         this.connect(this.resumable);
-        this.handleEvent('HELLO', data);
+        void this.handleEvent('HELLO', data);
     }
     /**
      * Starts heartbeat. https://discord.com/developers/docs/topics/gateway#heartbeating
@@ -776,7 +776,7 @@ class Gateway {
     /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
     handleHeartbeatAck() {
         this.#heartbeatAck = true;
-        this.handleEvent('HEARTBEAT_ACK', null);
+        void this.handleEvent('HEARTBEAT_ACK', null);
         if (this.#heartbeatAckTimeout) {
             clearTimeout(this.#heartbeatAckTimeout);
             this.#heartbeatAckTimeout = undefined;
@@ -788,7 +788,7 @@ class Gateway {
         }
     }
     /** Connects to gateway. */
-    async connect(resume) {
+    connect(resume) {
         if (resume) {
             this.resume();
         }
@@ -809,7 +809,7 @@ class Gateway {
                 session_id: sessionId,
                 seq: sequence,
             };
-            this.handleEvent('GATEWAY_RESUME', payload);
+            void this.handleEvent('GATEWAY_RESUME', payload);
             this.send(constants_1.GATEWAY_OP_CODES.RESUME, payload);
         }
         else {
@@ -818,7 +818,7 @@ class Gateway {
         }
     }
     /** Sends an "Identify" payload. */
-    async identify() {
+    identify() {
         const [shardId, shardCount] = this.shard ?? [0, 1];
         this.log('INFO', `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`);
         this.emit('GATEWAY_IDENTIFY', this);
@@ -881,7 +881,7 @@ class Gateway {
         else {
             this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
         }
-        this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
+        void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
     }
     /**
      * Updates the sequence value of Discord's gateway if it's larger than the current.

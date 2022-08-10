@@ -16,18 +16,15 @@ class ApiRequest extends BaseRequest_1.default {
     headers;
     /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
     createForm;
-    /** If queued, will be the response when this request is sent. */
-    response;
     /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
     waitUntil;
     /** Set to true not try request on a bucket 429 rate limit. */
     returnOnRateLimit;
     /** Set to true to not retry the request on a global rate limit. */
     returnOnGlobalRateLimit;
+    attempts = 0;
     /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides either of the "returnOn" options. */
     retriesLeft;
-    /** If the request is in flight. */
-    running;
     /** Timestamp of when the request was created. */
     createdAt;
     startTime;
@@ -53,7 +50,6 @@ class ApiRequest extends BaseRequest_1.default {
         this.returnOnRateLimit = returnOnRateLimit ?? false;
         this.returnOnGlobalRateLimit = returnOnGlobalRateLimit ?? false;
         this.retriesLeft = maxRateLimitRetry;
-        this.running = false;
         this.createdAt = new Date().getTime();
     }
     /** Data relevant to sending this request via axios. */
@@ -78,7 +74,7 @@ class ApiRequest extends BaseRequest_1.default {
      * Strictness is defined by the value that decreases the chance of getting rate limited.
      * @param waitUntil A timestamp of when the request will first be available to try again when queued due to rate limits.
      */
-    assignIfStricterWait(waitUntil) {
+    assignIfStricter(waitUntil) {
         if (this.waitUntil === undefined || this.waitUntil < waitUntil) {
             this.waitUntil = waitUntil;
         }

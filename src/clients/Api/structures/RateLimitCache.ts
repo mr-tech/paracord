@@ -17,6 +17,8 @@ type RateLimitBucketHash = string;
 
 /** Stores the state of all known rate limits this client has encountered. */
 export default class RateLimitCache {
+  #apiClient: undefined | Api;
+
   /** Request meta values to their associated rate limit bucket, if one exists. */
   bucketHashes: Map<string, RateLimitBucketHash>;
 
@@ -38,9 +40,10 @@ export default class RateLimitCache {
 
   #globalRateLimitResetPadding: number;
 
-  public constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api) {
+  public constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, api: undefined | Api) {
+    this.#apiClient = api;
     this.bucketHashes = new Map();
-    this.#rateLimitMap = new RateLimitMap(logger);
+    this.#rateLimitMap = new RateLimitMap(api);
     this.#rateLimitTemplateMap = new RateLimitTemplateMap();
     this.#globalRateLimitState = {
       remaining: 0,
@@ -85,7 +88,7 @@ export default class RateLimitCache {
 
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
   public wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest {
-    const wrappedRequest = <T extends ResponseData>(request: ApiRequest<T>) => {
+    const wrappedRequest = async <T extends ResponseData>(request: ApiRequest) => {
       const rateLimit = this.getRateLimitFromCache(request);
 
       if (rateLimit !== undefined) {
@@ -96,7 +99,13 @@ export default class RateLimitCache {
 
       const r = requestFunc.bind(this);
       request.startTime = new Date().getTime();
-      return r<T>(request.config);
+      ++request.attempts;
+
+      const responsePromise = r<T>(request.config);
+      request.completeTime = new Date().getTime();
+      this.#apiClient?.log('DEBUG', 'REQUEST_SENT', 'Request sent.', { request });
+
+      return responsePromise;
     };
 
     return wrappedRequest;

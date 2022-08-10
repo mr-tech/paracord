@@ -72,19 +72,24 @@ class RpcServer extends grpc.Server {
             else {
                 try {
                     this.start();
+                    const message = `Rpc server running at http://${this.#host}:${this.#port}`;
+                    this.emit('DEBUG', {
+                        source: constants_1.LOG_SOURCES.RPC,
+                        level: constants_1.LOG_LEVELS.INFO,
+                        message,
+                    });
                 }
                 catch (err) {
-                    if (err.message === 'server must be bound in order to start') {
-                        /* eslint-disable-next-line no-console */
-                        console.error('server must be bound in order to start. maybe this host:port is already in use?');
+                    if (err instanceof Error) {
+                        if (err.message === 'server must be bound in order to start') {
+                            /* eslint-disable-next-line no-console */
+                            console.error('server must be bound in order to start. maybe this host:port is already in use?');
+                        }
+                    }
+                    else {
+                        throw err;
                     }
                 }
-                const message = `Rpc server running at http://${this.#host}:${this.#port}`;
-                this.emit('DEBUG', {
-                    source: constants_1.LOG_SOURCES.RPC,
-                    level: constants_1.LOG_LEVELS.INFO,
-                    message,
-                });
             }
         };
         return [`${this.#host}:${this.#port}`, this.#channel, callback];

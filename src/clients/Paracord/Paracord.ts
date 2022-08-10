@@ -239,7 +239,7 @@ export default class Paracord extends EventEmitter {
 
   /** Begins the interval that kicks off gateway logins from the queue. */
   private startGatewayLoginInterval(): void {
-    setInterval(this.processGatewayQueue, SECOND_IN_MILLISECONDS);
+    setInterval(() => { void this.processGatewayQueue(); }, SECOND_IN_MILLISECONDS);
   }
 
   /** Takes a gateway off of the queue and logs it in. */
@@ -500,7 +500,7 @@ export default class Paracord extends EventEmitter {
     const { gateway, shouldReconnect } = data;
     if (shouldReconnect) {
       if (gateway.resumable) {
-        gateway.login();
+        void gateway.login();
       } else if (this.startingGateway === gateway) {
         this.clearStartingShardState();
         this.gatewayLoginQueue.unshift(gateway);

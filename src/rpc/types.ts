@@ -86,6 +86,7 @@ export type RequestMetaProto = {
   url: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type RemoteApiResponse<T extends ResponseData = any> = {
   /** The HTTP status code of the response. */
   status: number;

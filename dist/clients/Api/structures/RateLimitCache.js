@@ -9,6 +9,7 @@ const RateLimitMap_1 = __importDefault(require("./RateLimitMap"));
 const RateLimitTemplateMap_1 = __importDefault(require("./RateLimitTemplateMap"));
 /** Stores the state of all known rate limits this client has encountered. */
 class RateLimitCache {
+    #apiClient;
     /** Request meta values to their associated rate limit bucket, if one exists. */
     bucketHashes;
     /** Rate limit keys to their associate rate limit */
@@ -19,9 +20,10 @@ class RateLimitCache {
     #globalRateLimitState;
     #globalRateLimitMax;
     #globalRateLimitResetPadding;
-    constructor(globalRateLimitMax, globalRateLimitResetPadding, logger) {
+    constructor(globalRateLimitMax, globalRateLimitResetPadding, api) {
+        this.#apiClient = api;
         this.bucketHashes = new Map();
-        this.#rateLimitMap = new RateLimitMap_1.default(logger);
+        this.#rateLimitMap = new RateLimitMap_1.default(api);
         this.#rateLimitTemplateMap = new RateLimitTemplateMap_1.default();
         this.#globalRateLimitState = {
             remaining: 0,
@@ -59,7 +61,7 @@ class RateLimitCache {
     }
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc) {
-        const wrappedRequest = (request) => {
+        const wrappedRequest = async (request) => {
             const rateLimit = this.getRateLimitFromCache(request);
             if (rateLimit !== undefined) {
                 rateLimit.decrementRemaining();
@@ -67,7 +69,11 @@ class RateLimitCache {
             this.decrementGlobalRemaining();
             const r = requestFunc.bind(this);
             request.startTime = new Date().getTime();
-            return r(request.config);
+            ++request.attempts;
+            const responsePromise = r(request.config);
+            request.completeTime = new Date().getTime();
+            this.#apiClient?.log('DEBUG', 'REQUEST_SENT', 'Request sent.', { request });
+            return responsePromise;
         };
         return wrappedRequest;
     }

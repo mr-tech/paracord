@@ -27,15 +27,19 @@ exports.default = (server, token, apiOptions = {}) => {
 function hello(_, callback) {
     callback(null);
 }
-async function request(call, callback) {
+function request(call, callback) {
     if (this.apiClient === undefined) {
         callback('api client not initialize');
         return;
     }
     try {
         const { method, url, data, headers, } = structures_1.RequestMessage.fromProto(call.request);
-        const res = await this.apiClient.request(method, url, { data, headers });
-        callback(null, new structures_1.ResponseMessage(res.status, res.statusText, res.data ? JSON.stringify(res.data) : undefined).proto);
+        this.apiClient.request(method, url, { data, headers })
+            .then((res) => {
+            callback(null, new structures_1.ResponseMessage(res.status, res.statusText, res.data ? JSON.stringify(res.data) : undefined).proto);
+        })
+            .catch((err) => callback(err));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
     }
     catch (err) {
         if (err.response) {

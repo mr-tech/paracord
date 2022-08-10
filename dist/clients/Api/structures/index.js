@@ -3,11 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RequestQueue = exports.RateLimitTemplateMap = exports.RateLimitTemplate = exports.RateLimitMap = exports.RateLimitHeaders = exports.RateLimitCache = exports.RateLimit = exports.BaseRequest = exports.ApiRequest = void 0;
+exports.RequestQueue = exports.RateLimitTemplateMap = exports.RateLimitTemplate = exports.RateLimitMap = exports.RateLimitHeaders = exports.RateLimitCache = exports.RateLimit = exports.QueuedRequest = exports.BaseRequest = exports.ApiRequest = void 0;
 var ApiRequest_1 = require("./ApiRequest");
 Object.defineProperty(exports, "ApiRequest", { enumerable: true, get: function () { return __importDefault(ApiRequest_1).default; } });
 var BaseRequest_1 = require("./BaseRequest");
 Object.defineProperty(exports, "BaseRequest", { enumerable: true, get: function () { return __importDefault(BaseRequest_1).default; } });
+var QueuedRequest_1 = require("./QueuedRequest");
+Object.defineProperty(exports, "QueuedRequest", { enumerable: true, get: function () { return __importDefault(QueuedRequest_1).default; } });
 var RateLimit_1 = require("./RateLimit");
 Object.defineProperty(exports, "RateLimit", { enumerable: true, get: function () { return __importDefault(RateLimit_1).default; } });
 var RateLimitCache_1 = require("./RateLimitCache");

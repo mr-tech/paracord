@@ -151,7 +151,7 @@ export declare class Api {
     /** Key:Value mapping this client's events to user's preferred emitted value. */
     events?: undefined | Record<string, string>;
     static isApiDebugEvent(event: unknown): event is ApiDebugEvent;
-    private static shouldQueueRequest;
+    private static allowQueue;
     /**
      * Throws errors and warnings if the parameters passed to the constructor aren't sufficient.
      * @param token Discord bot token.
@@ -175,6 +175,7 @@ export declare class Api {
     get hasRateLimitService(): boolean;
     get hasRequestService(): boolean;
     get queue(): RequestQueue;
+    get maxExceeded(): boolean;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -189,7 +190,7 @@ export declare class Api {
      * @param data Data to send with the event.
      */
     private emit;
-    on: <T extends "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED" = "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
+    on: <T extends "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED" = "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
     /**
      * Adds the service that has a server make requests to Discord on behalf of the client.
      * @param serviceOptions
@@ -217,12 +218,6 @@ export declare class Api {
      */
     request: <T extends ResponseData = any>(method: Method, url: string, options?: IRequestOptions) => Promise<IApiResponse<T> | RemoteApiResponse<T>>;
     /**
-     * Send the request and handle 429's.
-     * @param request The request being sent.
-     * @returns axios response.
-     */
-    private handleRequestLocal;
-    /**
      * Sends the request to the rpc server for handling.
      * @param request ApiRequest being made.
      */
@@ -231,19 +226,25 @@ export declare class Api {
      * Determines how the request will be made based on the client's options and makes it.
      * @param request ApiRequest being made,
      */
-    sendRequest: <T extends ResponseData>(request: ApiRequest, fromQueue?: undefined | true) => Promise<IResponseState<T>>;
+    sendRequest<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>>;
+    sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<undefined | IApiResponse<T>>;
     /**
      * Gets authorization from the server to make the request.
      * @param request ApiRequest being made.
      */
     private authorizeRequestWithServer;
-    private handleResponse;
     /**
      * Updates the rate limit state and queues the request.
      * @param headers Response headers.
      * @param request Request being sent.
      */
-    private handleRateLimitedRequest;
+    private handleRateLimitResponse;
+    /**
+     * Puts the Api Request onto the queue to be executed when the rate limit has reset.
+     * @param request The Api Request to queue.
+     * @returns Resolves as the response to the request.
+     */
+    private queueRequest;
     /**
      * Updates the local rate limit cache and sends an update to the server if there is one.
      * @param request The request made.
@@ -251,12 +252,6 @@ export declare class Api {
      */
     private updateRateLimitCache;
     private updateRpcCache;
-    /**
-     * Puts the Api Request onto the queue to be executed when the rate limit has reset.
-     * @param request The Api Request to queue.
-     * @returns Resolves as the response to the request.
-     */
-    private enqueueRequest;
 }
 
 declare namespace Api_2 {
@@ -264,6 +259,7 @@ declare namespace Api_2 {
         Api as default,
         ApiRequest,
         BaseRequest,
+        QueuedRequest,
         RateLimit,
         RateLimitCache,
         RateLimitHeaders,
@@ -282,7 +278,6 @@ declare namespace Api_2 {
         IApiResponse,
         RateLimitedResponse,
         IRateLimitState,
-        IResponseState,
         ApiError,
         ApiDebugEvent,
         ApiDebugData,
@@ -295,8 +290,9 @@ export declare const API_DEBUG_CODES: {
     readonly ERROR: 2;
     readonly REQUEST_SENT: 3;
     readonly REQUEST_QUEUED: 4;
-    readonly RESPONSE_RECEIVED: 5;
-    readonly RATE_LIMITED: 6;
+    readonly REQUEST_REQUEUED: 5;
+    readonly RESPONSE_RECEIVED: 6;
+    readonly RATE_LIMITED: 7;
 };
 
 export declare const API_GLOBAL_RATE_LIMIT = 50;
@@ -320,6 +316,9 @@ export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> 
     REQUEST_QUEUED: {
         request: ApiRequest;
     };
+    REQUEST_REQUEUED: {
+        request: ApiRequest;
+    };
     RESPONSE_RECEIVED: {
         request: ApiRequest;
         response: IApiResponse | RateLimitedResponse;
@@ -327,6 +326,7 @@ export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> 
     RATE_LIMITED: {
         request: ApiRequest;
         headers: RateLimitHeaders;
+        queued: boolean;
     };
 }
 
@@ -340,8 +340,8 @@ export declare type ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName>
     data: ApiDebugData[T];
 };
 
-export declare interface ApiError<T = any, D = any> extends Error {
-    config: ApiRequest<D>['config'];
+export declare interface ApiError<T = any> extends Error {
+    config: ApiRequest['config'];
     code?: string;
     request?: any;
     response?: IApiResponse<T> | RemoteApiResponse<T>;
@@ -353,25 +353,22 @@ export declare interface ApiError<T = any, D = any> extends Error {
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
  */
-export declare class ApiRequest<T extends ResponseData = any> extends BaseRequest {
+export declare class ApiRequest extends BaseRequest {
     /** Data to send in the body of the request.  */
     data: Record<string, unknown> | undefined;
     /** Additional headers to send with the request. */
     headers: Record<string, unknown> | undefined;
     /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
     createForm: RequestFormDataFunction | undefined;
-    /** If queued, will be the response when this request is sent. */
-    response: Promise<IApiResponse<T>> | IApiResponse<T> | undefined;
     /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
     waitUntil: number | undefined;
     /** Set to true not try request on a bucket 429 rate limit. */
     returnOnRateLimit: boolean;
     /** Set to true to not retry the request on a global rate limit. */
     returnOnGlobalRateLimit: boolean;
+    attempts: number;
     /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides either of the "returnOn" options. */
     retriesLeft?: undefined | number;
-    /** If the request is in flight. */
-    running: boolean;
     /** Timestamp of when the request was created. */
     createdAt: number;
     startTime: undefined | number;
@@ -391,7 +388,7 @@ export declare class ApiRequest<T extends ResponseData = any> extends BaseReques
      * Strictness is defined by the value that decreases the chance of getting rate limited.
      * @param waitUntil A timestamp of when the request will first be available to try again when queued due to rate limits.
      */
-    assignIfStricterWait(waitUntil: number): void;
+    assignIfStricter(waitUntil: number): void;
 }
 
 export declare type Application = {
@@ -2149,6 +2146,7 @@ export declare interface IApiOptions {
     events?: UserEvents;
     requestOptions?: IRequestOptions;
     queueLoopInterval?: number;
+    maxConcurrency?: number;
 }
 
 export declare interface IApiResponse<T extends ResponseData = any> {
@@ -2492,7 +2490,6 @@ export declare type InviteStageInstance = {
 export declare type IRateLimitState = {
     waitFor: number;
     global?: boolean;
-    force?: boolean;
 };
 
 /** Optional parameters for a Discord REST request. */
@@ -2525,10 +2522,6 @@ export declare interface IRequestOptions {
     /** Check if status is okay. Return `false` with throw an error. Default `null` (don't throw). */
     validateStatus?: null | ((status: number) => boolean);
 }
-
-export declare type IResponseState<T extends ResponseData> = IRateLimitState & {
-    response?: IApiResponse<T>;
-};
 
 export declare function isApiError(val: unknown): val is ApiError;
 
@@ -3146,6 +3139,14 @@ export declare type QueryStringParam = {
     with_user_count?: boolean;
 };
 
+export declare class QueuedRequest {
+    #private;
+    constructor(request: ApiRequest, resolve: (response: IApiResponse) => void, reject: (reason?: unknown) => void);
+    get request(): ApiRequest;
+    resolve(response: IApiResponse): void;
+    reject(reason?: unknown): void;
+}
+
 /** State of a Discord rate limit. */
 export declare class RateLimit {
     #private;
@@ -3189,7 +3190,7 @@ export declare class RateLimitCache {
     #private;
     /** Request meta values to their associated rate limit bucket, if one exists. */
     bucketHashes: Map<string, RateLimitBucketHash>;
-    constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, logger?: Api);
+    constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, api: undefined | Api);
     /**
      * If the request cannot be made without triggering a Discord rate limit.
      * `true` if the rate limit exists and is active. Do no send a request.
@@ -3396,22 +3397,14 @@ export declare class RequestQueue {
      * @param apiClient Api client through which to emit events.
      */
     constructor(apiClient: Api);
-    /** The length of the queue. */
-    get length(): number;
-    get allocated(): number;
-    private reallocate;
+    get queue(): QueuedRequest[];
     /**
      * Adds any number of requests to the queue.
      * @param items Request objects being queued.
      */
-    push(...items: ApiRequest[]): void;
-    /**
-     * Removes requests from the queue.
-     * @param indices Indices of the requests to be removed.
-     */
-    private spliceMany;
-    /** Iterates over the queue, sending any requests that are no longer rate limited. */
+    push(...items: QueuedRequest[]): void;
     private processQueue;
+    private spliceMany;
     /**
      * Handles an item on the queue.
      * @param queueIdx Index of the current place in the queue.
