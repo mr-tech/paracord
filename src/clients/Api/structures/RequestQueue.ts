@@ -54,7 +54,7 @@ export default class RequestQueue {
     return this.#queue.length;
   }
 
-  private reallocate() {
+  private reallocate = () => {
     if (!this.#processing) {
       const oldQueue = this.#queue;
       this.#queue = [];
@@ -62,7 +62,7 @@ export default class RequestQueue {
         if (i) this.#queue.push(i);
       }
     }
-  }
+  };
 
   /**
    * Adds any number of requests to the queue.

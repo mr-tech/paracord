@@ -41,7 +41,7 @@ class RequestQueue {
     get allocated() {
         return this.#queue.length;
     }
-    reallocate() {
+    reallocate = () => {
         if (!this.#processing) {
             const oldQueue = this.#queue;
             this.#queue = [];
@@ -50,7 +50,7 @@ class RequestQueue {
                     this.#queue.push(i);
             }
         }
-    }
+    };
     /**
      * Adds any number of requests to the queue.
      * @param items Request objects being queued.
