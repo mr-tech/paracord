@@ -168,20 +168,14 @@ export default class Api {
   public constructor(token: string, options: IApiOptions = {}) {
     Api.validateParams(token);
 
-    this.#rateLimitCache = new RateLimitCache(
-      options.requestOptions?.globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT,
-      options.requestOptions?.globalRateLimitResetPadding ?? API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
-      this,
-    );
-
     const requestQueue = new RequestQueue(this);
     this.#requestQueue = requestQueue;
 
     const {
-      emitter, events, requestOptions, maxConcurrency,
+      emitter, events, maxConcurrency, requestOptions = {},
     } = options;
 
-    this.#defaultRequestOptions = requestOptions ?? {};
+    this.#defaultRequestOptions = requestOptions;
 
     this.#emitter = emitter;
     this.events = events;
@@ -191,6 +185,19 @@ export default class Api {
     this.#allowFallback = false;
     this.#connectingToRpcService = false;
     this.#maxConcurrency = maxConcurrency;
+
+    if (requestOptions.globalRateLimitMax) {
+      this.log('DEBUG', 'GENERAL', `Global rate limit set to ${requestOptions.globalRateLimitMax}.`);
+    }
+    if (requestOptions.globalRateLimitResetPadding) {
+      this.log('DEBUG', 'GENERAL', `Global rate limit padding set to ${requestOptions.globalRateLimitResetPadding}ms.`);
+    }
+
+    this.#rateLimitCache = new RateLimitCache(
+      requestOptions.globalRateLimitMax ?? API_GLOBAL_RATE_LIMIT,
+      requestOptions.globalRateLimitResetPadding ?? API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
+      this,
+    );
 
     const botToken = coerceTokenToBotLike(token);
     this.#makeRequest = Api.createWrappedRequestMethod(this.#rateLimitCache, botToken, requestOptions);
@@ -482,7 +489,11 @@ export default class Api {
         const { waitFor, global } = rateLimitState;
 
         if (waitFor === 0) {
+          request.startTime = new Date().getTime();
+          ++request.attempts;
+          this.log('DEBUG', 'REQUEST_SENT', 'Request sent.', { request });
           const response = await this.#makeRequest(request);
+          request.completeTime = new Date().getTime();
 
           const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
             response.headers,

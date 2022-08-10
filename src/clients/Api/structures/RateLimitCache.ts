@@ -96,16 +96,8 @@ export default class RateLimitCache {
       }
 
       this.decrementGlobalRemaining();
-
       const r = requestFunc.bind(this);
-      request.startTime = new Date().getTime();
-      ++request.attempts;
-
-      const responsePromise = r<T>(request.config);
-      request.completeTime = new Date().getTime();
-      this.#apiClient?.log('DEBUG', 'REQUEST_SENT', 'Request sent.', { request });
-
-      return responsePromise;
+      return r<T>(request.config);
     };
 
     return wrappedRequest;

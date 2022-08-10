@@ -131,11 +131,10 @@ class Api {
      */
     constructor(token, options = {}) {
         Api.validateParams(token);
-        this.#rateLimitCache = new structures_1.RateLimitCache(options.requestOptions?.globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, options.requestOptions?.globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, this);
         const requestQueue = new structures_1.RequestQueue(this);
         this.#requestQueue = requestQueue;
-        const { emitter, events, requestOptions, maxConcurrency, } = options;
-        this.#defaultRequestOptions = requestOptions ?? {};
+        const { emitter, events, maxConcurrency, requestOptions = {}, } = options;
+        this.#defaultRequestOptions = requestOptions;
         this.#emitter = emitter;
         this.events = events;
         this.rpcRequestService;
@@ -143,6 +142,13 @@ class Api {
         this.#allowFallback = false;
         this.#connectingToRpcService = false;
         this.#maxConcurrency = maxConcurrency;
+        if (requestOptions.globalRateLimitMax) {
+            this.log('DEBUG', 'GENERAL', `Global rate limit set to ${requestOptions.globalRateLimitMax}.`);
+        }
+        if (requestOptions.globalRateLimitResetPadding) {
+            this.log('DEBUG', 'GENERAL', `Global rate limit padding set to ${requestOptions.globalRateLimitResetPadding}ms.`);
+        }
+        this.#rateLimitCache = new structures_1.RateLimitCache(requestOptions.globalRateLimitMax ?? constants_1.API_GLOBAL_RATE_LIMIT, requestOptions.globalRateLimitResetPadding ?? constants_1.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, this);
         const botToken = (0, utils_1.coerceTokenToBotLike)(token);
         this.#makeRequest = Api.createWrappedRequestMethod(this.#rateLimitCache, botToken, requestOptions);
     }
@@ -358,7 +364,11 @@ class Api {
                 }
                 const { waitFor, global } = rateLimitState;
                 if (waitFor === 0) {
+                    request.startTime = new Date().getTime();
+                    ++request.attempts;
+                    this.log('DEBUG', 'REQUEST_SENT', 'Request sent.', { request });
                     const response = await this.#makeRequest(request);
+                    request.completeTime = new Date().getTime();
                     const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? response.data.retry_after : undefined);
                     this.updateRateLimitCache(request, rateLimitHeaders);
                     this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
