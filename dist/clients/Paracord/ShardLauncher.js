@@ -1,38 +1,11 @@
 "use strict";
 /* eslint-disable no-console, import/no-duplicates */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const pm2_1 = __importDefault(require("pm2"));
 const Api_1 = __importDefault(require("../Api"));
-let pm2 = null;
-// eslint-disable-next-line import/no-unresolved
-Promise.resolve().then(() => __importStar(require('pm2'))).then((_pm2) => {
-    pm2 = _pm2;
-}).catch(() => { });
 function validateShard(shardId, shardCount) {
     if (shardId > shardCount - 1) {
         throw Error(`shard id ${shardId} exceeds max shard id of ${shardCount - 1}`);
@@ -110,8 +83,6 @@ class ShardLauncher {
      * pm2Options
      */
     async launch(pm2Options = {}) {
-        if (!pm2)
-            throw Error("Cannot find module 'pm2'");
         const shardChunks = this.#shardChunks;
         let shardCount = this.#shardCount;
         let shardIds = this.#shardIds;
@@ -126,7 +97,7 @@ class ShardLauncher {
             });
         }
         try {
-            pm2.connect((err) => {
+            pm2_1.default.connect((err) => {
                 if (err) {
                     console.error(err);
                     process.exit(2);
@@ -159,8 +130,6 @@ class ShardLauncher {
         return { shardCount, shardIds };
     }
     async launchShard(shardIds, shardCount, pm2Options) {
-        if (!pm2)
-            throw Error("Cannot find module 'pm2'");
         const shardIdsCsv = shardIds.join(',');
         const paracordEnv = {
             PARACORD_TOKEN: this.#token,
@@ -176,7 +145,7 @@ class ShardLauncher {
             },
             ...pm2Options,
         };
-        pm2.start(pm2Config, this.detach);
+        pm2_1.default.start(pm2Config, this.detach);
     }
     /** Gets the recommended shard count from Discord. */
     async getRecommendedShards() {
@@ -191,11 +160,9 @@ class ShardLauncher {
     }
     /** Disconnects from pm2 when all chunks have been launched. */
     detach = async (err) => {
-        if (!pm2)
-            throw Error("Cannot find module 'pm2'");
         if (this.#launchCount && --this.#launchCount === 0) {
             console.log('All shards launched. Disconnecting from pm2.');
-            pm2.disconnect();
+            pm2_1.default.disconnect();
         }
         if (err)
             throw err;
