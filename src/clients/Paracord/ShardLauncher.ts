@@ -120,26 +120,33 @@ export default class ShardLauncher {
       });
     }
 
-    try {
-      pm2.connect((err) => {
-        if (err) {
-          console.error(err);
-          process.exit(2);
-        }
+    return new Promise<void>((resolve, reject) => {
+      try {
+        pm2.connect((err) => {
+          if (err) {
+            return reject(err);
+          }
 
-        if (shardChunks !== undefined) {
-          this.#launchCount = shardChunks.length;
-          shardChunks.forEach((s) => {
-            this.launchShard(s, <number>shardCount, pm2Options);
+          const promises = [];
+          if (shardChunks !== undefined) {
+            this.#launchCount = shardChunks.length;
+            shardChunks.forEach((s) => {
+              promises.push(this.launchShard(s, <number>shardCount, pm2Options));
+            });
+          } else {
+            this.#launchCount = 1;
+            promises.push(this.launchShard(<number[]>shardIds, <number>shardCount, pm2Options));
+          }
+          return Promise.allSettled<void>(promises).finally(() => {
+            console.log('All shards launched. Disconnecting from pm2.');
+            pm2.disconnect();
+            resolve();
           });
-        } else {
-          this.#launchCount = 1;
-          this.launchShard(<number[]>shardIds, <number>shardCount, pm2Options);
-        }
-      });
-    } catch (err) {
-      console.error(err);
-    }
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
   }
 
   /** Fills missing shard information. */
@@ -179,7 +186,12 @@ export default class ShardLauncher {
       ...pm2Options,
     };
 
-    pm2.start(pm2Config, this.detach);
+    return new Promise((resolve, reject) => {
+      pm2.start(pm2Config, (err: null | Error) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
   }
 
   /** Gets the recommended shard count from Discord. */
@@ -199,14 +211,4 @@ export default class ShardLauncher {
       `Failed to get shard information from API. Status ${status}. Status text: ${statusText}. Discord code: ${data.code}. Discord message: ${data.message}.`,
     );
   }
-
-  /** Disconnects from pm2 when all chunks have been launched. */
-  private detach = async (err: Error) => {
-    if (this.#launchCount && --this.#launchCount === 0) {
-      console.log('All shards launched. Disconnecting from pm2.');
-      pm2.disconnect();
-    }
-
-    if (err) throw err;
-  };
 }

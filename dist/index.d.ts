@@ -3619,8 +3619,6 @@ export declare class ShardLauncher {
     launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): Promise<void>;
     /** Gets the recommended shard count from Discord. */
     private getRecommendedShards;
-    /** Disconnects from pm2 when all chunks have been launched. */
-    private detach;
 }
 
 export declare interface ShardLauncherOptions {

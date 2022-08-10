@@ -96,27 +96,34 @@ class ShardLauncher {
                 validateShard(s, shardCount);
             });
         }
-        try {
-            pm2_1.default.connect((err) => {
-                if (err) {
-                    console.error(err);
-                    process.exit(2);
-                }
-                if (shardChunks !== undefined) {
-                    this.#launchCount = shardChunks.length;
-                    shardChunks.forEach((s) => {
-                        this.launchShard(s, shardCount, pm2Options);
+        return new Promise((resolve, reject) => {
+            try {
+                pm2_1.default.connect((err) => {
+                    if (err) {
+                        return reject(err);
+                    }
+                    const promises = [];
+                    if (shardChunks !== undefined) {
+                        this.#launchCount = shardChunks.length;
+                        shardChunks.forEach((s) => {
+                            promises.push(this.launchShard(s, shardCount, pm2Options));
+                        });
+                    }
+                    else {
+                        this.#launchCount = 1;
+                        promises.push(this.launchShard(shardIds, shardCount, pm2Options));
+                    }
+                    return Promise.allSettled(promises).finally(() => {
+                        console.log('All shards launched. Disconnecting from pm2.');
+                        pm2_1.default.disconnect();
+                        resolve();
                     });
-                }
-                else {
-                    this.#launchCount = 1;
-                    this.launchShard(shardIds, shardCount, pm2Options);
-                }
-            });
-        }
-        catch (err) {
-            console.error(err);
-        }
+                });
+            }
+            catch (err) {
+                reject(err);
+            }
+        });
     }
     /** Fills missing shard information. */
     async getShardInfo() {
@@ -145,7 +152,14 @@ class ShardLauncher {
             },
             ...pm2Options,
         };
-        pm2_1.default.start(pm2Config, this.detach);
+        return new Promise((resolve, reject) => {
+            pm2_1.default.start(pm2Config, (err) => {
+                if (err)
+                    reject(err);
+                else
+                    resolve();
+            });
+        });
     }
     /** Gets the recommended shard count from Discord. */
     async getRecommendedShards() {
@@ -158,14 +172,5 @@ class ShardLauncher {
         }
         throw Error(`Failed to get shard information from API. Status ${status}. Status text: ${statusText}. Discord code: ${data.code}. Discord message: ${data.message}.`);
     }
-    /** Disconnects from pm2 when all chunks have been launched. */
-    detach = async (err) => {
-        if (this.#launchCount && --this.#launchCount === 0) {
-            console.log('All shards launched. Disconnecting from pm2.');
-            pm2_1.default.disconnect();
-        }
-        if (err)
-            throw err;
-    };
 }
 exports.default = ShardLauncher;
