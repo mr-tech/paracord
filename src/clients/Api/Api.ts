@@ -569,10 +569,11 @@ export default class Api {
     headers: RateLimitHeaders,
     fromQueue: boolean,
   ): Promise<string | IApiResponse<T>> {
-    const { resetAfter } = headers;
+    const { resetTimestamp } = headers;
     const { waitUntil } = request;
-    if (waitUntil === undefined && resetAfter !== undefined) {
-      request.assignIfStricter(new Date().getTime() + resetAfter);
+    const oldestTimestamp = Math.max(resetTimestamp ?? waitUntil ?? 0);
+    if (oldestTimestamp > 0) {
+      request.assignIfStricter(oldestTimestamp);
     }
 
     let message: string;

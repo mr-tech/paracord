@@ -432,10 +432,11 @@ class Api {
      * @param request Request being sent.
      */
     async handleRateLimitResponse(request, response, headers, fromQueue) {
-        const { resetAfter } = headers;
+        const { resetTimestamp } = headers;
         const { waitUntil } = request;
-        if (waitUntil === undefined && resetAfter !== undefined) {
-            request.assignIfStricter(new Date().getTime() + resetAfter);
+        const oldestTimestamp = Math.max(resetTimestamp ?? waitUntil ?? 0);
+        if (oldestTimestamp > 0) {
+            request.assignIfStricter(oldestTimestamp);
         }
         let message;
         if (headers.global) {
