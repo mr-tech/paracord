@@ -3399,20 +3399,12 @@ export declare class RequestQueue {
      * @param apiClient Api client through which to emit events.
      */
     constructor(apiClient: Api);
-    get queue(): QueuedRequest[];
     /**
      * Adds any number of requests to the queue.
      * @param items Request objects being queued.
      */
     push(...items: QueuedRequest[]): void;
     private processQueue;
-    private spliceMany;
-    /**
-     * Handles an item on the queue.
-     * @param queueIdx Index of the current place in the queue.
-     * @param processedIndices The indices of requests to remove from th queue.
-     */
-    private processIteration;
     private sendRequest;
 }
 

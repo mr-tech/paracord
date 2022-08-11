@@ -17,11 +17,7 @@ export default class RequestQueue {
     this.#queue = [];
     this.#apiClient = apiClient;
 
-    setInterval(this.processQueue, 100);
-  }
-
-  public get queue() {
-    return this.#queue;
+    setInterval(this.processQueue, 1000);
   }
 
   /**
@@ -29,16 +25,8 @@ export default class RequestQueue {
    * @param items Request objects being queued.
    */
   public push(...items: QueuedRequest[]): void {
-    for (const item of items) {
-      for (let i = this.#queue.length; i >= 0; --i) {
-        const queueItem = this.#queue[i];
-        if (i === 0) {
-          this.#queue.push(item);
-        } else if (queueItem && queueItem.request.createdAt < item.request.createdAt) {
-          this.#queue.splice(i + 1, 0, item);
-        }
-      }
-    }
+    this.#queue.push(...items);
+    this.#queue.sort(({ request: { createdAt: a } }, { request: { createdAt: b } }) => a - b);
   }
 
   private processQueue = (): void => {
@@ -46,31 +34,17 @@ export default class RequestQueue {
     for (const item of this.#queue) {
       if (this.#apiClient.maxExceeded) break;
 
-      if (this.processIteration(item)) {
+      const allow = item.request.waitUntil === undefined || item.request.waitUntil < new Date().getTime();
+      if (allow) {
+        void this.sendRequest(item);
         remove.push(item);
       }
     }
-    if (remove.length) this.spliceMany(remove);
-  };
 
-  private spliceMany(removedItems: QueuedRequest[]): void {
-    const old = this.#queue;
-    this.#queue = old.filter((item) => !removedItems.includes(item));
-  }
-
-  /**
-   * Handles an item on the queue.
-   * @param queueIdx Index of the current place in the queue.
-   * @param processedIndices The indices of requests to remove from th queue.
-   */
-  private processIteration(queuedItem: QueuedRequest): boolean {
-    const { request } = queuedItem;
-    if (request.waitUntil !== undefined && request.waitUntil > new Date().getTime()) {
-      return false;
+    if (remove.length) {
+      this.#queue = this.#queue.filter((item) => !remove.includes(item));
     }
-    void this.sendRequest(queuedItem);
-    return true;
-  }
+  };
 
   private async sendRequest(queuedItem: QueuedRequest): Promise<void> {
     try {

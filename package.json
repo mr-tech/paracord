@@ -5,9 +5,9 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rimraf dist && tsc -b && cp -r src/rpc/protobufs dist/rpc/protobufs",
+    "build": "rimraf dist && tsc -b && cp -r src/rpc/protobufs dist/rpc/protobufs && npm run build:types",
     "build:types": "rimraf build && tsc -p ./tsconfig.json --declaration true --outDir build && api-extractor run",
-    "rebuild": "npm run build && npm run build:types"
+    "rebuild": "npm run build"
   },
   "repository": {
     "type": "git",
