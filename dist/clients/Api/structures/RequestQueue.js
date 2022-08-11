@@ -21,7 +21,6 @@ class RequestQueue {
      */
     push(...items) {
         this.#queue.push(...items);
-        this.#queue.sort(({ request: { createdAt: a } }, { request: { createdAt: b } }) => a - b);
     }
     processQueue = () => {
         const remove = [];

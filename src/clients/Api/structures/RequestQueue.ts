@@ -26,7 +26,6 @@ export default class RequestQueue {
    */
   public push(...items: QueuedRequest[]): void {
     this.#queue.push(...items);
-    this.#queue.sort(({ request: { createdAt: a } }, { request: { createdAt: b } }) => a - b);
   }
 
   private processQueue = (): void => {
