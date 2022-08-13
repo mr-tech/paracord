@@ -211,11 +211,11 @@ class Gateway {
      * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
      */
     requestGuildMembers(options) {
-        let { nonce } = options;
-        if (nonce === undefined) {
-            nonce = `${options.guild_id}-${++this.#membersRequestCounter}`;
+        if (options.nonce === undefined) {
+            options.nonce = `${options.guild_id}-${++this.#membersRequestCounter}`;
         }
-        this.#requestingMembersStateMap.set(nonce, { receivedIndexes: [] });
+        this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: [] });
+        void this.handleEvent('REQUEST_GUILD_MEMBERS', { gateway: this, options });
         return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
     }
     /**
