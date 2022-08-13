@@ -103,7 +103,7 @@ export type GatewayHeartbeatSentEvent = {
 }
 
 export type GatewayHeartbeatAckEvent = {
-  shard: number;
+  latency: number;
   gateway: Gateway;
 }
 
