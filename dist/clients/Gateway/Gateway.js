@@ -691,7 +691,7 @@ class Gateway {
         if (this.#heartbeatIntervalTime !== undefined) {
             if (this.#heartbeatTimeout !== undefined)
                 clearTimeout(this.#heartbeatTimeout);
-            const randomOffset = Math.random() * 5 * constants_1.SECOND_IN_MILLISECONDS;
+            const randomOffset = Math.floor(Math.random() * 5 * constants_1.SECOND_IN_MILLISECONDS);
             const nextSendTime = this.#heartbeatIntervalTime - randomOffset;
             this.#heartbeatTimeout = setTimeout(this.sendHeartbeat, nextSendTime);
             const now = new Date().getTime();
@@ -753,7 +753,7 @@ class Gateway {
         this.#heartbeatAck = false;
         const now = new Date().getTime();
         if (this.#nextHeartbeatTimestamp !== undefined) {
-            const scheduleDiff = now - (this.#nextHeartbeatTimestamp ?? now);
+            const scheduleDiff = Math.max(0, now - (this.#nextHeartbeatTimestamp ?? now));
             const message = `Heartbeat sent ${scheduleDiff}ms after scheduled time.`;
             void this.handleEvent('HEARTBEAT_SENT', { scheduleDiff, gateway: this });
             this.log('DEBUG', message);
