@@ -172,13 +172,12 @@ export default class Api {
     this.#requestQueue = requestQueue;
 
     const {
-      emitter, events, maxConcurrency, requestOptions = {},
+      emitter, maxConcurrency, requestOptions = {},
     } = options;
 
     this.#defaultRequestOptions = requestOptions;
 
     this.#emitter = emitter;
-    this.events = events;
 
     this.rpcRequestService;
     this.#rpcRateLimitService;

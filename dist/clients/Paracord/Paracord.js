@@ -54,9 +54,6 @@ class Paracord extends events_1.EventEmitter {
     /** Timestamp of last GUILD_CREATE event on start up for the current `#startingGateway`. */
     #lastGuildTimestamp;
     #startupHeartbeatTolerance;
-    /* User-defined event handling behavior. */
-    /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
-    #events;
     #preventLogin;
     #gatewayHeartbeats;
     /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
@@ -82,8 +79,7 @@ class Paracord extends events_1.EventEmitter {
         this.#preventLogin = false;
         this.#gatewayHeartbeats = [];
         this.#safeGatewayIdentifyTimestamp = 0;
-        const { events, apiOptions, gatewayOptions } = options;
-        this.#events = events;
+        const { apiOptions, gatewayOptions } = options;
         this.#apiOptions = apiOptions;
         this.#gatewayOptions = gatewayOptions;
         const api = options?.api ?? new Api_1.default(token, { ...(apiOptions ?? {}), emitter: this });
@@ -148,8 +144,7 @@ class Paracord extends events_1.EventEmitter {
      */
     emit(event, ...args) {
         try {
-            const events = this.#events;
-            super.emit(events?.[event] ?? event, ...args);
+            super.emit(event, ...args);
         }
         finally {
             switch (event) {

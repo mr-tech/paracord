@@ -16,8 +16,6 @@ export interface IServerOptions {
 
 export type DebugLevel = 'FATAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG';
 
-export type UserEvents = Record<string, string>;
-
 export type RpcArguments = [boolean, string | undefined, number, number, number, number | undefined]
 
 export interface ExtendedEmitter extends EventEmitter {

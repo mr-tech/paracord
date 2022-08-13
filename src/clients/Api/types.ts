@@ -3,7 +3,6 @@ import type { EventEmitter } from 'events';
 import type FormData from 'form-data';
 import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { RemoteApiResponse } from '../../rpc';
-import type { UserEvents } from '../../@types';
 import type {
   API_DEBUG_CODES, ApiDebugCodeName, LogLevel, LOG_SOURCES,
 } from '../../constants';
@@ -15,7 +14,6 @@ export type { RemoteApiResponse } from '../../rpc';
 export interface IApiOptions {
   /** Event emitter through which to emit debug and warning events. */
   emitter?: EventEmitter;
-  events?: UserEvents;
   requestOptions?: IRequestOptions;
   queueLoopInterval?: number;
   maxConcurrency?: number;

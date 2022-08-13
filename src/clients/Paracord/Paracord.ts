@@ -7,7 +7,7 @@ import {
   LOG_LEVELS, LOG_SOURCES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 
-import type { DebugLevel, UserEvents } from '../../@types';
+import type { DebugLevel } from '../../@types';
 import type { ReadyEventField } from '../../discord';
 import type { GatewayMap, ParacordLoginOptions, ParacordOptions } from './types';
 
@@ -76,10 +76,6 @@ export default class Paracord extends EventEmitter {
 
   #startupHeartbeatTolerance?: undefined | number;
 
-  /* User-defined event handling behavior. */
-  /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name for use when connecting to the gateway. */
-  #events?: undefined | UserEvents;
-
   #preventLogin: boolean;
 
   #gatewayHeartbeats: Gateway['checkIfShouldHeartbeat'][];
@@ -111,8 +107,7 @@ export default class Paracord extends EventEmitter {
 
     this.#safeGatewayIdentifyTimestamp = 0;
 
-    const { events, apiOptions, gatewayOptions } = options;
-    this.#events = events;
+    const { apiOptions, gatewayOptions } = options;
     this.#apiOptions = apiOptions;
     this.#gatewayOptions = gatewayOptions;
 
@@ -187,8 +182,7 @@ export default class Paracord extends EventEmitter {
    */
   public emit(event: string, ...args: unknown[]): boolean {
     try {
-      const events = this.#events;
-      super.emit(events?.[event] ?? event, ...args);
+      super.emit(event, ...args);
     } finally {
       switch (event) {
         case 'GATEWAY_IDENTIFY':

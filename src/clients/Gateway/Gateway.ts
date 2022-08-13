@@ -16,11 +16,13 @@ import { GatewayIdentify } from './structures';
 import type ZlibSyncType from 'zlib-sync';
 import type { DebugLevel, ExtendedEmitter } from '../../@types';
 import type {
-  GatewayPayload, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT, Hello, ReadyEventField, Resume,
+  GatewayEvent, GatewayPayload, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT,
+  Hello, ReadyEventField, Resume,
 } from '../../discord';
 import type {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat,
   SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
+  ParacordGatewayEvent,
 } from './types';
 
 let ZlibSync: null | typeof ZlibSyncType = null;
@@ -108,9 +110,6 @@ export default class Gateway {
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
   #emitter: ExtendedEmitter;
 
-  /** Key:Value mapping DISCORD_EVENT to user's preferred emitted value. */
-  #events?: undefined | Record<string, string>;
-
   /** Object passed to Discord when identifying. */
   #identity: GatewayIdentify;
 
@@ -140,7 +139,7 @@ export default class Gateway {
   public constructor(token: string, options: GatewayOptions) {
     Gateway.validateOptions(options);
     const {
-      emitter, identity, identity: { shard }, api, wsUrl, events,
+      emitter, identity, identity: { shard }, api, wsUrl,
       heartbeatIntervalOffset, startupHeartbeatTolerance,
       isStartingFunc, checkSiblingHeartbeats,
     } = options;
@@ -163,7 +162,6 @@ export default class Gateway {
     this.#emitter = emitter ?? new EventEmitter();
     this.#identity = new GatewayIdentify(coerceTokenToBotLike(token), identity);
     this.#api = api;
-    this.#events = events;
     this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
     this.#startupHeartbeatTolerance = startupHeartbeatTolerance || 0;
     this.#heartbeatsMissedDuringStartup = 0;
@@ -247,13 +245,8 @@ export default class Gateway {
    * @param type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
    * @param data Data to send with the event.
    */
-  private emit(type: string, data?: unknown): void {
+  private emit(type: GatewayEvent | ParacordGatewayEvent, data?: unknown): void {
     if (this.#emitter !== undefined) {
-      if (this.#events !== undefined) {
-        const userType = this.#events[type];
-        type = userType ?? type;
-      }
-
       this.#emitter.emit(type, data, this);
     }
   }
@@ -409,7 +402,7 @@ export default class Gateway {
    * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
    * @param data Data of the event from Discord.
    */
-  private async handleEvent(type: string, data: unknown): Promise<void> {
+  private async handleEvent(type: GatewayEvent | ParacordGatewayEvent, data: unknown): Promise<void> {
     if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GUILD_MEMBERS_CHUNK_EVENT);
 
     if (this.#emitter.eventHandler !== undefined) {
@@ -739,7 +732,7 @@ export default class Gateway {
         } else if (type !== null) {
           // back pressure may cause the interval to occur too late, hence this check
           this._checkIfShouldHeartbeat();
-          void this.handleEvent(type, data);
+          void this.handleEvent(type as GatewayEvent, data);
         } else {
           this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
@@ -910,11 +903,17 @@ export default class Gateway {
     this.#heartbeatAck = false;
 
     const now = new Date().getTime();
-    const message = this.#nextHeartbeatTimestamp !== undefined
-      ? `Heartbeat sent ${now - this.#nextHeartbeatTimestamp}ms after scheduled time.`
-      : 'nextHeartbeatTimestamp is undefined.';
+    if (this.#nextHeartbeatTimestamp !== undefined) {
+      const scheduleDiff = now - (this.#nextHeartbeatTimestamp ?? now);
+      const message = `Heartbeat sent ${scheduleDiff}ms after scheduled time.`;
+      void this.handleEvent('HEARTBEAT_SENT', { scheduleDiff, gateway: this });
+
+      this.log('DEBUG', message);
+    } else {
+      const message = 'nextHeartbeatTimestamp is undefined.';
+      this.log('DEBUG', message);
+    }
     this._sendHeartbeat();
-    this.log('DEBUG', message);
   };
 
   private _sendHeartbeat(): void {
@@ -928,7 +927,6 @@ export default class Gateway {
   /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
   private handleHeartbeatAck(): void {
     this.#heartbeatAck = true;
-    void this.handleEvent('HEARTBEAT_ACK', null);
 
     if (this.#heartbeatAckTimeout) {
       clearTimeout(this.#heartbeatAckTimeout);
@@ -936,7 +934,10 @@ export default class Gateway {
     }
 
     if (this.#lastHeartbeatTimestamp !== undefined) {
-      const message = `Heartbeat acknowledged. Latency: ${new Date().getTime() - this.#lastHeartbeatTimestamp}ms.`;
+      const latency = new Date().getTime() - this.#lastHeartbeatTimestamp;
+      void this.handleEvent('HEARTBEAT_ACK', { latency, gateway: this });
+
+      const message = `Heartbeat acknowledged. Latency: ${latency}ms.`;
       this.#lastHeartbeatTimestamp = undefined;
       this.log('DEBUG', message);
     }

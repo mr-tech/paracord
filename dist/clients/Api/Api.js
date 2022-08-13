@@ -133,10 +133,9 @@ class Api {
         Api.validateParams(token);
         const requestQueue = new structures_1.RequestQueue(this);
         this.#requestQueue = requestQueue;
-        const { emitter, events, maxConcurrency, requestOptions = {}, } = options;
+        const { emitter, maxConcurrency, requestOptions = {}, } = options;
         this.#defaultRequestOptions = requestOptions;
         this.#emitter = emitter;
-        this.events = events;
         this.rpcRequestService;
         this.#rpcRateLimitService;
         this.#allowFallback = false;

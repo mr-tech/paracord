@@ -1469,6 +1469,16 @@ export declare type GatewayCloseEvent = {
 
 export declare type GatewayEvent = 'HELLO' | 'READY' | 'RESUMED' | 'RECONNECT' | 'INVALID_SESSION' | 'CHANNEL_CREATE' | 'CHANNEL_UPDATE' | 'CHANNEL_DELETE' | 'CHANNEL_PINS_UPDATE' | 'THREAD_CREATE' | 'THREAD_UPDATE' | 'THREAD_DELETE' | 'THREAD_LIST_SYNC' | 'THREAD_MEMBER_UPDATE' | 'THREAD_MEMBERS_UPDATE' | 'GUILD_CREATE' | 'GUILD_UPDATE' | 'GUILD_DELETE' | 'GUILD_BAN_ADD' | 'GUILD_BAN_REMOVE' | 'GUILD_EMOJIS_UPDATE' | 'GUILD_STICKERS_UPDATE' | 'GUILD_INTEGRATIONS_UPDATE' | 'GUILD_MEMBER_ADD' | 'GUILD_MEMBER_REMOVE' | 'GUILD_MEMBER_UPDATE' | 'GUILD_MEMBERS_CHUNK' | 'GUILD_ROLE_CREATE' | 'GUILD_ROLE_UPDATE' | 'GUILD_ROLE_DELETE' | 'GUILD_SCHEDULED_EVENT_CREATE' | 'GUILD_SCHEDULED_EVENT_UPDATE' | 'GUILD_SCHEDULED_EVENT_DELETE' | 'GUILD_SCHEDULED_EVENT_USER_ADD' | 'GUILD_SCHEDULED_EVENT_USER_REMOVE' | 'INTEGRATION_CREATE' | 'INTEGRATION_UPDATE' | 'INTEGRATION_DELETE' | 'INTEGRATION_CREATE' | 'INVITE_CREATE' | 'INVITE_DELETE' | 'MESSAGE_CREATE' | 'MESSAGE_UPDATE' | 'MESSAGE_DELETE' | 'MESSAGE_DELETE_BULK' | 'MESSAGE_REACTION_ADD' | 'MESSAGE_REACTION_REMOVE' | 'MESSAGE_REACTION_REMOVE_ALL' | 'MESSAGE_REACTION_REMOVE_EMOJI' | 'PRESENCE_UPDATE' | 'STAGE_INSTANCE_CREATE' | 'STAGE_INSTANCE_DELETE' | 'STAGE_INSTANCE_UPDATE' | 'TYPING_START' | 'USER_UPDATE' | 'VOICE_STATE_UPDATE' | 'VOICE_SERVER_UPDATE' | 'WEBHOOKS_UPDATE';
 
+export declare type GatewayHeartbeatAckEvent = {
+    shard: number;
+    gateway: Gateway;
+};
+
+export declare type GatewayHeartbeatSentEvent = {
+    scheduleDiff: number;
+    gateway: Gateway;
+};
+
 /** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
 export declare class GatewayIdentify {
     #private;
@@ -1492,8 +1502,6 @@ export declare interface GatewayOptions {
     identity: IdentityOptions;
     /** Emitter through which Discord gateway events are sent. */
     emitter: EventEmitter;
-    /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
-    events?: undefined | UserEvents;
     /** Paracord rest API handler. */
     api?: undefined | Api_2.default;
     /** Websocket url to connect to. */
@@ -2145,7 +2153,6 @@ export declare const HOUR_IN_MILLISECONDS: number;
 export declare interface IApiOptions {
     /** Event emitter through which to emit debug and warning events. */
     emitter?: EventEmitter;
-    events?: UserEvents;
     requestOptions?: IRequestOptions;
     queueLoopInterval?: number;
     maxConcurrency?: number;
@@ -3073,6 +3080,8 @@ export declare const PARACORD_URL = "https://paracordjs.com/";
 
 export declare const PARACORD_VERSION_NUMBER = "0.5";
 
+export declare type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY' | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK';
+
 export declare interface ParacordLoginOptions {
     identity: IdentityOptions;
     shards?: number[];
@@ -3084,7 +3093,6 @@ export declare interface ParacordLoginOptions {
 }
 
 export declare interface ParacordOptions {
-    events?: UserEvents;
     apiOptions?: Partial<IApiOptions>;
     gatewayOptions?: Partial<GatewayOptions>;
     api?: Api;
@@ -4061,8 +4069,6 @@ export declare type User = {
 };
 
 export declare type USER_UPDATE_EVENT = User;
-
-declare type UserEvents = Record<string, string>;
 
 export declare enum UserFlags {
     STAFF = 1,

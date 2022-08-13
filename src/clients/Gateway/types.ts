@@ -1,16 +1,16 @@
 import type { EventEmitter } from 'events';
 import type * as Api from '../Api';
 import type Gateway from './Gateway';
-import type { UserEvents } from '../../@types';
 import type { IdentifyConnectionProperties, GatewayPresenceUpdate } from '../../discord';
+
+export type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY'
+| 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK';
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
   identity: IdentityOptions;
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventEmitter;
-  /** Key:Value mapping DISCORD_EVENT to user's preferred emitted name. */
-  events?: undefined | UserEvents;
   /** Paracord rest API handler. */
   api?: undefined | Api.default;
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
@@ -38,12 +38,12 @@ type ErrorResponse = {
 export type Heartbeat = number;
 
 export interface GatewayBotResponse extends Api.IApiResponse, ErrorResponse {
-    /** websocket url */
-    url: string;
-    /** recommended shard count */
-    shards: number;
-    /** state of the limits for this period of time */
-    sessionStartLimit: SessionLimitData;
+  /** websocket url */
+  url: string;
+  /** recommended shard count */
+  shards: number;
+  /** state of the limits for this period of time */
+  sessionStartLimit: SessionLimitData;
 }
 
 export type SessionLimitData = {
@@ -95,6 +95,16 @@ export type GatewayCloseEvent = {
   shouldReconnect: boolean,
   code: number,
   gateway: Gateway
+}
+
+export type GatewayHeartbeatSentEvent = {
+  scheduleDiff: number;
+  gateway: Gateway;
+}
+
+export type GatewayHeartbeatAckEvent = {
+  shard: number;
+  gateway: Gateway;
 }
 
 export type StartupCheckFunction = (x: Gateway) => boolean;

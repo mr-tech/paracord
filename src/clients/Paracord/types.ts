@@ -1,4 +1,3 @@
-import type { UserEvents } from '../../@types';
 import type { UnavailableGuild, AugmentedGuild as AugmentedRawGuild } from '../../discord';
 import type Api from '../Api';
 import type { IApiOptions } from '../Api';
@@ -9,7 +8,6 @@ export type GatewayMap = Map<number, Gateway>;
 export type RawGuildType = AugmentedRawGuild | UnavailableGuild;
 
 export interface ParacordOptions {
-  events?: UserEvents;
   apiOptions?: Partial<IApiOptions>;
   gatewayOptions?: Partial<GatewayOptions>;
   api?: Api;
