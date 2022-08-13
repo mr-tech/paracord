@@ -1546,6 +1546,11 @@ export declare type GatewayPresenceUpdate = {
     afk: boolean;
 };
 
+export declare type GatewayRequestMembersEvent = {
+    options: GuildRequestMember;
+    gateway: Gateway;
+};
+
 export declare type GatewayURLQueryStringParam = {
     /** Gateway Version to use */
     v: number;

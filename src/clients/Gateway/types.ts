@@ -1,7 +1,7 @@
 import type { EventEmitter } from 'events';
 import type * as Api from '../Api';
 import type Gateway from './Gateway';
-import type { IdentifyConnectionProperties, GatewayPresenceUpdate } from '../../discord';
+import type { IdentifyConnectionProperties, GatewayPresenceUpdate, GuildRequestMember } from '../../discord';
 
 export type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY'
 | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK' | 'REQUEST_GUILD_MEMBERS';
@@ -104,6 +104,11 @@ export type GatewayHeartbeatSentEvent = {
 
 export type GatewayHeartbeatAckEvent = {
   latency: number;
+  gateway: Gateway;
+}
+
+export type GatewayRequestMembersEvent = {
+  options: GuildRequestMember;
   gateway: Gateway;
 }
 
