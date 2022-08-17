@@ -1,12 +1,14 @@
 import type {
-  Snowflake, User, ISO8601timestamp, Role, GuildMember, Emoji, UnavailableGuild, Application, Channel, ThreadMember, Button,
+  TriggerType, Snowflake, User, ISO8601timestamp, Role, GuildMember, Emoji, UnavailableGuild,
+  Application, Channel, ThreadMember, Button, VoiceState, StageInstance, GuildScheduledEvent,
+  AutoModerationAction,
 } from '.';
 
 export type GatewayPayload = {
   /** opcode for the payload */
   op: number;
   /** event data */
-  d: string | number | boolean | null; // any JSON value;
+  d: unknown;
   /** sequence number, used for resuming sessions and heartbeats */
   s: number | null; // *
   /** the event name for this payload */
@@ -16,8 +18,8 @@ export type GatewayPayload = {
 // ========================================================================
 
 export type GatewayURLQueryStringParam = {
-  /** Gateway Version to use */
-  v: number; // see [Gateway versions](#DOCS_TOPICS_GATEWAY/gateways-gateway-versions)
+  /** API Version to use */
+  v: number; // see [API versions](#DOCS_REFERENCE/api-versioning-api-versions)
   /** The encoding of received gateway packets */
   encoding: string; // `json` or `etf`
   /** The (optional) compression of gateway packets */
@@ -47,11 +49,11 @@ export type Identify = {
 
 export type IdentifyConnectionProperties = {
   /** your operating system */
-  $os: string;
+  os: string;
   /** your library name */
-  $browser: string;
+  browser: string;
   /** your library name */
-  $device: string;
+  device: string;
 };
 
 // ========================================================================
@@ -132,7 +134,7 @@ export type Hello = {
 // ========================================================================
 
 export type ReadyEventField = {
-  /** gateway version */
+  /** API version */
   v: number;
   /** information about the user including email */
   user: User;
@@ -140,10 +142,39 @@ export type ReadyEventField = {
   guilds: UnavailableGuild[];
   /** used for resuming connections */
   session_id: string;
+  /** gateway url for resuming connections */
+  resume_gateway_url: string;
   /** the shard information associated with this session, if sent when identifying */
   shard?: [number, number]; // (shard_id, num_shards);
   /** contains `id` and `flags` */
   application: Partial<Application>;
+};
+
+// ========================================================================
+
+export type AutoModerationActionExecutionEventField = {
+  /** the id of the guild in which action was executed */
+  guild_id: Snowflake;
+  /** the action which was executed */
+  action: AutoModerationAction;
+  /** the id of the rule which action belongs to */
+  rule_id: Snowflake;
+  /** the trigger type of rule which was triggered */
+  rule_trigger_type: TriggerType;
+  /** the id of the user which generated the content which triggered the rule */
+  user_id: Snowflake;
+  /** the id of the channel in which user content was posted */
+  channel_id?: Snowflake;
+  /** the id of any user message which content belongs to * */
+  message_id?: Snowflake;
+  /** the id of any system auto moderation messages posted as a result of this action ** */
+  alert_system_message_id?: Snowflake;
+  /** the user generated text content */
+  content: string;
+  /** the word or phrase configured in the rule that triggered the rule */
+  matched_keyword: string | null;
+  /** the substring in content that triggered the rule */
+  matched_content: string | null;
 };
 
 // ========================================================================
@@ -190,6 +221,33 @@ export type ChannelPinsUpdateEventField = {
   channel_id: Snowflake;
   /** the time at which the most recent pinned message was pinned */
   last_pin_timestamp?: ISO8601timestamp | null;
+};
+
+// ========================================================================
+
+export type GuildCreateExtraField = {
+  /** when this guild was joined at */
+  joined_at: ISO8601timestamp;
+  /** true if this is considered a large guild */
+  large: boolean;
+  /** true if this guild is unavailable due to an outage */
+  unavailable?: boolean;
+  /** total number of members in this guild */
+  member_count: number;
+  /** states of members currently in voice channels; lacks the `guild_id` key */
+  voice_states: Partial<VoiceState>[];
+  /** users in the guild */
+  members: GuildMember[];
+  /** channels in the guild */
+  channels: Channel[];
+  /** all active threads in the guild that current user has permission to view */
+  threads: Channel[];
+  /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
+  presences: Partial<Presence>[];
+  /** Stage instances in the guild */
+  stage_instances: StageInstance[];
+  /** the scheduled events in the guild */
+  guild_scheduled_events: GuildScheduledEvent[];
 };
 
 // ========================================================================
@@ -290,7 +348,7 @@ export type GuildMembersChunkEventField = {
   /** the total number of expected chunks for this response */
   chunk_count: number;
   /** if passing an invalid id to `REQUEST_GUILD_MEMBERS`, it will be returned here */
-  not_found?: number[];
+  not_found?: [];
   /** if passing true to `REQUEST_GUILD_MEMBERS`, presences of the returned members will be here */
   presences?: Presence[];
   /** the nonce used in the Guild Members Request */
@@ -409,6 +467,17 @@ export type InviteDeleteEventField = {
   guild_id?: Snowflake;
   /** the unique invite code */
   code: string;
+};
+
+// ========================================================================
+
+export type MessageCreateExtraField = {
+  /** id of the guild the message was sent in - unless it is an ephemeral message */
+  guild_id?: Snowflake;
+  /** member properties for this message's author. Missing for ephemeral messages and messages from webhooks */
+  member?: Partial<GuildMember>;
+  /** users specifically mentioned in the message */
+  mentions: User[];
 };
 
 // ========================================================================

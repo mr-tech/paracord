@@ -1,5 +1,6 @@
 import type {
-  Snowflake, User, ISO8601timestamp, GuildMember, Role, Emoji, Application, MessageComponent, Sticker, StickerItem, MessageInteraction,
+  Snowflake, User, ISO8601timestamp, Role, Emoji, Application,
+  MessageComponent, Sticker, MessageInteraction, StickerItem,
 } from '.';
 
 export type Channel = {
@@ -43,7 +44,7 @@ export type Channel = {
   rtc_region?: string | null;
   /** the camera video quality mode of the voice channel, 1 when not present */
   video_quality_mode?: number;
-  /** an approximate count of messages in a thread, stops counting at 50 */
+  /** number of messages (not including the initial message or deleted messages) in a thread (if the thread was created before July 1, 2022, it stops counting at 50) */
   message_count?: number;
   /** an approximate count of users in a thread, stops counting at 50 */
   member_count?: number;
@@ -57,6 +58,8 @@ export type Channel = {
   permissions?: string;
   /** channel flags combined as a [bitfield](https://en.wikipedia.org/wiki/Bit_field) */
   flags?: number;
+  /** number of messages ever sent in a thread, it's similar to `message_count` on message creation, but will not decrement the number when a message is deleted */
+  total_message_sent?: number;
 };
 
 // ========================================================================
@@ -72,9 +75,9 @@ export type ChannelType =
   3 |
   /** GUILD_CATEGORY */
   4 |
-  /** GUILD_NEWS */
+  /** GUILD_ANNOUNCEMENT */
   5 |
-  /** GUILD_NEWS_THREAD */
+  /** GUILD_ANNOUNCEMENT_THREAD */
   10 |
   /** GUILD_PUBLIC_THREAD */
   11 |
@@ -109,12 +112,8 @@ export type Message = {
   id: Snowflake;
   /** id of the channel the message was sent in */
   channel_id: Snowflake;
-  /** id of the guild the message was sent in */
-  guild_id?: Snowflake;
   /** the author of this message (not guaranteed to be a valid user, see below) */
   author: User;
-  /** member properties for this message's author */
-  member?: Partial<GuildMember>;
   /** contents of the message */
   content: string;
   /** when this message was sent */
@@ -167,6 +166,8 @@ export type Message = {
   sticker_items?: StickerItem[];
   /** **Deprecated** the stickers sent with the message */
   stickers?: Sticker[];
+  /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the messsage in a thread in company with `total_message_sent` on parent thread */
+  position?: number;
 };
 
 // ========================================================================
@@ -186,15 +187,15 @@ export type MessageType =
   5 |
   /** CHANNEL_PINNED_MESSAGE */
   6 |
-  /** GUILD_MEMBER_JOIN */
+  /** USER_JOIN */
   7 |
-  /** USER_PREMIUM_GUILD_SUBSCRIPTION */
+  /** GUILD_BOOST */
   8 |
-  /** USER_PREMIUM_GUILD_SUBSCRIPTION_TIER_1 */
+  /** GUILD_BOOST_TIER_1 */
   9 |
-  /** USER_PREMIUM_GUILD_SUBSCRIPTION_TIER_2 */
+  /** GUILD_BOOST_TIER_2 */
   10 |
-  /** USER_PREMIUM_GUILD_SUBSCRIPTION_TIER_3 */
+  /** GUILD_BOOST_TIER_3 */
   11 |
   /** CHANNEL_FOLLOW_ADD */
   12 |
@@ -213,7 +214,9 @@ export type MessageType =
   /** GUILD_INVITE_REMINDER */
   22 |
   /** CONTEXT_MENU_COMMAND */
-  23;
+  23 |
+  /** AUTO_MODERATION_ACTION */
+  24;
 
 // ========================================================================
 
@@ -446,7 +449,7 @@ export type Attachment = {
   id: Snowflake;
   /** name of file attached */
   filename: string;
-  /** description for the file */
+  /** description for the file (max 1024 characters) */
   description?: string;
   /** the attachment's media type */
   content_type?: string;

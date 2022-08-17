@@ -64,6 +64,10 @@ export type ApplicationCommandOption = {
   min_value?: number;
   /** If the option is an `INTEGER` or `NUMBER` type, the maximum value permitted */
   max_value?: number;
+  /** For option type `STRING`, the minimum allowed length (minimum of `0`, maximum of `6000`) */
+  min_length?: number;
+  /** For option type `STRING`, the maximum allowed length (minimum of `1`, maximum of `6000`) */
+  max_length?: number;
   /** If autocomplete interactions are enabled for this `STRING`, `INTEGER`, or `NUMBER` type option */
   autocomplete?: boolean;
 };
@@ -123,7 +127,7 @@ export type ApplicationCommandInteractionDataOption = {
 // ========================================================================
 
 export type GuildApplicationCommandPermission = {
-  /** ID of the command */
+  /** ID of the command or the application ID */
   id: Snowflake;
   /** ID of the application the command belongs to */
   application_id: Snowflake;

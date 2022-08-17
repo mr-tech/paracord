@@ -14,7 +14,7 @@ export type Sticker = {
   /** **Deprecated** previously the sticker asset hash, now an empty string */
   asset?: string;
   /** type of sticker */
-  type: StickerType;
+  type: StickerFormatType;
   /** type of sticker format */
   format_type: number;
   /** whether this guild sticker can be used, may be false due to loss of Server Boosts */
@@ -26,14 +26,6 @@ export type Sticker = {
   /** the standard sticker's sort order within its pack */
   sort_value?: number;
 };
-
-// ========================================================================
-
-export type StickerType =
-  /** STANDARD */
-  1 |
-  /** GUILD */
-  2;
 
 // ========================================================================
 

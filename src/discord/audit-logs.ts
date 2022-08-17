@@ -1,39 +1,41 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
-  User, Integration, Snowflake, Channel, Webhook, GuildScheduledEvent,
+  User, Integration, Snowflake, Channel, Webhook, GuildScheduledEvent, AutoModerationRule,
 } from '.';
 
 export type AuditLog = {
-  /** list of audit log entries */
+  /** List of audit log entries, sorted from most to least recent */
   audit_log_entries: AuditLogEntry[];
-  /** list of guild scheduled events found in the audit log */
+  /** List of auto moderation rules referenced in the audit log */
+  auto_moderation_rules: AutoModerationRule[];
+  /** List of guild scheduled events referenced in the audit log */
   guild_scheduled_events: GuildScheduledEvent[];
-  /** list of partial integration objects */
+  /** List of partial integration objects */
   integrations: Partial<Integration>[];
-  /** list of threads found in the audit log\* */
+  /** List of threads referenced in the audit log\* */
   threads: Channel[];
-  /** list of users found in the audit log */
+  /** List of users referenced in the audit log */
   users: User[];
-  /** list of webhooks found in the audit log */
+  /** List of webhooks referenced in the audit log */
   webhooks: Webhook[];
 };
 
 // ========================================================================
 
 export type AuditLogEntry = {
-  /** id of the affected entity (webhook, user, role, etc.) */
+  /** ID of the affected entity (webhook, user, role, etc.) */
   target_id: string | null;
-  /** changes made to the target_id */
+  /** Changes made to the target_id */
   changes?: AuditLogChange[];
-  /** the user who made the changes */
+  /** User or app that made the changes */
   user_id: Snowflake | null;
-  /** id of the entry */
+  /** ID of the entry */
   id: Snowflake;
-  /** type of action that occurred */
+  /** Type of action that occurred */
   action_type: AuditLogEventType;
-  /** additional info for certain action types */
+  /** Additional info for certain event types */
   options?: OptionalAuditEntryInfo;
-  /** the reason for the change (0-512 characters) */
+  /** Reason for the change (1-512 characters) */
   reason?: string;
 };
 
@@ -135,36 +137,46 @@ export type AuditLogEventType =
   /** THREAD_DELETE */
   112 |
   /** APPLICATION_COMMAND_PERMISSION_UPDATE */
-  121;
+  121 |
+  /** AUTO_MODERATION_RULE_CREATE */
+  140 |
+  /** AUTO_MODERATION_RULE_UPDATE */
+  141 |
+  /** AUTO_MODERATION_RULE_DELETE */
+  142 |
+  /** AUTO_MODERATION_BLOCK_MESSAGE */
+  143;
 
 // ========================================================================
 
 export type OptionalAuditEntryInfo = {
-  /** channel in which the entities were targeted */
+  /** ID of the app whose permissions were targeted */
+  application_id: Snowflake; // APPLICATION_COMMAND_PERMISSION_UPDATE
+  /** Channel in which the entities were targeted */
   channel_id: Snowflake; // MEMBER_MOVE & MESSAGE_PIN & MESSAGE_UNPIN & MESSAGE_DELETE & STAGE_INSTANCE_CREATE & STAGE_INSTANCE_UPDATE & STAGE_INSTANCE_DELETE
-  /** number of entities that were targeted */
+  /** Number of entities that were targeted */
   count: string; // MESSAGE_DELETE & MESSAGE_BULK_DELETE & MEMBER_DISCONNECT & MEMBER_MOVE
-  /** number of days after which inactive members were kicked */
+  /** Number of days after which inactive members were kicked */
   delete_member_days: string; // MEMBER_PRUNE
-  /** id of the overwritten entity */
+  /** ID of the overwritten entity */
   id: Snowflake; // CHANNEL_OVERWRITE_CREATE & CHANNEL_OVERWRITE_UPDATE & CHANNEL_OVERWRITE_DELETE
-  /** number of members removed by the prune */
+  /** Number of members removed by the prune */
   members_removed: string; // MEMBER_PRUNE
-  /** id of the message that was targeted */
+  /** ID of the message that was targeted */
   message_id: Snowflake; // MESSAGE_PIN & MESSAGE_UNPIN
-  /** name of the role if type is "0" (not present if type is "1") */
+  /** Name of the role if type is `"0"` (not present if type is `"1"`) */
   role_name: string; // CHANNEL_OVERWRITE_CREATE & CHANNEL_OVERWRITE_UPDATE & CHANNEL_OVERWRITE_DELETE
-  /** type of overwritten entity - "0" for "role" or "1" for "member" */
+  /** Type of overwritten entity - role (`"0"`) or member (`"1"`) */
   type: string; // CHANNEL_OVERWRITE_CREATE & CHANNEL_OVERWRITE_UPDATE & CHANNEL_OVERWRITE_DELETE
 };
 
 // ========================================================================
 
 export type AuditLogChange = {
-  /** new value of the key */
-  new_value?: string | number | boolean | null; // any JSON value;
-  /** old value of the key */
-  old_value?: string | number | boolean | null; // any JSON value;
-  /** name of audit log change key */
+  /** New value of the key */
+  new_value?: unknown;
+  /** Old value of the key */
+  old_value?: unknown;
+  /** Name of the changed entity, with a few exceptions */
   key: string;
 };

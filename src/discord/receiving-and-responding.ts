@@ -1,34 +1,37 @@
 import type {
   Snowflake, GuildMember, User, Role, Attachment, AllowedMention, Channel, Embed, MessageComponent,
-  SelectOption, ApplicationCommandInteractionDataOption, Message, ApplicationCommandOptionChoice, ComponentType, ApplicationCommandOptionType, MessageFlags, Component,
+  SelectOption, ApplicationCommandInteractionDataOption, Message, ApplicationCommandOptionChoice,
+  ComponentType, ApplicationCommandOptionType, MessageFlags, Component,
 } from '.';
 
 export type Interaction = {
-  /** id of the interaction */
+  /** ID of the interaction */
   id: Snowflake;
-  /** id of the application this interaction is for */
+  /** ID of the application this interaction is for */
   application_id: Snowflake;
-  /** the type of interaction */
+  /** Type of interaction */
   type: InteractionType;
-  /** the command data payload */
-  data?: InteractionData;
-  /** the guild it was sent from */
+  /** Interaction data payload */
+  data?: ApplicationCommandData | MessageComponentData | ModalSubmitData;
+  /** Guild that the interaction was sent from */
   guild_id?: Snowflake;
-  /** the channel it was sent from */
+  /** Channel that the interaction was sent from */
   channel_id?: Snowflake;
-  /** guild member data for the invoking user, including permissions */
+  /** Guild member data for the invoking user, including permissions */
   member?: GuildMember;
-  /** user object for the invoking user, if invoked in a DM */
+  /** User object for the invoking user, if invoked in a DM */
   user?: User;
-  /** a continuation token for responding to the interaction */
+  /** Continuation token for responding to the interaction */
   token: string;
-  /** read-only property, always `1` */
+  /** Read-only property, always `1` */
   version: number;
-  /** for components, the message they were attached to */
+  /** For components, the message they were attached to */
   message?: Message;
-  /** the selected language of the invoking user */
+  /** Bitwise set of permissions the app or bot has within the channel the interaction was sent from */
+  app_permissions?: string;
+  /** Selected language of the invoking user */
   locale?: string;
-  /** the guild's preferred locale, if invoked in a guild */
+  /** Guild's preferred locale, if invoked in a guild */
   guild_locale?: string;
 };
 
@@ -48,29 +51,41 @@ export type InteractionType =
 
 // ========================================================================
 
-export type InteractionData = {
+export type ApplicationCommandData = {
   /** the `ID` of the invoked command */
-  id: Snowflake; // Application Command
+  id: Snowflake;
   /** the `name` of the invoked command */
-  name: string; // Application Command
+  name: string;
   /** the `type` of the invoked command */
-  type: ApplicationCommandOptionType; // Application Command
+  type: ApplicationCommandOptionType;
   /** converted users + roles + channels + attachments */
-  resolved?: ResolvedData; // Application Command
+  resolved?: ResolvedData;
   /** the params + values from the user */
-  options?: ApplicationCommandInteractionDataOption[]; // Application Command
+  options?: ApplicationCommandInteractionDataOption[];
   /** the id of the guild the command is registered to */
-  guild_id?: Snowflake; // Application Command
+  guild_id?: Snowflake;
+  /** id of the user or message targeted by a user or [message](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands) command */
+  target_id?: Snowflake;
+};
+
+// ========================================================================
+
+export type MessageComponentData = {
   /** the `custom_id` of the component */
-  custom_id?: string; // Component, Modal Submit
+  custom_id: string;
   /** the type of the component */
-  component_type?: ComponentType; // Component
-  /** the values the user selected */
-  values?: SelectOption[]; // Component (Select)
-  /** id the of user or message targeted by a user or [message](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands) command */
-  target_id?: Snowflake; // [User Command](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/user-commands), [Message Command](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands)
+  component_type: ComponentType;
+  /** values the user selected in a select menu component */
+  values?: SelectOption[];
+};
+
+// ========================================================================
+
+export type ModalSubmitData = {
+  /** the `custom_id` of the modal */
+  custom_id: string;
   /** the values submitted by the user */
-  components?: MessageComponent[]; // Modal Submit
+  components: MessageComponent[];
 };
 
 // ========================================================================
@@ -93,15 +108,15 @@ export type ResolvedData = {
 // ========================================================================
 
 export type MessageInteraction = {
-  /** id of the interaction */
+  /** ID of the interaction */
   id: Snowflake;
-  /** the type of interaction */
+  /** Type of interaction */
   type: InteractionType;
-  /** the name of the application command */
+  /** Name of the application command, including subcommands and subcommand groups */
   name: string;
-  /** the user who invoked the interaction */
+  /** User who invoked the interaction */
   user: User;
-  /** the member who invoked the interaction in the guild */
+  /** Member who invoked the interaction in the guild */
   member?: Partial<GuildMember>;
 };
 

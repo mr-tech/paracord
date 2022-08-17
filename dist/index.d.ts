@@ -465,6 +465,23 @@ export declare type ApplicationCommand = {
     version: Snowflake;
 };
 
+export declare type ApplicationCommandData = {
+    /** the `ID` of the invoked command */
+    id: Snowflake;
+    /** the `name` of the invoked command */
+    name: string;
+    /** the `type` of the invoked command */
+    type: ApplicationCommandOptionType;
+    /** converted users + roles + channels + attachments */
+    resolved?: ResolvedData;
+    /** the params + values from the user */
+    options?: ApplicationCommandInteractionDataOption[];
+    /** the id of the guild the command is registered to */
+    guild_id?: Snowflake;
+    /** id of the user or message targeted by a user or [message](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands) command */
+    target_id?: Snowflake;
+};
+
 export declare type ApplicationCommandInteractionDataOption = {
     /** Name of the parameter */
     name: string;
@@ -501,6 +518,10 @@ export declare type ApplicationCommandOption = {
     min_value?: number;
     /** If the option is an `INTEGER` or `NUMBER` type, the maximum value permitted */
     max_value?: number;
+    /** For option type `STRING`, the minimum allowed length (minimum of `0`, maximum of `6000`) */
+    min_length?: number;
+    /** For option type `STRING`, the maximum allowed length (minimum of `1`, maximum of `6000`) */
+    max_length?: number;
     /** If autocomplete interactions are enabled for this `STRING`, `INTEGER`, or `NUMBER` type option */
     autocomplete?: boolean;
 };
@@ -579,7 +600,7 @@ export declare type Attachment = {
     id: Snowflake;
     /** name of file attached */
     filename: string;
-    /** description for the file */
+    /** description for the file (max 1024 characters) */
     description?: string;
     /** the attachment's media type */
     content_type?: string;
@@ -598,43 +619,45 @@ export declare type Attachment = {
 };
 
 export declare type AuditLog = {
-    /** list of audit log entries */
+    /** List of audit log entries, sorted from most to least recent */
     audit_log_entries: AuditLogEntry[];
-    /** list of guild scheduled events found in the audit log */
+    /** List of auto moderation rules referenced in the audit log */
+    auto_moderation_rules: AutoModerationRule[];
+    /** List of guild scheduled events referenced in the audit log */
     guild_scheduled_events: GuildScheduledEvent[];
-    /** list of partial integration objects */
+    /** List of partial integration objects */
     integrations: Partial<Integration>[];
-    /** list of threads found in the audit log\* */
+    /** List of threads referenced in the audit log\* */
     threads: Channel[];
-    /** list of users found in the audit log */
+    /** List of users referenced in the audit log */
     users: User[];
-    /** list of webhooks found in the audit log */
+    /** List of webhooks referenced in the audit log */
     webhooks: Webhook[];
 };
 
 export declare type AuditLogChange = {
-    /** new value of the key */
-    new_value?: string | number | boolean | null;
-    /** old value of the key */
-    old_value?: string | number | boolean | null;
-    /** name of audit log change key */
+    /** New value of the key */
+    new_value?: unknown;
+    /** Old value of the key */
+    old_value?: unknown;
+    /** Name of the changed entity, with a few exceptions */
     key: string;
 };
 
 export declare type AuditLogEntry = {
-    /** id of the affected entity (webhook, user, role, etc.) */
+    /** ID of the affected entity (webhook, user, role, etc.) */
     target_id: string | null;
-    /** changes made to the target_id */
+    /** Changes made to the target_id */
     changes?: AuditLogChange[];
-    /** the user who made the changes */
+    /** User or app that made the changes */
     user_id: Snowflake | null;
-    /** id of the entry */
+    /** ID of the entry */
     id: Snowflake;
-    /** type of action that occurred */
+    /** Type of action that occurred */
     action_type: AuditLogEventType;
-    /** additional info for certain action types */
+    /** Additional info for certain event types */
     options?: OptionalAuditEntryInfo;
-    /** the reason for the change (0-512 characters) */
+    /** Reason for the change (1-512 characters) */
     reason?: string;
 };
 
@@ -734,7 +757,15 @@ export declare type AuditLogEventType =
 /** THREAD_DELETE */
 112 | 
 /** APPLICATION_COMMAND_PERMISSION_UPDATE */
-121;
+121 | 
+/** AUTO_MODERATION_RULE_CREATE */
+140 | 
+/** AUTO_MODERATION_RULE_UPDATE */
+141 | 
+/** AUTO_MODERATION_RULE_DELETE */
+142 | 
+/** AUTO_MODERATION_BLOCK_MESSAGE */
+143;
 
 export declare interface AugmentedActivityAssets extends ActivityAsset {
     largeImage?: string;
@@ -765,6 +796,78 @@ export declare interface AugmentedVoiceState extends VoiceState {
 export declare type AutocompleteCallback = {
     /** autocomplete choices (max of 25 choices) */
     choices: ApplicationCommandOptionChoice[];
+};
+
+export declare type AutoModerationAction = {
+    /** the type of action */
+    type: AutoModerationActionType;
+    /** additional metadata needed during execution for this specific action type */
+    metadata?: AutoModerationActionMetadata;
+};
+
+export declare type AutoModerationActionExecutionEventField = {
+    /** the id of the guild in which action was executed */
+    guild_id: Snowflake;
+    /** the action which was executed */
+    action: AutoModerationAction;
+    /** the id of the rule which action belongs to */
+    rule_id: Snowflake;
+    /** the trigger type of rule which was triggered */
+    rule_trigger_type: TriggerType;
+    /** the id of the user which generated the content which triggered the rule */
+    user_id: Snowflake;
+    /** the id of the channel in which user content was posted */
+    channel_id?: Snowflake;
+    /** the id of any user message which content belongs to * */
+    message_id?: Snowflake;
+    /** the id of any system auto moderation messages posted as a result of this action ** */
+    alert_system_message_id?: Snowflake;
+    /** the user generated text content */
+    content: string;
+    /** the word or phrase configured in the rule that triggered the rule */
+    matched_keyword: string | null;
+    /** the substring in content that triggered the rule */
+    matched_content: string | null;
+};
+
+export declare type AutoModerationActionMetadata = {
+    /** SEND_ALERT_MESSAGE */
+    channel_id: Snowflake;
+    /** TIMEOUT */
+    duration_seconds: number;
+};
+
+export declare type AutoModerationActionType = 
+/** BLOCK_MESSAGE */
+1 | 
+/** SEND_ALERT_MESSAGE */
+2 | 
+/** TIMEOUT */
+3;
+
+export declare type AutoModerationRule = {
+    /** the id of this rule */
+    id: Snowflake;
+    /** the id of the guild which this rule belongs to */
+    guild_id: Snowflake;
+    /** the rule name */
+    name: string;
+    /** the user which first created this rule */
+    creator_id: Snowflake;
+    /** the rule event type */
+    event_type: number;
+    /** the rule trigger type */
+    trigger_type: number;
+    /** the rule trigger metadata */
+    trigger_metadata: object;
+    /** the actions which will execute when the rule is triggered */
+    actions: AutoModerationAction[];
+    /** whether the rule is enabled */
+    enabled: boolean;
+    /** the role ids that should not be affected by the rule (Maximum of 20) */
+    exempt_roles: Snowflake[];
+    /** the channel ids that should not be affected by the rule (Maximum of 50) */
+    exempt_channels: Snowflake[];
 };
 
 export declare type AvailableLocale = Partial<Record<Locale, string>>;
@@ -885,7 +988,7 @@ export declare type Channel = {
     rtc_region?: string | null;
     /** the camera video quality mode of the voice channel, 1 when not present */
     video_quality_mode?: number;
-    /** an approximate count of messages in a thread, stops counting at 50 */
+    /** number of messages (not including the initial message or deleted messages) in a thread (if the thread was created before July 1, 2022, it stops counting at 50) */
     message_count?: number;
     /** an approximate count of users in a thread, stops counting at 50 */
     member_count?: number;
@@ -899,6 +1002,8 @@ export declare type Channel = {
     permissions?: string;
     /** channel flags combined as a [bitfield](https://en.wikipedia.org/wiki/Bit_field) */
     flags?: number;
+    /** number of messages ever sent in a thread, it's similar to `message_count` on message creation, but will not decrement the number when a message is deleted */
+    total_message_sent?: number;
 };
 
 export declare type CHANNEL_CREATE_EVENT = GuildChannel;
@@ -944,9 +1049,9 @@ export declare type ChannelType =
 3 | 
 /** GUILD_CATEGORY */
 4 | 
-/** GUILD_NEWS */
+/** GUILD_ANNOUNCEMENT */
 5 | 
-/** GUILD_NEWS_THREAD */
+/** GUILD_ANNOUNCEMENT_THREAD */
 10 | 
 /** GUILD_PUBLIC_THREAD */
 11 | 
@@ -1025,7 +1130,7 @@ export declare type Connection = {
     id: string;
     /** the username of the connection account */
     name: string;
-    /** the service of the connection (twitch, youtube) */
+    /** the service of this connection */
     type: string;
     /** whether the connection is revoked */
     revoked?: boolean;
@@ -1203,6 +1308,10 @@ declare type ErrorResponse = {
 declare interface EventHandler extends EventEmitter {
     handleEvent: HandleEventCallback;
 }
+
+export declare type EventType = 
+/** MESSAGE_SEND */
+1;
 
 export declare type ExplicitContentFilterLevel = 
 /** DISABLED */
@@ -1525,7 +1634,7 @@ export declare type GatewayPayload = {
     /** opcode for the payload */
     op: number;
     /** event data */
-    d: string | number | boolean | null;
+    d: unknown;
     /** sequence number, used for resuming sessions and heartbeats */
     s: number | null;
     /** the event name for this payload */
@@ -1555,7 +1664,7 @@ export declare type GatewayRequestMembersEvent = {
 };
 
 export declare type GatewayURLQueryStringParam = {
-    /** Gateway Version to use */
+    /** API Version to use */
     v: number;
     /** The encoding of received gateway packets */
     encoding: string;
@@ -1702,7 +1811,7 @@ export declare type GUILD_BAN_ADD_EVENT = GuildBanAddEventField;
 
 export declare type GUILD_BAN_REMOVE_EVENT = GuildBanRemoveEventField;
 
-export declare type GUILD_CREATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' | 'afk_timeout' | 'application_id' | 'banner' | 'default_message_notifications' | 'description' | 'discovery_splash' | 'emojis' | 'guild_scheduled_events' | 'features' | 'icon' | 'id' | 'joined_at' | 'large' | 'max_members' | 'max_video_channel_users' | 'member_count' | 'mfa_level' | 'name' | 'nsfw_level' | 'owner_id' | 'preferred_locale' | 'premium_subscription_count' | 'premium_progress_bar_enabled' | 'premium_tier' | 'public_updates_channel_id' | 'region' | 'roles' | 'rules_channel_id' | 'splash' | 'stage_instances' | 'stickers' | 'system_channel_id' | 'vanity_url_code' | 'verification_level'> & {
+export declare type GUILD_CREATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' | 'afk_timeout' | 'application_id' | 'banner' | 'default_message_notifications' | 'description' | 'discovery_splash' | 'emojis' | 'guild_scheduled_events' | 'features' | 'icon' | 'id' | 'joined_at' | 'large' | 'max_members' | 'max_video_channel_users' | 'member_count' | 'mfa_level' | 'name' | 'nsfw_level' | 'owner_id' | 'preferred_locale' | 'premium_subscription_count' | 'premium_progress_bar_enabled' | 'premium_tier' | 'public_updates_channel_id' | 'region' | 'roles' | 'rules_channel_id' | 'splash' | 'stage_instances' | 'stickers' | 'system_channel_id' | 'vanity_url_code' | 'verification_level'> & Omit<GuildCreateExtraField, 'voice_states' | 'members' | 'channels' | 'threads' | 'presences'> & {
     voice_states: Pick<VoiceState, 'user_id' | 'channel_id' | 'suppress' | 'session_id' | 'self_video' | 'self_mute' | 'self_deaf' | 'request_to_speak_timestamp' | 'mute' | 'deaf'>[];
     members: AugmentedGuildMember[];
     channels: Omit<GuildChannel, 'guild_id'>[];
@@ -1758,7 +1867,7 @@ export declare type GUILD_UPDATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' 
 };
 
 export declare type GuildApplicationCommandPermission = {
-    /** ID of the command */
+    /** ID of the command or the application ID */
     id: Snowflake;
     /** ID of the application the command belongs to */
     application_id: Snowflake;
@@ -1788,6 +1897,31 @@ export declare type GuildCategoryChannel = {
 } & Pick<Required<Channel>, 'guild_id' | 'id' | 'nsfw' | 'parent_id' | 'permission_overwrites' | 'position' | 'type'>;
 
 export declare type GuildChannel = GuildTextChannel | GuildVoiceChannel | GuildCategoryChannel | GuildNewsChannel | GuildStageVoiceChannel;
+
+export declare type GuildCreateExtraField = {
+    /** when this guild was joined at */
+    joined_at: ISO8601timestamp;
+    /** true if this is considered a large guild */
+    large: boolean;
+    /** true if this guild is unavailable due to an outage */
+    unavailable?: boolean;
+    /** total number of members in this guild */
+    member_count: number;
+    /** states of members currently in voice channels; lacks the `guild_id` key */
+    voice_states: Partial<VoiceState>[];
+    /** users in the guild */
+    members: GuildMember[];
+    /** channels in the guild */
+    channels: Channel[];
+    /** all active threads in the guild that current user has permission to view */
+    threads: Channel[];
+    /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
+    presences: Partial<Presence>[];
+    /** Stage instances in the guild */
+    stage_instances: StageInstance[];
+    /** the scheduled events in the guild */
+    guild_scheduled_events: GuildScheduledEvent[];
+};
 
 export declare interface GuildEmoji extends Emoji {
     id: Snowflake;
@@ -1900,7 +2034,7 @@ export declare type GuildMembersChunkEventField = {
     /** the total number of expected chunks for this response */
     chunk_count: number;
     /** if passing an invalid id to `REQUEST_GUILD_MEMBERS`, it will be returned here */
-    not_found?: number[];
+    not_found?: [];
     /** if passing true to `REQUEST_GUILD_MEMBERS`, presences of the returned members will be here */
     presences?: Presence[];
     /** the nonce used in the Guild Members Request */
@@ -2205,11 +2339,11 @@ export declare type Identify = {
 
 export declare type IdentifyConnectionProperties = {
     /** your operating system */
-    $os: string;
+    os: string;
     /** your library name */
-    $browser: string;
+    browser: string;
     /** your library name */
-    $device: string;
+    device: string;
 };
 
 export declare type IdentityOptions = {
@@ -2323,31 +2457,33 @@ export declare type IntegrationUpdateEventAdditionalField = {
 };
 
 export declare type Interaction = {
-    /** id of the interaction */
+    /** ID of the interaction */
     id: Snowflake;
-    /** id of the application this interaction is for */
+    /** ID of the application this interaction is for */
     application_id: Snowflake;
-    /** the type of interaction */
+    /** Type of interaction */
     type: InteractionType;
-    /** the command data payload */
-    data?: InteractionData;
-    /** the guild it was sent from */
+    /** Interaction data payload */
+    data?: ApplicationCommandData | MessageComponentData | ModalSubmitData;
+    /** Guild that the interaction was sent from */
     guild_id?: Snowflake;
-    /** the channel it was sent from */
+    /** Channel that the interaction was sent from */
     channel_id?: Snowflake;
-    /** guild member data for the invoking user, including permissions */
+    /** Guild member data for the invoking user, including permissions */
     member?: GuildMember;
-    /** user object for the invoking user, if invoked in a DM */
+    /** User object for the invoking user, if invoked in a DM */
     user?: User;
-    /** a continuation token for responding to the interaction */
+    /** Continuation token for responding to the interaction */
     token: string;
-    /** read-only property, always `1` */
+    /** Read-only property, always `1` */
     version: number;
-    /** for components, the message they were attached to */
+    /** For components, the message they were attached to */
     message?: Message;
-    /** the selected language of the invoking user */
+    /** Bitwise set of permissions the app or bot has within the channel the interaction was sent from */
+    app_permissions?: string;
+    /** Selected language of the invoking user */
     locale?: string;
-    /** the guild's preferred locale, if invoked in a guild */
+    /** Guild's preferred locale, if invoked in a guild */
     guild_locale?: string;
 };
 
@@ -2368,31 +2504,6 @@ export declare type InteractionCallbackType =
 8 | 
 /** MODAL\*\* */
 9;
-
-export declare type InteractionData = {
-    /** the `ID` of the invoked command */
-    id: Snowflake;
-    /** the `name` of the invoked command */
-    name: string;
-    /** the `type` of the invoked command */
-    type: ApplicationCommandOptionType;
-    /** converted users + roles + channels + attachments */
-    resolved?: ResolvedData;
-    /** the params + values from the user */
-    options?: ApplicationCommandInteractionDataOption[];
-    /** the id of the guild the command is registered to */
-    guild_id?: Snowflake;
-    /** the `custom_id` of the component */
-    custom_id?: string;
-    /** the type of the component */
-    component_type?: ComponentType;
-    /** the values the user selected */
-    values?: SelectOption[];
-    /** id the of user or message targeted by a user or [message](#DOCS_INTERACTIONS_APPLICATION_COMMANDS/message-commands) command */
-    target_id?: Snowflake;
-    /** the values submitted by the user */
-    components?: MessageComponent[];
-};
 
 export declare type InteractionResponse = {
     /** the type of response */
@@ -2566,6 +2677,14 @@ export declare type ISO8601timestamp = string;
 
 export declare function isObject(v: unknown): boolean;
 
+export declare type KeywordPresetType = 
+/** PROFANITY */
+1 | 
+/** SEXUAL_CONTENT */
+2 | 
+/** SLURS */
+3;
+
 export declare type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & {
     style: 5;
     emoji?: ButtonEmoji;
@@ -2664,12 +2783,8 @@ export declare type Message = {
     id: Snowflake;
     /** id of the channel the message was sent in */
     channel_id: Snowflake;
-    /** id of the guild the message was sent in */
-    guild_id?: Snowflake;
     /** the author of this message (not guaranteed to be a valid user, see below) */
     author: User;
-    /** member properties for this message's author */
-    member?: Partial<GuildMember>;
     /** contents of the message */
     content: string;
     /** when this message was sent */
@@ -2722,6 +2837,8 @@ export declare type Message = {
     sticker_items?: StickerItem[];
     /** **Deprecated** the stickers sent with the message */
     stickers?: Sticker[];
+    /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the messsage in a thread in company with `total_message_sent` on parent thread */
+    position?: number;
 };
 
 export declare type MESSAGE_CREATE_EVENT = Message;
@@ -2776,6 +2893,24 @@ export declare type MessageCallback = {
 
 export declare type MessageComponent = ActionRowComponent;
 
+export declare type MessageComponentData = {
+    /** the `custom_id` of the component */
+    custom_id: string;
+    /** the type of the component */
+    component_type: ComponentType;
+    /** values the user selected in a select menu component */
+    values?: SelectOption[];
+};
+
+export declare type MessageCreateExtraField = {
+    /** id of the guild the message was sent in - unless it is an ephemeral message */
+    guild_id?: Snowflake;
+    /** member properties for this message's author. Missing for ephemeral messages and messages from webhooks */
+    member?: Partial<GuildMember>;
+    /** users specifically mentioned in the message */
+    mentions: User[];
+};
+
 export declare type MessageDeleteBulkEventField = {
     /** the ids of the messages */
     ids: Snowflake[];
@@ -2806,15 +2941,15 @@ export declare enum MessageFlags {
 }
 
 export declare type MessageInteraction = {
-    /** id of the interaction */
+    /** ID of the interaction */
     id: Snowflake;
-    /** the type of interaction */
+    /** Type of interaction */
     type: InteractionType;
-    /** the name of the application command */
+    /** Name of the application command, including subcommands and subcommand groups */
     name: string;
-    /** the user who invoked the interaction */
+    /** User who invoked the interaction */
     user: User;
-    /** the member who invoked the interaction in the guild */
+    /** Member who invoked the interaction in the guild */
     member?: Partial<GuildMember>;
 };
 
@@ -2892,15 +3027,15 @@ export declare type MessageType =
 5 | 
 /** CHANNEL_PINNED_MESSAGE */
 6 | 
-/** GUILD_MEMBER_JOIN */
+/** USER_JOIN */
 7 | 
-/** USER_PREMIUM_GUILD_SUBSCRIPTION */
+/** GUILD_BOOST */
 8 | 
-/** USER_PREMIUM_GUILD_SUBSCRIPTION_TIER_1 */
+/** GUILD_BOOST_TIER_1 */
 9 | 
-/** USER_PREMIUM_GUILD_SUBSCRIPTION_TIER_2 */
+/** GUILD_BOOST_TIER_2 */
 10 | 
-/** USER_PREMIUM_GUILD_SUBSCRIPTION_TIER_3 */
+/** GUILD_BOOST_TIER_3 */
 11 | 
 /** CHANNEL_FOLLOW_ADD */
 12 | 
@@ -2919,7 +3054,9 @@ export declare type MessageType =
 /** GUILD_INVITE_REMINDER */
 22 | 
 /** CONTEXT_MENU_COMMAND */
-23;
+23 | 
+/** AUTO_MODERATION_ACTION */
+24;
 
 export declare type MFALevel = 
 /** NONE */
@@ -2944,27 +3081,36 @@ export declare type ModalCallback = {
     components: Component[];
 };
 
+export declare type ModalSubmitData = {
+    /** the `custom_id` of the modal */
+    custom_id: string;
+    /** the values submitted by the user */
+    components: MessageComponent[];
+};
+
 export declare type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Required<Pick<Button, 'custom_id'>> & {
     style: Exclude<ButtonStyleType, 5>;
     emoji?: ButtonEmoji;
 };
 
 export declare type OptionalAuditEntryInfo = {
-    /** channel in which the entities were targeted */
+    /** ID of the app whose permissions were targeted */
+    application_id: Snowflake;
+    /** Channel in which the entities were targeted */
     channel_id: Snowflake;
-    /** number of entities that were targeted */
+    /** Number of entities that were targeted */
     count: string;
-    /** number of days after which inactive members were kicked */
+    /** Number of days after which inactive members were kicked */
     delete_member_days: string;
-    /** id of the overwritten entity */
+    /** ID of the overwritten entity */
     id: Snowflake;
-    /** number of members removed by the prune */
+    /** Number of members removed by the prune */
     members_removed: string;
-    /** id of the message that was targeted */
+    /** ID of the message that was targeted */
     message_id: Snowflake;
-    /** name of the role if type is "0" (not present if type is "1") */
+    /** Name of the role if type is `"0"` (not present if type is `"1"`) */
     role_name: string;
-    /** type of overwritten entity - "0" for "role" or "1" for "member" */
+    /** Type of overwritten entity - role (`"0"`) or member (`"1"`) */
     type: string;
 };
 
@@ -3357,7 +3503,7 @@ export declare type Reaction = {
 export declare type READY_EVENT = ReadyEventField;
 
 export declare type ReadyEventField = {
-    /** gateway version */
+    /** API version */
     v: number;
     /** information about the user including email */
     user: User;
@@ -3365,6 +3511,8 @@ export declare type ReadyEventField = {
     guilds: UnavailableGuild[];
     /** used for resuming connections */
     session_id: string;
+    /** gateway url for resuming connections */
+    resume_gateway_url: string;
     /** the shard information associated with this session, if sent when identifying */
     shard?: [number, number];
     /** contains `id` and `flags` */
@@ -3569,6 +3717,37 @@ export declare class Server extends grpc.Server {
      */
     emit(type: string, event: IDebugEvent): void;
 }
+
+export declare type Service = [
+/** Battle.net */
+'battlenet' | 
+/** Epic Games */
+'epicgames' | 
+/** Facebook */
+'facebook' | 
+/** GitHub */
+'github' | 
+/** League of Legends */
+'leagueoflegends *' | 
+/** PlayStation Network */
+'playstation' | 
+/** Reddit */
+'reddit' | 
+/** Spotify */
+'spotify' | 
+/** Skype */
+'skype *' | 
+/** Steam */
+'steam' | 
+/** Twitch */
+'twitch' | 
+/** Twitter */
+'twitter' | 
+/** Xbox */
+'xbox' | 
+/** YouTube */
+'youtube'
+];
 
 export declare type SessionLimitData = {
     /** Total number of identifies application can make in this period. */
@@ -3798,7 +3977,7 @@ export declare type Sticker = {
     /** **Deprecated** previously the sticker asset hash, now an empty string */
     asset?: string;
     /** type of sticker */
-    type: StickerType;
+    type: StickerFormatType;
     /** type of sticker format */
     format_type: number;
     /** whether this guild sticker can be used, may be false due to loss of Server Boosts */
@@ -3844,12 +4023,6 @@ export declare type StickerPack = {
     /** id of the sticker pack's banner image */
     banner_asset_id?: Snowflake;
 };
-
-export declare type StickerType = 
-/** STANDARD */
-1 | 
-/** GUILD */
-2;
 
 export declare function stripLeadingSlash(url: string): string;
 
@@ -3997,6 +4170,29 @@ export declare function timestampNMillisecondsInFuture(milliseconds: number): nu
  * @param seconds Number of seconds from now to base the timestamp on.
  */
 export declare function timestampNSecondsInFuture(seconds: number): number;
+
+export declare type TriggerMetadata = {
+    /** KEYWORD */
+    keyword_filter: string[];
+    /** KEYWORD_PRESET */
+    presets: KeywordPresetType[];
+    /** KEYWORD_PRESET */
+    allow_list: string[];
+    /** MENTION_SPAM */
+    mention_total_limit: number;
+};
+
+export declare type TriggerType = 
+/** KEYWORD */
+1 | 
+/** HARMFUL_LINK */
+2 | 
+/** SPAM */
+3 | 
+/** KEYWORD_PRESET */
+4 | 
+/** MENTION_SPAM */
+5;
 
 export declare type TYPING_START_EVENT = TypingStartEventField;
 

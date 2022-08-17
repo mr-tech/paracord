@@ -3,6 +3,7 @@ export * from './_gateway-events';
 export * from './application';
 export * from './application-commands';
 export * from './audit-logs';
+export * from './auto-moderation';
 export * from './channel';
 export * from './emoji';
 export * from './gateway';

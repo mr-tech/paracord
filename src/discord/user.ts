@@ -69,7 +69,7 @@ export type Connection = {
   id: string;
   /** the username of the connection account */
   name: string;
-  /** the service of the connection (twitch, youtube) */
+  /** the service of this connection */
   type: string;
   /** whether the connection is revoked */
   revoked?: boolean;
@@ -84,6 +84,39 @@ export type Connection = {
   /** visibility of this connection */
   visibility: number;
 };
+
+// ========================================================================
+
+export type Service = [
+  /** Battle.net */
+  'battlenet' |
+  /** Epic Games */
+  'epicgames' |
+  /** Facebook */
+  'facebook' |
+  /** GitHub */
+  'github' |
+  /** League of Legends */
+  'leagueoflegends *' |
+  /** PlayStation Network */
+  'playstation' |
+  /** Reddit */
+  'reddit' |
+  /** Spotify */
+  'spotify' |
+  /** Skype */
+  'skype *' |
+  /** Steam */
+  'steam' |
+  /** Twitch */
+  'twitch' |
+  /** Twitter */
+  'twitter' |
+  /** Xbox */
+  'xbox' |
+  /** YouTube */
+  'youtube'
+];
 
 // ========================================================================
 

@@ -10,7 +10,7 @@ import type {
   MessageReactionRemoveAllEventField, MessageReactionRemoveEmojiEventField, Channel, ThreadMember, Message,
   GuildMember, Integration, GuildScheduledEvent, Interaction, TypingStartEventField, VoiceServerUpdateEventField,
   WebhooksUpdateEventField, StageInstance, User, VoiceState, GuildThread, GuildChannel, AugmentedGuildMember,
-  GatewayPresence, Snowflake, Presence,
+  GatewayPresence, Snowflake, Presence, GuildCreateExtraField,
 } from '.';
 
 export type GatewayEvent = 'HELLO' | 'READY' | 'RESUMED' | 'RECONNECT' | 'INVALID_SESSION' | 'CHANNEL_CREATE'
@@ -84,7 +84,9 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'stickers' |
 'system_channel_id' |
 'vanity_url_code' |
-'verification_level'> & {
+'verification_level'>
+& Omit<GuildCreateExtraField, 'voice_states' | 'members' | 'channels' | 'threads' | 'presences'>
+& {
   voice_states: Pick<VoiceState, 'user_id' | 'channel_id' | 'suppress' | 'session_id' | 'self_video' | 'self_mute' | 'self_deaf' | 'request_to_speak_timestamp' | 'mute' | 'deaf'>[];
   members: AugmentedGuildMember[];
   channels: Omit<GuildChannel, 'guild_id'>[];

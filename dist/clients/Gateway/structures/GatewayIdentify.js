@@ -24,9 +24,9 @@ class GatewayIdentify {
      */
     constructor(token, identity) {
         this.#properties = {
-            $os: process.platform,
-            $browser: 'Paracord',
-            $device: 'Paracord',
+            os: process.platform,
+            browser: 'Paracord',
+            device: 'Paracord',
         };
         this.#presence = {
             status: 'online',

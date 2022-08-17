@@ -19,6 +19,7 @@ __exportStar(require("./_gateway-events"), exports);
 __exportStar(require("./application"), exports);
 __exportStar(require("./application-commands"), exports);
 __exportStar(require("./audit-logs"), exports);
+__exportStar(require("./auto-moderation"), exports);
 __exportStar(require("./channel"), exports);
 __exportStar(require("./emoji"), exports);
 __exportStar(require("./gateway"), exports);

@@ -33,9 +33,9 @@ export default class GatewayIdentify {
    */
   public constructor(token: string, identity: Partial<IdentityOptions>) {
     this.#properties = {
-      $os: process.platform,
-      $browser: 'Paracord',
-      $device: 'Paracord',
+      os: process.platform,
+      browser: 'Paracord',
+      device: 'Paracord',
     };
 
     this.#presence = {
