@@ -1,7 +1,8 @@
-import type { EventEmitter } from 'events';
+import { EventEmitter } from 'events';
+
 import type { ChannelCredentials } from '@grpc/grpc-js';
 import type { Snowflake } from '../discord';
-import type { Gateway } from '../clients';
+import type { HandleEventCallback } from '../clients';
 
 export interface IServerOptions {
   /** Server host to connect to. */
@@ -18,8 +19,8 @@ export type DebugLevel = 'FATAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG';
 
 export type RpcArguments = [boolean, string | undefined, number, number, number, number | undefined]
 
-export interface ExtendedEmitter extends EventEmitter {
-  eventHandler?: (type: string, data: unknown, shard: Gateway) => Promise<unknown>;
+export interface EventHandler extends EventEmitter {
+  handleEvent: HandleEventCallback
 }
 
 export type DeleteEvent = ({ guildId }: {guildId: Snowflake}) => unknown;

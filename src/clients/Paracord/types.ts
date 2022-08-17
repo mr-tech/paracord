@@ -1,11 +1,12 @@
-import type { UnavailableGuild, AugmentedGuild as AugmentedRawGuild } from '../../discord';
+import type { GatewayEvent } from '../../discord';
 import type Api from '../Api';
 import type { IApiOptions } from '../Api';
 import type Gateway from '../Gateway';
-import type { GatewayOptions, IdentityOptions } from '../Gateway';
+import type {
+  GatewayOptions, IdentityOptions, ParacordEvent, ParacordGatewayEvent,
+} from '../Gateway';
 
 export type GatewayMap = Map<number, Gateway>;
-export type RawGuildType = AugmentedRawGuild | UnavailableGuild;
 
 export interface ParacordOptions {
   apiOptions?: Partial<IApiOptions>;
@@ -13,17 +14,14 @@ export interface ParacordOptions {
   api?: Api;
 }
 
-type Primitive = string | number | boolean | null | undefined;
-export type KeysWithType<T> = { [K in keyof T]: T[K] extends Primitive ? K : never }[keyof T];
-
 export interface ParacordLoginOptions {
   identity: IdentityOptions;
   shards?: number[];
   shardCount?: number;
   unavailableGuildTolerance?: number;
   unavailableGuildWait?: number;
-  allowEventsDuringStartup?: true;
   startupHeartbeatTolerance?: number;
+  shardStartupTimeout?: number;
 }
 
 export type InternalShardIds = number[]
@@ -42,5 +40,8 @@ export interface ShardLauncherOptions{
   env?: Record<string, unknown>;
 }
 
-export type EventFunctions = Record<string, EventFunction>;
-export type EventFunction = (...any: unknown[]) => unknown;
+export type HandleEventCallback = (
+  eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent,
+  data: unknown,
+  shard: Gateway
+) => void | Promise<void>;

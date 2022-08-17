@@ -1,16 +1,18 @@
-import type { EventEmitter } from 'events';
 import type * as Api from '../Api';
 import type Gateway from './Gateway';
 import type { IdentifyConnectionProperties, GatewayPresenceUpdate, GuildRequestMember } from '../../discord';
+import type { EventHandler } from '../../@types';
 
 export type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY'
 | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK' | 'REQUEST_GUILD_MEMBERS';
+
+export type ParacordEvent = 'PARACORD_STARTUP_COMPLETE' | 'SHARD_STARTUP_COMPLETE'
 
 export interface GatewayOptions {
   /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
   identity: IdentityOptions;
   /** Emitter through which Discord gateway events are sent. */
-  emitter: EventEmitter;
+  emitter: EventHandler;
   /** Paracord rest API handler. */
   api?: undefined | Api.default;
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */

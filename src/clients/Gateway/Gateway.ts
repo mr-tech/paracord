@@ -1,10 +1,9 @@
 import ws from 'ws';
-import { EventEmitter } from 'events';
 
 import Api from '../Api';
 import { coerceTokenToBotLike, isApiError } from '../../utils';
 import {
-  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GATEWAY_CLOSE_CODES,
+  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GatewayCloseCode, GATEWAY_CLOSE_CODES,
   GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER,
   GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS,
   SECOND_IN_MILLISECONDS,
@@ -14,11 +13,11 @@ import {
 import { GatewayIdentify } from './structures';
 
 import type ZlibSyncType from 'zlib-sync';
-import type { DebugLevel, ExtendedEmitter } from '../../@types';
 import type {
   GatewayEvent, GatewayPayload, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT,
   Hello, ReadyEventField, Resume,
 } from '../../discord';
+import type { DebugLevel, EventHandler } from '../../@types';
 import type {
   GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat,
   SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
@@ -108,7 +107,7 @@ export default class Gateway {
   #checkIfStartingInterval?: undefined | NodeJS.Timer;
 
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
-  #emitter: ExtendedEmitter;
+  #emitter: EventHandler;
 
   /** Object passed to Discord when identifying. */
   #identity: GatewayIdentify;
@@ -159,7 +158,7 @@ export default class Gateway {
     };
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
-    this.#emitter = emitter ?? new EventEmitter();
+    this.#emitter = emitter;
     this.#identity = new GatewayIdentify(coerceTokenToBotLike(token), identity);
     this.#api = api;
     this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
@@ -245,7 +244,7 @@ export default class Gateway {
    * @param type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
    * @param data Data to send with the event.
    */
-  private emit(type: GatewayEvent | ParacordGatewayEvent, data?: unknown): void {
+  private emit(type: ParacordGatewayEvent, data?: unknown): void {
     if (this.#emitter !== undefined) {
       this.#emitter.emit(type, data, this);
     }
@@ -276,7 +275,7 @@ export default class Gateway {
 
   /**
    * Connects to Discord's event gateway.
-   * @param _Websocket Ignore. For unittest dependency injection only.
+   * @param _websocket Ignore. For unittest dependency injection only.
    */
   public login = async (_websocket = ws): Promise<void> => {
     if (this.#ws !== undefined) {
@@ -333,8 +332,8 @@ export default class Gateway {
    * Closes the connection.
    * @param reconnect Whether to reconnect after closing.
    */
-  public close(reconnect = true) {
-    this.#ws?.close(reconnect ? GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT : GATEWAY_CLOSE_CODES.USER_TERMINATE);
+  public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
+    this.#ws?.close(code);
   }
 
   /**
@@ -399,18 +398,13 @@ export default class Gateway {
   }
 
   /**
-   * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
+   * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
    * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
    * @param data Data of the event from Discord.
    */
-  private async handleEvent(type: GatewayEvent | ParacordGatewayEvent, data: unknown): Promise<void> {
+  private handleEvent(type: GatewayEvent | ParacordGatewayEvent, data: unknown): void {
     if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GUILD_MEMBERS_CHUNK_EVENT);
-
-    if (this.#emitter.eventHandler !== undefined) {
-      await this.#emitter.eventHandler(type, data, this);
-    } else {
-      this.emit(type, data);
-    }
+    void this.#emitter.handleEvent(type, data, this);
   }
 
   private handleGuildMemberChunk(data: GUILD_MEMBERS_CHUNK_EVENT): void {
@@ -526,6 +520,7 @@ export default class Gateway {
       INVALID_VERSION,
       INVALID_INTENT,
       DISALLOWED_INTENT,
+      INTERNAL_TERMINATE_RECONNECT,
       RECONNECT,
       SESSION_INVALIDATED,
       SESSION_INVALIDATED_RESUMABLE,
@@ -620,6 +615,10 @@ export default class Gateway {
         break;
       case SESSION_INVALIDATED:
         message = 'Received an Invalid Session message and is not resumable. (Reconnecting with new session.)';
+        this.clearSession();
+        break;
+      case INTERNAL_TERMINATE_RECONNECT:
+        message = 'Something internal caused a reconnect. (Reconnecting with new session.)';
         this.clearSession();
         break;
       case RECONNECT:

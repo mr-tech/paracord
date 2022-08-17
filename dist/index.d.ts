@@ -190,7 +190,7 @@ export declare class Api {
      * @param data Data to send with the event.
      */
     private emit;
-    on: <T extends "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED" = "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "RATE_LIMITED">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
+    on: <T extends "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" = "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
     /**
      * Adds the service that has a server make requests to Discord on behalf of the client.
      * @param serviceOptions
@@ -1200,9 +1200,9 @@ declare type ErrorResponse = {
     code: number;
 };
 
-export declare type EventFunction = (...any: unknown[]) => unknown;
-
-export declare type EventFunctions = Record<string, EventFunction>;
+declare interface EventHandler extends EventEmitter {
+    handleEvent: HandleEventCallback;
+}
 
 export declare type ExplicitContentFilterLevel = 
 /** DISABLED */
@@ -1270,14 +1270,14 @@ export declare class Gateway {
     requestGuildMembers(options: GuildRequestMember): boolean;
     /**
      * Connects to Discord's event gateway.
-     * @param _Websocket Ignore. For unittest dependency injection only.
+     * @param _websocket Ignore. For unittest dependency injection only.
      */
     login: (_websocket?: typeof ws) => Promise<void>;
     /**
      * Closes the connection.
      * @param reconnect Whether to reconnect after closing.
      */
-    close(reconnect?: boolean): void;
+    close(code?: GatewayCloseCode): void;
     /**
      * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
      * @returns Url if status === 200; or undefined if status !== 200.
@@ -1294,7 +1294,7 @@ export declare class Gateway {
     /** Binds `this` to methods used by the websocket. */
     private assignWebsocketMethods;
     /**
-     * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
+     * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
      * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
      * @param data Data of the event from Discord.
      */
@@ -1419,6 +1419,7 @@ export declare const GATEWAY_CLOSE_CODES: {
     readonly INVALID_VERSION: 4012;
     readonly INVALID_INTENT: 4013;
     readonly DISALLOWED_INTENT: 4014;
+    readonly INTERNAL_TERMINATE_RECONNECT: 4991;
     readonly RECONNECT: 4992;
     readonly SESSION_INVALIDATED: 4993;
     readonly SESSION_INVALIDATED_RESUMABLE: 4994;
@@ -1461,6 +1462,8 @@ export declare interface GatewayBotResponse extends Api_2.IApiResponse, ErrorRes
     sessionStartLimit: SessionLimitData;
 }
 
+export declare type GatewayCloseCode = typeof GATEWAY_CLOSE_CODES[keyof typeof GATEWAY_CLOSE_CODES];
+
 export declare type GatewayCloseEvent = {
     shouldReconnect: boolean;
     code: number;
@@ -1501,7 +1504,7 @@ export declare interface GatewayOptions {
     /** An object containing information for identifying with the gateway. `shard` property will be overwritten when using Paracord Shard Launcher. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
     identity: IdentityOptions;
     /** Emitter through which Discord gateway events are sent. */
-    emitter: EventEmitter;
+    emitter: EventHandler;
     /** Paracord rest API handler. */
     api?: undefined | Api_2.default;
     /** Websocket url to connect to. */
@@ -2143,6 +2146,8 @@ export declare type GuildWidgetSetting = {
     channel_id: Snowflake | null;
 };
 
+export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) => void | Promise<void>;
+
 export declare type Heartbeat = number;
 
 export declare type Hello = {
@@ -2560,10 +2565,6 @@ export declare interface IServiceOptions {
 export declare type ISO8601timestamp = string;
 
 export declare function isObject(v: unknown): boolean;
-
-export declare type KeysWithType<T> = {
-    [K in keyof T]: T[K] extends Primitive ? K : never;
-}[keyof T];
 
 export declare type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & {
     style: 5;
@@ -3003,9 +3004,9 @@ declare class Paracord extends EventEmitter {
      * Processes a gateway event.
      * @param eventType The type of the event from the gateway. https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events (Events tend to be emitted in all caps and underlines in place of spaces.)
      * @param data From Discord.
-     * @param shard Shard id of the gateway that emitted this event.
+     * @param gateway Gateway that emitted this event.
      */
-    eventHandler(eventType: string, data: unknown, shard: Gateway): unknown;
+    handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void | Promise<void>;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -3015,10 +3016,9 @@ declare class Paracord extends EventEmitter {
     log(level: DebugLevel, message: string, data?: unknown): void;
     /**
      * Proxy emitter. Renames type with a key in `this.#events`.
-     * @param type Name of the event.
      * @param args Any arguments to send with the emitted event.
      */
-    emit(event: string, ...args: unknown[]): boolean;
+    emit(event: ParacordGatewayEvent | ParacordEvent, ...args: unknown[]): boolean;
     /**
      * Connects to Discord's gateway and begins receiving and emitting events.
      * @param options Options used when logging in.
@@ -3026,13 +3026,14 @@ declare class Paracord extends EventEmitter {
     login(options?: Partial<ParacordLoginOptions>): Promise<void>;
     /** Begins the interval that kicks off gateway logins from the queue. */
     private startGatewayLoginInterval;
-    /** Takes a gateway off of the queue and logs it in. */
-    private processGatewayQueue;
-    private startWithUnavailableGuilds;
     /** Decides shards to spawn and pushes a gateway onto the queue for each one.
      * @param options Options used when logging in.
      */
     private enqueueGateways;
+    /** Takes a gateway off of the queue and logs it in. */
+    private processGatewayQueue;
+    private checkUnavailable;
+    private timeoutShard;
     /**
      * Creates gateway and pushes it into cache and login queue.
      * @param identity An object containing information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
@@ -3040,43 +3041,27 @@ declare class Paracord extends EventEmitter {
     private addNewGateway;
     private createGatewayOptions;
     /**
-     * Creates the handler used when handling REST calls to Discord.
-     * @param token Discord token. Will be coerced to bot token.
-     * @param options
-     */
-    private setUpApi;
-    /**
      * Creates the handler used when connecting to Discord's gateway.
      * @param token Discord token. Will be coerced to bot token.
      * @param options
      */
     private setUpGateway;
-    /**
-     * Runs with every GUILD_CREATE on initial start up. Decrements counter and emits `PARACORD_STARTUP_COMPLETE` when 0.
-     * @param emptyShard Whether or not the shard started with no guilds.
-     */
+    /** Runs with every GUILD_CREATE on initial start up. Decrements counter and emits `PARACORD_STARTUP_COMPLETE` when 0. */
     private checkIfDoneStarting;
     private completeShardStartup;
-    clearStartingShardState(): void;
+    private clearStartingShardState;
     /**
      * Cleans up Paracord start up process and emits `PARACORD_STARTUP_COMPLETE`.
      * @param reason Reason for the time out.
      */
-    private completeStartup;
+    private emitStartupComplete;
     /**
      * Prepares the client for caching guilds on start up.
      * @param data From Discord - Initial ready event after identify.
      */
     private handleGatewayReady;
-    /**
-     * @param identity From a gateway client.
-     */
-    private handleGatewayIdentify;
-    /**
-     * @param gateway Gateway that emitted the event.
-     * @param shouldReconnect Whether or not to attempt to login again.
-     */
     private handleGatewayClose;
+    private upsertGatewayQueue;
 }
 export { Paracord }
 export default Paracord;
@@ -3084,6 +3069,8 @@ export default Paracord;
 export declare const PARACORD_URL = "https://paracordjs.com/";
 
 export declare const PARACORD_VERSION_NUMBER = "0.5";
+
+export declare type ParacordEvent = 'PARACORD_STARTUP_COMPLETE' | 'SHARD_STARTUP_COMPLETE';
 
 export declare type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY' | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK' | 'REQUEST_GUILD_MEMBERS';
 
@@ -3093,8 +3080,8 @@ export declare interface ParacordLoginOptions {
     shardCount?: number;
     unavailableGuildTolerance?: number;
     unavailableGuildWait?: number;
-    allowEventsDuringStartup?: true;
     startupHeartbeatTolerance?: number;
+    shardStartupTimeout?: number;
 }
 
 export declare interface ParacordOptions {
@@ -3146,8 +3133,6 @@ export declare type Presence = {
 };
 
 export declare type PRESENCE_UPDATE_EVENT = GatewayPresence;
-
-declare type Primitive = string | number | boolean | null | undefined;
 
 export declare type QueryStringParam = {
     /** include number of users subscribed to each event */
@@ -3359,8 +3344,6 @@ export declare class RateLimitTemplateMap extends Map<string, RateLimitTemplate>
      */
     createAssumedRateLimit(bucketHash: string): RateLimit | undefined;
 }
-
-export declare type RawGuildType = AugmentedGuild | UnavailableGuild;
 
 export declare type Reaction = {
     /** times this emoji has been used to react */

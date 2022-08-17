@@ -27,7 +27,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = __importDefault(require("ws"));
-const events_1 = require("events");
 const Api_1 = __importDefault(require("../Api"));
 const utils_1 = require("../../utils");
 const constants_1 = require("../../constants");
@@ -122,7 +121,7 @@ class Gateway {
         };
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
-        this.#emitter = emitter ?? new events_1.EventEmitter();
+        this.#emitter = emitter;
         this.#identity = new structures_1.GatewayIdentify((0, utils_1.coerceTokenToBotLike)(token), identity);
         this.#api = api;
         this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
@@ -220,7 +219,7 @@ class Gateway {
     }
     /**
      * Connects to Discord's event gateway.
-     * @param _Websocket Ignore. For unittest dependency injection only.
+     * @param _websocket Ignore. For unittest dependency injection only.
      */
     login = async (_websocket = ws_1.default) => {
         if (this.#ws !== undefined) {
@@ -272,8 +271,8 @@ class Gateway {
      * Closes the connection.
      * @param reconnect Whether to reconnect after closing.
      */
-    close(reconnect = true) {
-        this.#ws?.close(reconnect ? constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT : constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE);
+    close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
+        this.#ws?.close(code);
     }
     /**
      * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
@@ -322,19 +321,14 @@ class Gateway {
         websocket.onmessage = this._onmessage;
     }
     /**
-     * Handles emitting events from Discord. Will first pass through `this.#emitter.eventHandler` function if one exists.
+     * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
      * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
      * @param data Data of the event from Discord.
      */
-    async handleEvent(type, data) {
+    handleEvent(type, data) {
         if (type === 'GUILD_MEMBERS_CHUNK')
             this.handleGuildMemberChunk(data);
-        if (this.#emitter.eventHandler !== undefined) {
-            await this.#emitter.eventHandler(type, data, this);
-        }
-        else {
-            this.emit(type, data);
-        }
+        void this.#emitter.handleEvent(type, data, this);
     }
     handleGuildMemberChunk(data) {
         const { nonce, not_found, chunk_count, chunk_index, } = data;
@@ -417,7 +411,7 @@ class Gateway {
      * @return Whether or not the client should attempt to login again.
      */
     handleCloseCode(code) {
-        const { CLEAN, GOING_AWAY, ABNORMAL, UNKNOWN_ERROR, UNKNOWN_OPCODE, DECODE_ERROR, NOT_AUTHENTICATED, AUTHENTICATION_FAILED, ALREADY_AUTHENTICATED, SESSION_NO_LONGER_VALID, INVALID_SEQ, RATE_LIMITED, SESSION_TIMEOUT, INVALID_SHARD, SHARDING_REQUIRED, INVALID_VERSION, INVALID_INTENT, DISALLOWED_INTENT, RECONNECT, SESSION_INVALIDATED, SESSION_INVALIDATED_RESUMABLE, HEARTBEAT_TIMEOUT, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT, USER_TERMINATE, UNKNOWN, } = constants_1.GATEWAY_CLOSE_CODES;
+        const { CLEAN, GOING_AWAY, ABNORMAL, UNKNOWN_ERROR, UNKNOWN_OPCODE, DECODE_ERROR, NOT_AUTHENTICATED, AUTHENTICATION_FAILED, ALREADY_AUTHENTICATED, SESSION_NO_LONGER_VALID, INVALID_SEQ, RATE_LIMITED, SESSION_TIMEOUT, INVALID_SHARD, SHARDING_REQUIRED, INVALID_VERSION, INVALID_INTENT, DISALLOWED_INTENT, INTERNAL_TERMINATE_RECONNECT, RECONNECT, SESSION_INVALIDATED, SESSION_INVALIDATED_RESUMABLE, HEARTBEAT_TIMEOUT, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT, USER_TERMINATE, UNKNOWN, } = constants_1.GATEWAY_CLOSE_CODES;
         let message;
         let shouldReconnect = true;
         let level = 'INFO';
@@ -501,6 +495,10 @@ class Gateway {
                 break;
             case SESSION_INVALIDATED:
                 message = 'Received an Invalid Session message and is not resumable. (Reconnecting with new session.)';
+                this.clearSession();
+                break;
+            case INTERNAL_TERMINATE_RECONNECT:
+                message = 'Something internal caused a reconnect. (Reconnecting with new session.)';
                 this.clearSession();
                 break;
             case RECONNECT:

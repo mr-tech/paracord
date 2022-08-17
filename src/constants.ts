@@ -23,6 +23,8 @@ export const GATEWAY_OP_CODES = {
   HELLO: 10,
   HEARTBEAT_ACK: 11,
 } as const;
+
+export type GatewayCloseCode = typeof GATEWAY_CLOSE_CODES[keyof typeof GATEWAY_CLOSE_CODES]
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
 export const GATEWAY_CLOSE_CODES = {
   CLEAN: 1000,
@@ -44,7 +46,8 @@ export const GATEWAY_CLOSE_CODES = {
   INVALID_INTENT: 4013,
   DISALLOWED_INTENT: 4014,
   // The below are not Discord close events.
-  RECONNECT: 4992,
+  INTERNAL_TERMINATE_RECONNECT: 4991, // Something internal caused a reconnect.
+  RECONNECT: 4992, // Received request from Discord to reconnect.
   SESSION_INVALIDATED: 4993, // Received an Invalid Session message and cannot resume
   SESSION_INVALIDATED_RESUMABLE: 4994, // Received an Invalid Session message but can resume
   HEARTBEAT_TIMEOUT: 4995, // Heartbeat has timed out
