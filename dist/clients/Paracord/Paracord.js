@@ -322,7 +322,7 @@ class Paracord extends events_1.EventEmitter {
                 this.completeShardStartup(startingGateway, forced);
                 const eventNotEmitted = !this.#emittedStartupComplete;
                 const queueEmpty = this.gatewayLoginQueue.length === 0;
-                const noStartingShard = !!this.#startingGateway;
+                const noStartingShard = !this.#startingGateway;
                 if (eventNotEmitted && queueEmpty && noStartingShard) {
                     this.emitStartupComplete();
                 }
