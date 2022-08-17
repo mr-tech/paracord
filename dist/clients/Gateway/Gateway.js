@@ -27,7 +27,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = __importDefault(require("ws"));
-const Api_1 = __importDefault(require("../Api"));
 const utils_1 = require("../../utils");
 const constants_1 = require("../../constants");
 const structures_1 = require("./structures");
@@ -44,20 +43,15 @@ class Gateway {
     #online;
     #loggingIn;
     #options;
-    /** Client through which to make REST api calls to Discord. */
-    #api;
     /** Websocket used to connect to gateway. */
     #ws;
     /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
     #wsUrl;
-    /** Time to wait between this client's attempts to connect to the gateway in seconds. */
-    #wsUrlRetryWait;
     #wsRateLimitCache;
     #zlibInflate = null;
-    /** Discord gateway version to use. Default: 9 */
-    #version;
     /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
     #sequence;
+    #resumeUrl;
     /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
     /** If the last heartbeat packet sent to Discord received an ACK. */
@@ -87,8 +81,6 @@ class Gateway {
     #checkSiblingHeartbeats;
     #membersRequestCounter;
     #requestingMembersStateMap;
-    /** Amount of identifies reported by the last call to /gateway/bot. */
-    lastKnownSessionLimitData;
     static validateOptions(option) {
         if (option.startupHeartbeatTolerance !== undefined && option.isStartingFunc === undefined) {
             throw Error("Gateway option 'startupHeartbeatTolerance' requires 'isStartingFunc'.");
@@ -105,12 +97,11 @@ class Gateway {
      */
     constructor(token, options) {
         Gateway.validateOptions(options);
-        const { emitter, identity, identity: { shard }, api, wsUrl, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc, checkSiblingHeartbeats, } = options;
+        const { emitter, identity, identity: { shard }, wsUrl, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc, checkSiblingHeartbeats, } = options;
         if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
             throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
         }
         this.#options = options;
-        this.#version = constants_1.DISCORD_WS_VERSION;
         this.#sequence = null;
         this.#heartbeatAck = true;
         this.#online = false;
@@ -123,19 +114,17 @@ class Gateway {
         this.#requestingMembersStateMap = new Map();
         this.#emitter = emitter;
         this.#identity = new structures_1.GatewayIdentify((0, utils_1.coerceTokenToBotLike)(token), identity);
-        this.#api = api;
         this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
         this.#startupHeartbeatTolerance = startupHeartbeatTolerance || 0;
         this.#heartbeatsMissedDuringStartup = 0;
         this.#isStartingFunction = isStartingFunc;
         this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
         this.#wsUrl = wsUrl;
-        this.#wsUrlRetryWait = constants_1.DEFAULT_GATEWAY_BOT_WAIT;
         this.#isStarting = false;
     }
     /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
     get resumable() {
-        return this.#sessionId !== undefined && this.#sequence !== null;
+        return this.#sessionId !== undefined && this.#sequence !== null && this.#resumeUrl !== undefined;
     }
     /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
     get shard() {
@@ -238,17 +227,11 @@ class Gateway {
         }
         try {
             this.#loggingIn = true;
-            if (this.#wsUrl === undefined) {
-                this.#wsUrl = await this.getWebsocketUrl();
-            }
-            if (this.#wsUrl !== undefined) {
-                this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
-                this.#ws = new _websocket(this.#wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
-                this.assignWebsocketMethods(this.#ws);
-            }
-            else {
-                this.log('ERROR', 'Failed to get websocket url.');
-            }
+            this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
+            if (!this.resumable)
+                this.#resumeUrl = undefined;
+            this.#ws = new _websocket(this.#resumeUrl ?? this.#wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
+            this.assignWebsocketMethods(this.#ws);
         }
         catch (err) {
             if ((0, utils_1.isApiError)(err)) {
@@ -273,45 +256,6 @@ class Gateway {
      */
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
         this.#ws?.close(code);
-    }
-    /**
-     * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
-     * @returns Url if status === 200; or undefined if status !== 200.
-     */
-    async getWebsocketUrl() {
-        if (this.#api === undefined) {
-            this.#api = new Api_1.default(this.#identity.token);
-        }
-        const { status, statusText, data } = await this.#api.request('get', 'gateway/bot');
-        if (status === 200) {
-            this.lastKnownSessionLimitData = data.sessionStartLimit;
-            const { total, remaining, resetAfter } = data.sessionStartLimit;
-            const message = `Login limit: ${total}. Remaining: ${remaining}. Reset after ${resetAfter}ms (${new Date(new Date().getTime() + resetAfter)})`;
-            this.log('INFO', message);
-            return `${data.url}?v=${this.#version}&encoding=json${this.#zlibInflate ? '&compress=zlib-stream' : ''}`;
-        }
-        this.handleBadStatus(status, statusText, data.message, data.code);
-        return undefined;
-    }
-    /**
-     * Emits logging message and sets a timeout to re-attempt login. Throws on 401 status code.
-     * @param status HTTP status code.
-     * @param statusText Status message from Discord.
-     * @param dataMessage Discord's error message.
-     * @param dataCode Discord's error code.
-     */
-    handleBadStatus(status, statusText, dataMessage, dataCode) {
-        let message = `Failed to get websocket information from API. Status ${status}. Status text: ${statusText}. Discord code: ${dataCode}. Discord message: ${dataMessage}.`;
-        if (status !== 401) {
-            message += ` Trying again in ${this.#wsUrlRetryWait} seconds.`;
-            this.log('WARNING', message);
-            setTimeout(() => { void this.login(); }, this.#wsUrlRetryWait);
-        }
-        else {
-            // 401 is bad token, unable to continue.
-            message += ' Please check your token.';
-            throw Error(message);
-        }
     }
     /** Binds `this` to methods used by the websocket. */
     assignWebsocketMethods(websocket) {
@@ -532,6 +476,7 @@ class Gateway {
     /** Removes current session information. */
     clearSession() {
         this.#sessionId = undefined;
+        this.#resumeUrl = undefined;
         this.#sequence = null;
         this.#wsUrl = this.#options.wsUrl;
         this.log('DEBUG', 'Session cleared.');
@@ -651,6 +596,7 @@ class Gateway {
      */
     handleReady(data) {
         this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
+        this.#resumeUrl = data.resume_gateway_url;
         this.#sessionId = data.session_id;
         this.#online = true;
         void this.handleEvent('READY', data);

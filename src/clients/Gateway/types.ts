@@ -1,4 +1,3 @@
-import type * as Api from '../Api';
 import type Gateway from './Gateway';
 import type { IdentifyConnectionProperties, GatewayPresenceUpdate, GuildRequestMember } from '../../discord';
 import type { EventHandler } from '../../@types';
@@ -13,11 +12,9 @@ export interface GatewayOptions {
   identity: IdentityOptions;
   /** Emitter through which Discord gateway events are sent. */
   emitter: EventHandler;
-  /** Paracord rest API handler. */
-  api?: undefined | Api.default;
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
   /** Websocket url to connect to. */
-  wsUrl?: undefined | string;
+  wsUrl: string;
   /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
   heartbeatIntervalOffset?: undefined | number;
   /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */
@@ -30,34 +27,7 @@ export interface GatewayOptions {
   version?: undefined | number;
 }
 
-type ErrorResponse = {
-  /** error message */
-  message: string;
-  /** Discord error code */
-  code: number;
-}
-
 export type Heartbeat = number;
-
-export interface GatewayBotResponse extends Api.IApiResponse, ErrorResponse {
-  /** websocket url */
-  url: string;
-  /** recommended shard count */
-  shards: number;
-  /** state of the limits for this period of time */
-  sessionStartLimit: SessionLimitData;
-}
-
-export type SessionLimitData = {
-  /** Total number of identifies application can make in this period. */
-  total: number;
-  /** Identifies remaining for this period. */
-  remaining: number;
-  /** How long in ms until `remaining` resets. */
-  resetAfter: number;
-  /** How many shards are allowed to identify in parallel. */
-  maxConcurrency: number;
-}
 
 /** Information about the current request count and time that it should reset in relation to Discord rate limits. https://discord.com/developers/docs/topics/gateway#rate-limiting */
 export type WebsocketRateLimitCache = {

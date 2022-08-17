@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const events_1 = require("events");
-const Api_1 = __importDefault(require("../Api"));
 const Gateway_1 = __importDefault(require("../Gateway"));
 const utils_1 = require("../../utils");
 const constants_1 = require("../../constants");
@@ -25,7 +24,6 @@ function computeShards(shards, shardCount) {
 /* "Start up" refers to logging in to the gateway and waiting for all the guilds to be returned. By default, events will be suppressed during start up. */
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 class Paracord extends events_1.EventEmitter {
-    request;
     gatewayLoginQueue;
     /** Discord bot token. */
     #token;
@@ -38,9 +36,6 @@ class Paracord extends events_1.EventEmitter {
     #unavailableGuildsInterval;
     #shardTimeout;
     #shardStartupTimeout;
-    /* Internal clients. */
-    /** Client through which to make REST API calls to Discord. */
-    #api;
     /** Gateway clients keyed to their shard #. */
     #gateways;
     #gatewayOptions;
@@ -66,7 +61,7 @@ class Paracord extends events_1.EventEmitter {
      * @param token Discord bot token. Will be coerced into a bot token.
      * @param options Settings for this Paracord instance.
      */
-    constructor(token, options = {}) {
+    constructor(token, options) {
         super();
         Paracord.validateParams(token);
         this.#token = (0, utils_1.coerceTokenToBotLike)(token);
@@ -76,11 +71,12 @@ class Paracord extends events_1.EventEmitter {
         this.#gatewayHeartbeats = [];
         this.#emittedStartupComplete = false;
         this.#drain = null;
-        const { apiOptions, gatewayOptions } = options;
+        const { gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance, shardStartupTimeout, } = options;
         this.#gatewayOptions = gatewayOptions;
-        const api = options?.api ?? new Api_1.default(token, { ...(apiOptions ?? {}), emitter: this });
-        this.#api = api;
-        this.request = api.request.bind(api);
+        this.#unavailableGuildTolerance = unavailableGuildTolerance;
+        this.#unavailableGuildWait = unavailableGuildWait;
+        this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
+        this.#shardStartupTimeout = shardStartupTimeout;
     }
     get startingGateway() {
         return this.#startingGateway;
@@ -160,11 +156,6 @@ class Paracord extends events_1.EventEmitter {
     async login(options = {}) {
         const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
         const loginOptions = (0, utils_1.clone)(options);
-        const { unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance, shardStartupTimeout, } = loginOptions;
-        this.#unavailableGuildTolerance = unavailableGuildTolerance;
-        this.#unavailableGuildWait = unavailableGuildWait;
-        this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
-        this.#shardStartupTimeout = shardStartupTimeout;
         if (PARACORD_SHARD_IDS !== undefined) {
             loginOptions.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
             loginOptions.shardCount = Number(PARACORD_SHARD_COUNT);
@@ -281,7 +272,10 @@ class Paracord extends events_1.EventEmitter {
     }
     createGatewayOptions(identity) {
         const gatewayOptions = {
-            identity, api: this.#api, emitter: this, checkSiblingHeartbeats: this.#gatewayHeartbeats,
+            ...this.#gatewayOptions,
+            identity,
+            emitter: this,
+            checkSiblingHeartbeats: this.#gatewayHeartbeats,
         };
         if (this.#startupHeartbeatTolerance !== undefined) {
             gatewayOptions.startupHeartbeatTolerance = this.#startupHeartbeatTolerance;
@@ -304,7 +298,6 @@ class Paracord extends events_1.EventEmitter {
             ...this.#gatewayOptions,
             ...options,
             emitter: this,
-            api: this.#api,
         });
         return gateway;
     }

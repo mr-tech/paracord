@@ -222,3 +222,23 @@ export type Locale =
 'ko';
 
 export type AvailableLocale = Partial<Record<Locale, string>>;
+
+export interface GatewayBotResponse {
+  /** websocket url */
+  url: string;
+  /** recommended shard count */
+  shards: number;
+  /** state of the limits for this period of time */
+  session_start_limit: SessionLimitData;
+}
+
+export type SessionLimitData = {
+  /** Total number of identifies application can make in this period. */
+  total: number;
+  /** Identifies remaining for this period. */
+  remaining: number;
+  /** How long in ms until `remaining` resets. */
+  reset_after: number;
+  /** How many shards are allowed to identify in parallel. */
+  max_concurrency: number;
+}

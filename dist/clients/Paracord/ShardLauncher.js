@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const pm2_1 = __importDefault(require("pm2"));
-const Api_1 = __importDefault(require("../Api"));
 function validateShard(shardId, shardCount) {
     if (shardId > shardCount - 1) {
         throw Error(`shard id ${shardId} exceeds max shard id of ${shardCount - 1}`);
@@ -27,8 +26,6 @@ class ShardLauncher {
     #appName;
     /** Discord token. Used to find recommended shard count. Will be coerced into a bot token. */
     #token;
-    /** Number of shards to be launched. */
-    #launchCount;
     /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
     static validateParams(main, options) {
         const { token, shardIds, shardCount, shardChunks, } = options;
@@ -84,13 +81,10 @@ class ShardLauncher {
      */
     async launch(pm2Options = {}) {
         const shardChunks = this.#shardChunks;
-        let shardCount = this.#shardCount;
-        let shardIds = this.#shardIds;
+        const shardCount = this.#shardCount;
+        const shardIds = this.#shardIds;
         // const { #shardChunks: shardChunks } = this;
         // let { #shardCount: shardCount, #shardIds: shardIds } = this;
-        if (shardChunks === undefined && shardCount === undefined) {
-            ({ shardCount, shardIds } = await this.getShardInfo());
-        }
         if (shardIds && shardCount) {
             shardIds.forEach((s) => {
                 validateShard(s, shardCount);
@@ -103,13 +97,11 @@ class ShardLauncher {
                         reject(err);
                     const promises = [];
                     if (shardChunks !== undefined) {
-                        this.#launchCount = shardChunks.length;
                         shardChunks.forEach((s) => {
                             promises.push(this.launchShard(s, shardCount, pm2Options));
                         });
                     }
                     else {
-                        this.#launchCount = 1;
                         promises.push(this.launchShard(shardIds, shardCount, pm2Options));
                     }
                     Promise.allSettled(promises).finally(() => {
@@ -123,17 +115,6 @@ class ShardLauncher {
                 reject(err);
             }
         });
-    }
-    /** Fills missing shard information. */
-    async getShardInfo() {
-        console.log('Retrieving shard information from API.');
-        const shardCount = await this.getRecommendedShards();
-        console.log(`Using Discord recommended shard count: ${shardCount} shard${shardCount > 0 ? 's' : ''}`);
-        const shardIds = [];
-        for (let i = 0; i < shardCount; ++i) {
-            shardIds.push(i);
-        }
-        return { shardCount, shardIds };
     }
     async launchShard(shardIds, shardCount, pm2Options) {
         const shardIdsCsv = shardIds.join(',');
@@ -159,17 +140,6 @@ class ShardLauncher {
                     resolve();
             });
         });
-    }
-    /** Gets the recommended shard count from Discord. */
-    async getRecommendedShards() {
-        if (this.#token === undefined)
-            throw Error('token required when shardChunks and shardCount are not provided');
-        const api = new Api_1.default(this.#token);
-        const { status, statusText, data } = await api.request('get', 'gateway/bot');
-        if (status === 200) {
-            return data.shards;
-        }
-        throw Error(`Failed to get shard information from API. Status ${status}. Status text: ${statusText}. Discord code: ${data.code}. Discord message: ${data.message}.`);
     }
 }
 exports.default = ShardLauncher;

@@ -1,8 +1,7 @@
 import { EventEmitter } from 'events';
 
-import Api from '../Api';
 import Gateway, {
-  GatewayOptions, IdentityOptions, GatewayCloseEvent, ParacordGatewayEvent, ParacordEvent,
+  IdentityOptions, GatewayCloseEvent, ParacordGatewayEvent, ParacordEvent, GatewayOptions,
 } from '../Gateway';
 import { clone, coerceTokenToBotLike } from '../../utils';
 import {
@@ -12,7 +11,9 @@ import {
 
 import type { GatewayEvent, ReadyEventField } from '../../discord';
 import type { DebugLevel } from '../../@types';
-import type { GatewayMap, ParacordLoginOptions, ParacordOptions } from './types';
+import type {
+  GatewayMap, ParacordGatewayOptions, ParacordLoginOptions, ParacordOptions,
+} from './types';
 
 /**
    * Determines which shards will be spawned.
@@ -34,8 +35,6 @@ function computeShards(shards: number[], shardCount: number): { shards: number[]
 
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 export default class Paracord extends EventEmitter {
-  public request: Api['request'];
-
   public readonly gatewayLoginQueue: Gateway[];
 
   /** Discord bot token. */
@@ -56,14 +55,10 @@ export default class Paracord extends EventEmitter {
 
   #shardStartupTimeout?: undefined | number;
 
-  /* Internal clients. */
-  /** Client through which to make REST API calls to Discord. */
-  #api: Api;
-
   /** Gateway clients keyed to their shard #. */
   #gateways: GatewayMap;
 
-  #gatewayOptions: Partial<GatewayOptions> | undefined;
+  #gatewayOptions: ParacordGatewayOptions;
 
   /** Shard currently in the initial phases of the gateway connection in progress. */
   #startingGateway: Gateway | undefined;
@@ -94,7 +89,7 @@ export default class Paracord extends EventEmitter {
    * @param token Discord bot token. Will be coerced into a bot token.
    * @param options Settings for this Paracord instance.
    */
-  public constructor(token: string, options: ParacordOptions = {}) {
+  public constructor(token: string, options: ParacordOptions) {
     super();
     Paracord.validateParams(token);
 
@@ -106,12 +101,16 @@ export default class Paracord extends EventEmitter {
     this.#emittedStartupComplete = false;
     this.#drain = null;
 
-    const { apiOptions, gatewayOptions } = options;
+    const {
+      gatewayOptions, unavailableGuildTolerance, unavailableGuildWait,
+      startupHeartbeatTolerance, shardStartupTimeout,
+    } = options;
     this.#gatewayOptions = gatewayOptions;
 
-    const api = options?.api ?? new Api(token, { ...(apiOptions ?? {}), emitter: this });
-    this.#api = api;
-    this.request = api.request.bind(api);
+    this.#unavailableGuildTolerance = unavailableGuildTolerance;
+    this.#unavailableGuildWait = unavailableGuildWait;
+    this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
+    this.#shardStartupTimeout = shardStartupTimeout;
   }
 
   public get startingGateway(): Gateway | undefined {
@@ -203,16 +202,6 @@ export default class Paracord extends EventEmitter {
   public async login(options: Partial<ParacordLoginOptions> = {}): Promise<void> {
     const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
     const loginOptions = clone<Partial<ParacordLoginOptions>>(options);
-
-    const {
-      unavailableGuildTolerance, unavailableGuildWait,
-      startupHeartbeatTolerance, shardStartupTimeout,
-    } = loginOptions;
-
-    this.#unavailableGuildTolerance = unavailableGuildTolerance;
-    this.#unavailableGuildWait = unavailableGuildWait;
-    this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
-    this.#shardStartupTimeout = shardStartupTimeout;
 
     if (PARACORD_SHARD_IDS !== undefined) {
       loginOptions.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
@@ -343,7 +332,10 @@ export default class Paracord extends EventEmitter {
 
   private createGatewayOptions(identity: IdentityOptions): GatewayOptions {
     const gatewayOptions: GatewayOptions = {
-      identity, api: this.#api, emitter: this, checkSiblingHeartbeats: this.#gatewayHeartbeats,
+      ...this.#gatewayOptions,
+      identity,
+      emitter: this,
+      checkSiblingHeartbeats: this.#gatewayHeartbeats,
     };
 
     if (this.#startupHeartbeatTolerance !== undefined) {
@@ -370,7 +362,6 @@ export default class Paracord extends EventEmitter {
       ...this.#gatewayOptions,
       ...options,
       emitter: this,
-      api: this.#api,
     });
 
     return gateway;

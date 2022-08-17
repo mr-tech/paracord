@@ -254,37 +254,6 @@ export declare class Api {
     private updateRpcCache;
 }
 
-declare namespace Api_2 {
-    export {
-        Api as default,
-        ApiRequest,
-        BaseRequest,
-        QueuedRequest,
-        RateLimit,
-        RateLimitCache,
-        RateLimitHeaders,
-        RateLimitMap,
-        RateLimitTemplate,
-        RateLimitTemplateMap,
-        RequestQueue,
-        RemoteApiResponse,
-        IApiOptions,
-        RequestFormDataFunction,
-        IRequestOptions,
-        WrappedRequest,
-        RateLimitState,
-        IServiceOptions,
-        ResponseData,
-        IApiResponse,
-        RateLimitedResponse,
-        IRateLimitState,
-        ApiError,
-        ApiDebugEvent,
-        ApiDebugData,
-        ApiDebugDataType
-    }
-}
-
 export declare const API_DEBUG_CODES: {
     readonly GENERAL: 1;
     readonly ERROR: 2;
@@ -1298,13 +1267,6 @@ export declare type Emoji = {
     available?: boolean;
 };
 
-declare type ErrorResponse = {
-    /** error message */
-    message: string;
-    /** Discord error code */
-    code: number;
-};
-
 declare interface EventHandler extends EventEmitter {
     handleEvent: HandleEventCallback;
 }
@@ -1331,8 +1293,6 @@ export declare type FollowedChannel = {
 /** A client to handle a Discord gateway connection. */
 export declare class Gateway {
     #private;
-    /** Amount of identifies reported by the last call to /gateway/bot. */
-    lastKnownSessionLimitData?: undefined | SessionLimitData;
     private static validateOptions;
     /**
      * Creates a new Discord gateway handler.
@@ -1387,19 +1347,6 @@ export declare class Gateway {
      * @param reconnect Whether to reconnect after closing.
      */
     close(code?: GatewayCloseCode): void;
-    /**
-     * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
-     * @returns Url if status === 200; or undefined if status !== 200.
-     */
-    private getWebsocketUrl;
-    /**
-     * Emits logging message and sets a timeout to re-attempt login. Throws on 401 status code.
-     * @param status HTTP status code.
-     * @param statusText Status message from Discord.
-     * @param dataMessage Discord's error message.
-     * @param dataCode Discord's error code.
-     */
-    private handleBadStatus;
     /** Binds `this` to methods used by the websocket. */
     private assignWebsocketMethods;
     /**
@@ -1562,13 +1509,13 @@ export declare type GATEWAY_OPEN_EVENT = null;
 /** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
 export declare const GATEWAY_REQUEST_BUFFER = 4;
 
-export declare interface GatewayBotResponse extends Api_2.IApiResponse, ErrorResponse {
+export declare interface GatewayBotResponse {
     /** websocket url */
     url: string;
     /** recommended shard count */
     shards: number;
     /** state of the limits for this period of time */
-    sessionStartLimit: SessionLimitData;
+    session_start_limit: SessionLimitData;
 }
 
 export declare type GatewayCloseCode = typeof GATEWAY_CLOSE_CODES[keyof typeof GATEWAY_CLOSE_CODES];
@@ -1614,10 +1561,8 @@ export declare interface GatewayOptions {
     identity: IdentityOptions;
     /** Emitter through which Discord gateway events are sent. */
     emitter: EventHandler;
-    /** Paracord rest API handler. */
-    api?: undefined | Api_2.default;
     /** Websocket url to connect to. */
-    wsUrl?: undefined | string;
+    wsUrl: string;
     /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
     heartbeatIntervalOffset?: undefined | number;
     /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */
@@ -3130,7 +3075,6 @@ export declare const OVERWRITE_ROLE_VALUE = 0;
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 declare class Paracord extends EventEmitter {
     #private;
-    request: Api['request'];
     readonly gatewayLoginQueue: Gateway[];
     /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
     private static validateParams;
@@ -3140,7 +3084,7 @@ declare class Paracord extends EventEmitter {
      * @param token Discord bot token. Will be coerced into a bot token.
      * @param options Settings for this Paracord instance.
      */
-    constructor(token: string, options?: ParacordOptions);
+    constructor(token: string, options: ParacordOptions);
     get startingGateway(): Gateway | undefined;
     /** Gateway clients keyed to their shard #. */
     get shards(): GatewayMap;
@@ -3220,20 +3164,20 @@ export declare type ParacordEvent = 'PARACORD_STARTUP_COMPLETE' | 'SHARD_STARTUP
 
 export declare type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY' | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK' | 'REQUEST_GUILD_MEMBERS';
 
+export declare type ParacordGatewayOptions = Omit<GatewayOptions, 'emitter' | 'identity'>;
+
 export declare interface ParacordLoginOptions {
     identity: IdentityOptions;
     shards?: number[];
     shardCount?: number;
+}
+
+export declare interface ParacordOptions {
+    gatewayOptions: ParacordGatewayOptions;
     unavailableGuildTolerance?: number;
     unavailableGuildWait?: number;
     startupHeartbeatTolerance?: number;
     shardStartupTimeout?: number;
-}
-
-export declare interface ParacordOptions {
-    apiOptions?: Partial<IApiOptions>;
-    gatewayOptions?: Partial<GatewayOptions>;
-    api?: Api;
 }
 
 declare type PermissibleChannel = Pick<GuildChannel, 'id' | 'permission_overwrites'>;
@@ -3755,9 +3699,9 @@ export declare type SessionLimitData = {
     /** Identifies remaining for this period. */
     remaining: number;
     /** How long in ms until `remaining` resets. */
-    resetAfter: number;
+    reset_after: number;
     /** How many shards are allowed to identify in parallel. */
-    maxConcurrency: number;
+    max_concurrency: number;
 };
 
 /** A script that spawns shards into pm2, injecting shard information into the Paracord client. */
@@ -3776,11 +3720,7 @@ export declare class ShardLauncher {
      * pm2Options
      */
     launch(pm2Options?: StartOptions): Promise<void>;
-    /** Fills missing shard information. */
-    private getShardInfo;
     launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): Promise<void>;
-    /** Gets the recommended shard count from Discord. */
-    private getRecommendedShards;
 }
 
 export declare interface ShardLauncherOptions {

@@ -1,6 +1,4 @@
 import type { GatewayEvent } from '../../discord';
-import type Api from '../Api';
-import type { IApiOptions } from '../Api';
 import type Gateway from '../Gateway';
 import type {
   GatewayOptions, IdentityOptions, ParacordEvent, ParacordGatewayEvent,
@@ -8,20 +6,19 @@ import type {
 
 export type GatewayMap = Map<number, Gateway>;
 
+export type ParacordGatewayOptions = Omit<GatewayOptions, 'emitter' | 'identity'>
 export interface ParacordOptions {
-  apiOptions?: Partial<IApiOptions>;
-  gatewayOptions?: Partial<GatewayOptions>;
-  api?: Api;
+  gatewayOptions: ParacordGatewayOptions;
+  unavailableGuildTolerance?: number;
+  unavailableGuildWait?: number;
+  startupHeartbeatTolerance?: number;
+  shardStartupTimeout?: number;
 }
 
 export interface ParacordLoginOptions {
   identity: IdentityOptions;
   shards?: number[];
   shardCount?: number;
-  unavailableGuildTolerance?: number;
-  unavailableGuildWait?: number;
-  startupHeartbeatTolerance?: number;
-  shardStartupTimeout?: number;
 }
 
 export type InternalShardIds = number[]

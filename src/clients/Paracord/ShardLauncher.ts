@@ -2,10 +2,7 @@
 
 import pm2 from 'pm2';
 
-import Api from '../Api';
-
 import type { StartOptions } from 'pm2';
-import type { GatewayBotResponse } from '../Gateway';
 import type { InternalShardIds, ShardLauncherOptions } from './types';
 
 function validateShard(shardId: number, shardCount: number): void {
@@ -36,9 +33,6 @@ export default class ShardLauncher {
 
   /** Discord token. Used to find recommended shard count. Will be coerced into a bot token. */
   #token: string | undefined;
-
-  /** Number of shards to be launched. */
-  #launchCount: number | undefined;
 
   /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
   private static validateParams(main: string, options: ShardLauncherOptions): void {
@@ -104,15 +98,11 @@ export default class ShardLauncher {
    */
   public async launch(pm2Options: StartOptions = {}): Promise<void> {
     const shardChunks = this.#shardChunks;
-    let shardCount = this.#shardCount;
-    let shardIds = this.#shardIds;
+    const shardCount = this.#shardCount;
+    const shardIds = this.#shardIds;
 
     // const { #shardChunks: shardChunks } = this;
     // let { #shardCount: shardCount, #shardIds: shardIds } = this;
-
-    if (shardChunks === undefined && shardCount === undefined) {
-      ({ shardCount, shardIds } = await this.getShardInfo());
-    }
 
     if (shardIds && shardCount) {
       shardIds.forEach((s) => {
@@ -127,12 +117,10 @@ export default class ShardLauncher {
 
           const promises = [];
           if (shardChunks !== undefined) {
-            this.#launchCount = shardChunks.length;
             shardChunks.forEach((s) => {
               promises.push(this.launchShard(s, <number>shardCount, pm2Options));
             });
           } else {
-            this.#launchCount = 1;
             promises.push(this.launchShard(<number[]>shardIds, <number>shardCount, pm2Options));
           }
 
@@ -146,25 +134,6 @@ export default class ShardLauncher {
         reject(err);
       }
     });
-  }
-
-  /** Fills missing shard information. */
-  private async getShardInfo(): Promise<{ shardCount: number, shardIds: number[]}> {
-    console.log('Retrieving shard information from API.');
-    const shardCount = await this.getRecommendedShards();
-
-    console.log(
-      `Using Discord recommended shard count: ${shardCount} shard${
-        shardCount > 0 ? 's' : ''
-      }`,
-    );
-
-    const shardIds = [];
-    for (let i = 0; i < shardCount; ++i) {
-      shardIds.push(i);
-    }
-
-    return { shardCount, shardIds };
   }
 
   public async launchShard(shardIds: InternalShardIds, shardCount: number, pm2Options: StartOptions): Promise<void> {
@@ -191,23 +160,5 @@ export default class ShardLauncher {
         else resolve();
       });
     });
-  }
-
-  /** Gets the recommended shard count from Discord. */
-  private async getRecommendedShards(): Promise<number> {
-    if (this.#token === undefined) throw Error('token required when shardChunks and shardCount are not provided');
-
-    const api = new Api(this.#token);
-    const { status, statusText, data } = <GatewayBotResponse> await api.request(
-      'get',
-      'gateway/bot',
-    );
-
-    if (status === 200) {
-      return data.shards;
-    }
-    throw Error(
-      `Failed to get shard information from API. Status ${status}. Status text: ${statusText}. Discord code: ${data.code}. Discord message: ${data.message}.`,
-    );
   }
 }

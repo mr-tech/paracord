@@ -1,12 +1,10 @@
 import ws from 'ws';
 
-import Api from '../Api';
 import { coerceTokenToBotLike, isApiError } from '../../utils';
 import {
-  DEFAULT_GATEWAY_BOT_WAIT, DISCORD_WS_VERSION, GatewayCloseCode, GATEWAY_CLOSE_CODES,
-  GATEWAY_MAX_REQUESTS_PER_MINUTE, GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER,
-  GIGABYTE_IN_BYTES, LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS,
-  SECOND_IN_MILLISECONDS,
+  GatewayCloseCode, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE,
+  GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES,
+  LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, SECOND_IN_MILLISECONDS,
   ZLIB_CHUNKS_SIZE,
 } from '../../constants';
 
@@ -19,8 +17,8 @@ import type {
 } from '../../discord';
 import type { DebugLevel, EventHandler } from '../../@types';
 import type {
-  GatewayBotResponse, GatewayCloseEvent, GatewayOptions, Heartbeat,
-  SessionLimitData, StartupCheckFunction, WebsocketRateLimitCache,
+  GatewayCloseEvent, GatewayOptions, Heartbeat,
+  StartupCheckFunction, WebsocketRateLimitCache,
   ParacordGatewayEvent,
 } from './types';
 
@@ -47,27 +45,20 @@ export default class Gateway {
 
   #options: GatewayOptions;
 
-  /** Client through which to make REST api calls to Discord. */
-  #api?: undefined | Api;
-
   /** Websocket used to connect to gateway. */
   #ws?: undefined | ws;
 
   /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
-  #wsUrl?: undefined | string;
-
-  /** Time to wait between this client's attempts to connect to the gateway in seconds. */
-  #wsUrlRetryWait: number;
+  #wsUrl: string;
 
   #wsRateLimitCache: WebsocketRateLimitCache;
 
   #zlibInflate: null | ZlibSyncType.Inflate = null;
 
-  /** Discord gateway version to use. Default: 9 */
-  #version: number;
-
   /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
   #sequence: null | number;
+
+  #resumeUrl?: undefined | string;
 
   /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
   #sessionId?: undefined | string;
@@ -118,9 +109,6 @@ export default class Gateway {
 
   #requestingMembersStateMap: Map<string, GuildChunkState>;
 
-  /** Amount of identifies reported by the last call to /gateway/bot. */
-  public lastKnownSessionLimitData?: undefined | SessionLimitData;
-
   private static validateOptions(option: GatewayOptions) {
     if (option.startupHeartbeatTolerance !== undefined && option.isStartingFunc === undefined) {
       throw Error("Gateway option 'startupHeartbeatTolerance' requires 'isStartingFunc'.");
@@ -138,7 +126,7 @@ export default class Gateway {
   public constructor(token: string, options: GatewayOptions) {
     Gateway.validateOptions(options);
     const {
-      emitter, identity, identity: { shard }, api, wsUrl,
+      emitter, identity, identity: { shard }, wsUrl,
       heartbeatIntervalOffset, startupHeartbeatTolerance,
       isStartingFunc, checkSiblingHeartbeats,
     } = options;
@@ -147,7 +135,6 @@ export default class Gateway {
       throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
     }
     this.#options = options;
-    this.#version = DISCORD_WS_VERSION;
     this.#sequence = null;
     this.#heartbeatAck = true;
     this.#online = false;
@@ -160,7 +147,6 @@ export default class Gateway {
     this.#requestingMembersStateMap = new Map();
     this.#emitter = emitter;
     this.#identity = new GatewayIdentify(coerceTokenToBotLike(token), identity);
-    this.#api = api;
     this.#heartbeatIntervalOffset = heartbeatIntervalOffset || 0;
     this.#startupHeartbeatTolerance = startupHeartbeatTolerance || 0;
     this.#heartbeatsMissedDuringStartup = 0;
@@ -168,13 +154,12 @@ export default class Gateway {
     this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
     this.#wsUrl = wsUrl;
 
-    this.#wsUrlRetryWait = DEFAULT_GATEWAY_BOT_WAIT;
     this.#isStarting = false;
   }
 
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
   public get resumable(): boolean {
-    return this.#sessionId !== undefined && this.#sequence !== null;
+    return this.#sessionId !== undefined && this.#sequence !== null && this.#resumeUrl !== undefined;
   }
 
   /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
@@ -298,19 +283,12 @@ export default class Gateway {
     try {
       this.#loggingIn = true;
 
-      if (this.#wsUrl === undefined) {
-        this.#wsUrl = await this.getWebsocketUrl();
-      }
+      this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
 
-      if (this.#wsUrl !== undefined) {
-        this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
+      if (!this.resumable) this.#resumeUrl = undefined;
+      this.#ws = new _websocket(this.#resumeUrl ?? this.#wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
 
-        this.#ws = new _websocket(this.#wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
-
-        this.assignWebsocketMethods(this.#ws);
-      } else {
-        this.log('ERROR', 'Failed to get websocket url.');
-      }
+      this.assignWebsocketMethods(this.#ws);
     } catch (err) {
       if (isApiError(err)) {
         /* eslint-disable-next-line no-console */
@@ -334,59 +312,6 @@ export default class Gateway {
    */
   public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
     this.#ws?.close(code);
-  }
-
-  /**
-   * Obtains the websocket url from Discord's REST API. Will attempt to login again after some time if the return status !== 200 and !== 401.
-   * @returns Url if status === 200; or undefined if status !== 200.
-   */
-  private async getWebsocketUrl(): Promise<string | undefined> {
-    if (this.#api === undefined) {
-      this.#api = new Api(this.#identity.token);
-    }
-
-    const { status, statusText, data } = await this.#api.request<GatewayBotResponse>(
-      'get',
-      'gateway/bot',
-    );
-
-    if (status === 200) {
-      this.lastKnownSessionLimitData = data.sessionStartLimit;
-      const { total, remaining, resetAfter } = data.sessionStartLimit;
-
-      const message = `Login limit: ${total}. Remaining: ${remaining}. Reset after ${resetAfter}ms (${new Date(
-        new Date().getTime() + resetAfter,
-      )})`;
-      this.log('INFO', message);
-
-      return `${data.url}?v=${this.#version}&encoding=json${this.#zlibInflate ? '&compress=zlib-stream' : ''}`;
-    }
-
-    this.handleBadStatus(status, statusText, data.message, data.code);
-
-    return undefined;
-  }
-
-  /**
-   * Emits logging message and sets a timeout to re-attempt login. Throws on 401 status code.
-   * @param status HTTP status code.
-   * @param statusText Status message from Discord.
-   * @param dataMessage Discord's error message.
-   * @param dataCode Discord's error code.
-   */
-  private handleBadStatus(status: number, statusText: string, dataMessage: string, dataCode: number): void {
-    let message = `Failed to get websocket information from API. Status ${status}. Status text: ${statusText}. Discord code: ${dataCode}. Discord message: ${dataMessage}.`;
-
-    if (status !== 401) {
-      message += ` Trying again in ${this.#wsUrlRetryWait} seconds.`;
-      this.log('WARNING', message);
-
-      setTimeout(() => { void this.login(); }, this.#wsUrlRetryWait);
-    } else {
-      // 401 is bad token, unable to continue.
-      message += ' Please check your token.';
-      throw Error(message);
-    }
   }
 
   /** Binds `this` to methods used by the websocket. */
@@ -655,6 +580,7 @@ export default class Gateway {
   /** Removes current session information. */
   private clearSession(): void {
     this.#sessionId = undefined;
+    this.#resumeUrl = undefined;
     this.#sequence = null;
     this.#wsUrl = this.#options.wsUrl;
     this.log('DEBUG', 'Session cleared.');
@@ -793,6 +719,7 @@ export default class Gateway {
   private handleReady(data: ReadyEventField): void {
     this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
 
+    this.#resumeUrl = data.resume_gateway_url;
     this.#sessionId = data.session_id;
     this.#online = true;
 
