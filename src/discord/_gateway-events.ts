@@ -10,7 +10,7 @@ import type {
   MessageReactionRemoveAllEventField, MessageReactionRemoveEmojiEventField, Channel, ThreadMember, Message,
   GuildMember, Integration, GuildScheduledEvent, Interaction, TypingStartEventField, VoiceServerUpdateEventField,
   WebhooksUpdateEventField, StageInstance, User, VoiceState, GuildThread, GuildChannel, AugmentedGuildMember,
-  GatewayPresence, Snowflake, Presence, GuildCreateExtraField,
+  GatewayPresence, Snowflake, Presence, GuildCreateExtraField, MessageCreateExtraField,
 } from '.';
 
 export type GatewayEvent = 'HELLO' | 'READY' | 'RESUMED' | 'RECONNECT' | 'INVALID_SESSION' | 'CHANNEL_CREATE'
@@ -198,7 +198,7 @@ export type INVITE_CREATE_EVENT = InviteCreateEventField;
 
 export type INVITE_DELETE_EVENT = InviteDeleteEventField;
 
-export type MESSAGE_CREATE_EVENT = Message;
+export type MESSAGE_CREATE_EVENT = Message & MessageCreateExtraField;
 
 export type MESSAGE_UPDATE_EVENT = Partial<Message> & Pick<Message, 'id' | 'channel_id'>;
 

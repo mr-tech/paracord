@@ -2841,7 +2841,7 @@ export declare type Message = {
     position?: number;
 };
 
-export declare type MESSAGE_CREATE_EVENT = Message;
+export declare type MESSAGE_CREATE_EVENT = Message & MessageCreateExtraField;
 
 export declare type MESSAGE_DELETE_BULK_EVENT = MessageDeleteBulkEventField;
 
