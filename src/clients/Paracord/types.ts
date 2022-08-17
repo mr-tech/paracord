@@ -44,4 +44,4 @@ export type HandleEventCallback = (
   eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent,
   data: unknown,
   shard: Gateway
-) => void | Promise<void>;
+) => void;

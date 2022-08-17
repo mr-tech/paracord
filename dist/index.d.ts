@@ -2280,7 +2280,7 @@ export declare type GuildWidgetSetting = {
     channel_id: Snowflake | null;
 };
 
-export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) => void | Promise<void>;
+export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) => void;
 
 export declare type Heartbeat = number;
 
