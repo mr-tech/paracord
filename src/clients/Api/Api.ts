@@ -21,6 +21,10 @@ import type {
   IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse, ApiDebugEvent, ApiDebugData,
 } from './types';
 
+function validateStatusDefault(status: number) {
+  return status >= 200 && status <= 299;
+}
+
 function isRateLimitResponse(response: IApiResponse | RateLimitedResponse): response is RateLimitedResponse {
   return response.status === 429;
 }
@@ -407,7 +411,7 @@ export default class Api {
    */
   public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
     const merged = { ...this.#defaultRequestOptions, ...options };
-    const { local, validateStatus }: IRequestOptions = merged;
+    const { local, validateStatus = validateStatusDefault }: IRequestOptions = merged;
 
     const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
     const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);

@@ -139,7 +139,7 @@ export default class Paracord extends EventEmitter {
    * @param data From Discord.
    * @param gateway Gateway that emitted this event.
    */
-  public handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void | Promise<void> {
+  public handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void {
     if (this.#drain === gateway) return;
 
     switch (eventType) {

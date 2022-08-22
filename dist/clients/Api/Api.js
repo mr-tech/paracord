@@ -10,6 +10,9 @@ const rpc_1 = require("../../rpc");
 const utils_1 = require("../../utils");
 const constants_1 = require("../../constants");
 const structures_1 = require("./structures");
+function validateStatusDefault(status) {
+    return status >= 200 && status <= 299;
+}
 function isRateLimitResponse(response) {
     return response.status === 429;
 }
@@ -307,7 +310,7 @@ class Api {
      */
     request = async (method, url, options = {}) => {
         const merged = { ...this.#defaultRequestOptions, ...options };
-        const { local, validateStatus } = merged;
+        const { local, validateStatus = validateStatusDefault } = merged;
         const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
         const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
         const request = new structures_1.ApiRequest(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, merged);

@@ -2594,7 +2594,7 @@ export declare interface IRequestOptions {
     maxRateLimitRetry?: number;
     /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
     transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
-    /** Check if status is okay. Return `false` with throw an error. Default `null` (don't throw). */
+    /** Check if status is okay. Return with `false` to throw an error. Default throw on non-200 code. */
     validateStatus?: null | ((status: number) => boolean);
 }
 
@@ -3096,7 +3096,7 @@ declare class Paracord extends EventEmitter {
      * @param data From Discord.
      * @param gateway Gateway that emitted this event.
      */
-    handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void | Promise<void>;
+    handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
