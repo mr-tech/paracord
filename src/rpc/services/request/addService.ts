@@ -1,5 +1,5 @@
 /* eslint-disable callback-return */
-import { Api, IApiOptions } from '../../../clients';
+import { Api, ApiOptions } from '../../../clients';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import { RequestMessage, ResponseMessage } from '../../structures';
 import { loadProto } from '../common';
@@ -19,7 +19,7 @@ const requestProto = loadProto<ServiceRequest>('request');
  * Create callback functions for the request service.
  * @param server
  */
-export default (server: RpcServer, token: string, apiOptions: IApiOptions = {}): void => {
+export default (server: RpcServer, token: string, apiOptions: ApiOptions = {}): void => {
   apiOptions.requestOptions = apiOptions.requestOptions ?? {};
   apiOptions.requestOptions.transformResponse = (data) => data;
 

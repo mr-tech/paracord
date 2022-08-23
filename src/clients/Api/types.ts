@@ -11,22 +11,26 @@ import type { ApiRequest, RateLimitHeaders } from './structures';
 export type { RemoteApiResponse } from '../../rpc';
 
 /** Optional parameters for this api handler. */
-export interface IApiOptions {
+export interface ApiOptions {
   /** Event emitter through which to emit debug and warning events. */
   emitter?: EventEmitter;
-  requestOptions?: IRequestOptions;
+  requestOptions?: RequestOptions;
   queueLoopInterval?: number;
   maxConcurrency?: number;
 }
 
-export type RequestFormDataFunction = () => { data?: Record<string, unknown> | FormData | undefined, headers?: Record<string, unknown> | undefined }
+export type RequestFormDataFunction = () => Pick<RequestOptions, 'headers' | 'params'> & {
+  data?: Record<string, unknown> | FormData | undefined
+}
 
 /** Optional parameters for a Discord REST request. */
-export interface IRequestOptions {
+export interface RequestOptions {
   /** Data to send in the body of the request. */
   data?: Record<string, unknown> | undefined;
   /** Headers to send with the request. */
   headers?: Record<string, unknown> | undefined;
+  /** Url params to send with the request. */
+  params?: Record<string, unknown> | undefined;
   /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
   createForm?: RequestFormDataFunction | undefined;
   /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
@@ -53,10 +57,10 @@ export interface IRequestOptions {
 }
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
-export type WrappedRequest<T extends ResponseData = any, R = IApiResponse<T>> = (request: ApiRequest) => Promise<R>;
+export type WrappedRequest<T extends ResponseData = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;
 
 /** The known state of a rate limit. */
-export type RateLimitState = {
+export type IncomingRateLimit = {
   /** Number of requests available before hitting rate limit. */
   remaining: number;
   /** From Discord - rate limit request cap. */
@@ -68,7 +72,7 @@ export type RateLimitState = {
 }
 
 // RPC
-export interface IServiceOptions {
+export interface ServiceOptions {
   host?: string;
   port?: string | number;
   channel?: ChannelCredentials;
@@ -77,7 +81,7 @@ export interface IServiceOptions {
 
 export type ResponseData = Record<string, any> | Array<unknown>;
 // Request Service
-export interface IApiResponse<T extends ResponseData = any> {
+export interface ApiResponse<T extends ResponseData = any> {
   /** The HTTP status code of the response. */
   status: number;
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */
@@ -91,7 +95,7 @@ export interface IApiResponse<T extends ResponseData = any> {
   retry_after?: number;
 }
 
-export interface RateLimitedResponse extends IApiResponse<{
+export interface RateLimitedResponse extends ApiResponse<{
     retry_after: number;
     global: boolean;
     message: string;
@@ -100,7 +104,7 @@ export interface RateLimitedResponse extends IApiResponse<{
   statusText: 'Too Many Requests',
 }
 
-export type IRateLimitState = {
+export type RateLimitState = {
   waitFor: number;
   global?: boolean;
 }
@@ -109,7 +113,7 @@ export interface ApiError<T = any> extends Error {
   config: ApiRequest['config'];
   code?: string;
   request?: any;
-  response?: IApiResponse<T> | RemoteApiResponse<T>;
+  response?: ApiResponse<T> | RemoteApiResponse<T>;
   isApiError: boolean;
   toJSON: () => object;
 }
@@ -128,7 +132,7 @@ export interface ApiDebugData extends Record<ApiDebugCodeName, unknown> {
   REQUEST_SENT: { request: ApiRequest };
   REQUEST_QUEUED: { request: ApiRequest, reason: string };
   REQUEST_REQUEUED: { request: ApiRequest, reason: string };
-  RESPONSE_RECEIVED: { request: ApiRequest, response: IApiResponse | RateLimitedResponse };
+  RESPONSE_RECEIVED: { request: ApiRequest, response: ApiResponse | RateLimitedResponse };
   RATE_LIMITED: { request: ApiRequest, headers: RateLimitHeaders, queued: boolean };
 }
 export type ApiDebugDataType = ApiDebugData[keyof ApiDebugData];

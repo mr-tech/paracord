@@ -1,7 +1,7 @@
 import BaseRequest from './BaseRequest';
 
 import type { AxiosRequestConfig, Method } from 'axios';
-import type { IRequestOptions, RequestFormDataFunction } from '../types';
+import type { RequestOptions, RequestFormDataFunction } from '../types';
 
 /**
  * A request that will be made to Discord's REST API.
@@ -14,6 +14,9 @@ export default class ApiRequest extends BaseRequest {
 
   /** Additional headers to send with the request. */
   public headers: Record<string, unknown> | undefined;
+
+  /** Additional params to send with the request. */
+  public params: Record<string, unknown> | undefined;
 
   /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
   public createForm: RequestFormDataFunction | undefined;
@@ -58,17 +61,18 @@ export default class ApiRequest extends BaseRequest {
     topLevelID: string,
     bucketHash: undefined | string,
     bucketHashKey: string,
-    options: Partial<IRequestOptions> = {},
+    options: Partial<RequestOptions> = {},
   ) {
     super(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey);
 
     const {
-      data, headers, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
+      data, headers, params, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
     } = options;
 
     this.createForm = createForm;
     this.data = data;
     this.headers = headers;
+    this.params = params;
     this.returnOnRateLimit = returnOnRateLimit ?? false;
     this.returnOnGlobalRateLimit = returnOnGlobalRateLimit ?? false;
     this.retriesLeft = maxRateLimitRetry;
@@ -79,16 +83,18 @@ export default class ApiRequest extends BaseRequest {
   public get config(): AxiosRequestConfig {
     let data;
     let headers;
+    let params;
     if (this.createForm) {
-      ({ data, headers } = this.createForm());
+      ({ data, headers, params } = this.createForm());
     } else {
-      ({ data, headers } = this);
+      ({ data, headers, params } = this);
     }
     return {
       method: this.method,
       url: this.url,
       data,
       headers,
+      params,
       validateStatus: null, // Tells axios not to throw errors when non-200 response codes are encountered.
     };
   }

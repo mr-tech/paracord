@@ -171,7 +171,7 @@ export declare class Api {
      * @param token Discord token. Will be coerced into a bot token.
      * @param options Optional parameters for this handler.
      */
-    constructor(token: string, options?: IApiOptions);
+    constructor(token: string, options?: ApiOptions);
     get hasRateLimitService(): boolean;
     get hasRequestService(): boolean;
     get queue(): RequestQueue;
@@ -196,13 +196,13 @@ export declare class Api {
      * @param serviceOptions
      * @returns `true` is connection was successful.
      */
-    addRequestService: (serviceOptions?: IServiceOptions) => Promise<boolean>;
+    addRequestService: (serviceOptions?: ServiceOptions) => Promise<boolean>;
     /**
      * Adds the service that first checks with a server before making a request to Discord.
      * @param serviceOptions
      * @returns `true` is connection was successful.
      */
-    addRateLimitService: (serviceOptions?: IServiceOptions) => Promise<boolean>;
+    addRateLimitService: (serviceOptions?: ServiceOptions) => Promise<boolean>;
     /**
      * @returns `true` is connection was successful.
      */
@@ -216,7 +216,7 @@ export declare class Api {
      * @param options Optional parameters for a Discord REST request.
      * @returns Response to the request made.
      */
-    request: <T extends ResponseData = any>(method: Method, url: string, options?: IRequestOptions) => Promise<IApiResponse<T> | RemoteApiResponse<T>>;
+    request: <T extends ResponseData = any>(method: Method, url: string, options?: RequestOptions) => Promise<ApiResponse<T> | RemoteApiResponse<T>>;
     /**
      * Sends the request to the rpc server for handling.
      * @param request ApiRequest being made.
@@ -226,8 +226,8 @@ export declare class Api {
      * Determines how the request will be made based on the client's options and makes it.
      * @param request ApiRequest being made,
      */
-    sendRequest<T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>>;
-    sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | IApiResponse<T>>;
+    sendRequest<T extends ResponseData>(request: ApiRequest): Promise<ApiResponse<T>>;
+    sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>;
     /**
      * Gets authorization from the server to make the request.
      * @param request ApiRequest being made.
@@ -292,7 +292,7 @@ export declare interface ApiDebugData extends Record<ApiDebugCodeName, unknown> 
     };
     RESPONSE_RECEIVED: {
         request: ApiRequest;
-        response: IApiResponse | RateLimitedResponse;
+        response: ApiResponse | RateLimitedResponse;
     };
     RATE_LIMITED: {
         request: ApiRequest;
@@ -315,9 +315,18 @@ export declare interface ApiError<T = any> extends Error {
     config: ApiRequest['config'];
     code?: string;
     request?: any;
-    response?: IApiResponse<T> | RemoteApiResponse<T>;
+    response?: ApiResponse<T> | RemoteApiResponse<T>;
     isApiError: boolean;
     toJSON: () => object;
+}
+
+/** Optional parameters for this api handler. */
+export declare interface ApiOptions {
+    /** Event emitter through which to emit debug and warning events. */
+    emitter?: EventEmitter;
+    requestOptions?: RequestOptions;
+    queueLoopInterval?: number;
+    maxConcurrency?: number;
 }
 
 /**
@@ -329,6 +338,8 @@ export declare class ApiRequest extends BaseRequest {
     data: Record<string, unknown> | undefined;
     /** Additional headers to send with the request. */
     headers: Record<string, unknown> | undefined;
+    /** Additional params to send with the request. */
+    params: Record<string, unknown> | undefined;
     /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
     createForm: RequestFormDataFunction | undefined;
     /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
@@ -352,7 +363,7 @@ export declare class ApiRequest extends BaseRequest {
      * @param url Discord REST endpoint target of the request. (e.g. channels/123)
      * @param options Optional parameters for this request.
      */
-    constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string, options?: Partial<IRequestOptions>);
+    constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string, options?: Partial<RequestOptions>);
     /** Data relevant to sending this request via axios. */
     get config(): AxiosRequestConfig;
     /** Assigns a stricter value to `waitUntil`.
@@ -360,6 +371,18 @@ export declare class ApiRequest extends BaseRequest {
      * @param waitUntil A timestamp of when the request will first be available to try again when queued due to rate limits.
      */
     assignIfStricter(waitUntil: number): void;
+}
+
+export declare interface ApiResponse<T extends ResponseData = any> {
+    /** The HTTP status code of the response. */
+    status: number;
+    /** Status message returned by the server. (e.g. "OK" with a 200 status) */
+    statusText: string;
+    /** The data returned by Discord. */
+    data: T;
+    headers: Record<string, unknown>;
+    /** How long the client should wait in ms before trying again. */
+    retry_after?: number;
 }
 
 export declare type Application = {
@@ -2238,27 +2261,6 @@ export declare type HELLO_EVENT = Hello;
 
 export declare const HOUR_IN_MILLISECONDS: number;
 
-/** Optional parameters for this api handler. */
-export declare interface IApiOptions {
-    /** Event emitter through which to emit debug and warning events. */
-    emitter?: EventEmitter;
-    requestOptions?: IRequestOptions;
-    queueLoopInterval?: number;
-    maxConcurrency?: number;
-}
-
-export declare interface IApiResponse<T extends ResponseData = any> {
-    /** The HTTP status code of the response. */
-    status: number;
-    /** Status message returned by the server. (e.g. "OK" with a 200 status) */
-    statusText: string;
-    /** The data returned by Discord. */
-    data: T;
-    headers: Record<string, unknown>;
-    /** How long the client should wait in ms before trying again. */
-    retry_after?: number;
-}
-
 declare interface IDebugEvent {
     source: number;
     level: number;
@@ -2308,6 +2310,18 @@ export declare type IdentityOptions = {
     guildSubscriptions?: undefined | boolean;
     /** the Gateway Intents you wish to receive */
     intents: number;
+};
+
+/** The known state of a rate limit. */
+export declare type IncomingRateLimit = {
+    /** Number of requests available before hitting rate limit. */
+    remaining: number;
+    /** From Discord - rate limit request cap. */
+    limit: number;
+    /** When the rate limit requests remaining rests to `limit`. */
+    resetTimestamp: number | undefined;
+    /** How long in ms until the rate limit resets. */
+    resetAfter: number;
 };
 
 export declare type InstallParam = {
@@ -2562,42 +2576,6 @@ export declare type InviteStageInstance = {
     topic: string;
 };
 
-export declare type IRateLimitState = {
-    waitFor: number;
-    global?: boolean;
-};
-
-/** Optional parameters for a Discord REST request. */
-export declare interface IRequestOptions {
-    /** Data to send in the body of the request. */
-    data?: Record<string, unknown> | undefined;
-    /** Headers to send with the request. */
-    headers?: Record<string, unknown> | undefined;
-    /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
-    createForm?: RequestFormDataFunction | undefined;
-    /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
-    local?: boolean;
-    /** Set to true to not retry the request on a bucket 429 rate limit. */
-    returnOnRateLimit?: boolean;
-    /** Set to true to not retry the request on a global rate limit. */
-    returnOnGlobalRateLimit?: boolean;
-    /** A known hard value for the bot's global rate limits. Defaults to 50. */
-    globalRateLimitMax?: number;
-    /** Time in milliseconds to add to 1 second internal global rate limit reset timer. */
-    globalRateLimitResetPadding?: number;
-    /** Discord api version to use when making requests. Default: 9 */
-    version?: number;
-    /**
-     * The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides both "returnOn" options.
-     * Leave `undefined` for indefinite retries. `0` is effectively `returnOnRateLimit = true` and `returnOnGlobalRateLimit = true`.
-     */
-    maxRateLimitRetry?: number;
-    /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
-    transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
-    /** Check if status is okay. Return with `false` to throw an error. Default throw on non-200 code. */
-    validateStatus?: null | ((status: number) => boolean);
-}
-
 export declare function isApiError(val: unknown): val is ApiError;
 
 declare interface IServerOptions {
@@ -2609,13 +2587,6 @@ declare interface IServerOptions {
     channel: ChannelCredentials;
     /** If the service is allowed to fallback on alternate functionality. Defined differently for each service. */
     allowFallback: boolean;
-}
-
-export declare interface IServiceOptions {
-    host?: string;
-    port?: string | number;
-    channel?: ChannelCredentials;
-    allowFallback?: boolean;
 }
 
 export declare type ISO8601timestamp = string;
@@ -3270,9 +3241,9 @@ export declare type QueryStringParam = {
 
 export declare class QueuedRequest {
     #private;
-    constructor(request: ApiRequest, resolve: (response: IApiResponse) => void, reject: (reason?: unknown) => void);
+    constructor(request: ApiRequest, resolve: (response: ApiResponse) => void, reject: (reason?: unknown) => void);
     get request(): ApiRequest;
-    resolve(response: IApiResponse): void;
+    resolve(response: ApiResponse): void;
     reject(reason?: unknown): void;
 }
 
@@ -3286,7 +3257,7 @@ export declare class RateLimit {
      * @param rateLimitState
      * @param template
      */
-    constructor({ remaining, resetTimestamp, limit }: RateLimitState, template: RateLimitTemplate);
+    constructor({ remaining, resetTimestamp, limit }: IncomingRateLimit, template: RateLimitTemplate);
     /**
      * If the request cannot be made without triggering a Discord rate limit.
      * `true` if the rate limit exists and is active. Do no send a request.
@@ -3306,7 +3277,7 @@ export declare class RateLimit {
      * Strictness is defined by the value that decreases the chance of getting rate limit.
      * @param rateLimit
      */
-    assignIfStricter({ remaining, resetTimestamp, limit }: RateLimitState): void;
+    assignIfStricter({ remaining, resetTimestamp, limit }: IncomingRateLimit): void;
     /** Sets the remaining requests back to the known limit. */
     private resetRemaining;
 }
@@ -3340,7 +3311,7 @@ export declare class RateLimitCache {
      * @param {BaseRequest} request Request's rate limit key formed in BaseRequest.
      * @returns {number} Until when the client should wait before asking to authorize this request again.
      */
-    authorizeRequestFromClient(request: BaseRequest): IRateLimitState;
+    authorizeRequestFromClient(request: BaseRequest): RateLimitState;
     /**
      * Updates this cache using the response headers after making a request.
      *
@@ -3354,7 +3325,7 @@ export declare class RateLimitCache {
      * @param request The request to reference when checking the rate limit state.
      * @returns `true` if rate limit would get triggered.
      */
-    isRateLimited(request: BaseRequest | ApiRequest): IRateLimitState;
+    isRateLimited(request: BaseRequest | ApiRequest): RateLimitState;
     /** Sets the remaining requests back to the known limit. */
     private resetGlobalRateLimit;
     /**
@@ -3374,7 +3345,7 @@ export declare class RateLimitCache {
     private rateLimitFromTemplate;
 }
 
-export declare interface RateLimitedResponse extends IApiResponse<{
+export declare interface RateLimitedResponse extends ApiResponse<{
     retry_after: number;
     global: boolean;
     message: string;
@@ -3404,7 +3375,7 @@ export declare class RateLimitHeaders {
      * @param headers Headers from a response.
      * @returns Rate limit state with the bucket hash; or `undefined` if there is no rate limit information.
      */
-    static extractRateLimitFromHeaders(headers: IApiResponse['headers'], retryAfter: undefined | number): RateLimitHeaders;
+    static extractRateLimitFromHeaders(headers: ApiResponse['headers'], retryAfter: undefined | number): RateLimitHeaders;
     /**
      * Creates a new rate limit headers.
      *
@@ -3431,21 +3402,14 @@ export declare class RateLimitMap extends Map<string, RateLimit> {
      * @param rateLimitKey Internally-generated key for this state.
      * @param state Rate limit state derived from response headers.
      */
-    upsert(rateLimitKey: string, { remaining, limit, resetTimestamp, resetAfter: waitFor, }: RateLimitState, template: RateLimitTemplate): RateLimit;
+    upsert(rateLimitKey: string, { remaining, limit, resetTimestamp, resetAfter: waitFor, }: IncomingRateLimit, template: RateLimitTemplate): RateLimit;
     /** Removes old rate limits from cache. */
     private sweepExpiredRateLimits;
 }
 
-/** The known state of a rate limit. */
 export declare type RateLimitState = {
-    /** Number of requests available before hitting rate limit. */
-    remaining: number;
-    /** From Discord - rate limit request cap. */
-    limit: number;
-    /** When the rate limit requests remaining rests to `limit`. */
-    resetTimestamp: number | undefined;
-    /** How long in ms until the rate limit resets. */
-    resetAfter: number;
+    waitFor: number;
+    global?: boolean;
 };
 
 /** A frozen instance of a rate limit that is used as a reference for requests with the same bucket but without an existing cached state. */
@@ -3513,10 +3477,42 @@ export declare type RemoteApiResponse<T extends ResponseData = any> = {
     isApiError?: true;
 };
 
-export declare type RequestFormDataFunction = () => {
+export declare type RequestFormDataFunction = () => Pick<RequestOptions, 'headers' | 'params'> & {
     data?: Record<string, unknown> | FormData_2 | undefined;
-    headers?: Record<string, unknown> | undefined;
 };
+
+/** Optional parameters for a Discord REST request. */
+export declare interface RequestOptions {
+    /** Data to send in the body of the request. */
+    data?: Record<string, unknown> | undefined;
+    /** Headers to send with the request. */
+    headers?: Record<string, unknown> | undefined;
+    /** Url params to send with the request. */
+    params?: Record<string, unknown> | undefined;
+    /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
+    createForm?: RequestFormDataFunction | undefined;
+    /** If `true`, executes the request locally ignoring any rpc services. Be sure to `startQueue()` to handle rate limited requests. */
+    local?: boolean;
+    /** Set to true to not retry the request on a bucket 429 rate limit. */
+    returnOnRateLimit?: boolean;
+    /** Set to true to not retry the request on a global rate limit. */
+    returnOnGlobalRateLimit?: boolean;
+    /** A known hard value for the bot's global rate limits. Defaults to 50. */
+    globalRateLimitMax?: number;
+    /** Time in milliseconds to add to 1 second internal global rate limit reset timer. */
+    globalRateLimitResetPadding?: number;
+    /** Discord api version to use when making requests. Default: 9 */
+    version?: number;
+    /**
+     * The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides both "returnOn" options.
+     * Leave `undefined` for indefinite retries. `0` is effectively `returnOnRateLimit = true` and `returnOnGlobalRateLimit = true`.
+     */
+    maxRateLimitRetry?: number;
+    /** Set by the rpc request service to preempt parsing the response before sending it to the client. */
+    transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
+    /** Check if status is okay. Return with `false` to throw an error. Default throw on non-200 code. */
+    validateStatus?: null | ((status: number) => boolean);
+}
 
 /** A queue for rate limited requests waiting to be sent. */
 export declare class RequestQueue {
@@ -3686,7 +3682,7 @@ export declare class Server extends grpc.Server {
      * @param token Discord token. Will be coerced into a bot token.
      * @param apiOptions Optional parameters for the api handler.
      */
-    addRequestService(token: string, apiOptions?: IApiOptions): void;
+    addRequestService(token: string, apiOptions?: ApiOptions): void;
     /** Adds the rate limit service to this server. Stores app-wide rate limits centrally and authorizes requests.. */
     addRateLimitService(): void;
     /** Start the server. */
@@ -3731,6 +3727,13 @@ export declare type Service = [
 /** YouTube */
 'youtube'
 ];
+
+export declare interface ServiceOptions {
+    host?: string;
+    port?: string | number;
+    channel?: ChannelCredentials;
+    allowFallback?: boolean;
+}
 
 export declare type SessionLimitData = {
     /** Total number of identifies application can make in this period. */
@@ -4401,7 +4404,7 @@ export declare type WelcomeScreenChannel = {
 };
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
-export declare type WrappedRequest<T extends ResponseData = any, R = IApiResponse<T>> = (request: ApiRequest) => Promise<R>;
+export declare type WrappedRequest<T extends ResponseData = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;
 
 export declare const ZLIB_CHUNKS_SIZE = 65535;
 

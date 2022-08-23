@@ -1,15 +1,15 @@
-import { IApiResponse } from '../types';
+import { ApiResponse } from '../types';
 
 import ApiRequest from './ApiRequest';
 
 export default class QueuedRequest {
   #request: ApiRequest;
 
-  #resolve: (response: IApiResponse) => void;
+  #resolve: (response: ApiResponse) => void;
 
   #reject: (reason?: unknown) => void;
 
-  constructor(request: ApiRequest, resolve: (response: IApiResponse) => void, reject: (reason?: unknown) => void) {
+  constructor(request: ApiRequest, resolve: (response: ApiResponse) => void, reject: (reason?: unknown) => void) {
     this.#request = request;
     this.#resolve = resolve;
     this.#reject = reject;
@@ -19,7 +19,7 @@ export default class QueuedRequest {
     return this.#request;
   }
 
-  resolve(response: IApiResponse) {
+  resolve(response: ApiResponse) {
     this.#resolve(response);
   }
 

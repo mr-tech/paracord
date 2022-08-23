@@ -6,7 +6,7 @@ import RateLimitTemplateMap from './RateLimitTemplateMap';
 
 import type { AxiosInstance } from 'axios';
 import type Api from '../Api';
-import type { IRateLimitState, ResponseData, WrappedRequest } from '../types';
+import type { RateLimitState, ResponseData, WrappedRequest } from '../types';
 import type ApiRequest from './ApiRequest';
 import type BaseRequest from './BaseRequest';
 import type RateLimit from './RateLimit';
@@ -117,7 +117,7 @@ export default class RateLimitCache {
    * @param {BaseRequest} request Request's rate limit key formed in BaseRequest.
    * @returns {number} Until when the client should wait before asking to authorize this request again.
    */
-  public authorizeRequestFromClient(request: BaseRequest): IRateLimitState {
+  public authorizeRequestFromClient(request: BaseRequest): RateLimitState {
     const { isGloballyRateLimited } = this;
     const rateLimit = this.getRateLimitFromCache(request);
 
@@ -164,7 +164,7 @@ export default class RateLimitCache {
    * @param request The request to reference when checking the rate limit state.
    * @returns `true` if rate limit would get triggered.
    */
-  public isRateLimited(request: BaseRequest | ApiRequest): IRateLimitState {
+  public isRateLimited(request: BaseRequest | ApiRequest): RateLimitState {
     if (this.isGloballyRateLimited) {
       return { waitFor: this.globalRateLimitResetAfter, global: true };
     }

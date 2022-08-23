@@ -17,15 +17,16 @@ import {
 
 import type { DebugLevel } from '../../@types';
 import type {
-  IApiOptions, IRateLimitState, IRequestOptions, IApiResponse,
-  IServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse, ApiDebugEvent, ApiDebugData,
+  ApiOptions, RateLimitState, RequestOptions, ApiResponse,
+  ServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse,
+  ApiDebugEvent, ApiDebugData,
 } from './types';
 
 function validateStatusDefault(status: number) {
   return status >= 200 && status <= 299;
 }
 
-function isRateLimitResponse(response: IApiResponse | RateLimitedResponse): response is RateLimitedResponse {
+function isRateLimitResponse(response: ApiResponse | RateLimitedResponse): response is RateLimitedResponse {
   return response.status === 429;
 }
 
@@ -53,11 +54,11 @@ export default class Api {
 
   #makeRequest: WrappedRequest;
 
-  #rpcServiceOptions?: undefined | IServiceOptions;
+  #rpcServiceOptions?: undefined | ServiceOptions;
 
   #connectingToRpcService: boolean;
 
-  #defaultRequestOptions: IRequestOptions;
+  #defaultRequestOptions: RequestOptions;
 
   /** Number of requests that can be running simultaneously. */
   #maxConcurrency: undefined | number;
@@ -96,7 +97,7 @@ export default class Api {
   }
 
   /** Creates an isolated axios instance for use by this REST handler. */
-  private static createWrappedRequestMethod(rateLimitCache: RateLimitCache, token: string, requestOptions: IRequestOptions | undefined): WrappedRequest {
+  private static createWrappedRequestMethod(rateLimitCache: RateLimitCache, token: string, requestOptions: RequestOptions | undefined): WrappedRequest {
     const instance = axios.create({
       baseURL: `${DISCORD_API_URL}/v${requestOptions?.version ?? DISCORD_API_DEFAULT_VERSION}`, // TODO does not support webhooks
       headers: {
@@ -169,7 +170,7 @@ export default class Api {
    * @param token Discord token. Will be coerced into a bot token.
    * @param options Optional parameters for this handler.
    */
-  public constructor(token: string, options: IApiOptions = {}) {
+  public constructor(token: string, options: ApiOptions = {}) {
     Api.validateParams(token);
 
     const requestQueue = new RequestQueue(this);
@@ -285,7 +286,7 @@ export default class Api {
    * @param serviceOptions
    * @returns `true` is connection was successful.
    */
-  public addRequestService = (serviceOptions: IServiceOptions = {}): Promise<boolean> => {
+  public addRequestService = (serviceOptions: ServiceOptions = {}): Promise<boolean> => {
     if (
       this.hasRateLimitService
       || this.hasRequestService
@@ -320,7 +321,7 @@ export default class Api {
    * @param serviceOptions
    * @returns `true` is connection was successful.
    */
-  public addRateLimitService = (serviceOptions: IServiceOptions = {}): Promise<boolean> => {
+  public addRateLimitService = (serviceOptions: ServiceOptions = {}): Promise<boolean> => {
     if (this.hasRateLimitService || this.hasRequestService) {
       throw Error(
         'A rpc service has already been defined for this client. Only one may be added.',
@@ -409,9 +410,9 @@ export default class Api {
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
-  public request = async <T extends ResponseData = any>(method: Method, url: string, options: IRequestOptions = {}): Promise<IApiResponse<T> | RemoteApiResponse<T>> => {
+  public request = async <T extends ResponseData = any>(method: Method, url: string, options: RequestOptions = {}): Promise<ApiResponse<T> | RemoteApiResponse<T>> => {
     const merged = { ...this.#defaultRequestOptions, ...options };
-    const { local, validateStatus = validateStatusDefault }: IRequestOptions = merged;
+    const { local, validateStatus = validateStatusDefault }: RequestOptions = merged;
 
     const [topLevelResource, topLevelID, bucketHashKey] = Api.extractBucketHashKey(method, url);
     const bucketHash = this.#rateLimitCache.getBucket(bucketHashKey);
@@ -425,7 +426,7 @@ export default class Api {
       merged,
     );
 
-    let response: IApiResponse<T> | RemoteApiResponse<T>;
+    let response: ApiResponse<T> | RemoteApiResponse<T>;
     if (this.rpcRequestService === undefined || local) {
       response = await this.sendRequest<T>(request);
     } else {
@@ -472,17 +473,17 @@ export default class Api {
    * Determines how the request will be made based on the client's options and makes it.
    * @param request ApiRequest being made,
    */
-  public async sendRequest <T extends ResponseData>(request: ApiRequest): Promise<IApiResponse<T>>
+  public async sendRequest <T extends ResponseData>(request: ApiRequest): Promise<ApiResponse<T>>
 
-  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | IApiResponse<T>>
+  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>
 
-  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue?: boolean): Promise<string | IApiResponse<T>> {
+  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue?: boolean): Promise<string | ApiResponse<T>> {
     ++this.#inFlight;
 
     let reason;
     try {
       if (!this.maxExceeded) {
-        let rateLimitState: IRateLimitState | undefined;
+        let rateLimitState: RateLimitState | undefined;
         if (this.hasRateLimitService) {
           rateLimitState = await this.authorizeRequestWithServer(request);
         }
@@ -517,7 +518,7 @@ export default class Api {
         request.assignIfStricter(new Date().getTime() + waitFor);
 
         if (!Api.allowQueue(request, global ?? false)) {
-          const customResponse: IApiResponse<T> = {
+          const customResponse: ApiResponse<T> = {
             status: 429,
             statusText: 'Too Many Requests',
             retry_after: waitFor,
@@ -550,7 +551,7 @@ export default class Api {
    * Gets authorization from the server to make the request.
    * @param request ApiRequest being made.
    */
-  private async authorizeRequestWithServer(request: ApiRequest): Promise<IRateLimitState | undefined> {
+  private async authorizeRequestWithServer(request: ApiRequest): Promise<RateLimitState | undefined> {
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {
         const message = 'Client is connecting to RPC server. Fallback is allowed. Allowing request to be made.';
@@ -591,7 +592,7 @@ export default class Api {
     response: RateLimitedResponse,
     headers: RateLimitHeaders,
     fromQueue: boolean,
-  ): Promise<string | IApiResponse<T>> {
+  ): Promise<string | ApiResponse<T>> {
     const { resetTimestamp } = headers;
     const { waitUntil } = request;
     const oldestTimestamp = Math.max(resetTimestamp ?? waitUntil ?? 0);
@@ -619,7 +620,7 @@ export default class Api {
    * @param request The Api Request to queue.
    * @returns Resolves as the response to the request.
    */
-  private queueRequest<T extends ResponseData>(request: ApiRequest, reason: string): Promise<IApiResponse<T>> {
+  private queueRequest<T extends ResponseData>(request: ApiRequest, reason: string): Promise<ApiResponse<T>> {
     const message = 'Queuing request.';
     this.log('DEBUG', 'REQUEST_QUEUED', message, { request, reason });
 
@@ -670,7 +671,7 @@ function createError(
   config: ApiRequest['config'],
   code: number,
   request: ApiRequest,
-  response: IApiResponse | RemoteApiResponse,
+  response: ApiResponse | RemoteApiResponse,
 ) {
   error.config = config;
   if (code) {

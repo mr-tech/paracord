@@ -1,7 +1,7 @@
 import { millisecondsFromNow } from '../../../utils';
 import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
 
-import type { RateLimitState } from '../types';
+import type { IncomingRateLimit } from '../types';
 import type RateLimitTemplate from './RateLimitTemplate';
 
 /** State of a Discord rate limit. */
@@ -28,7 +28,7 @@ export default class RateLimit {
    * @param rateLimitState
    * @param template
    */
-  public constructor({ remaining, resetTimestamp, limit }: RateLimitState, template: RateLimitTemplate) {
+  public constructor({ remaining, resetTimestamp, limit }: IncomingRateLimit, template: RateLimitTemplate) {
     this.#remaining = remaining;
     this.#resetTimestamp = resetTimestamp ?? -1;
     this.#limit = limit;
@@ -86,7 +86,7 @@ export default class RateLimit {
    * Strictness is defined by the value that decreases the chance of getting rate limit.
    * @param rateLimit
    */
-  public assignIfStricter({ remaining, resetTimestamp, limit }: RateLimitState): void {
+  public assignIfStricter({ remaining, resetTimestamp, limit }: IncomingRateLimit): void {
     if (resetTimestamp !== undefined && remaining < this.#remaining) {
       this.#remaining = remaining;
     }

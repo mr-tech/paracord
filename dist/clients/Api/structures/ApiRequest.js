@@ -14,6 +14,8 @@ class ApiRequest extends BaseRequest_1.default {
     data;
     /** Additional headers to send with the request. */
     headers;
+    /** Additional params to send with the request. */
+    params;
     /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
     createForm;
     /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
@@ -43,10 +45,11 @@ class ApiRequest extends BaseRequest_1.default {
      */
     constructor(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, options = {}) {
         super(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey);
-        const { data, headers, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, } = options;
+        const { data, headers, params, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, } = options;
         this.createForm = createForm;
         this.data = data;
         this.headers = headers;
+        this.params = params;
         this.returnOnRateLimit = returnOnRateLimit ?? false;
         this.returnOnGlobalRateLimit = returnOnGlobalRateLimit ?? false;
         this.retriesLeft = maxRateLimitRetry;
@@ -56,17 +59,19 @@ class ApiRequest extends BaseRequest_1.default {
     get config() {
         let data;
         let headers;
+        let params;
         if (this.createForm) {
-            ({ data, headers } = this.createForm());
+            ({ data, headers, params } = this.createForm());
         }
         else {
-            ({ data, headers } = this);
+            ({ data, headers, params } = this);
         }
         return {
             method: this.method,
             url: this.url,
             data,
             headers,
+            params,
             validateStatus: null, // Tells axios not to throw errors when non-200 response codes are encountered.
         };
     }

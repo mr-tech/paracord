@@ -3,8 +3,8 @@ import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
 import RateLimit from './RateLimit';
 
 import type Api from '../Api';
+import type { IncomingRateLimit } from '../types';
 import type RateLimitTemplate from './RateLimitTemplate';
-import type { RateLimitState } from '../types';
 
 /** Rate limit keys to their associated state. */
 export default class RateLimitMap extends Map<string, RateLimit> {
@@ -23,8 +23,8 @@ export default class RateLimitMap extends Map<string, RateLimit> {
    */
   public upsert(rateLimitKey: string, {
     remaining, limit, resetTimestamp, resetAfter: waitFor,
-  }: RateLimitState, template: RateLimitTemplate): RateLimit {
-    const state: RateLimitState = {
+  }: IncomingRateLimit, template: RateLimitTemplate): RateLimit {
+    const state: IncomingRateLimit = {
       remaining, limit, resetTimestamp, resetAfter: waitFor,
     };
 

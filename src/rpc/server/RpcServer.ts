@@ -1,7 +1,7 @@
 /* eslint-disable no-sync */
 import * as grpc from '@grpc/grpc-js';
 
-import { Api, RateLimitCache, IApiOptions } from '../../clients';
+import { Api, RateLimitCache, ApiOptions } from '../../clients';
 import {
   API_GLOBAL_RATE_LIMIT, LOG_LEVELS, LOG_SOURCES, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
 } from '../../constants';
@@ -95,7 +95,7 @@ export default class RpcServer extends grpc.Server {
    * @param token Discord token. Will be coerced into a bot token.
    * @param apiOptions Optional parameters for the api handler.
    */
-  public addRequestService(token: string, apiOptions: IApiOptions = {}): void {
+  public addRequestService(token: string, apiOptions: ApiOptions = {}): void {
     addRequestService(this, token, apiOptions);
   }
 
