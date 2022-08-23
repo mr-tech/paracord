@@ -1365,6 +1365,7 @@ export declare class Gateway {
      * @param _websocket Ignore. For unittest dependency injection only.
      */
     login: (_websocket?: typeof ws) => Promise<void>;
+    private constructWsUrl;
     /**
      * Closes the connection.
      * @param reconnect Whether to reconnect after closing.
@@ -1586,6 +1587,7 @@ export declare interface GatewayOptions {
     emitter: EventHandler;
     /** Websocket url to connect to. */
     wsUrl: string;
+    wsParams: GatewayURLQueryStringParam;
     /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
     heartbeatIntervalOffset?: undefined | number;
     /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */

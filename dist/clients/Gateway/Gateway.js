@@ -45,12 +45,14 @@ class Gateway {
     #options;
     /** Websocket used to connect to gateway. */
     #ws;
-    /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
+    /** Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
     #wsUrl;
+    #wsParams;
     #wsRateLimitCache;
     #zlibInflate = null;
     /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
     #sequence;
+    /** From Discord - Url to reconnect to. */
     #resumeUrl;
     /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
@@ -97,7 +99,7 @@ class Gateway {
      */
     constructor(token, options) {
         Gateway.validateOptions(options);
-        const { emitter, identity, identity: { shard }, wsUrl, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc, checkSiblingHeartbeats, } = options;
+        const { emitter, identity, identity: { shard }, wsUrl, wsParams, heartbeatIntervalOffset, startupHeartbeatTolerance, isStartingFunc, checkSiblingHeartbeats, } = options;
         if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
             throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
         }
@@ -120,6 +122,7 @@ class Gateway {
         this.#isStartingFunction = isStartingFunc;
         this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
         this.#wsUrl = wsUrl;
+        this.#wsParams = wsParams;
         this.#isStarting = false;
     }
     /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
@@ -227,10 +230,9 @@ class Gateway {
         }
         try {
             this.#loggingIn = true;
-            this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
-            if (!this.resumable)
-                this.#resumeUrl = undefined;
-            this.#ws = new _websocket(this.#resumeUrl ?? this.#wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
+            const wsUrl = this.constructWsUrl();
+            this.log('DEBUG', `Connecting to url: ${wsUrl}`);
+            this.#ws = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
             this.assignWebsocketMethods(this.#ws);
         }
         catch (err) {
@@ -250,6 +252,12 @@ class Gateway {
             this.#loggingIn = false;
         }
     };
+    constructWsUrl() {
+        if (!this.resumable)
+            this.#resumeUrl = undefined;
+        const endpoint = this.#resumeUrl ?? this.#wsUrl;
+        return `${endpoint}?${Object.entries(this.#wsParams).map(([k, v]) => `${k}=${v}`).join('&')}`;
+    }
     /**
      * Closes the connection.
      * @param reconnect Whether to reconnect after closing.

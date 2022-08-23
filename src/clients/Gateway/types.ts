@@ -1,5 +1,7 @@
 import type Gateway from './Gateway';
-import type { IdentifyConnectionProperties, GatewayPresenceUpdate, GuildRequestMember } from '../../discord';
+import type {
+  IdentifyConnectionProperties, GatewayPresenceUpdate, GuildRequestMember, GatewayURLQueryStringParam,
+} from '../../discord';
 import type { EventHandler } from '../../@types';
 
 export type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY'
@@ -15,6 +17,8 @@ export interface GatewayOptions {
   // /** Whether or not to keep all properties on Discord objects in their original snake case. */
   /** Websocket url to connect to. */
   wsUrl: string;
+
+  wsParams: GatewayURLQueryStringParam;
   /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
   heartbeatIntervalOffset?: undefined | number;
   /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */

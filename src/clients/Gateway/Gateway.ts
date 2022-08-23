@@ -12,7 +12,7 @@ import { GatewayIdentify } from './structures';
 
 import type ZlibSyncType from 'zlib-sync';
 import type {
-  GatewayEvent, GatewayPayload, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT,
+  GatewayEvent, GatewayPayload, GatewayURLQueryStringParam, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT,
   Hello, ReadyEventField, Resume,
 } from '../../discord';
 import type { DebugLevel, EventHandler } from '../../@types';
@@ -48,8 +48,10 @@ export default class Gateway {
   /** Websocket used to connect to gateway. */
   #ws?: undefined | ws;
 
-  /** From Discord - Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
+  /** Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
   #wsUrl: string;
+
+  #wsParams: GatewayURLQueryStringParam;
 
   #wsRateLimitCache: WebsocketRateLimitCache;
 
@@ -58,6 +60,7 @@ export default class Gateway {
   /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
   #sequence: null | number;
 
+  /** From Discord - Url to reconnect to. */
   #resumeUrl?: undefined | string;
 
   /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
@@ -126,7 +129,7 @@ export default class Gateway {
   public constructor(token: string, options: GatewayOptions) {
     Gateway.validateOptions(options);
     const {
-      emitter, identity, identity: { shard }, wsUrl,
+      emitter, identity, identity: { shard }, wsUrl, wsParams,
       heartbeatIntervalOffset, startupHeartbeatTolerance,
       isStartingFunc, checkSiblingHeartbeats,
     } = options;
@@ -153,6 +156,7 @@ export default class Gateway {
     this.#isStartingFunction = isStartingFunc;
     this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
     this.#wsUrl = wsUrl;
+    this.#wsParams = wsParams;
 
     this.#isStarting = false;
   }
@@ -283,10 +287,10 @@ export default class Gateway {
     try {
       this.#loggingIn = true;
 
-      this.log('DEBUG', `Connecting to url: ${this.#wsUrl}`);
+      const wsUrl = this.constructWsUrl();
+      this.log('DEBUG', `Connecting to url: ${wsUrl}`);
 
-      if (!this.resumable) this.#resumeUrl = undefined;
-      this.#ws = new _websocket(this.#resumeUrl ?? this.#wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+      this.#ws = new _websocket(wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
 
       this.assignWebsocketMethods(this.#ws);
     } catch (err) {
@@ -305,6 +309,12 @@ export default class Gateway {
       this.#loggingIn = false;
     }
   };
+
+  private constructWsUrl() {
+    if (!this.resumable) this.#resumeUrl = undefined;
+    const endpoint = this.#resumeUrl ?? this.#wsUrl;
+    return `${endpoint}?${Object.entries(this.#wsParams).map(([k, v]) => `${k}=${v}`).join('&')}`;
+  }
 
   /**
    * Closes the connection.
