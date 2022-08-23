@@ -12,7 +12,7 @@ export type AuditLog = {
   guild_scheduled_events: GuildScheduledEvent[];
   /** List of partial integration objects */
   integrations: Partial<Integration>[];
-  /** List of threads referenced in the audit log\* */
+  /** List of threads referenced in the audit log */
   threads: Channel[];
   /** List of users referenced in the audit log */
   users: User[];

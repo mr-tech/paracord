@@ -9,7 +9,7 @@ export type GuildScheduledEvent = {
   guild_id: Snowflake;
   /** the channel id in which the scheduled event will be hosted, or `null` if guild scheduled event scheduled entity type is `EXTERNAL` */
   channel_id: Snowflake | null;
-  /** the id of the user that created the scheduled event * */
+  /** the id of the user that created the scheduled event */
   creator_id?: Snowflake | null;
   /** the name of the scheduled event (1-100 characters) */
   name: string;
@@ -60,9 +60,9 @@ export type GuildScheduledEventStatusType =
   1 |
   /** ACTIVE */
   2 |
-  /** COMPLETED \* */
+  /** COMPLETED */
   3 |
-  /** CANCELED\* */
+  /** CANCELED */
   4;
 
 // ========================================================================

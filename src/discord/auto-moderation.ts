@@ -43,11 +43,11 @@ export type TriggerType =
 
 export type TriggerMetadata = {
   /** KEYWORD */
-  keyword_filter: string[]; // substrings which will be searched for in content*
+  keyword_filter: string[]; // substrings which will be searched for in content
   /** KEYWORD_PRESET */
   presets: KeywordPresetType[]; // the internally pre-defined wordsets which will be searched for in content
   /** KEYWORD_PRESET */
-  allow_list: string[]; // substrings which will be exempt from triggering the preset trigger type*
+  allow_list: string[]; // substrings which will be exempt from triggering the preset trigger type
   /** MENTION_SPAM */
   mention_total_limit: number; // total number of mentions (role & user) allowed per message (Maximum of 50)
 };
@@ -93,5 +93,5 @@ export type AutoModerationActionMetadata = {
   /** SEND_ALERT_MESSAGE */
   channel_id: Snowflake; // channel to which user content should be logged
   /** TIMEOUT */
-  duration_seconds: number; // timeout duration in seconds *
+  duration_seconds: number; // timeout duration in seconds
 };

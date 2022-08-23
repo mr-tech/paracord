@@ -18,7 +18,7 @@ export type Team = {
 export type TeamMember = {
   /** the user's membership state on the team */
   membership_state: MembershipStateType;
-  /** will always be `"*"]` */
+  /** will always be `""]` */
   permissions: string[];
   /** the id of the parent team of which they are a member */
   team_id: Snowflake;

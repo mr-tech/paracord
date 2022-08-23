@@ -106,7 +106,7 @@ export type ApplicationCommandOptionChoice = {
   /** Localization dictionary for the `name` field. Values follow the same restrictions as `name` */
   name_localizations?: AvailableLocale | null;
   /** Value for the choice, up to 100 characters if string */
-  value: string | number; // *
+  value: string | number;
 };
 
 // ========================================================================

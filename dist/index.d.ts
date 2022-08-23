@@ -596,7 +596,7 @@ export declare type AuditLog = {
     guild_scheduled_events: GuildScheduledEvent[];
     /** List of partial integration objects */
     integrations: Partial<Integration>[];
-    /** List of threads referenced in the audit log\* */
+    /** List of threads referenced in the audit log */
     threads: Channel[];
     /** List of users referenced in the audit log */
     users: User[];
@@ -787,9 +787,9 @@ export declare type AutoModerationActionExecutionEventField = {
     user_id: Snowflake;
     /** the id of the channel in which user content was posted */
     channel_id?: Snowflake;
-    /** the id of any user message which content belongs to * */
+    /** the id of any user message which content belongs to */
     message_id?: Snowflake;
-    /** the id of any system auto moderation messages posted as a result of this action ** */
+    /** the id of any system auto moderation messages posted as a result of this action */
     alert_system_message_id?: Snowflake;
     /** the user generated text content */
     content: string;
@@ -1030,7 +1030,7 @@ export declare type ChannelType =
 13 | 
 /** GUILD_DIRECTORY */
 14 | 
-/** GUILD_FORUM\* */
+/** GUILD_FORUM */
 15;
 
 export declare type ClientStatus = {
@@ -2112,7 +2112,7 @@ export declare type GuildScheduledEvent = {
     guild_id: Snowflake;
     /** the channel id in which the scheduled event will be hosted, or `null` if guild scheduled event scheduled entity type is `EXTERNAL` */
     channel_id: Snowflake | null;
-    /** the id of the user that created the scheduled event * */
+    /** the id of the user that created the scheduled event */
     creator_id?: Snowflake | null;
     /** the name of the scheduled event (1-100 characters) */
     name: string;
@@ -2162,9 +2162,9 @@ export declare type GuildScheduledEventStatusType =
 1 | 
 /** ACTIVE */
 2 | 
-/** COMPLETED \* */
+/** COMPLETED */
 3 | 
-/** CANCELED\* */
+/** CANCELED */
 4;
 
 export declare type GuildScheduledEventUser = {
@@ -2441,13 +2441,13 @@ export declare type InteractionCallbackType =
 4 | 
 /** DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE */
 5 | 
-/** DEFERRED_UPDATE_MESSAGE\* */
+/** DEFERRED_UPDATE_MESSAGE */
 6 | 
-/** UPDATE_MESSAGE\* */
+/** UPDATE_MESSAGE */
 7 | 
 /** APPLICATION_COMMAND_AUTOCOMPLETE_RESULT */
 8 | 
-/** MODAL\*\* */
+/** MODAL */
 9;
 
 export declare type InteractionResponse = {
@@ -2780,7 +2780,7 @@ export declare type Message = {
     components?: MessageComponent[];
     /** sent if the message contains stickers */
     sticker_items?: StickerItem[];
-    /** **Deprecated** the stickers sent with the message */
+    /** Deprecated the stickers sent with the message */
     stickers?: Sticker[];
     /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the messsage in a thread in company with `total_message_sent` on parent thread */
     position?: number;
@@ -3186,9 +3186,48 @@ declare type PermissibleGuild = Pick<Guild, 'id' | 'owner_id' | 'roles'>;
 
 declare type PermissibleMember = Pick<Required<GuildMember>, 'user' | 'roles'>;
 
-/** A permissions map for operations relevant to the library. */
 export declare const PERMISSIONS: {
+    readonly CREATE_INSTANT_INVITE: bigint;
+    readonly KICK_MEMBERS: bigint;
+    readonly BAN_MEMBERS: bigint;
     readonly ADMINISTRATOR: bigint;
+    readonly MANAGE_CHANNELS: bigint;
+    readonly MANAGE_GUILD: bigint;
+    readonly ADD_REACTIONS: bigint;
+    readonly VIEW_AUDIT_LOG: bigint;
+    readonly PRIORITY_SPEAKER: bigint;
+    readonly STREAM: bigint;
+    readonly VIEW_CHANNEL: bigint;
+    readonly SEND_MESSAGES: bigint;
+    readonly SEND_TTS_MESSAGES: bigint;
+    readonly MANAGE_MESSAGES: bigint;
+    readonly EMBED_LINKS: bigint;
+    readonly ATTACH_FILES: bigint;
+    readonly READ_MESSAGE_HISTORY: bigint;
+    readonly MENTION_EVERYONE: bigint;
+    readonly USE_EXTERNAL_EMOJIS: bigint;
+    readonly VIEW_GUILD_INSIGHTS: bigint;
+    readonly CONNECT: bigint;
+    readonly SPEAK: bigint;
+    readonly MUTE_MEMBERS: bigint;
+    readonly DEAFEN_MEMBERS: bigint;
+    readonly MOVE_MEMBERS: bigint;
+    readonly USE_VAD: bigint;
+    readonly CHANGE_NICKNAME: bigint;
+    readonly MANAGE_NICKNAMES: bigint;
+    readonly MANAGE_ROLES: bigint;
+    readonly MANAGE_WEBHOOKS: bigint;
+    readonly MANAGE_EMOJIS_AND_STICKERS: bigint;
+    readonly USE_APPLICATION_COMMANDS: bigint;
+    readonly REQUEST_TO_SPEAK: bigint;
+    readonly MANAGE_EVENTS: bigint;
+    readonly MANAGE_THREADS: bigint;
+    readonly CREATE_PUBLIC_THREADS: bigint;
+    readonly CREATE_PRIVATE_THREADS: bigint;
+    readonly USE_EXTERNAL_STICKERS: bigint;
+    readonly SEND_MESSAGES_IN_THREADS: bigint;
+    readonly USE_EMBEDDED_ACTIVITIES: bigint;
+    readonly MODERATE_MEMBERS: bigint;
 };
 
 export declare type PremiumTier = 
@@ -3672,7 +3711,7 @@ export declare type Service = [
 /** GitHub */
 'github' | 
 /** League of Legends */
-'leagueoflegends *' | 
+'leagueoflegends' | 
 /** PlayStation Network */
 'playstation' | 
 /** Reddit */
@@ -3680,7 +3719,7 @@ export declare type Service = [
 /** Spotify */
 'spotify' | 
 /** Skype */
-'skype *' | 
+'skype' | 
 /** Steam */
 'steam' | 
 /** Twitch */
@@ -3914,7 +3953,7 @@ export declare type Sticker = {
     description: string | null;
     /** autocomplete/suggestion tags for the sticker (max 200 characters) */
     tags: string;
-    /** **Deprecated** previously the sticker asset hash, now an empty string */
+    /** Deprecated previously the sticker asset hash, now an empty string */
     asset?: string;
     /** type of sticker */
     type: StickerFormatType;
@@ -3991,7 +4030,7 @@ export declare type Team = {
 export declare type TeamMember = {
     /** the user's membership state on the team */
     membership_state: MembershipStateType;
-    /** will always be `"*"]` */
+    /** will always be `""]` */
     permissions: string[];
     /** the id of the parent team of which they are a member */
     team_id: Snowflake;

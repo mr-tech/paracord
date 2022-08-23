@@ -138,13 +138,13 @@ export type InteractionCallbackType =
   4 |
   /** DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE */
   5 |
-  /** DEFERRED_UPDATE_MESSAGE\* */
+  /** DEFERRED_UPDATE_MESSAGE */
   6 |
-  /** UPDATE_MESSAGE\* */
+  /** UPDATE_MESSAGE */
   7 |
   /** APPLICATION_COMMAND_AUTOCOMPLETE_RESULT */
   8 |
-  /** MODAL\*\* */
+  /** MODAL */
   9;
 
 // ========================================================================

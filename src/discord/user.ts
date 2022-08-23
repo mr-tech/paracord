@@ -97,7 +97,7 @@ export type Service = [
   /** GitHub */
   'github' |
   /** League of Legends */
-  'leagueoflegends *' |
+  'leagueoflegends' |
   /** PlayStation Network */
   'playstation' |
   /** Reddit */
@@ -105,7 +105,7 @@ export type Service = [
   /** Spotify */
   'spotify' |
   /** Skype */
-  'skype *' |
+  'skype' |
   /** Steam */
   'steam' |
   /** Twitch */

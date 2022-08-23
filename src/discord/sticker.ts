@@ -11,7 +11,7 @@ export type Sticker = {
   description: string | null;
   /** autocomplete/suggestion tags for the sticker (max 200 characters) */
   tags: string;
-  /** **Deprecated** previously the sticker asset hash, now an empty string */
+  /** Deprecated previously the sticker asset hash, now an empty string */
   asset?: string;
   /** type of sticker */
   type: StickerFormatType;

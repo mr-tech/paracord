@@ -62,10 +62,6 @@ export const DISCORD_API_DEFAULT_VERSION = 9;
 /** Discord epoch (2015-01-01T00:00:00.000Z) */
 export const DISCORD_EPOCH = 1420070400000;
 export const DISCORD_CDN_URL = 'https://cdn.discordapp.com';
-/** A permissions map for operations relevant to the library. */
-export const PERMISSIONS = {
-  ADMINISTRATOR: BigInt(0x8),
-} as const;
 /** For internal logging. */
 export const LOG_SOURCES = {
   GATEWAY: 0,

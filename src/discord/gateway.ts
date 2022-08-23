@@ -10,9 +10,9 @@ export type GatewayPayload = {
   /** event data */
   d: unknown;
   /** sequence number, used for resuming sessions and heartbeats */
-  s: number | null; // *
+  s: number | null;
   /** the event name for this payload */
-  t: string | null; // *
+  t: string | null;
 };
 
 // ========================================================================
@@ -165,9 +165,9 @@ export type AutoModerationActionExecutionEventField = {
   user_id: Snowflake;
   /** the id of the channel in which user content was posted */
   channel_id?: Snowflake;
-  /** the id of any user message which content belongs to * */
+  /** the id of any user message which content belongs to */
   message_id?: Snowflake;
-  /** the id of any system auto moderation messages posted as a result of this action ** */
+  /** the id of any system auto moderation messages posted as a result of this action */
   alert_system_message_id?: Snowflake;
   /** the user generated text content */
   content: string;

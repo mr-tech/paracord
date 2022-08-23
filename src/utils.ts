@@ -1,12 +1,12 @@
 import {
-  DISCORD_CDN_URL, DISCORD_EPOCH, PERMISSIONS,
+  DISCORD_CDN_URL, DISCORD_EPOCH,
   SECOND_IN_MILLISECONDS, OVERWRITE_ROLE_VALUE,
 } from './constants';
+import {
+  Guild, GuildChannel, GuildMember, Overwrite, PERMISSIONS, Snowflake, User,
+} from './discord';
 
 import type { ApiError } from './clients';
-import type {
-  Guild, GuildChannel, GuildMember, Overwrite, Snowflake, User,
-} from './discord';
 
 /**
  * Returns a new object that is a clone of the original.

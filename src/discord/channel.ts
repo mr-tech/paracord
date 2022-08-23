@@ -87,7 +87,7 @@ export type ChannelType =
   13 |
   /** GUILD_DIRECTORY */
   14 |
-  /** GUILD_FORUM\* */
+  /** GUILD_FORUM */
   15;
 
 // ========================================================================
@@ -164,7 +164,7 @@ export type Message = {
   components?: MessageComponent[];
   /** sent if the message contains stickers */
   sticker_items?: StickerItem[];
-  /** **Deprecated** the stickers sent with the message */
+  /** Deprecated the stickers sent with the message */
   stickers?: Sticker[];
   /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the messsage in a thread in company with `total_message_sent` on parent thread */
   position?: number;
