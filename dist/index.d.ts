@@ -1162,7 +1162,7 @@ export declare type DefaultMessageNotificationLevel =
 /** ONLY_MENTIONS */
 1;
 
-export declare const DISCORD_API_DEFAULT_VERSION = 9;
+export declare const DISCORD_API_DEFAULT_VERSION = 10;
 
 export declare const DISCORD_API_URL = "https://discord.com/api";
 

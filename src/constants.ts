@@ -58,7 +58,7 @@ export const GATEWAY_CLOSE_CODES = {
 } as const;
 
 export const DISCORD_API_URL = 'https://discord.com/api';
-export const DISCORD_API_DEFAULT_VERSION = 9;
+export const DISCORD_API_DEFAULT_VERSION = 10;
 /** Discord epoch (2015-01-01T00:00:00.000Z) */
 export const DISCORD_EPOCH = 1420070400000;
 export const DISCORD_CDN_URL = 'https://cdn.discordapp.com';

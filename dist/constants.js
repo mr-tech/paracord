@@ -58,7 +58,7 @@ exports.GATEWAY_CLOSE_CODES = {
     UNKNOWN: 4999, // Something odd happened. Refer to other ERROR level logging events.
 };
 exports.DISCORD_API_URL = 'https://discord.com/api';
-exports.DISCORD_API_DEFAULT_VERSION = 9;
+exports.DISCORD_API_DEFAULT_VERSION = 10;
 /** Discord epoch (2015-01-01T00:00:00.000Z) */
 exports.DISCORD_EPOCH = 1420070400000;
 exports.DISCORD_CDN_URL = 'https://cdn.discordapp.com';
