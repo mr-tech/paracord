@@ -319,11 +319,21 @@ export default class Gateway {
 
   private setConnectTimeout(client: ws) {
     this.#connectTimeout = setTimeout(() => {
+      this.clearConnectTimeout();
+
       if (client.readyState === ws.OPEN) {
+        client.onopen = null;
+        client.onmessage = null;
+        client.onerror = null;
         client.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
         this.log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
       } else if (client.readyState === ws.CONNECTING) {
         if (client === this.#ws) {
+          client.onopen = () => client.close(1000);
+          client.onmessage = () => client.close(1000);
+          client.onerror = () => client.close(1000);
+          client.onclose = null;
+
           this.#ws = undefined;
           this.log('WARNING', 'Failed to connect to websocket. Retrying.');
           void this.login();
@@ -331,8 +341,7 @@ export default class Gateway {
       } else {
         this.log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
       }
-      this.#connectTimeout = undefined;
-    }, 2 * SECOND_IN_MILLISECONDS);
+    }, 5 * SECOND_IN_MILLISECONDS);
   }
 
   private constructWsUrl() {
