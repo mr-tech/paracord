@@ -294,10 +294,10 @@ export default class Gateway {
 
       const client = new _websocket(wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
       this.#ws = client;
-      this.#ws.on('open', this.handleWsOpen);
-      this.#ws.on('close', this.handleWsClose);
-      this.#ws.on('error', this.handleWsError);
-      this.#ws.on('message', this.handleWsMessage);
+      this.#ws.onopen = this.handleWsOpen;
+      this.#ws.onclose = this.handleWsClose;
+      this.#ws.onerror = this.handleWsError;
+      this.#ws.onmessage = this.handleWsMessage;
 
       this.setConnectTimeout(client);
     } catch (err) {
