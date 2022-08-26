@@ -262,9 +262,12 @@ class Gateway {
         this.#connectTimeout = setTimeout(() => {
             if (client?.readyState !== ws_1.default.CONNECTING) {
                 client?.close(constants_1.GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
+                this.log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
             }
             else if (client === this.#ws) {
                 this.#ws = undefined;
+                this.log('WARNING', 'Failed to connect to websocket. Retrying.');
+                void this.login();
             }
             this.#connectTimeout = undefined;
         }, 2 * constants_1.SECOND_IN_MILLISECONDS);
@@ -320,7 +323,6 @@ class Gateway {
      */
     /** Assigned to websocket `onopen`. */
     handleWsOpen = () => {
-        this.clearConnectTimeout();
         this.log('DEBUG', 'Websocket open.');
         this.#wsRateLimitCache.remainingRequests = constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE;
         if (this.#isStartingFunction !== undefined) {
@@ -375,7 +377,7 @@ class Gateway {
      * @return Whether or not the client should attempt to login again.
      */
     handleCloseCode(code) {
-        const { CLEAN, GOING_AWAY, ABNORMAL, UNKNOWN_ERROR, UNKNOWN_OPCODE, DECODE_ERROR, NOT_AUTHENTICATED, AUTHENTICATION_FAILED, ALREADY_AUTHENTICATED, SESSION_NO_LONGER_VALID, INVALID_SEQ, RATE_LIMITED, SESSION_TIMEOUT, INVALID_SHARD, SHARDING_REQUIRED, INVALID_VERSION, INVALID_INTENT, DISALLOWED_INTENT, INTERNAL_TERMINATE_RECONNECT, RECONNECT, SESSION_INVALIDATED, SESSION_INVALIDATED_RESUMABLE, HEARTBEAT_TIMEOUT, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT, USER_TERMINATE, UNKNOWN, } = constants_1.GATEWAY_CLOSE_CODES;
+        const { CLEAN, GOING_AWAY, ABNORMAL, UNKNOWN_ERROR, UNKNOWN_OPCODE, DECODE_ERROR, NOT_AUTHENTICATED, AUTHENTICATION_FAILED, ALREADY_AUTHENTICATED, SESSION_NO_LONGER_VALID, INVALID_SEQ, RATE_LIMITED, SESSION_TIMEOUT, INVALID_SHARD, SHARDING_REQUIRED, INVALID_VERSION, INVALID_INTENT, DISALLOWED_INTENT, CONNECT_TIMEOUT, INTERNAL_TERMINATE_RECONNECT, RECONNECT, SESSION_INVALIDATED, SESSION_INVALIDATED_RESUMABLE, HEARTBEAT_TIMEOUT, USER_TERMINATE_RESUMABLE, USER_TERMINATE_RECONNECT, USER_TERMINATE, UNKNOWN, } = constants_1.GATEWAY_CLOSE_CODES;
         let message;
         let shouldReconnect = true;
         let level = 'INFO';
@@ -460,6 +462,9 @@ class Gateway {
             case SESSION_INVALIDATED:
                 message = 'Received an Invalid Session message and is not resumable. (Reconnecting with new session.)';
                 this.clearSession();
+                break;
+            case CONNECT_TIMEOUT:
+                message = 'Connection timed out before any events were received. (Reconnecting.)';
                 break;
             case INTERNAL_TERMINATE_RECONNECT:
                 message = 'Something internal caused a reconnect. (Reconnecting with new session.)';
@@ -637,6 +642,7 @@ class Gateway {
      * @param data From Discord.
      */
     handleHello(data) {
+        this.clearConnectTimeout();
         this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
         this.startHeartbeat(data.heartbeat_interval);
         this.connect(this.resumable);

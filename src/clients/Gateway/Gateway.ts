@@ -1,4 +1,4 @@
-import ws, { OPEN } from 'ws';
+import ws from 'ws';
 
 import { coerceTokenToBotLike, isApiError } from '../../utils';
 import {
@@ -321,8 +321,11 @@ export default class Gateway {
     this.#connectTimeout = setTimeout(() => {
       if (client?.readyState !== ws.CONNECTING) {
         client?.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
+        this.log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
       } else if (client === this.#ws) {
         this.#ws = undefined;
+        this.log('WARNING', 'Failed to connect to websocket. Retrying.');
+        void this.login();
       }
       this.#connectTimeout = undefined;
     }, 2 * SECOND_IN_MILLISECONDS);
@@ -384,8 +387,6 @@ export default class Gateway {
 
   /** Assigned to websocket `onopen`. */
   private handleWsOpen = (): void => {
-    this.clearConnectTimeout();
-
     this.log('DEBUG', 'Websocket open.');
 
     this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
@@ -468,6 +469,7 @@ export default class Gateway {
       INVALID_VERSION,
       INVALID_INTENT,
       DISALLOWED_INTENT,
+      CONNECT_TIMEOUT,
       INTERNAL_TERMINATE_RECONNECT,
       RECONNECT,
       SESSION_INVALIDATED,
@@ -564,6 +566,9 @@ export default class Gateway {
       case SESSION_INVALIDATED:
         message = 'Received an Invalid Session message and is not resumable. (Reconnecting with new session.)';
         this.clearSession();
+        break;
+      case CONNECT_TIMEOUT:
+        message = 'Connection timed out before any events were received. (Reconnecting.)';
         break;
       case INTERNAL_TERMINATE_RECONNECT:
         message = 'Something internal caused a reconnect. (Reconnecting with new session.)';
@@ -767,6 +772,8 @@ export default class Gateway {
    * @param data From Discord.
    */
   private handleHello(data: Hello): void {
+    this.clearConnectTimeout();
+
     this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
     this.startHeartbeat(data.heartbeat_interval);
     this.connect(this.resumable);
