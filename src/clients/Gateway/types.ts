@@ -27,7 +27,7 @@ export interface GatewayOptions {
   isStartingFunc?: undefined | StartupCheckFunction;
   /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
   checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
-  /** Discord gateway version to use. Default: 9 */
+  /** Discord gateway version to use. Default: 10 */
   version?: undefined | number;
 }
 

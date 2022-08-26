@@ -42,6 +42,7 @@ class Gateway {
     /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     #online;
     #loggingIn;
+    #connectTimeout;
     #options;
     /** Websocket used to connect to gateway. */
     #ws;
@@ -232,8 +233,13 @@ class Gateway {
             this.#loggingIn = true;
             const wsUrl = this.constructWsUrl();
             this.log('DEBUG', `Connecting to url: ${wsUrl}`);
-            this.#ws = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
-            this.assignWebsocketMethods(this.#ws);
+            const client = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
+            this.#ws = client;
+            this.#ws.on('open', this.handleWsOpen);
+            this.#ws.on('close', this.handleWsClose);
+            this.#ws.on('error', this.handleWsError);
+            this.#ws.on('message', this.handleWsMessage);
+            this.setConnectTimeout(client);
         }
         catch (err) {
             if ((0, utils_1.isApiError)(err)) {
@@ -252,6 +258,17 @@ class Gateway {
             this.#loggingIn = false;
         }
     };
+    setConnectTimeout(client) {
+        this.#connectTimeout = setTimeout(() => {
+            if (client?.readyState !== ws_1.default.CONNECTING) {
+                client?.close(constants_1.GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
+            }
+            else if (client === this.#ws) {
+                this.#ws = undefined;
+            }
+            this.#connectTimeout = undefined;
+        }, 2 * constants_1.SECOND_IN_MILLISECONDS);
+    }
     constructWsUrl() {
         if (!this.resumable)
             this.#resumeUrl = undefined;
@@ -264,13 +281,6 @@ class Gateway {
      */
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
         this.#ws?.close(code);
-    }
-    /** Binds `this` to methods used by the websocket. */
-    assignWebsocketMethods(websocket) {
-        websocket.onopen = this._onopen;
-        websocket.onerror = this._onerror;
-        websocket.onclose = this._onclose;
-        websocket.onmessage = this._onmessage;
     }
     /**
      * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
@@ -309,7 +319,8 @@ class Gateway {
      ********************************
      */
     /** Assigned to websocket `onopen`. */
-    _onopen = () => {
+    handleWsOpen = () => {
+        this.clearConnectTimeout();
         this.log('DEBUG', 'Websocket open.');
         this.#wsRateLimitCache.remainingRequests = constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE;
         if (this.#isStartingFunction !== undefined) {
@@ -333,7 +344,7 @@ class Gateway {
      ********************************
      */
     /** Assigned to websocket `onerror`. */
-    _onerror = (err) => {
+    handleWsError = (err) => {
         this.log('ERROR', `Websocket error. Message: ${err.message}`);
     };
     /*
@@ -344,12 +355,13 @@ class Gateway {
     /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
      * @param event Object containing information about the close.
      */
-    _onclose = (event) => {
+    handleWsClose = (event) => {
         this.#ws = undefined;
         this.#online = false;
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
         this.clearHeartbeat();
+        this.clearConnectTimeout();
         const shouldReconnect = this.handleCloseCode(event.code);
         this.#wsRateLimitCache = {
             remainingRequests: constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE,
@@ -506,13 +518,18 @@ class Gateway {
         this.#heartbeatsMissedDuringStartup = 0;
         this.log('DEBUG', 'Heartbeat cleared.');
     }
+    clearConnectTimeout() {
+        if (this.#connectTimeout)
+            clearTimeout(this.#connectTimeout);
+        this.#connectTimeout = undefined;
+    }
     /*
      ********************************
      ****** WEBSOCKET MESSAGE *******
      ********************************
      */
     /** Assigned to websocket `onmessage`. */
-    _onmessage = ({ data }) => {
+    handleWsMessage = ({ data }) => {
         if (this.#zlibInflate) {
             return this.decompress(this.#zlibInflate, data);
         }

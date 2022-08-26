@@ -1365,14 +1365,13 @@ export declare class Gateway {
      * @param _websocket Ignore. For unittest dependency injection only.
      */
     login: (_websocket?: typeof ws) => Promise<void>;
+    private setConnectTimeout;
     private constructWsUrl;
     /**
      * Closes the connection.
      * @param reconnect Whether to reconnect after closing.
      */
     close(code?: GatewayCloseCode): void;
-    /** Binds `this` to methods used by the websocket. */
-    private assignWebsocketMethods;
     /**
      * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
      * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
@@ -1382,14 +1381,14 @@ export declare class Gateway {
     private handleGuildMemberChunk;
     private updateRequestMembersState;
     /** Assigned to websocket `onopen`. */
-    private _onopen;
+    private handleWsOpen;
     private checkIfStarting;
     /** Assigned to websocket `onerror`. */
-    private _onerror;
+    private handleWsError;
     /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
      * @param event Object containing information about the close.
      */
-    private _onclose;
+    private handleWsClose;
     /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
      * @param code Code that came with the websocket close event.
      * @return Whether or not the client should attempt to login again.
@@ -1399,8 +1398,9 @@ export declare class Gateway {
     private clearSession;
     /** Clears heartbeat values and clears the heartbeatTimeout. */
     private clearHeartbeat;
+    private clearConnectTimeout;
     /** Assigned to websocket `onmessage`. */
-    private _onmessage;
+    private handleWsMessage;
     private decompress;
     /** Processes incoming messages from Discord's gateway.
      * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
@@ -1499,6 +1499,7 @@ export declare const GATEWAY_CLOSE_CODES: {
     readonly INVALID_VERSION: 4012;
     readonly INVALID_INTENT: 4013;
     readonly DISALLOWED_INTENT: 4014;
+    readonly CONNECT_TIMEOUT: 4990;
     readonly INTERNAL_TERMINATE_RECONNECT: 4991;
     readonly RECONNECT: 4992;
     readonly SESSION_INVALIDATED: 4993;
@@ -1596,7 +1597,7 @@ export declare interface GatewayOptions {
     isStartingFunc?: undefined | StartupCheckFunction;
     /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
     checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
-    /** Discord gateway version to use. Default: 9 */
+    /** Discord gateway version to use. Default: 10 */
     version?: undefined | number;
 }
 
@@ -3503,7 +3504,7 @@ export declare interface RequestOptions {
     globalRateLimitMax?: number;
     /** Time in milliseconds to add to 1 second internal global rate limit reset timer. */
     globalRateLimitResetPadding?: number;
-    /** Discord api version to use when making requests. Default: 9 */
+    /** Discord api version to use when making requests. Default: 10 */
     version?: number;
     /**
      * The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides both "returnOn" options.

@@ -1,4 +1,4 @@
-import ws from 'ws';
+import ws, { OPEN } from 'ws';
 
 import { coerceTokenToBotLike, isApiError } from '../../utils';
 import {
@@ -42,6 +42,8 @@ export default class Gateway {
   #online: boolean;
 
   #loggingIn: boolean;
+
+  #connectTimeout?: undefined | NodeJS.Timeout;
 
   #options: GatewayOptions;
 
@@ -290,9 +292,14 @@ export default class Gateway {
       const wsUrl = this.constructWsUrl();
       this.log('DEBUG', `Connecting to url: ${wsUrl}`);
 
-      this.#ws = new _websocket(wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+      const client = new _websocket(wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
+      this.#ws = client;
+      this.#ws.on('open', this.handleWsOpen);
+      this.#ws.on('close', this.handleWsClose);
+      this.#ws.on('error', this.handleWsError);
+      this.#ws.on('message', this.handleWsMessage);
 
-      this.assignWebsocketMethods(this.#ws);
+      this.setConnectTimeout(client);
     } catch (err) {
       if (isApiError(err)) {
         /* eslint-disable-next-line no-console */
@@ -310,6 +317,17 @@ export default class Gateway {
     }
   };
 
+  private setConnectTimeout(client: ws) {
+    this.#connectTimeout = setTimeout(() => {
+      if (client?.readyState !== ws.CONNECTING) {
+        client?.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
+      } else if (client === this.#ws) {
+        this.#ws = undefined;
+      }
+      this.#connectTimeout = undefined;
+    }, 2 * SECOND_IN_MILLISECONDS);
+  }
+
   private constructWsUrl() {
     if (!this.resumable) this.#resumeUrl = undefined;
     const endpoint = this.#resumeUrl ?? this.#wsUrl;
@@ -322,14 +340,6 @@ export default class Gateway {
    */
   public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
     this.#ws?.close(code);
-  }
-
-  /** Binds `this` to methods used by the websocket. */
-  private assignWebsocketMethods(websocket: ws): void {
-    websocket.onopen = this._onopen;
-    websocket.onerror = this._onerror;
-    websocket.onclose = this._onclose;
-    websocket.onmessage = this._onmessage;
   }
 
   /**
@@ -373,7 +383,9 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onopen`. */
-  private _onopen = (): void => {
+  private handleWsOpen = (): void => {
+    this.clearConnectTimeout();
+
     this.log('DEBUG', 'Websocket open.');
 
     this.#wsRateLimitCache.remainingRequests = GATEWAY_MAX_REQUESTS_PER_MINUTE;
@@ -401,7 +413,7 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onerror`. */
-  private _onerror = (err: ws.ErrorEvent): void => {
+  private handleWsError = (err: ws.ErrorEvent): void => {
     this.log('ERROR', `Websocket error. Message: ${err.message}`);
   };
 
@@ -414,12 +426,13 @@ export default class Gateway {
   /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
    * @param event Object containing information about the close.
    */
-  private _onclose = (event: ws.CloseEvent): void => {
+  private handleWsClose = (event: ws.CloseEvent): void => {
     this.#ws = undefined;
     this.#online = false;
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
     this.clearHeartbeat();
+    this.clearConnectTimeout();
     const shouldReconnect = this.handleCloseCode(event.code);
 
     this.#wsRateLimitCache = {
@@ -613,6 +626,11 @@ export default class Gateway {
     this.log('DEBUG', 'Heartbeat cleared.');
   }
 
+  private clearConnectTimeout() {
+    if (this.#connectTimeout) clearTimeout(this.#connectTimeout);
+    this.#connectTimeout = undefined;
+  }
+
   /*
    ********************************
    ****** WEBSOCKET MESSAGE *******
@@ -620,7 +638,7 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onmessage`. */
-  private _onmessage = ({ data }: ws.MessageEvent): void => {
+  private handleWsMessage = ({ data }: ws.MessageEvent): void => {
     if (this.#zlibInflate) {
       return this.decompress(this.#zlibInflate, data);
     }
@@ -917,13 +935,8 @@ export default class Gateway {
   /** Sends an "Identify" payload. */
   private identify(): void {
     const [shardId, shardCount] = this.shard ?? [0, 1];
-    this.log(
-      'INFO',
-      `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`,
-    );
-
+    this.log('INFO', `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`);
     this.emit('GATEWAY_IDENTIFY', this);
-
     this.send(GATEWAY_OP_CODES.IDENTIFY, <GatewayIdentify> this.#identity.toJSON());
   }
 

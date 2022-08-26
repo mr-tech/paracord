@@ -46,6 +46,7 @@ export const GATEWAY_CLOSE_CODES = {
   INVALID_INTENT: 4013,
   DISALLOWED_INTENT: 4014,
   // The below are not Discord close events.
+  CONNECT_TIMEOUT: 4990, // The websocket didn't receive a HELLO from Discord in time.
   INTERNAL_TERMINATE_RECONNECT: 4991, // Something internal caused a reconnect.
   RECONNECT: 4992, // Received request from Discord to reconnect.
   SESSION_INVALIDATED: 4993, // Received an Invalid Session message and cannot resume

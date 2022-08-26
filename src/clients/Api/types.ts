@@ -43,7 +43,7 @@ export interface RequestOptions {
   globalRateLimitMax?: number;
   /** Time in milliseconds to add to 1 second internal global rate limit reset timer. */
   globalRateLimitResetPadding?: number;
-  /** Discord api version to use when making requests. Default: 9 */
+  /** Discord api version to use when making requests. Default: 10 */
   version?: number;
   /**
    * The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides both "returnOn" options.
