@@ -339,8 +339,7 @@ export default class Paracord extends EventEmitter {
     };
 
     if (this.#startupHeartbeatTolerance !== undefined) {
-      gatewayOptions.startupHeartbeatTolerance = this.#startupHeartbeatTolerance;
-      gatewayOptions.isStartingFunc = (gateway: Gateway) => this.#startingGateway === gateway;
+      gatewayOptions.isStarting = (gateway: Gateway) => this.#startingGateway === gateway;
     }
 
     return gatewayOptions;

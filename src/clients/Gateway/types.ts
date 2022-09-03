@@ -21,10 +21,10 @@ export interface GatewayOptions {
   wsParams: GatewayURLQueryStringParam;
   /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
   heartbeatIntervalOffset?: undefined | number;
-  /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */
-  startupHeartbeatTolerance?: undefined | number;
+  /** How long to wait after a heartbeat ack before timing out the shard. */
+  heartbeatTimeoutSeconds?: undefined | number;
   /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
-  isStartingFunc?: undefined | StartupCheckFunction;
+  isStarting?: undefined | StartupCheckFunction;
   /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
   checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
   /** Discord gateway version to use. Default: 10 */

@@ -278,8 +278,7 @@ class Paracord extends events_1.EventEmitter {
             checkSiblingHeartbeats: this.#gatewayHeartbeats,
         };
         if (this.#startupHeartbeatTolerance !== undefined) {
-            gatewayOptions.startupHeartbeatTolerance = this.#startupHeartbeatTolerance;
-            gatewayOptions.isStartingFunc = (gateway) => this.#startingGateway === gateway;
+            gatewayOptions.isStarting = (gateway) => this.#startingGateway === gateway;
         }
         return gatewayOptions;
     }

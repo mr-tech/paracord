@@ -1316,7 +1316,6 @@ export declare type FollowedChannel = {
 /** A client to handle a Discord gateway connection. */
 export declare class Gateway {
     #private;
-    private static validateOptions;
     /**
      * Creates a new Discord gateway handler.
      * @param token Discord token. Will be coerced into a bot token.
@@ -1396,8 +1395,10 @@ export declare class Gateway {
     private handleCloseCode;
     /** Removes current session information. */
     private clearSession;
-    /** Clears heartbeat values and clears the heartbeatTimeout. */
+    /** Clears heartbeat values and clears the heartbeatTimers. */
     private clearHeartbeat;
+    private clearHeartbeatTimer;
+    private clearAckTimeout;
     private clearConnectTimeout;
     /** Assigned to websocket `onmessage`. */
     private handleWsMessage;
@@ -1407,7 +1408,7 @@ export declare class Gateway {
      */
     private handleMessage;
     /** Proxy for inline heartbeat checking. */
-    private _checkIfShouldHeartbeat;
+    private checkHeartbeatInline;
     /**
      * Set inline with the firehose of events to check if the heartbeat needs to be sent.
      * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
@@ -1415,6 +1416,8 @@ export declare class Gateway {
      * Now receiving the ACKs on the other hand...
      */
     checkIfShouldHeartbeat: () => void;
+    /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
+    private handleHeartbeatAck;
     /**
      * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
      * @param data From Discord.
@@ -1435,16 +1438,10 @@ export declare class Gateway {
     /**
      * Clears old heartbeat timeout and starts a new one.
      */
-    private refreshHeartbeatTimeout;
-    private refreshHeartbeatAckTimeout;
-    /** Checks if heartbeat ack was received. */
-    private checkHeartbeatAck;
-    private handleMissedHeartbeatAck;
-    private allowMissingAckOnStartup;
+    private setHeartbeatTimer;
     private sendHeartbeat;
-    private _sendHeartbeat;
-    /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
-    private handleHeartbeatAck;
+    /** Checks if heartbeat ack was received. */
+    private timeoutShard;
     /** Connects to gateway. */
     private connect;
     /** Sends a "Resume" payload to Discord's gateway. */
@@ -1591,10 +1588,10 @@ export declare interface GatewayOptions {
     wsParams: GatewayURLQueryStringParam;
     /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
     heartbeatIntervalOffset?: undefined | number;
-    /** Number of heartbeats to allow without ACK during start up before killing the connection and trying again.  */
-    startupHeartbeatTolerance?: undefined | number;
+    /** How long to wait after a heartbeat ack before timing out the shard. */
+    heartbeatTimeoutSeconds?: undefined | number;
     /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
-    isStartingFunc?: undefined | StartupCheckFunction;
+    isStarting?: undefined | StartupCheckFunction;
     /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
     checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
     /** Discord gateway version to use. Default: 10 */
