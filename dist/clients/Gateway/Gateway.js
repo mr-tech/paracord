@@ -674,7 +674,7 @@ class Gateway {
      */
     startHeartbeat(heartbeatTimeout) {
         this.#hbAcked = true;
-        this.#hbIntervalTime = heartbeatTimeout - this.#hbIntervalOffset;
+        this.#hbIntervalTime = heartbeatTimeout - (this.#hbIntervalOffset * constants_1.SECOND_IN_MILLISECONDS);
         this.setHeartbeatTimer();
     }
     /**

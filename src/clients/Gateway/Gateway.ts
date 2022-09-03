@@ -812,7 +812,7 @@ export default class Gateway {
    */
   private startHeartbeat(heartbeatTimeout: number): void {
     this.#hbAcked = true;
-    this.#hbIntervalTime = heartbeatTimeout - this.#hbIntervalOffset;
+    this.#hbIntervalTime = heartbeatTimeout - (this.#hbIntervalOffset * SECOND_IN_MILLISECONDS);
     this.setHeartbeatTimer();
   }
 

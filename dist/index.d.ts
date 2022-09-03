@@ -1586,7 +1586,7 @@ export declare interface GatewayOptions {
     /** Websocket url to connect to. */
     wsUrl: string;
     wsParams: GatewayURLQueryStringParam;
-    /** Time (in ms) subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
+    /** Time in seconds subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
     heartbeatIntervalOffset?: undefined | number;
     /** How long to wait after a heartbeat ack before timing out the shard. */
     heartbeatTimeoutSeconds?: undefined | number;
