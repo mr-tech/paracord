@@ -16,7 +16,7 @@ export type Channel = {
   permission_overwrites?: Overwrite[];
   /** the name of the channel (1-100 characters) */
   name?: string | null;
-  /** the channel topic (0-1024 characters) */
+  /** the channel topic (0-4096 characters for `GUILD_FORUM` channels, 0-1024 characters for all others) */
   topic?: string | null;
   /** whether the channel is nsfw */
   nsfw?: boolean;
@@ -52,7 +52,7 @@ export type Channel = {
   thread_metadata?: ThreadMetadata;
   /** thread member object for the current user, if they have joined the thread, only included on certain API endpoints */
   member?: ThreadMember;
-  /** default duration that the clients (not the API) will use for newly created threads, in minutes, to automatically archive the thread after recent activity, can be set to: 60, 1440, 4320, 10080 */
+  /** default duration, copied onto newly created threads, in minutes, threads will stop showing in the channel list after the specified period of inactivity, can be set to: 60, 1440, 4320, 10080 */
   default_auto_archive_duration?: number;
   /** computed permissions for the invoking user in the channel, including overwrites, only included when part of the `resolved` data received on a slash command interaction */
   permissions?: string;
@@ -60,6 +60,14 @@ export type Channel = {
   flags?: number;
   /** number of messages ever sent in a thread, it's similar to `message_count` on message creation, but will not decrement the number when a message is deleted */
   total_message_sent?: number;
+  /** the set of tags that can be used in a `GUILD_FORUM` channel */
+  available_tags?: ForumTag[];
+  /** the IDs of the set of tags that have been applied to a thread in a `GUILD_FORUM` channel */
+  applied_tags?: Snowflake[];
+  /** the emoji to show in the add reaction button on a thread in a `GUILD_FORUM` channel */
+  default_reaction_emoji?: DefaultReaction | null;
+  /** the initial `rate_limit_per_user` to set on newly created threads in a channel. this field is copied to the thread at creation time and does not live update. */
+  default_thread_rate_limit_per_user?: number;
 };
 
 // ========================================================================
@@ -75,13 +83,13 @@ export type ChannelType =
   3 |
   /** GUILD_CATEGORY */
   4 |
-  /** GUILD_ANNOUNCEMENT */
+  /** ANNOUNCEMENT */
   5 |
-  /** GUILD_ANNOUNCEMENT_THREAD */
+  /** ANNOUNCEMENT_THREAD */
   10 |
-  /** GUILD_PUBLIC_THREAD */
+  /** PUBLIC_THREAD */
   11 |
-  /** GUILD_PRIVATE_THREAD */
+  /** PRIVATE_THREAD */
   12 |
   /** GUILD_STAGE_VOICE */
   13 |
@@ -102,7 +110,8 @@ export type VideoQualityMode = [
 // ========================================================================
 
 export enum ChannelFlags {
-  PINNED = 1 << 1
+  PINNED = 1 << 1,
+  REQUIRE_TAG = 1 << 4
 }
 
 // ========================================================================
@@ -303,7 +312,7 @@ export type Overwrite = {
 export type ThreadMetadata = {
   /** whether the thread is archived */
   archived: boolean;
-  /** duration in minutes to automatically archive the thread after recent activity, can be set to: 60, 1440, 4320, 10080 */
+  /** the thread will stop showing in the channel list after `auto_archive_duration` minutes of inactivity, can be set to: 60, 1440, 4320, 10080 */
   auto_archive_duration: number;
   /** timestamp when the thread's archive status was last changed, used for calculating recent activity */
   archive_timestamp: ISO8601timestamp;
@@ -326,6 +335,30 @@ export type ThreadMember = {
   join_timestamp: ISO8601timestamp;
   /** any user-thread settings, currently only used for notifications */
   flags: number;
+};
+
+// ========================================================================
+
+export type DefaultReaction = {
+  /** the id of a guild's custom emoji */
+  emoji_id: Snowflake;
+  /** the unicode character of the emoji */
+  emoji_name: string | null;
+};
+
+// ========================================================================
+
+export type ForumTag = {
+  /** the id of the tag */
+  id: Snowflake;
+  /** the name of the tag (0-20 characters) */
+  name: string;
+  /** whether this tag can only be added to or removed from threads by a member with the `MANAGE_THREADS` permission */
+  moderated: boolean;
+  /** the id of a guild's custom emoji */
+  emoji_id: Snowflake;
+  /** the unicode character of the emoji */
+  emoji_name: string | null;
 };
 
 // ========================================================================

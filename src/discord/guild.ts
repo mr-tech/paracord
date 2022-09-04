@@ -1,6 +1,5 @@
 import type {
-  ISO8601timestamp, Channel, Emoji, Presence,
-  Role, User, VoiceState, Snowflake, Application, GuildScheduledEvent, Sticker, StageInstance, VoiceRegion,
+  ISO8601timestamp, Channel, Emoji, Role, User, Snowflake, Application, Sticker, VoiceRegion,
 } from '.';
 
 export type Guild = {
@@ -54,24 +53,6 @@ export type Guild = {
   system_channel_flags: SystemChannelFlags;
   /** the id of the channel where Community guilds can display rules and/or guidelines */
   rules_channel_id: Snowflake | null;
-  /** when this guild was joined at */
-  joined_at?: ISO8601timestamp;
-  /** true if this is considered a large guild */
-  large?: boolean;
-  /** true if this guild is unavailable due to an outage */
-  unavailable?: boolean;
-  /** total number of members in this guild */
-  member_count?: number;
-  /** states of members currently in voice channels; lacks the `guild_id` key */
-  voice_states?: Partial<VoiceState>[];
-  /** users in the guild */
-  members?: GuildMember[];
-  /** channels in the guild */
-  channels?: Channel[];
-  /** all active threads in the guild that current user has permission to view */
-  threads?: Channel[];
-  /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
-  presences?: Partial<Presence>[];
   /** the maximum number of presences for the guild (`null` is always returned, apart from the largest of guilds) */
   max_presences?: number | null;
   /** the maximum number of members for the guild */
@@ -100,12 +81,8 @@ export type Guild = {
   welcome_screen?: WelcomeScreen;
   /** guild NSFW level */
   nsfw_level: GuildNSFWLevel;
-  /** Stage instances in the guild */
-  stage_instances?: StageInstance[];
   /** custom guild stickers */
   stickers?: Sticker[];
-  /** the scheduled events in the guild */
-  guild_scheduled_events?: GuildScheduledEvent[];
   /** whether the guild has the boost progress bar enabled */
   premium_progress_bar_enabled: boolean;
 };
@@ -190,10 +167,10 @@ export type GuildFeatureType =
   'ANIMATED_BANNER' |
   /** guild has access to set an animated guild icon */
   'ANIMATED_ICON' |
+  /** guild has set up auto moderation rules */
+  'AUTO_MODERATION' |
   /** guild has access to set a guild banner image */
   'BANNER' |
-  /** guild has access to use commerce features (i.e. create store channels) */
-  'COMMERCE' |
   /** guild can enable welcome screen, Membership Screening, stage channels and discovery, and receives community updates */
   'COMMUNITY' |
   /** guild is able to be discovered in the directory */
@@ -208,7 +185,7 @@ export type GuildFeatureType =
   'MONETIZATION_ENABLED' |
   /** guild has increased custom sticker slots */
   'MORE_STICKERS' |
-  /** guild has access to create news channels */
+  /** guild has access to create announcement channels */
   'NEWS' |
   /** guild is partnered */
   'PARTNERED' |
@@ -218,10 +195,6 @@ export type GuildFeatureType =
   'PRIVATE_THREADS' |
   /** guild is able to set role icons */
   'ROLE_ICONS' |
-  /** guild has access to the seven day archive time for threads */
-  'SEVEN_DAY_THREAD_ARCHIVE' |
-  /** guild has access to the three day archive time for threads */
-  'THREE_DAY_THREAD_ARCHIVE' |
   /** guild has enabled ticketed events */
   'TICKETED_EVENTS_ENABLED' |
   /** guild has access to set a vanity URL */
@@ -271,7 +244,7 @@ export type GuildWidgetSetting = {
 
 // ========================================================================
 
-export type GetGuildWidget = {
+export type GuildWidget = {
   /** guild id */
   id: Snowflake;
   /** guild name (2-100 characters) */
@@ -346,6 +319,8 @@ export type Integration = {
   revoked?: boolean;
   /** The bot/OAuth2 application for discord integrations */
   application?: Application;
+  /** the scopes the application has been authorized for */
+  scopes?: string[];
 };
 
 // ========================================================================

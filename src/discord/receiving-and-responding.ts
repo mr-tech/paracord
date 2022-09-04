@@ -1,6 +1,6 @@
 import type {
   Snowflake, GuildMember, User, Role, Attachment, AllowedMention, Channel, Embed, MessageComponent,
-  SelectOption, ApplicationCommandInteractionDataOption, Message, ApplicationCommandOptionChoice,
+  SelectOption, Message, ApplicationCommandOptionChoice,
   ComponentType, ApplicationCommandOptionType, MessageFlags, Component,
 } from '.';
 
@@ -76,7 +76,7 @@ export type MessageComponentData = {
   /** the type of the component */
   component_type: ComponentType;
   /** values the user selected in a select menu component */
-  values?: string[];
+  values?: SelectOption[];
 };
 
 // ========================================================================
@@ -103,6 +103,21 @@ export type ResolvedData = {
   messages?: Record<Snowflake, Partial<Message>>;
   /** the ids and attachment objects */
   attachments?: Record<Snowflake, Attachment>;
+};
+
+// ========================================================================
+
+export type ApplicationCommandInteractionDataOption = {
+  /** Name of the parameter */
+  name: string;
+  /** Value of application command option type */
+  type: ApplicationCommandOptionType;
+  /** Value of the option resulting from user input */
+  value?: string | number;
+  /** Present if this option is a group or subcommand */
+  options?: ApplicationCommandInteractionDataOption[];
+  /** `true` if this option is the currently focused option for autocomplete */
+  focused?: boolean;
 };
 
 // ========================================================================

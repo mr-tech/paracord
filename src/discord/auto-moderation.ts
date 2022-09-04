@@ -30,8 +30,6 @@ export type AutoModerationRule = {
 export type TriggerType =
   /** KEYWORD */
   1 |
-  /** HARMFUL_LINK */
-  2 |
   /** SPAM */
   3 |
   /** KEYWORD_PRESET */

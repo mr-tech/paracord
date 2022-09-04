@@ -5,6 +5,7 @@ exports.MessageFlags = exports.ChannelFlags = void 0;
 var ChannelFlags;
 (function (ChannelFlags) {
     ChannelFlags[ChannelFlags["PINNED"] = 2] = "PINNED";
+    ChannelFlags[ChannelFlags["REQUIRE_TAG"] = 16] = "REQUIRE_TAG";
 })(ChannelFlags = exports.ChannelFlags || (exports.ChannelFlags = {}));
 // ========================================================================
 var MessageFlags;

@@ -53,7 +53,8 @@ export enum ApplicationFlags {
   VERIFICATION_PENDING_GUILD_LIMIT = 1 << 16,
   EMBEDDED = 1 << 17,
   GATEWAY_MESSAGE_CONTENT = 1 << 18,
-  GATEWAY_MESSAGE_CONTENT_LIMITED = 1 << 19
+  GATEWAY_MESSAGE_CONTENT_LIMITED = 1 << 19,
+  APPLICATION_COMMAND_BADGE = 1 << 23
 }
 
 // ========================================================================

@@ -12,4 +12,5 @@ var ApplicationFlags;
     ApplicationFlags[ApplicationFlags["EMBEDDED"] = 131072] = "EMBEDDED";
     ApplicationFlags[ApplicationFlags["GATEWAY_MESSAGE_CONTENT"] = 262144] = "GATEWAY_MESSAGE_CONTENT";
     ApplicationFlags[ApplicationFlags["GATEWAY_MESSAGE_CONTENT_LIMITED"] = 524288] = "GATEWAY_MESSAGE_CONTENT_LIMITED";
+    ApplicationFlags[ApplicationFlags["APPLICATION_COMMAND_BADGE"] = 8388608] = "APPLICATION_COMMAND_BADGE";
 })(ApplicationFlags = exports.ApplicationFlags || (exports.ApplicationFlags = {}));

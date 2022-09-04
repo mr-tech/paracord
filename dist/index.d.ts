@@ -584,7 +584,8 @@ export declare enum ApplicationFlags {
     VERIFICATION_PENDING_GUILD_LIMIT = 65536,
     EMBEDDED = 131072,
     GATEWAY_MESSAGE_CONTENT = 262144,
-    GATEWAY_MESSAGE_CONTENT_LIMITED = 524288
+    GATEWAY_MESSAGE_CONTENT_LIMITED = 524288,
+    APPLICATION_COMMAND_BADGE = 8388608
 }
 
 export declare type Attachment = {
@@ -611,6 +612,8 @@ export declare type Attachment = {
 };
 
 export declare type AuditLog = {
+    /** List of application commands referenced in the audit log */
+    application_commands: ApplicationCommand[];
     /** List of audit log entries, sorted from most to least recent */
     audit_log_entries: AuditLogEntry[];
     /** List of auto moderation rules referenced in the audit log */
@@ -952,7 +955,7 @@ export declare type Channel = {
     permission_overwrites?: Overwrite[];
     /** the name of the channel (1-100 characters) */
     name?: string | null;
-    /** the channel topic (0-1024 characters) */
+    /** the channel topic (0-4096 characters for `GUILD_FORUM` channels, 0-1024 characters for all others) */
     topic?: string | null;
     /** whether the channel is nsfw */
     nsfw?: boolean;
@@ -988,7 +991,7 @@ export declare type Channel = {
     thread_metadata?: ThreadMetadata;
     /** thread member object for the current user, if they have joined the thread, only included on certain API endpoints */
     member?: ThreadMember;
-    /** default duration that the clients (not the API) will use for newly created threads, in minutes, to automatically archive the thread after recent activity, can be set to: 60, 1440, 4320, 10080 */
+    /** default duration, copied onto newly created threads, in minutes, threads will stop showing in the channel list after the specified period of inactivity, can be set to: 60, 1440, 4320, 10080 */
     default_auto_archive_duration?: number;
     /** computed permissions for the invoking user in the channel, including overwrites, only included when part of the `resolved` data received on a slash command interaction */
     permissions?: string;
@@ -996,6 +999,14 @@ export declare type Channel = {
     flags?: number;
     /** number of messages ever sent in a thread, it's similar to `message_count` on message creation, but will not decrement the number when a message is deleted */
     total_message_sent?: number;
+    /** the set of tags that can be used in a `GUILD_FORUM` channel */
+    available_tags?: ForumTag[];
+    /** the IDs of the set of tags that have been applied to a thread in a `GUILD_FORUM` channel */
+    applied_tags?: Snowflake[];
+    /** the emoji to show in the add reaction button on a thread in a `GUILD_FORUM` channel */
+    default_reaction_emoji?: DefaultReaction | null;
+    /** the initial `rate_limit_per_user` to set on newly created threads in a channel. this field is copied to the thread at creation time and does not live update. */
+    default_thread_rate_limit_per_user?: number;
 };
 
 export declare type CHANNEL_CREATE_EVENT = GuildChannel;
@@ -1007,7 +1018,8 @@ export declare type CHANNEL_PINS_UPDATE_EVENT = ChannelPinsUpdateEventField;
 export declare type CHANNEL_UPDATE_EVENT = GuildChannel;
 
 export declare enum ChannelFlags {
-    PINNED = 2
+    PINNED = 2,
+    REQUIRE_TAG = 16
 }
 
 export declare type ChannelMention = {
@@ -1041,13 +1053,13 @@ export declare type ChannelType =
 3 | 
 /** GUILD_CATEGORY */
 4 | 
-/** GUILD_ANNOUNCEMENT */
+/** ANNOUNCEMENT */
 5 | 
-/** GUILD_ANNOUNCEMENT_THREAD */
+/** ANNOUNCEMENT_THREAD */
 10 | 
-/** GUILD_PUBLIC_THREAD */
+/** PUBLIC_THREAD */
 11 | 
-/** GUILD_PRIVATE_THREAD */
+/** PRIVATE_THREAD */
 12 | 
 /** GUILD_STAGE_VOICE */
 13 | 
@@ -1161,6 +1173,13 @@ export declare type DefaultMessageNotificationLevel =
 0 | 
 /** ONLY_MENTIONS */
 1;
+
+export declare type DefaultReaction = {
+    /** the id of a guild's custom emoji */
+    emoji_id: Snowflake;
+    /** the unicode character of the emoji */
+    emoji_name: string | null;
+};
 
 export declare const DISCORD_API_DEFAULT_VERSION = 10;
 
@@ -1311,6 +1330,19 @@ export declare type FollowedChannel = {
     channel_id: Snowflake;
     /** created target webhook id */
     webhook_id: Snowflake;
+};
+
+export declare type ForumTag = {
+    /** the id of the tag */
+    id: Snowflake;
+    /** the name of the tag (0-20 characters) */
+    name: string;
+    /** whether this tag can only be added to or removed from threads by a member with the `MANAGE_THREADS` permission */
+    moderated: boolean;
+    /** the id of a guild's custom emoji */
+    emoji_id: Snowflake;
+    /** the unicode character of the emoji */
+    emoji_name: string | null;
 };
 
 /** A client to handle a Discord gateway connection. */
@@ -1651,21 +1683,6 @@ export declare type GatewayVoiceStateUpdate = {
     self_deaf: boolean;
 };
 
-export declare type GetGuildWidget = {
-    /** guild id */
-    id: Snowflake;
-    /** guild name (2-100 characters) */
-    name: string;
-    /** instant invite for the guilds specified widget invite channel */
-    instant_invite: string | null;
-    /** voice and stage channels which are accessible by @everyone */
-    channels: Partial<Channel>[];
-    /** special widget user objects that includes users presence (Limit 100) */
-    members: Partial<User>[];
-    /** number of online members in this guild */
-    presence_count: number;
-};
-
 export declare const GIGABYTE_IN_BYTES = 1073741824;
 
 export declare type Guild = {
@@ -1719,24 +1736,6 @@ export declare type Guild = {
     system_channel_flags: SystemChannelFlags;
     /** the id of the channel where Community guilds can display rules and/or guidelines */
     rules_channel_id: Snowflake | null;
-    /** when this guild was joined at */
-    joined_at?: ISO8601timestamp;
-    /** true if this is considered a large guild */
-    large?: boolean;
-    /** true if this guild is unavailable due to an outage */
-    unavailable?: boolean;
-    /** total number of members in this guild */
-    member_count?: number;
-    /** states of members currently in voice channels; lacks the `guild_id` key */
-    voice_states?: Partial<VoiceState>[];
-    /** users in the guild */
-    members?: GuildMember[];
-    /** channels in the guild */
-    channels?: Channel[];
-    /** all active threads in the guild that current user has permission to view */
-    threads?: Channel[];
-    /** presences of the members in the guild, will only include non-offline members if the size is greater than `large threshold` */
-    presences?: Partial<Presence>[];
     /** the maximum number of presences for the guild (`null` is always returned, apart from the largest of guilds) */
     max_presences?: number | null;
     /** the maximum number of members for the guild */
@@ -1765,12 +1764,8 @@ export declare type Guild = {
     welcome_screen?: WelcomeScreen;
     /** guild NSFW level */
     nsfw_level: GuildNSFWLevel;
-    /** Stage instances in the guild */
-    stage_instances?: StageInstance[];
     /** custom guild stickers */
     stickers?: Sticker[];
-    /** the scheduled events in the guild */
-    guild_scheduled_events?: GuildScheduledEvent[];
     /** whether the guild has the boost progress bar enabled */
     premium_progress_bar_enabled: boolean;
 };
@@ -1779,7 +1774,7 @@ export declare type GUILD_BAN_ADD_EVENT = GuildBanAddEventField;
 
 export declare type GUILD_BAN_REMOVE_EVENT = GuildBanRemoveEventField;
 
-export declare type GUILD_CREATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' | 'afk_timeout' | 'application_id' | 'banner' | 'default_message_notifications' | 'description' | 'discovery_splash' | 'emojis' | 'guild_scheduled_events' | 'features' | 'icon' | 'id' | 'joined_at' | 'large' | 'max_members' | 'max_video_channel_users' | 'member_count' | 'mfa_level' | 'name' | 'nsfw_level' | 'owner_id' | 'preferred_locale' | 'premium_subscription_count' | 'premium_progress_bar_enabled' | 'premium_tier' | 'public_updates_channel_id' | 'region' | 'roles' | 'rules_channel_id' | 'splash' | 'stage_instances' | 'stickers' | 'system_channel_id' | 'vanity_url_code' | 'verification_level'> & Omit<GuildCreateExtraField, 'voice_states' | 'members' | 'channels' | 'threads' | 'presences'> & {
+export declare type GUILD_CREATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' | 'afk_timeout' | 'application_id' | 'banner' | 'default_message_notifications' | 'description' | 'discovery_splash' | 'emojis' | 'features' | 'icon' | 'id' | 'max_members' | 'max_video_channel_users' | 'mfa_level' | 'name' | 'nsfw_level' | 'owner_id' | 'preferred_locale' | 'premium_subscription_count' | 'premium_progress_bar_enabled' | 'premium_tier' | 'public_updates_channel_id' | 'region' | 'roles' | 'rules_channel_id' | 'splash' | 'stickers' | 'system_channel_id' | 'vanity_url_code' | 'verification_level'> & Omit<GuildCreateExtraField, 'voice_states' | 'members' | 'channels' | 'threads' | 'presences'> & {
     voice_states: Pick<VoiceState, 'user_id' | 'channel_id' | 'suppress' | 'session_id' | 'self_video' | 'self_mute' | 'self_deaf' | 'request_to_speak_timestamp' | 'mute' | 'deaf'>[];
     members: AugmentedGuildMember[];
     channels: Omit<GuildChannel, 'guild_id'>[];
@@ -1907,10 +1902,10 @@ export declare type GuildFeatureType =
 'ANIMATED_BANNER' | 
 /** guild has access to set an animated guild icon */
 'ANIMATED_ICON' | 
+/** guild has set up auto moderation rules */
+'AUTO_MODERATION' | 
 /** guild has access to set a guild banner image */
 'BANNER' | 
-/** guild has access to use commerce features (i.e. create store channels) */
-'COMMERCE' | 
 /** guild can enable welcome screen, Membership Screening, stage channels and discovery, and receives community updates */
 'COMMUNITY' | 
 /** guild is able to be discovered in the directory */
@@ -1925,7 +1920,7 @@ export declare type GuildFeatureType =
 'MONETIZATION_ENABLED' | 
 /** guild has increased custom sticker slots */
 'MORE_STICKERS' | 
-/** guild has access to create news channels */
+/** guild has access to create announcement channels */
 'NEWS' | 
 /** guild is partnered */
 'PARTNERED' | 
@@ -1935,10 +1930,6 @@ export declare type GuildFeatureType =
 'PRIVATE_THREADS' | 
 /** guild is able to set role icons */
 'ROLE_ICONS' | 
-/** guild has access to the seven day archive time for threads */
-'SEVEN_DAY_THREAD_ARCHIVE' | 
-/** guild has access to the three day archive time for threads */
-'THREE_DAY_THREAD_ARCHIVE' | 
 /** guild has enabled ticketed events */
 'TICKETED_EVENTS_ENABLED' | 
 /** guild has access to set a vanity URL */
@@ -2241,6 +2232,21 @@ export declare type GuildVoiceChannel = {
     name: string;
 } & Pick<Required<Channel>, 'bitrate' | 'guild_id' | 'id' | 'last_message_id' | 'parent_id' | 'permission_overwrites' | 'position' | 'rate_limit_per_user' | 'rtc_region' | 'type' | 'user_limit'>;
 
+export declare type GuildWidget = {
+    /** guild id */
+    id: Snowflake;
+    /** guild name (2-100 characters) */
+    name: string;
+    /** instant invite for the guilds specified widget invite channel */
+    instant_invite: string | null;
+    /** voice and stage channels which are accessible by @everyone */
+    channels: Partial<Channel>[];
+    /** special widget user objects that includes users presence (Limit 100) */
+    members: Partial<User>[];
+    /** number of online members in this guild */
+    presence_count: number;
+};
+
 export declare type GuildWidgetSetting = {
     /** whether the widget is enabled */
     enabled: boolean;
@@ -2362,6 +2368,8 @@ export declare type Integration = {
     revoked?: boolean;
     /** The bot/OAuth2 application for discord integrations */
     application?: Application;
+    /** the scopes the application has been authorized for */
+    scopes?: string[];
 };
 
 export declare type INTEGRATION_CREATE_EVENT = Integration & IntegrationCreateEventAdditionalField;
@@ -2815,7 +2823,7 @@ export declare type MessageComponentData = {
     /** the type of the component */
     component_type: ComponentType;
     /** values the user selected in a select menu component */
-    values?: string[];
+    values?: SelectOption[];
 };
 
 export declare type MessageCreateExtraField = {
@@ -4123,7 +4131,7 @@ export declare type ThreadMemberUpdateEventExtraField = {
 export declare type ThreadMetadata = {
     /** whether the thread is archived */
     archived: boolean;
-    /** duration in minutes to automatically archive the thread after recent activity, can be set to: 60, 1440, 4320, 10080 */
+    /** the thread will stop showing in the channel list after `auto_archive_duration` minutes of inactivity, can be set to: 60, 1440, 4320, 10080 */
     auto_archive_duration: number;
     /** timestamp when the thread's archive status was last changed, used for calculating recent activity */
     archive_timestamp: ISO8601timestamp;
@@ -4167,8 +4175,6 @@ export declare type TriggerMetadata = {
 export declare type TriggerType = 
 /** KEYWORD */
 1 | 
-/** HARMFUL_LINK */
-2 | 
 /** SPAM */
 3 | 
 /** KEYWORD_PRESET */

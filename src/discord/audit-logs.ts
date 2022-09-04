@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
-  User, Integration, Snowflake, Channel, Webhook, GuildScheduledEvent, AutoModerationRule,
+  User, Integration, Snowflake, Channel, Webhook, GuildScheduledEvent, AutoModerationRule, ApplicationCommand,
 } from '.';
 
 export type AuditLog = {
+  /** List of application commands referenced in the audit log */
+  application_commands: ApplicationCommand[];
   /** List of audit log entries, sorted from most to least recent */
   audit_log_entries: AuditLogEntry[];
   /** List of auto moderation rules referenced in the audit log */

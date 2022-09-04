@@ -58,15 +58,11 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'description' |
 'discovery_splash' |
 'emojis' |
-'guild_scheduled_events' |
 'features' |
 'icon' |
 'id' |
-'joined_at' |
-'large' |
 'max_members' |
 'max_video_channel_users' |
-'member_count' |
 'mfa_level' |
 'name' |
 'nsfw_level' |
@@ -80,7 +76,6 @@ export type GUILD_CREATE_EVENT = Pick<Required<Guild>,
 'roles' |
 'rules_channel_id' |
 'splash' |
-'stage_instances' |
 'stickers' |
 'system_channel_id' |
 'vanity_url_code' |

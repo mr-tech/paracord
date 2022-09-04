@@ -111,21 +111,6 @@ export type ApplicationCommandOptionChoice = {
 
 // ========================================================================
 
-export type ApplicationCommandInteractionDataOption = {
-  /** Name of the parameter */
-  name: string;
-  /** Value of application command option type */
-  type: ApplicationCommandOptionType;
-  /** Value of the option resulting from user input */
-  value?: string | number;
-  /** Present if this option is a group or subcommand */
-  options?: ApplicationCommandInteractionDataOption[];
-  /** `true` if this option is the currently focused option for autocomplete */
-  focused?: boolean;
-};
-
-// ========================================================================
-
 export type GuildApplicationCommandPermission = {
   /** ID of the command or the application ID */
   id: Snowflake;
