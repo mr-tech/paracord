@@ -2815,7 +2815,7 @@ export declare type MessageComponentData = {
     /** the type of the component */
     component_type: ComponentType;
     /** values the user selected in a select menu component */
-    values?: SelectOption[];
+    values?: string[];
 };
 
 export declare type MessageCreateExtraField = {
