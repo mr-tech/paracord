@@ -18,7 +18,7 @@ import {
 import type { DebugLevel } from '../../@types';
 import type {
   ApiOptions, RateLimitState, RequestOptions, ApiResponse,
-  ServiceOptions, ResponseData, WrappedRequest, RateLimitedResponse,
+  ServiceOptions, WrappedRequest, RateLimitedResponse,
   ApiDebugEvent, ApiDebugData,
 } from './types';
 
@@ -410,7 +410,7 @@ export default class Api {
    * @param options Optional parameters for a Discord REST request.
    * @returns Response to the request made.
    */
-  public request = async <T extends ResponseData = any>(method: Method, url: string, options: RequestOptions = {}): Promise<ApiResponse<T> | RemoteApiResponse<T>> => {
+  public request = async <T = any>(method: Method, url: string, options: RequestOptions = {}): Promise<ApiResponse<T> | RemoteApiResponse<T>> => {
     const merged = { ...this.#defaultRequestOptions, ...options };
     const { local, validateStatus = validateStatusDefault }: RequestOptions = merged;
 
@@ -444,7 +444,7 @@ export default class Api {
    * Sends the request to the rpc server for handling.
    * @param request ApiRequest being made.
    */
-  private async handleRequestRemote<T extends ResponseData>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
+  private async handleRequestRemote<T>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {
         const message = 'Client is connecting to RPC server. Falling back to handling request locally.';
@@ -473,11 +473,11 @@ export default class Api {
    * Determines how the request will be made based on the client's options and makes it.
    * @param request ApiRequest being made,
    */
-  public async sendRequest <T extends ResponseData>(request: ApiRequest): Promise<ApiResponse<T>>
+  public async sendRequest <T>(request: ApiRequest): Promise<ApiResponse<T>>
 
-  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>
+  public async sendRequest <T>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>
 
-  public async sendRequest <T extends ResponseData>(request: ApiRequest, fromQueue?: boolean): Promise<string | ApiResponse<T>> {
+  public async sendRequest <T>(request: ApiRequest, fromQueue?: boolean): Promise<string | ApiResponse<T>> {
     ++this.#inFlight;
 
     let reason;
@@ -587,7 +587,7 @@ export default class Api {
    * @param headers Response headers.
    * @param request Request being sent.
    */
-  private async handleRateLimitResponse<T extends ResponseData>(
+  private async handleRateLimitResponse<T>(
     request: ApiRequest,
     response: RateLimitedResponse,
     headers: RateLimitHeaders,
@@ -620,7 +620,7 @@ export default class Api {
    * @param request The Api Request to queue.
    * @returns Resolves as the response to the request.
    */
-  private queueRequest<T extends ResponseData>(request: ApiRequest, reason: string): Promise<ApiResponse<T>> {
+  private queueRequest<T>(request: ApiRequest, reason: string): Promise<ApiResponse<T>> {
     const message = 'Queuing request.';
     this.log('DEBUG', 'REQUEST_QUEUED', message, { request, reason });
 

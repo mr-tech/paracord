@@ -216,7 +216,7 @@ export declare class Api {
      * @param options Optional parameters for a Discord REST request.
      * @returns Response to the request made.
      */
-    request: <T extends ResponseData = any>(method: Method, url: string, options?: RequestOptions) => Promise<ApiResponse<T> | RemoteApiResponse<T>>;
+    request: <T = any>(method: Method, url: string, options?: RequestOptions) => Promise<ApiResponse<T> | RemoteApiResponse<T>>;
     /**
      * Sends the request to the rpc server for handling.
      * @param request ApiRequest being made.
@@ -226,8 +226,8 @@ export declare class Api {
      * Determines how the request will be made based on the client's options and makes it.
      * @param request ApiRequest being made,
      */
-    sendRequest<T extends ResponseData>(request: ApiRequest): Promise<ApiResponse<T>>;
-    sendRequest<T extends ResponseData>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>;
+    sendRequest<T>(request: ApiRequest): Promise<ApiResponse<T>>;
+    sendRequest<T>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>;
     /**
      * Gets authorization from the server to make the request.
      * @param request ApiRequest being made.
@@ -373,7 +373,7 @@ export declare class ApiRequest extends BaseRequest {
     assignIfStricter(waitUntil: number): void;
 }
 
-export declare interface ApiResponse<T extends ResponseData = any> {
+export declare interface ApiResponse<T = any> {
     /** The HTTP status code of the response. */
     status: number;
     /** Status message returned by the server. (e.g. "OK" with a 200 status) */
@@ -3474,7 +3474,7 @@ export declare type ReadyEventField = {
     application: Partial<Application>;
 };
 
-export declare type RemoteApiResponse<T extends ResponseData = any> = {
+export declare type RemoteApiResponse<T = any> = {
     /** The HTTP status code of the response. */
     status: number;
     /** Status message returned by the server. (e.g. "OK" with a 200 status) */
@@ -3553,7 +3553,7 @@ declare class RequestService extends RequestService_base {
     /** Check for healthy connection. */
     hello(): Promise<void>;
     /** Sends the information to make a request to Discord to the server. returning a promise with the response. */
-    request<T extends ResponseData>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
+    request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
 }
 
 declare const RequestService_base: any;
@@ -3572,8 +3572,6 @@ export declare type ResolvedData = {
     /** the ids and attachment objects */
     attachments?: Record<Snowflake, Attachment>;
 };
-
-export declare type ResponseData = Record<string, any> | Array<unknown>;
 
 export declare type Resume = {
     /** session token */
@@ -4410,7 +4408,7 @@ export declare type WelcomeScreenChannel = {
 };
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
-export declare type WrappedRequest<T extends ResponseData = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;
+export declare type WrappedRequest<T = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;
 
 export declare const ZLIB_CHUNKS_SIZE = 65535;
 

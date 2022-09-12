@@ -6,7 +6,7 @@ import RateLimitTemplateMap from './RateLimitTemplateMap';
 
 import type { AxiosInstance } from 'axios';
 import type Api from '../Api';
-import type { RateLimitState, ResponseData, WrappedRequest } from '../types';
+import type { RateLimitState, WrappedRequest } from '../types';
 import type ApiRequest from './ApiRequest';
 import type BaseRequest from './BaseRequest';
 import type RateLimit from './RateLimit';
@@ -88,7 +88,7 @@ export default class RateLimitCache {
 
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
   public wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest {
-    const wrappedRequest = async <T extends ResponseData>(request: ApiRequest) => {
+    const wrappedRequest = async <T>(request: ApiRequest) => {
       const rateLimit = this.getRateLimitFromCache(request);
 
       if (rateLimit !== undefined) {

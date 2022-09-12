@@ -57,7 +57,7 @@ export interface RequestOptions {
 }
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
-export type WrappedRequest<T extends ResponseData = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;
+export type WrappedRequest<T = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;
 
 /** The known state of a rate limit. */
 export type IncomingRateLimit = {
@@ -79,9 +79,8 @@ export interface ServiceOptions {
   allowFallback?: boolean;
 }
 
-export type ResponseData = Record<string, any> | Array<unknown>;
 // Request Service
-export interface ApiResponse<T extends ResponseData = any> {
+export interface ApiResponse<T = any> {
   /** The HTTP status code of the response. */
   status: number;
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */

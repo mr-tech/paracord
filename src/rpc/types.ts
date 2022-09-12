@@ -1,7 +1,7 @@
 import type { EventEmitter } from 'events';
 import type { Method } from 'axios';
 import type { ServerCredentials, ServiceError } from '@grpc/grpc-js';
-import type { Api, ResponseData } from '../clients';
+import type { Api } from '../clients';
 
 export interface RpcServerOptions{
   host?: string;
@@ -87,7 +87,7 @@ export type RequestMetaProto = {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type RemoteApiResponse<T extends ResponseData = any> = {
+export type RemoteApiResponse<T = any> = {
   /** The HTTP status code of the response. */
   status: number;
   /** Status message returned by the server. (e.g. "OK" with a 200 status) */

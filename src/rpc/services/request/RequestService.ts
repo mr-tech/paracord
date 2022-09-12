@@ -2,7 +2,7 @@ import { RequestMessage, ResponseMessage } from '../../structures';
 import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
 
 import type { GrpcObject, ServiceError } from '@grpc/grpc-js';
-import type { ApiRequest, ResponseData } from '../../../clients';
+import type { ApiRequest } from '../../../clients';
 import type { IServerOptions } from '../../../@types';
 import type { RemoteApiResponse, ResponseProto } from '../../types';
 
@@ -48,7 +48,7 @@ export default class RequestService extends (definition.RequestService as any) {
   }
 
   /** Sends the information to make a request to Discord to the server. returning a promise with the response. */
-  public request<T extends ResponseData>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>> {
+  public request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>> {
     const message = new RequestMessage(apiRequest).proto;
 
     return new Promise((resolve, reject) => {
