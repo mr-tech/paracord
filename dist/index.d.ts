@@ -1859,7 +1859,7 @@ export declare type GuildCategoryChannel = {
     name: string;
 } & Pick<Required<Channel>, 'guild_id' | 'id' | 'nsfw' | 'parent_id' | 'permission_overwrites' | 'position' | 'type'>;
 
-export declare type GuildChannel = GuildTextChannel | GuildVoiceChannel | GuildCategoryChannel | GuildNewsChannel | GuildStageVoiceChannel;
+export declare type GuildChannel = GuildTextChannel | GuildVoiceChannel | GuildCategoryChannel | GuildNewsChannel | GuildStageVoiceChannel | GuildForumChannel;
 
 export declare type GuildCreateExtraField = {
     /** when this guild was joined at */
@@ -1940,6 +1940,11 @@ export declare type GuildFeatureType =
 'VIP_REGIONS' | 
 /** guild has enabled the welcome screen */
 'WELCOME_SCREEN_ENABLED';
+
+export declare type GuildForumChannel = {
+    type: 15;
+    name: string;
+} & Pick<Required<Channel>, 'guild_id' | 'id' | 'last_message_id' | 'position' | 'flags' | 'parent_id' | 'topic' | 'permission_overwrites' | 'rate_limit_per_user' | 'nsfw' | 'available_tags' | 'default_reaction_emoji'>;
 
 export declare type GuildIntegrationsUpdateEventField = {
     /** id of the guild whose integrations were updated */
@@ -2211,7 +2216,7 @@ export declare type GuildScheduledEventUserRemoveEventField = {
 export declare type GuildStageVoiceChannel = {
     type: 13;
     name: string;
-} & Pick<Required<Channel>, 'bitrate' | 'guild_id' | 'id' | 'nsfw' | 'parent_id' | 'permission_overwrites' | 'position' | 'rtc_region' | 'topic' | 'type' | 'user_limit'>;
+} & Pick<Required<Channel>, 'guild_id' | 'bitrate' | 'id' | 'nsfw' | 'parent_id' | 'permission_overwrites' | 'position' | 'rtc_region' | 'topic' | 'type' | 'user_limit'>;
 
 export declare type GuildStickersUpdateEventField = {
     /** id of the guild */
