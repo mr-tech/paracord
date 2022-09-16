@@ -336,12 +336,8 @@ class Gateway {
     };
     checkIfStarting = () => {
         this.#isStarting = !!this.#isStartingFunction?.(this);
-        if (!this.#isStarting) {
-            if (this.#hbAckTimeout)
-                clearTimeout(this.#hbAckTimeout);
-            if (this.#checkIfStartingInterval !== undefined)
-                clearInterval(this.#checkIfStartingInterval);
-        }
+        if (!this.#isStarting && this.#checkIfStartingInterval !== undefined)
+            clearInterval(this.#checkIfStartingInterval);
     };
     /*
      ********************************
@@ -695,11 +691,8 @@ class Gateway {
         }
     }
     sendHeartbeat = () => {
-        if (this.#hbAckTimeout === undefined) {
-            this.clearAckTimeout();
-            if (this.#hbIntervalTime && this.#hbAckWaitTime) {
-                this.#hbAckTimeout = setTimeout(this.timeoutShard, this.#hbIntervalTime + this.#hbAckWaitTime);
-            }
+        if (this.#hbAckTimeout === undefined && this.#hbIntervalTime && this.#hbAckWaitTime) {
+            this.#hbAckTimeout = setTimeout(this.timeoutShard, this.#hbIntervalTime + this.#hbAckWaitTime);
         }
         const now = new Date().getTime();
         if (this.#nextHbTimestamp !== undefined) {
