@@ -10,7 +10,7 @@ export default class RequestMessage {
   public url: string;
 
   /** Data to send in the body of the request. */
-  public data?: undefined | Record<string, unknown>;
+  public data?: undefined | unknown;
 
   /** Headers to send with the request. */
   public headers?: undefined | Record<string, unknown>;

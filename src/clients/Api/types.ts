@@ -26,7 +26,7 @@ export type RequestFormDataFunction = () => Pick<RequestOptions, 'headers' | 'pa
 /** Optional parameters for a Discord REST request. */
 export interface RequestOptions {
   /** Data to send in the body of the request. */
-  data?: Record<string, unknown> | undefined;
+  data?: unknown | undefined;
   /** Headers to send with the request. */
   headers?: Record<string, unknown> | undefined;
   /** Url params to send with the request. */

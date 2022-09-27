@@ -10,7 +10,7 @@ import type { RequestOptions, RequestFormDataFunction } from '../types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class ApiRequest extends BaseRequest {
   /** Data to send in the body of the request.  */
-  public data: Record<string, unknown> | undefined;
+  public data: unknown | undefined;
 
   /** Additional headers to send with the request. */
   public headers: Record<string, unknown> | undefined;

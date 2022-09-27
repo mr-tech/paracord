@@ -335,7 +335,7 @@ export declare interface ApiOptions {
  */
 export declare class ApiRequest extends BaseRequest {
     /** Data to send in the body of the request.  */
-    data: Record<string, unknown> | undefined;
+    data: unknown | undefined;
     /** Additional headers to send with the request. */
     headers: Record<string, unknown> | undefined;
     /** Additional params to send with the request. */
@@ -3497,7 +3497,7 @@ export declare type RequestFormDataFunction = () => Pick<RequestOptions, 'header
 /** Optional parameters for a Discord REST request. */
 export declare interface RequestOptions {
     /** Data to send in the body of the request. */
-    data?: Record<string, unknown> | undefined;
+    data?: unknown | undefined;
     /** Headers to send with the request. */
     headers?: Record<string, unknown> | undefined;
     /** Url params to send with the request. */
