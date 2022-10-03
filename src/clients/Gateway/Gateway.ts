@@ -5,12 +5,12 @@ import {
   GatewayCloseCode, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE,
   GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES,
   LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, SECOND_IN_MILLISECONDS,
-  ZLIB_CHUNKS_SIZE,
+  // ZLIB_CHUNKS_SIZE,
 } from '../../constants';
 
 import { GatewayIdentify } from './structures';
 
-import type ZlibSyncType from 'zlib-sync';
+// import type ZlibSyncType from 'zlib-sync';
 import type {
   GatewayEvent, GatewayPayload, GatewayURLQueryStringParam, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT,
   Hello, ReadyEventField, Resume,
@@ -22,15 +22,15 @@ import type {
   ParacordGatewayEvent,
 } from './types';
 
-let ZlibSync: null | typeof ZlibSyncType = null;
+// let ZlibSync: null | typeof ZlibSyncType = null;
 
-let Z_SYNC_FLUSH = 0;
-// eslint-disable-next-line import/no-unresolved
-import('zlib-sync')
-  .then((_zlib) => {
-    ZlibSync = _zlib;
-    ({ Z_SYNC_FLUSH } = _zlib);
-  }).catch(() => { /* do nothing */ });
+// let Z_SYNC_FLUSH = 0;
+// // eslint-disable-next-line import/no-unresolved
+// import('zlib-sync')
+//   .then((_zlib) => {
+//     ZlibSync = _zlib;
+//     ({ Z_SYNC_FLUSH } = _zlib);
+//   }).catch(() => { /* do nothing */ });
 
 interface GuildChunkState {
   receivedIndexes: number[];
@@ -84,7 +84,7 @@ export default class Gateway {
   /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
   #sessionId?: undefined | string;
 
-  #zlibInflate: null | ZlibSyncType.Inflate = null;
+  // #zlibInflate: null | ZlibSyncType.Inflate = null;
 
   // HEARTBEAT
 
@@ -266,14 +266,14 @@ export default class Gateway {
       throw Error('Already logging in.');
     }
 
-    if (ZlibSync || this.#identity.compress) {
-      if (!ZlibSync) throw Error('zlib-sync is required for compression');
+    // if (ZlibSync || this.#identity.compress) {
+    //   if (!ZlibSync) throw Error('zlib-sync is required for compression');
 
-      this.#zlibInflate = new ZlibSync.Inflate({
-        flush: ZlibSync.Z_SYNC_FLUSH,
-        chunkSize: ZLIB_CHUNKS_SIZE,
-      });
-    }
+    //   this.#zlibInflate = new ZlibSync.Inflate({
+    //     flush: ZlibSync.Z_SYNC_FLUSH,
+    //     chunkSize: ZLIB_CHUNKS_SIZE,
+    //   });
+    // }
 
     try {
       this.#loggingIn = true;
@@ -648,34 +648,35 @@ export default class Gateway {
    */
 
   /** Assigned to websocket `onmessage`. */
+  // eslint-disable-next-line arrow-body-style
   private handleWsMessage = ({ data }: ws.MessageEvent): void => {
-    if (this.#zlibInflate) {
-      return this.decompress(this.#zlibInflate, data);
-    }
+    // if (this.#zlibInflate) {
+    //   return this.decompress(this.#zlibInflate, data);
+    // }
 
     return this.handleMessage(JSON.parse(data.toString()));
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
-    if (data instanceof ArrayBuffer) data = new Uint8Array(data);
+  // // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
+  //   if (data instanceof ArrayBuffer) data = new Uint8Array(data);
 
-    const done = data.length >= 4 && data.readUInt32BE(data.length - 4) === 0xFFFF;
-    if (done) {
-      inflate.push(data, Z_SYNC_FLUSH);
-      if (inflate.err) {
-        this.log('ERROR', `zlib error ${inflate.err}: ${inflate.msg}`);
-        return;
-      }
+  //   const done = data.length >= 4 && data.readUInt32BE(data.length - 4) === 0xFFFF;
+  //   if (done) {
+  //     inflate.push(data, Z_SYNC_FLUSH);
+  //     if (inflate.err) {
+  //       this.log('ERROR', `zlib error ${inflate.err}: ${inflate.msg}`);
+  //       return;
+  //     }
 
-      data = Buffer.from(inflate.result);
+  //     data = Buffer.from(inflate.result);
 
-      this.handleMessage(JSON.parse(data.toString()));
-      return;
-    }
+  //     this.handleMessage(JSON.parse(data.toString()));
+  //     return;
+  //   }
 
-    inflate.push(data, false);
-  }
+  //   inflate.push(data, false);
+  // }
 
   /** Processes incoming messages from Discord's gateway.
    * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
@@ -856,7 +857,7 @@ export default class Gateway {
 
   /** Checks if heartbeat ack was received. */
   private timeoutShard = () => {
-    if (!this.#hbAcked && !this.#requestingMembersStateMap.size) {
+    if (!this.#hbAcked) {
       this.log('ERROR', 'Heartbeat not acknowledged in time.');
       this.#ws?.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
     }

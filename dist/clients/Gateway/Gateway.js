@@ -1,27 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -30,13 +7,6 @@ const ws_1 = __importDefault(require("ws"));
 const utils_1 = require("../../utils");
 const constants_1 = require("../../constants");
 const structures_1 = require("./structures");
-let ZlibSync = null;
-let Z_SYNC_FLUSH = 0;
-// eslint-disable-next-line import/no-unresolved
-Promise.resolve().then(() => __importStar(require('zlib-sync'))).then((_zlib) => {
-    ZlibSync = _zlib;
-    ({ Z_SYNC_FLUSH } = _zlib);
-}).catch(() => { });
 /** A client to handle a Discord gateway connection. */
 class Gateway {
     /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
@@ -66,7 +36,7 @@ class Gateway {
     #sequence;
     /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
-    #zlibInflate = null;
+    // #zlibInflate: null | ZlibSyncType.Inflate = null;
     // HEARTBEAT
     /** If the last heartbeat packet sent to Discord received an ACK. */
     #hbAcked;
@@ -212,14 +182,13 @@ class Gateway {
         if (this.#loggingIn) {
             throw Error('Already logging in.');
         }
-        if (ZlibSync || this.#identity.compress) {
-            if (!ZlibSync)
-                throw Error('zlib-sync is required for compression');
-            this.#zlibInflate = new ZlibSync.Inflate({
-                flush: ZlibSync.Z_SYNC_FLUSH,
-                chunkSize: constants_1.ZLIB_CHUNKS_SIZE,
-            });
-        }
+        // if (ZlibSync || this.#identity.compress) {
+        //   if (!ZlibSync) throw Error('zlib-sync is required for compression');
+        //   this.#zlibInflate = new ZlibSync.Inflate({
+        //     flush: ZlibSync.Z_SYNC_FLUSH,
+        //     chunkSize: ZLIB_CHUNKS_SIZE,
+        //   });
+        // }
         try {
             this.#loggingIn = true;
             const wsUrl = this.constructWsUrl();
@@ -537,29 +506,29 @@ class Gateway {
      ********************************
      */
     /** Assigned to websocket `onmessage`. */
+    // eslint-disable-next-line arrow-body-style
     handleWsMessage = ({ data }) => {
-        if (this.#zlibInflate) {
-            return this.decompress(this.#zlibInflate, data);
-        }
+        // if (this.#zlibInflate) {
+        //   return this.decompress(this.#zlibInflate, data);
+        // }
         return this.handleMessage(JSON.parse(data.toString()));
     };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    decompress(inflate, data) {
-        if (data instanceof ArrayBuffer)
-            data = new Uint8Array(data);
-        const done = data.length >= 4 && data.readUInt32BE(data.length - 4) === 0xFFFF;
-        if (done) {
-            inflate.push(data, Z_SYNC_FLUSH);
-            if (inflate.err) {
-                this.log('ERROR', `zlib error ${inflate.err}: ${inflate.msg}`);
-                return;
-            }
-            data = Buffer.from(inflate.result);
-            this.handleMessage(JSON.parse(data.toString()));
-            return;
-        }
-        inflate.push(data, false);
-    }
+    // // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
+    //   if (data instanceof ArrayBuffer) data = new Uint8Array(data);
+    //   const done = data.length >= 4 && data.readUInt32BE(data.length - 4) === 0xFFFF;
+    //   if (done) {
+    //     inflate.push(data, Z_SYNC_FLUSH);
+    //     if (inflate.err) {
+    //       this.log('ERROR', `zlib error ${inflate.err}: ${inflate.msg}`);
+    //       return;
+    //     }
+    //     data = Buffer.from(inflate.result);
+    //     this.handleMessage(JSON.parse(data.toString()));
+    //     return;
+    //   }
+    //   inflate.push(data, false);
+    // }
     /** Processes incoming messages from Discord's gateway.
      * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
      */
@@ -712,7 +681,7 @@ class Gateway {
     };
     /** Checks if heartbeat ack was received. */
     timeoutShard = () => {
-        if (!this.#hbAcked && !this.#requestingMembersStateMap.size) {
+        if (!this.#hbAcked) {
             this.log('ERROR', 'Heartbeat not acknowledged in time.');
             this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
         }
