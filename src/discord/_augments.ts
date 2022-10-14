@@ -37,13 +37,13 @@ export interface AugmentedActivityAssets extends ActivityAsset {
 }
 
 export type ButtonEmoji = Pick<Emoji, 'name' | 'id' | 'animated'>;
-export type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Required<Pick<Button, 'custom_id'>> & { style: Exclude<ButtonStyleType, 5>, emoji?: ButtonEmoji };
-export type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & { style: 5, emoji?: ButtonEmoji };
-export type StringSelectMenu = { type: 3 } & Omit<SelectMenu, 'channel_types'>;
+export type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Pick<Required<Button>, 'custom_id'> & { style: Exclude<ButtonStyleType, 5>, emoji?: ButtonEmoji };
+export type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Pick<Required<Button>, 'url'> & { style: 5, emoji?: ButtonEmoji };
+export type StringSelectMenu = { type: 3 } & Omit<SelectMenu, 'channel_types'> & Pick<Required<SelectMenu>, 'options'>;
 export type UserSelectMenu = { type: 5 } & Omit<SelectMenu, 'options' | 'channel_types' >;
 export type RoleSelectMenu = { type: 6 } & Omit<SelectMenu, 'options' | 'channel_types'>;
 export type MentionableSelectMenu = { type: 7 } & Omit<SelectMenu, 'options' | 'channel_types'>;
-export type ChannelSelectMenu = { type: 8 } & Omit<SelectMenu, 'options' | 'channel_types'>;
+export type ChannelSelectMenu = { type: 8 } & Omit<SelectMenu, 'options'>;
 
 export type SubMessageComponent =
 NonLinkButton | LinkButton

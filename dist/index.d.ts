@@ -1050,7 +1050,7 @@ export declare type ChannelPinsUpdateEventField = {
 
 export declare type ChannelSelectMenu = {
     type: 8;
-} & Omit<SelectMenu, 'options' | 'channel_types'>;
+} & Omit<SelectMenu, 'options'>;
 
 export declare type ChannelType = 
 /** GUILD_TEXT */
@@ -2638,7 +2638,7 @@ export declare type KeywordPresetType =
 /** SLURS */
 3;
 
-export declare type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Required<Pick<Button, 'url'>> & {
+export declare type LinkButton = Omit<Button, 'custom_id' | 'style' | 'emoji'> & Pick<Required<Button>, 'url'> & {
     style: 5;
     emoji?: ButtonEmoji;
 };
@@ -3049,7 +3049,7 @@ export declare type ModalSubmitData = {
     components: MessageComponent[];
 };
 
-export declare type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Required<Pick<Button, 'custom_id'>> & {
+export declare type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Pick<Required<Button>, 'custom_id'> & {
     style: Exclude<ButtonStyleType, 5>;
     emoji?: ButtonEmoji;
 };
@@ -4073,7 +4073,7 @@ export declare type StickerPack = {
 
 export declare type StringSelectMenu = {
     type: 3;
-} & Omit<SelectMenu, 'channel_types'>;
+} & Omit<SelectMenu, 'channel_types'> & Pick<Required<SelectMenu>, 'options'>;
 
 export declare function stripLeadingSlash(url: string): string;
 
