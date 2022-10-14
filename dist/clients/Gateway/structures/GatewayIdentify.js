@@ -48,6 +48,9 @@ class GatewayIdentify {
     get compress() {
         return this.#compress;
     }
+    updatePresence(presence) {
+        this.#presence = presence;
+    }
     toJSON() {
         const data = {
             token: this.token,

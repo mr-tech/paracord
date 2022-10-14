@@ -251,10 +251,12 @@ export default class Gateway {
     return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
   }
 
-  public updatePresence(options: GatewayPresenceUpdate) {
-    void this.handleEvent('PRESENCE_UPDATE', { gateway: this, options });
+  public updatePresence(presence: GatewayPresenceUpdate) {
+    void this.handleEvent('PRESENCE_UPDATE', { gateway: this, presence });
 
-    return this.send(GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, options);
+    const sent = this.send(GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, presence);
+    if (sent) this.#identity.updatePresence(presence);
+    return sent;
   }
 
   /**

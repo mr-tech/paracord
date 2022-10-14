@@ -63,6 +63,10 @@ export default class GatewayIdentify {
     return this.#compress;
   }
 
+  updatePresence(presence: GatewayPresenceUpdate) {
+    this.#presence = presence;
+  }
+
   public toJSON(): Partial<GatewayIdentify> {
     const data: {
         token: string

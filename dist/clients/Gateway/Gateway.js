@@ -171,9 +171,12 @@ class Gateway {
         void this.handleEvent('REQUEST_GUILD_MEMBERS', { gateway: this, options });
         return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
     }
-    updatePresence(options) {
-        void this.handleEvent('PRESENCE_UPDATE', { gateway: this, options });
-        return this.send(constants_1.GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, options);
+    updatePresence(presence) {
+        void this.handleEvent('PRESENCE_UPDATE', { gateway: this, presence });
+        const sent = this.send(constants_1.GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, presence);
+        if (sent)
+            this.#identity.updatePresence(presence);
+        return sent;
     }
     /**
      * Connects to Discord's event gateway.

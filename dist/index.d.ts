@@ -1411,7 +1411,7 @@ export declare class Gateway {
      * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
      */
     requestGuildMembers(options: GuildRequestMember): boolean;
-    updatePresence(options: GatewayPresenceUpdate): boolean;
+    updatePresence(presence: GatewayPresenceUpdate): boolean;
     /**
      * Connects to Discord's event gateway.
      * @param _websocket Ignore. For unittest dependency injection only.
@@ -1627,6 +1627,7 @@ export declare class GatewayIdentify {
      */
     constructor(token: string, identity: Partial<IdentityOptions>);
     get compress(): boolean | undefined;
+    updatePresence(presence: GatewayPresenceUpdate): void;
     toJSON(): Partial<GatewayIdentify>;
 }
 
