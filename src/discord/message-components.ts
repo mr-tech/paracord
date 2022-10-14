@@ -55,7 +55,7 @@ export type ButtonStyleType =
 
 export type SelectMenu = {
   /** Type of select menu component (text: `3`, user: `5`, role: `6`, mentionable: `7`, channels: `8`) */
-  type: 3;
+  type: ComponentType;
   /** ID for the select menu; max 100 characters */
   custom_id: string;
   /** Specified choices in a select menu (only required and available for string selects (type `3`); max 25 */

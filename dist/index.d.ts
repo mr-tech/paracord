@@ -1048,6 +1048,10 @@ export declare type ChannelPinsUpdateEventField = {
     last_pin_timestamp?: ISO8601timestamp | null;
 };
 
+export declare type ChannelSelectMenu = {
+    type: 8;
+} & Omit<SelectMenu, 'options' | 'channel_types'>;
+
 export declare type ChannelType = 
 /** GUILD_TEXT */
 0 | 
@@ -2727,6 +2731,10 @@ export declare type MembershipStateType =
 /** ACCEPTED */
 2;
 
+export declare type MentionableSelectMenu = {
+    type: 7;
+} & Omit<SelectMenu, 'options' | 'channel_types'>;
+
 export declare type Message = {
     /** id of the message */
     id: Snowflake;
@@ -3640,6 +3648,10 @@ export declare type Role = {
     tags?: RoleTag;
 };
 
+export declare type RoleSelectMenu = {
+    type: 6;
+} & Omit<SelectMenu, 'options' | 'channel_types'>;
+
 export declare type RoleTag = {
     /** the id of the bot this role belongs to */
     bot_id?: Snowflake;
@@ -3669,7 +3681,7 @@ export declare const SECOND_IN_MILLISECONDS = 1000;
 
 export declare type SelectMenu = {
     /** Type of select menu component (text: `3`, user: `5`, role: `6`, mentionable: `7`, channels: `8`) */
-    type: 3;
+    type: ComponentType;
     /** ID for the select menu; max 100 characters */
     custom_id: string;
     /** Specified choices in a select menu (only required and available for string selects (type `3`); max 25 */
@@ -4059,9 +4071,13 @@ export declare type StickerPack = {
     banner_asset_id?: Snowflake;
 };
 
+export declare type StringSelectMenu = {
+    type: 3;
+} & Omit<SelectMenu, 'channel_types'>;
+
 export declare function stripLeadingSlash(url: string): string;
 
-export declare type SubMessageComponent = NonLinkButton | LinkButton | SelectMenu;
+export declare type SubMessageComponent = NonLinkButton | LinkButton | StringSelectMenu | UserSelectMenu | RoleSelectMenu | MentionableSelectMenu | ChannelSelectMenu;
 
 export declare enum SystemChannelFlags {
     SUPPRESS_JOIN_NOTIFICATIONS = 1,
@@ -4303,6 +4319,10 @@ export declare enum UserFlags {
     CERTIFIED_MODERATOR = 262144,
     BOT_HTTP_INTERACTIONS = 524288
 }
+
+export declare type UserSelectMenu = {
+    type: 5;
+} & Omit<SelectMenu, 'options' | 'channel_types'>;
 
 export declare type VerificationLevel = 
 /** NONE */
