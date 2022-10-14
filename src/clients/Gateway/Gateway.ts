@@ -1,25 +1,23 @@
 import ws from 'ws';
 
-import { coerceTokenToBotLike, isApiError } from '../../utils';
 import {
   GatewayCloseCode, GATEWAY_CLOSE_CODES, GATEWAY_MAX_REQUESTS_PER_MINUTE,
   GATEWAY_OP_CODES, GATEWAY_REQUEST_BUFFER, GIGABYTE_IN_BYTES,
   LOG_LEVELS, LOG_SOURCES, MINUTE_IN_MILLISECONDS, SECOND_IN_MILLISECONDS,
-  // ZLIB_CHUNKS_SIZE,
 } from '../../constants';
+import { coerceTokenToBotLike, isApiError } from '../../utils';
 
 import { GatewayIdentify } from './structures';
 
 // import type ZlibSyncType from 'zlib-sync';
-import type {
-  GatewayEvent, GatewayPayload, GatewayURLQueryStringParam, GuildRequestMember, GUILD_MEMBERS_CHUNK_EVENT,
-  Hello, ReadyEventField, Resume,
-} from '../../discord';
 import type { DebugLevel, EventHandler } from '../../@types';
 import type {
-  GatewayCloseEvent, GatewayOptions, Heartbeat,
+  GatewayEvent, GatewayPayload, GatewayPresenceUpdate, GatewayURLQueryStringParam, GuildRequestMember,
+  GUILD_MEMBERS_CHUNK_EVENT, Hello, ReadyEventField, Resume,
+} from '../../discord';
+import type {
+  GatewayCloseEvent, GatewayOptions, Heartbeat, ParacordGatewayEvent,
   StartupCheckFunction, WebsocketRateLimitCache,
-  ParacordGatewayEvent,
 } from './types';
 
 // let ZlibSync: null | typeof ZlibSyncType = null;
@@ -251,6 +249,12 @@ export default class Gateway {
     void this.handleEvent('REQUEST_GUILD_MEMBERS', { gateway: this, options });
 
     return this.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
+  }
+
+  public updatePresence(options: GatewayPresenceUpdate) {
+    void this.handleEvent('PRESENCE_UPDATE', { gateway: this, options });
+
+    return this.send(GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, options);
   }
 
   /**
@@ -911,7 +915,17 @@ export default class Gateway {
    * @param data Data of the message.
    * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
    */
-  private send(op: number, data: Heartbeat | GatewayIdentify | GuildRequestMember | Resume): boolean {
+  private send(op: typeof GATEWAY_OP_CODES['HEARTBEAT'], data: Heartbeat): boolean
+
+  private send(op: typeof GATEWAY_OP_CODES['IDENTIFY'], data: GatewayIdentify): boolean
+
+  private send(op: typeof GATEWAY_OP_CODES['RESUME'], data: Resume): boolean
+
+  private send(op: typeof GATEWAY_OP_CODES['REQUEST_GUILD_MEMBERS'], data: GuildRequestMember): boolean
+
+  private send(op: typeof GATEWAY_OP_CODES['GATEWAY_PRESENCE_UPDATE'], data: GatewayPresenceUpdate): boolean
+
+  private send(op: number, data: Heartbeat | GatewayIdentify | GuildRequestMember | Resume | GatewayPresenceUpdate): boolean {
     if (this.canSendPacket(op) && this.#ws?.readyState === ws.OPEN) {
       const payload = { op, d: data };
 

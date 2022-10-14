@@ -23,6 +23,7 @@ __exportStar(require("./auto-moderation"), exports);
 __exportStar(require("./channel"), exports);
 __exportStar(require("./emoji"), exports);
 __exportStar(require("./gateway"), exports);
+__exportStar(require("./gateway-events"), exports);
 __exportStar(require("./guild"), exports);
 __exportStar(require("./guild-scheduled-event"), exports);
 __exportStar(require("./invite"), exports);

@@ -4,8 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = __importDefault(require("ws"));
-const utils_1 = require("../../utils");
 const constants_1 = require("../../constants");
+const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 /** A client to handle a Discord gateway connection. */
 class Gateway {
@@ -170,6 +170,10 @@ class Gateway {
         this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: [] });
         void this.handleEvent('REQUEST_GUILD_MEMBERS', { gateway: this, options });
         return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
+    }
+    updatePresence(options) {
+        void this.handleEvent('PRESENCE_UPDATE', { gateway: this, options });
+        return this.send(constants_1.GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, options);
     }
     /**
      * Connects to Discord's event gateway.
@@ -723,12 +727,6 @@ class Gateway {
         this.emit('GATEWAY_IDENTIFY', this);
         this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this.#identity.toJSON());
     }
-    /**
-     * Sends a websocket message to Discord.
-     * @param op Gateway Opcode https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
-     * @param data Data of the message.
-     * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
-     */
     send(op, data) {
         if (this.canSendPacket(op) && this.#ws?.readyState === ws_1.default.OPEN) {
             const payload = { op, d: data };

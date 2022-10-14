@@ -73,7 +73,7 @@ export type Connection = {
   type: string;
   /** whether the connection is revoked */
   revoked?: boolean;
-  /** an array of this user's integrations */
+  /** an array of partial server integrations */
   integrations?: Partial<Integration>[];
   /** whether the connection is verified */
   verified: boolean;
@@ -81,6 +81,8 @@ export type Connection = {
   friend_sync: boolean;
   /** whether activities related to this connection will be shown in presence updates */
   show_activity: boolean;
+  /** whether this connection has a corresponding third party OAuth2 token */
+  two_way_link: boolean;
   /** visibility of this connection */
   visibility: number;
 };
@@ -90,6 +92,8 @@ export type Connection = {
 export type Service = [
   /** Battle.net */
   'battlenet' |
+  /** eBay */
+  'ebay' |
   /** Epic Games */
   'epicgames' |
   /** Facebook */
@@ -98,10 +102,14 @@ export type Service = [
   'github' |
   /** League of Legends */
   'leagueoflegends' |
+  /** PayPal */
+  'paypal' |
   /** PlayStation Network */
   'playstation' |
   /** Reddit */
   'reddit' |
+  /** Riot Games */
+  'riotgames' |
   /** Spotify */
   'spotify' |
   /** Skype */

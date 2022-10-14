@@ -44,7 +44,7 @@ export type Channel = {
   rtc_region?: string | null;
   /** the camera video quality mode of the voice channel, 1 when not present */
   video_quality_mode?: number;
-  /** number of messages (not including the initial message or deleted messages) in a thread (if the thread was created before July 1, 2022, it stops counting at 50) */
+  /** number of messages (not including the initial message or deleted messages) in a thread. */
   message_count?: number;
   /** an approximate count of users in a thread, stops counting at 50 */
   member_count?: number;
@@ -68,6 +68,8 @@ export type Channel = {
   default_reaction_emoji?: DefaultReaction | null;
   /** the initial `rate_limit_per_user` to set on newly created threads in a channel. this field is copied to the thread at creation time and does not live update. */
   default_thread_rate_limit_per_user?: number;
+  /** the default sort order type used to order posts in `GUILD_FORUM` channels. Defaults to `null`, which indicates a preferred sort order hasn't been set by a channel admin */
+  default_sort_order?: number | null;
 };
 
 // ========================================================================
@@ -113,6 +115,14 @@ export enum ChannelFlags {
   PINNED = 1 << 1,
   REQUIRE_TAG = 1 << 4
 }
+
+// ========================================================================
+
+export type SortOrderType =
+  /** LATEST_ACTIVITY */
+  0 |
+  /** CREATION_DATE */
+  1;
 
 // ========================================================================
 
@@ -175,7 +185,7 @@ export type Message = {
   sticker_items?: StickerItem[];
   /** Deprecated the stickers sent with the message */
   stickers?: Sticker[];
-  /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the messsage in a thread in company with `total_message_sent` on parent thread */
+  /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the message in a thread in company with `total_message_sent` on parent thread */
   position?: number;
 };
 
@@ -216,8 +226,12 @@ export type MessageType =
   16 |
   /** GUILD_DISCOVERY_GRACE_PERIOD_FINAL_WARNING */
   17 |
+  /** THREAD_CREATED */
+  18 |
   /** REPLY */
   19 |
+  /** THREAD_STARTER_MESSAGE */
+  21 |
   /** APPLICATION_COMMAND */
   20 |
   /** GUILD_INVITE_REMINDER */
@@ -341,7 +355,7 @@ export type ThreadMember = {
 
 export type DefaultReaction = {
   /** the id of a guild's custom emoji */
-  emoji_id: Snowflake;
+  emoji_id: Snowflake | null;
   /** the unicode character of the emoji */
   emoji_name: string | null;
 };

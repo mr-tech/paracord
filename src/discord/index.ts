@@ -7,6 +7,7 @@ export * from './auto-moderation';
 export * from './channel';
 export * from './emoji';
 export * from './gateway';
+export * from './gateway-events';
 export * from './guild';
 export * from './guild-scheduled-event';
 export * from './invite';

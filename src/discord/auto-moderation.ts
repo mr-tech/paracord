@@ -47,7 +47,7 @@ export type TriggerMetadata = {
   /** KEYWORD_PRESET */
   allow_list: string[]; // substrings which will be exempt from triggering the preset trigger type
   /** MENTION_SPAM */
-  mention_total_limit: number; // total number of mentions (role & user) allowed per message (Maximum of 50)
+  mention_total_limit: number; // total number of unique role and user mentions allowed per message (Maximum of 50)
 };
 
 // ========================================================================

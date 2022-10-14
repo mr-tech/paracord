@@ -1,8 +1,7 @@
-import type { GuildRequestMember } from './gateway';
-import type { ButtonStyleType, TextInput } from './message-components';
 import type {
   ActivityAsset, Channel, Emoji, Guild, GuildMember, Message, Presence,
-  User, VoiceState, Snowflake, Button, SelectMenu,
+  User, VoiceState, Snowflake, Button, SelectMenu, GuildRequestMember,
+  ButtonStyleType, TextInput,
 } from '.';
 
 export interface AugmentedGuildMember extends GuildMember {

@@ -23,7 +23,7 @@ export type VoiceState = {
   self_stream?: boolean;
   /** whether this user's camera is enabled */
   self_video: boolean;
-  /** whether this user is muted by the current user */
+  /** whether this user's permission to speak is denied */
   suppress: boolean;
   /** the time at which the user requested to speak */
   request_to_speak_timestamp: ISO8601timestamp | null;

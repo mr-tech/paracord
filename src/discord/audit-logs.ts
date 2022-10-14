@@ -147,15 +147,23 @@ export type AuditLogEventType =
   /** AUTO_MODERATION_RULE_DELETE */
   142 |
   /** AUTO_MODERATION_BLOCK_MESSAGE */
-  143;
+  143 |
+  /** AUTO_MODERATION_FLAG_TO_CHANNEL */
+  144 |
+  /** AUTO_MODERATION_USER_COMMUNICATION_DISABLED */
+  145;
 
 // ========================================================================
 
 export type OptionalAuditEntryInfo = {
   /** ID of the app whose permissions were targeted */
   application_id: Snowflake; // APPLICATION_COMMAND_PERMISSION_UPDATE
+  /** Name of the Auto Moderation rule that was triggered */
+  auto_moderation_rule_name: string; // AUTO_MODERATION_BLOCK_MESSAGE & AUTO_MODERATION_FLAG_TO_CHANNEL & AUTO_MODERATION_USER_COMMUNICATION_DISABLED
+  /** Trigger type of the Auto Moderation rule that was triggered */
+  auto_moderation_rule_trigger_type: string; // AUTO_MODERATION_BLOCK_MESSAGE & AUTO_MODERATION_FLAG_TO_CHANNEL & AUTO_MODERATION_USER_COMMUNICATION_DISABLED
   /** Channel in which the entities were targeted */
-  channel_id: Snowflake; // MEMBER_MOVE & MESSAGE_PIN & MESSAGE_UNPIN & MESSAGE_DELETE & STAGE_INSTANCE_CREATE & STAGE_INSTANCE_UPDATE & STAGE_INSTANCE_DELETE
+  channel_id: Snowflake; // MEMBER_MOVE & MESSAGE_PIN & MESSAGE_UNPIN & MESSAGE_DELETE & STAGE_INSTANCE_CREATE & STAGE_INSTANCE_UPDATE & STAGE_INSTANCE_DELETE & AUTO_MODERATION_BLOCK_MESSAGE & AUTO_MODERATION_FLAG_TO_CHANNEL & AUTO_MODERATION_USER_COMMUNICATION_DISABLED
   /** Number of entities that were targeted */
   count: string; // MESSAGE_DELETE & MESSAGE_BULK_DELETE & MEMBER_DISCONNECT & MEMBER_MOVE
   /** Number of days after which inactive members were kicked */

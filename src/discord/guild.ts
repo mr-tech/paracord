@@ -25,7 +25,7 @@ export type Guild = {
   region?: VoiceRegion | null;
   /** id of afk channel */
   afk_channel_id: Snowflake | null;
-  /** afk timeout in seconds */
+  /** afk timeout in seconds, can be set to: 60, 300, 900, 1800, 3600 */
   afk_timeout: number;
   /** true if the server widget is enabled */
   widget_enabled?: boolean;
@@ -177,6 +177,8 @@ export type GuildFeatureType =
   'DISCOVERABLE' |
   /** guild is able to be featured in the directory */
   'FEATURABLE' |
+  /** guild has paused invites, preventing new users from joining */
+  'INVITES_DISABLED' |
   /** guild has access to set an invite splash background */
   'INVITE_SPLASH' |
   /** guild has enabled [Membership Screening](#DOCS_RESOURCES_GUILD/membership-screening-object) */
