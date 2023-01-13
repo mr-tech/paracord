@@ -42,3 +42,9 @@ export type HandleEventCallback = (
   data: unknown,
   shard: Gateway
 ) => void;
+
+export interface ParacordStartupEvent {
+  shard: Gateway;
+  forced?: boolean;
+  resumed?: boolean;
+}

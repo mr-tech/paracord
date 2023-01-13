@@ -12,7 +12,7 @@ import {
 import type { GatewayEvent, ReadyEventField } from '../../discord';
 import type { DebugLevel } from '../../@types';
 import type {
-  GatewayMap, ParacordGatewayOptions, ParacordLoginOptions, ParacordOptions,
+  GatewayMap, ParacordGatewayOptions, ParacordLoginOptions, ParacordOptions, ParacordStartupEvent,
 } from './types';
 
 /**
@@ -145,6 +145,9 @@ export default class Paracord extends EventEmitter {
     switch (eventType) {
       case 'READY':
         this.handleGatewayReady(<ReadyEventField>data);
+        break;
+      case 'RESUMED':
+        this.completeShardStartup({ shard: gateway, resumed: true });
         break;
       default:
     }
@@ -373,13 +376,13 @@ export default class Paracord extends EventEmitter {
   */
 
   /** Runs with every GUILD_CREATE on initial start up. Decrements counter and emits `PARACORD_STARTUP_COMPLETE` when 0. */
-  private checkIfDoneStarting(forced?: boolean): void {
+  private checkIfDoneStarting(forced = false): void {
     const startingGateway = this.#startingGateway;
     const guildWaitCount = this.#guildWaitCount;
 
     if (startingGateway !== undefined) {
       if (forced || guildWaitCount <= 0) {
-        this.completeShardStartup(startingGateway, forced);
+        this.completeShardStartup({ shard: startingGateway, forced });
 
         const eventNotEmitted = !this.#emittedStartupComplete;
         const queueEmpty = this.gatewayLoginQueue.length === 0;
@@ -398,14 +401,19 @@ export default class Paracord extends EventEmitter {
     }
   }
 
-  private completeShardStartup(gateway: Gateway, forced = false): void {
-    if (!forced) {
+  private completeShardStartup(event: ParacordStartupEvent): void {
+    const { shard: gateway, forced = false, resumed = false } = event;
+
+    if (resumed) {
+      const message = 'Resumed shard.';
+      this.log('INFO', message, { shard: gateway.id });
+    } else if (!forced) {
       const message = 'Received all start up guilds.';
       this.log('INFO', message, { shard: gateway.id });
     }
 
     this.clearStartingShardState(gateway);
-    this.emit('SHARD_STARTUP_COMPLETE', { shard: gateway, forced });
+    this.emit('SHARD_STARTUP_COMPLETE', event);
   }
 
   private clearStartingShardState(gateway: Gateway, requeue = false): void {

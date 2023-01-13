@@ -3201,6 +3201,12 @@ export declare interface ParacordOptions {
     shardStartupTimeout?: number;
 }
 
+export declare interface ParacordStartupEvent {
+    shard: Gateway;
+    forced?: boolean;
+    resumed?: boolean;
+}
+
 declare type PermissibleChannel = Pick<GuildChannel, 'id' | 'permission_overwrites'>;
 
 declare type PermissibleGuild = Pick<Guild, 'id' | 'owner_id' | 'roles'>;

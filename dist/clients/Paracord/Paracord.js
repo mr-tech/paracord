@@ -107,6 +107,9 @@ class Paracord extends events_1.EventEmitter {
             case 'READY':
                 this.handleGatewayReady(data);
                 break;
+            case 'RESUMED':
+                this.completeShardStartup({ shard: gateway, resumed: true });
+                break;
             default:
         }
         if (this.#startingGateway === gateway && this.#guildWaitCount !== undefined) {
@@ -306,12 +309,12 @@ class Paracord extends events_1.EventEmitter {
     ********************************
     */
     /** Runs with every GUILD_CREATE on initial start up. Decrements counter and emits `PARACORD_STARTUP_COMPLETE` when 0. */
-    checkIfDoneStarting(forced) {
+    checkIfDoneStarting(forced = false) {
         const startingGateway = this.#startingGateway;
         const guildWaitCount = this.#guildWaitCount;
         if (startingGateway !== undefined) {
             if (forced || guildWaitCount <= 0) {
-                this.completeShardStartup(startingGateway, forced);
+                this.completeShardStartup({ shard: startingGateway, forced });
                 const eventNotEmitted = !this.#emittedStartupComplete;
                 const queueEmpty = this.gatewayLoginQueue.length === 0;
                 const noStartingShard = !this.#startingGateway;
@@ -330,13 +333,18 @@ class Paracord extends events_1.EventEmitter {
             this.log('WARNING', message);
         }
     }
-    completeShardStartup(gateway, forced = false) {
-        if (!forced) {
+    completeShardStartup(event) {
+        const { shard: gateway, forced = false, resumed = false } = event;
+        if (resumed) {
+            const message = 'Resumed shard.';
+            this.log('INFO', message, { shard: gateway.id });
+        }
+        else if (!forced) {
             const message = 'Received all start up guilds.';
             this.log('INFO', message, { shard: gateway.id });
         }
         this.clearStartingShardState(gateway);
-        this.emit('SHARD_STARTUP_COMPLETE', { shard: gateway, forced });
+        this.emit('SHARD_STARTUP_COMPLETE', event);
     }
     clearStartingShardState(gateway, requeue = false) {
         const shardWasStarting = this.#startingGateway === gateway;
