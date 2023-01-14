@@ -113,6 +113,10 @@ export default class Gateway {
   /** Other gateway heartbeat checks. */
   #checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
 
+  #resuming: boolean;
+
+  #eventsDuringResume: number;
+
   /**
    * Creates a new Discord gateway handler.
    * @param token Discord token. Will be coerced into a bot token.
@@ -148,6 +152,8 @@ export default class Gateway {
     this.#wsUrl = wsUrl;
     this.#wsParams = wsParams;
     this.#hbAckWaitTime = heartbeatTimeoutSeconds ? (heartbeatTimeoutSeconds * SECOND_IN_MILLISECONDS) : undefined;
+    this.#resuming = false;
+    this.#eventsDuringResume = 0;
   }
 
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
@@ -694,6 +700,10 @@ export default class Gateway {
 
     this.updateSequence(sequence);
 
+    if (this.#resuming && (opCode !== GATEWAY_OP_CODES.DISPATCH || (type !== 'RESUMED' && type !== 'READY'))) {
+      ++this.#eventsDuringResume;
+    }
+
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
@@ -790,8 +800,9 @@ export default class Gateway {
 
   /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
   private handleResumed(): void {
-    this.log('INFO', 'Replay finished. Resuming events.');
+    this.log('INFO', `Replay finished after ${this.#eventsDuringResume} events. Resuming events.`);
     this.#online = true;
+    this.#resuming = false;
 
     void this.handleEvent('RESUMED', null);
   }
@@ -888,6 +899,8 @@ export default class Gateway {
     const sessionId = this.#sessionId;
 
     if (sessionId !== undefined && sequence !== null) {
+      this.#resuming = true;
+      this.#eventsDuringResume = 0;
       const payload: Resume = {
         token,
         session_id: sessionId,
