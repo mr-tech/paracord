@@ -1376,6 +1376,8 @@ export declare class Gateway {
     constructor(token: string, options: GatewayOptions);
     /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
     get resumable(): boolean;
+    /** Whether or not the client is currently resuming a session. */
+    get resuming(): boolean;
     /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
     get shard(): GatewayIdentify['shard'];
     /** The shard id that this gateway is connected to. */

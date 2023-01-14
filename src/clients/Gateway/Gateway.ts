@@ -113,8 +113,10 @@ export default class Gateway {
   /** Other gateway heartbeat checks. */
   #checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
 
+  /** Whether or not the client is currently resuming a session. */
   #resuming: boolean;
 
+  /** The amount of events received during a resume. */
   #eventsDuringResume: number;
 
   /**
@@ -159,6 +161,11 @@ export default class Gateway {
   /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
   public get resumable(): boolean {
     return this.#sessionId !== undefined && this.#sequence !== null && this.#resumeUrl !== undefined;
+  }
+
+  /** Whether or not the client is currently resuming a session. */
+  public get resuming(): boolean {
+    return this.#resuming;
   }
 
   /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */

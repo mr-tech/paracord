@@ -56,7 +56,9 @@ class Gateway {
     #hbIntervalOffset;
     /** Other gateway heartbeat checks. */
     #checkSiblingHeartbeats;
+    /** Whether or not the client is currently resuming a session. */
     #resuming;
+    /** The amount of events received during a resume. */
     #eventsDuringResume;
     /**
      * Creates a new Discord gateway handler.
@@ -94,6 +96,10 @@ class Gateway {
     /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
     get resumable() {
         return this.#sessionId !== undefined && this.#sequence !== null && this.#resumeUrl !== undefined;
+    }
+    /** Whether or not the client is currently resuming a session. */
+    get resuming() {
+        return this.#resuming;
     }
     /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
     get shard() {
