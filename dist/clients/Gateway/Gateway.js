@@ -12,6 +12,8 @@ class Gateway {
     /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     #online;
     #loggingIn;
+    /** Whether or not the client is currently resuming a session. */
+    #resuming;
     #connectTimeout;
     #options;
     /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
@@ -56,8 +58,6 @@ class Gateway {
     #hbIntervalOffset;
     /** Other gateway heartbeat checks. */
     #checkSiblingHeartbeats;
-    /** Whether or not the client is currently resuming a session. */
-    #resuming;
     /** The amount of events received during a resume. */
     #eventsDuringResume;
     /**
@@ -345,6 +345,7 @@ class Gateway {
     handleWsClose = (event) => {
         this.#ws = undefined;
         this.#online = false;
+        this.#resuming = false;
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
         this.clearHeartbeat();
@@ -500,6 +501,7 @@ class Gateway {
         this.#nextHbTimestamp = undefined;
         this.#hbIntervalTime = undefined;
         this.#hbAckWaitTime = undefined;
+        this.#eventsDuringResume = 0;
         this.log('DEBUG', 'Heartbeat cleared.');
     }
     clearHeartbeatTimer() {

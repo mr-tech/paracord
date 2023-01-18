@@ -41,6 +41,9 @@ export default class Gateway {
 
   #loggingIn: boolean;
 
+  /** Whether or not the client is currently resuming a session. */
+  #resuming: boolean;
+
   #connectTimeout?: undefined | NodeJS.Timeout;
 
   #options: GatewayOptions;
@@ -112,9 +115,6 @@ export default class Gateway {
 
   /** Other gateway heartbeat checks. */
   #checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
-
-  /** Whether or not the client is currently resuming a session. */
-  #resuming: boolean;
 
   /** The amount of events received during a resume. */
   #eventsDuringResume: number;
@@ -448,6 +448,8 @@ export default class Gateway {
   private handleWsClose = (event: ws.CloseEvent): void => {
     this.#ws = undefined;
     this.#online = false;
+    this.#resuming = false;
+
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
     this.clearHeartbeat();
@@ -642,6 +644,8 @@ export default class Gateway {
     this.#nextHbTimestamp = undefined;
     this.#hbIntervalTime = undefined;
     this.#hbAckWaitTime = undefined;
+    this.#eventsDuringResume = 0;
+
     this.log('DEBUG', 'Heartbeat cleared.');
   }
 
