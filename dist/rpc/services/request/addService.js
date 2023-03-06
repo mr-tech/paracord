@@ -5,7 +5,6 @@ const clients_1 = require("../../../clients");
 const constants_1 = require("../../../constants");
 const structures_1 = require("../../structures");
 const common_1 = require("../common");
-const requestProto = (0, common_1.loadProto)('request');
 /**
  * Create callback functions for the request service.
  * @param server
@@ -14,6 +13,7 @@ exports.default = (server, token, apiOptions = {}) => {
     apiOptions.requestOptions = apiOptions.requestOptions ?? {};
     apiOptions.requestOptions.transformResponse = (data) => data;
     server.apiClient = new clients_1.Api(token, apiOptions);
+    const requestProto = (0, common_1.loadProto)('request');
     server.addService(requestProto.RequestService, {
         hello: hello.bind(server),
         request: request.bind(server),

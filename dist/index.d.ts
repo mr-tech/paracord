@@ -2618,17 +2618,6 @@ export declare type InviteStageInstance = {
 
 export declare function isApiError(val: unknown): val is ApiError;
 
-declare interface IServerOptions {
-    /** Server host to connect to. */
-    host: string;
-    /** Server port to connect to. */
-    port: number | string;
-    /** GRPC channel to connect to server over. */
-    channel: ChannelCredentials;
-    /** If the service is allowed to fallback on alternate functionality. Defined differently for each service. */
-    allowFallback: boolean;
-}
-
 export declare type ISO8601timestamp = string;
 
 export declare function isObject(v: unknown): boolean;
@@ -3589,24 +3578,12 @@ export declare class RequestQueue {
     private sendRequest;
 }
 
-/** Definition for the request service. */
-declare class RequestService extends RequestService_base {
-    /** host:port the service is pointed at. */
-    target: string;
-    /** If unable to connect, whether or not the client is allowed to fallback to making the request locally */
-    allowFallback: boolean;
-    /**
-     * Creates a request service.
-     * @param options Options for this service.
-     */
-    constructor(options: Partial<IServerOptions>);
-    /** Check for healthy connection. */
+declare interface RequestService {
     hello(): Promise<void>;
-    /** Sends the information to make a request to Discord to the server. returning a promise with the response. */
     request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
+    allowFallback: boolean;
+    target: string;
 }
-
-declare const RequestService_base: any;
 
 export declare type ResolvedData = {
     /** the ids and User objects */

@@ -2,24 +2,22 @@
 import axios, { Method } from 'axios';
 import { EventEmitter } from 'events';
 
-import { RateLimitService, RequestService, RemoteApiResponse } from '../../rpc';
-import { coerceTokenToBotLike, shortMethod, stripLeadingSlash } from '../../utils';
 import {
-  PARACORD_URL, PARACORD_VERSION_NUMBER, DISCORD_API_DEFAULT_VERSION,
-  DISCORD_API_URL, LOG_LEVELS, LOG_SOURCES, RPC_CLOSE_CODES,
-  API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
-  LogSource, API_DEBUG_CODES, ApiDebugCodeName,
+  ApiDebugCodeName, API_DEBUG_CODES, API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, DISCORD_API_DEFAULT_VERSION,
+  DISCORD_API_URL, LogSource, LOG_LEVELS, LOG_SOURCES, PARACORD_URL, PARACORD_VERSION_NUMBER, RPC_CLOSE_CODES,
 } from '../../constants';
+import {
+  createRateLimitService, createRequestService, RateLimitService, RemoteApiResponse, RequestService,
+} from '../../rpc';
+import { coerceTokenToBotLike, shortMethod, stripLeadingSlash } from '../../utils';
 
 import {
-  RateLimitCache, RateLimitHeaders, RequestQueue, ApiRequest, QueuedRequest,
+  ApiRequest, QueuedRequest, RateLimitCache, RateLimitHeaders, RequestQueue,
 } from './structures';
 
 import type { DebugLevel } from '../../@types';
 import type {
-  ApiOptions, RateLimitState, RequestOptions, ApiResponse,
-  ServiceOptions, WrappedRequest, RateLimitedResponse,
-  ApiDebugEvent, ApiDebugData,
+  ApiDebugData, ApiDebugEvent, ApiOptions, ApiResponse, RateLimitedResponse, RateLimitState, RequestOptions, ServiceOptions, WrappedRequest,
 } from './types';
 
 function validateStatusDefault(status: number) {
@@ -296,7 +294,7 @@ export default class Api {
       );
     }
 
-    this.rpcRequestService = new RequestService(serviceOptions);
+    this.rpcRequestService = createRequestService(serviceOptions);
     this.#allowFallback = this.rpcRequestService.allowFallback;
 
     if (this.#rpcServiceOptions === undefined) {
@@ -328,7 +326,7 @@ export default class Api {
       );
     }
 
-    this.#rpcRateLimitService = new RateLimitService(serviceOptions);
+    this.#rpcRateLimitService = createRateLimitService(serviceOptions);
     this.#allowFallback = serviceOptions.allowFallback !== false;
 
     if (this.#rpcServiceOptions === undefined) {

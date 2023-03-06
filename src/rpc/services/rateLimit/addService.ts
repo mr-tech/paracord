@@ -12,13 +12,13 @@ interface ServiceRateLimit extends PackageDefinition {
   RateLimitService: ServiceDefinition;
 }
 
-const rateLimitProto = loadProto<ServiceRateLimit>('rate_limit');
-
 /**
  * Create callback functions for the rate limit service.
  * @param server
  */
 export default (server: RpcServer): void => {
+  const rateLimitProto = loadProto<ServiceRateLimit>('rate_limit');
+
   server.addService(rateLimitProto.RateLimitService, {
     hello: hello.bind(server),
     authorize: authorize.bind(server),

@@ -13,8 +13,6 @@ interface ServiceRequest extends PackageDefinition {
   RequestService: ServiceDefinition;
 }
 
-const requestProto = loadProto<ServiceRequest>('request');
-
 /**
  * Create callback functions for the request service.
  * @param server
@@ -25,6 +23,7 @@ export default (server: RpcServer, token: string, apiOptions: ApiOptions = {}): 
 
   server.apiClient = new Api(token, apiOptions);
 
+  const requestProto = loadProto<ServiceRequest>('request');
   server.addService(requestProto.RequestService, {
     hello: hello.bind(server),
     request: request.bind(server),

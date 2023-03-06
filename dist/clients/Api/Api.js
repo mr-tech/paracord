@@ -6,9 +6,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const axios_1 = __importDefault(require("axios"));
 const events_1 = require("events");
+const constants_1 = require("../../constants");
 const rpc_1 = require("../../rpc");
 const utils_1 = require("../../utils");
-const constants_1 = require("../../constants");
 const structures_1 = require("./structures");
 function validateStatusDefault(status) {
     return status >= 200 && status <= 299;
@@ -212,7 +212,7 @@ class Api {
             || this.hasRequestService) {
             throw Error('An rpc service has already been defined for this client. Only one may be added.');
         }
-        this.rpcRequestService = new rpc_1.RequestService(serviceOptions);
+        this.rpcRequestService = (0, rpc_1.createRequestService)(serviceOptions);
         this.#allowFallback = this.rpcRequestService.allowFallback;
         if (this.#rpcServiceOptions === undefined) {
             {
@@ -236,7 +236,7 @@ class Api {
         if (this.hasRateLimitService || this.hasRequestService) {
             throw Error('A rpc service has already been defined for this client. Only one may be added.');
         }
-        this.#rpcRateLimitService = new rpc_1.RateLimitService(serviceOptions);
+        this.#rpcRateLimitService = (0, rpc_1.createRateLimitService)(serviceOptions);
         this.#allowFallback = serviceOptions.allowFallback !== false;
         if (this.#rpcServiceOptions === undefined) {
             {
