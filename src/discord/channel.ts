@@ -1,6 +1,5 @@
 import type {
-  Snowflake, User, ISO8601timestamp, Role, Emoji, Application,
-  MessageComponent, Sticker, MessageInteraction, StickerItem,
+  Application, Emoji, GuildMember, ISO8601timestamp, MessageComponent, MessageInteraction, Role, Snowflake, Sticker, StickerItem, User,
 } from '.';
 
 export type Channel = {
@@ -36,6 +35,8 @@ export type Channel = {
   owner_id?: Snowflake;
   /** application id of the group DM creator if it is bot-created */
   application_id?: Snowflake;
+  /** for group DM channels: whether the channel is managed by an application via the `gdm.join` OAuth2 scope */
+  managed?: boolean;
   /** for guild channels: id of the parent category for a channel (each parent category can contain up to 50 channels), for threads: id of the text channel this thread was created */
   parent_id?: Snowflake | null;
   /** when the last pinned message was pinned. This may be `null` in events such as `GUILD_CREATE` when a message is not pinned. */
@@ -70,6 +71,8 @@ export type Channel = {
   default_thread_rate_limit_per_user?: number;
   /** the default sort order type used to order posts in `GUILD_FORUM` channels. Defaults to `null`, which indicates a preferred sort order hasn't been set by a channel admin */
   default_sort_order?: number | null;
+  /** the default forum layout view used to display posts in `GUILD_FORUM` channels. Defaults to `0`, which indicates a layout view has not been set by a channel admin */
+  default_forum_layout?: number;
 };
 
 // ========================================================================
@@ -123,6 +126,14 @@ export type SortOrderType =
   0 |
   /** CREATION_DATE */
   1;
+
+// ========================================================================
+
+export enum ForumLayoutTypes {
+  NOT_SET = 0,
+  LIST_VIEW = 1,
+  GALLERY_VIEW = 2
+}
 
 // ========================================================================
 
@@ -187,6 +198,8 @@ export type Message = {
   stickers?: Sticker[];
   /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the message in a thread in company with `total_message_sent` on parent thread */
   position?: number;
+  /** data of the role subscription purchase or renewal that prompted this ROLE_SUBSCRIPTION_PURCHASE message */
+  role_subscription_data?: RoleSubscriptionData;
 };
 
 // ========================================================================
@@ -230,16 +243,28 @@ export type MessageType =
   18 |
   /** REPLY */
   19 |
-  /** THREAD_STARTER_MESSAGE */
-  21 |
   /** APPLICATION_COMMAND */
   20 |
+  /** THREAD_STARTER_MESSAGE */
+  21 |
   /** GUILD_INVITE_REMINDER */
   22 |
   /** CONTEXT_MENU_COMMAND */
   23 |
   /** AUTO_MODERATION_ACTION */
-  24;
+  24 |
+  /** INTERACTION_PREMIUM_UPSELL */
+  26 |
+  /** STAGE_START */
+  27 |
+  /** STAGE_END */
+  28 |
+  /** STAGE_SPEAKER */
+  29 |
+  /** STAGE_TOPIC */
+  31 |
+  /** GUILD_APPLICATION_PREMIUM_SUBSCRIPTION */
+  32;
 
 // ========================================================================
 
@@ -270,9 +295,12 @@ export enum MessageFlags {
   SUPPRESS_EMBEDS = 1 << 2,
   SOURCE_MESSAGE_DELETED = 1 << 3,
   URGENT = 1 << 4,
+  HAS_THREAD = 1 << 5,
   EPHEMERAL = 1 << 6,
   LOADING = 1 << 7,
-  FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 1 << 8
+  FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 1 << 8,
+  SUPPRESS_NOTIFICATIONS = 1 << 12,
+  IS_VOICE_MESSAGE = 1 << 13
 }
 
 // ========================================================================
@@ -341,14 +369,16 @@ export type ThreadMetadata = {
 // ========================================================================
 
 export type ThreadMember = {
-  /** the id of the thread */
+  /** ID of the thread */
   id?: Snowflake;
-  /** the id of the user */
+  /** ID of the user */
   user_id?: Snowflake;
-  /** the time the current user last joined the thread */
+  /** Time the user last joined the thread */
   join_timestamp: ISO8601timestamp;
-  /** any user-thread settings, currently only used for notifications */
+  /** Any user-thread settings, currently only used for notifications */
   flags: number;
+  /** Additional information about the user */
+  member?: GuildMember;
 };
 
 // ========================================================================
@@ -370,7 +400,7 @@ export type ForumTag = {
   /** whether this tag can only be added to or removed from threads by a member with the `MANAGE_THREADS` permission */
   moderated: boolean;
   /** the id of a guild's custom emoji */
-  emoji_id: Snowflake;
+  emoji_id: Snowflake | null;
   /** the unicode character of the emoji */
   emoji_name: string | null;
 };
@@ -459,7 +489,7 @@ export type EmbedProvider = {
 export type EmbedAuthor = {
   /** name of author */
   name: string;
-  /** url of author */
+  /** url of author (only supports http(s)) */
   url?: string;
   /** url of author icon (only supports http(s) and attachments) */
   icon_url?: string;
@@ -512,6 +542,10 @@ export type Attachment = {
   width?: number | null;
   /** whether this attachment is ephemeral */
   ephemeral?: boolean;
+  /** the duration of the audio file (currently for voice messages) */
+  duration_secs?: number;
+  /** base64 encoded bytearray representing a sampled waveform (currently for voice messages) */
+  waveform?: string;
 };
 
 // ========================================================================
@@ -548,4 +582,17 @@ export type AllowedMention = {
   users: Snowflake[];
   /** For replies, whether to mention the author of the message being replied to (default false) */
   replied_user: boolean;
+};
+
+// ========================================================================
+
+export type RoleSubscriptionData = {
+  /** the id of the sku and listing that the user is subscribed to */
+  role_subscription_listing_id: Snowflake;
+  /** the name of the tier that the user is subscribed to */
+  tier_name: string;
+  /** the cumulative number of months that the user has been subscribed for */
+  total_months_subscribed: number;
+  /** whether this notification is for a renewal rather than a new purchase */
+  is_renewal: boolean;
 };

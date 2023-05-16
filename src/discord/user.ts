@@ -49,7 +49,8 @@ export enum UserFlags {
   VERIFIED_BOT = 1 << 16,
   VERIFIED_DEVELOPER = 1 << 17,
   CERTIFIED_MODERATOR = 1 << 18,
-  BOT_HTTP_INTERACTIONS = 1 << 19
+  BOT_HTTP_INTERACTIONS = 1 << 19,
+  ACTIVE_DEVELOPER = 1 << 22
 }
 
 // ========================================================================
@@ -60,7 +61,9 @@ export type PremiumType =
   /** Nitro Classic */
   1 |
   /** Nitro */
-  2;
+  2 |
+  /** Nitro Basic */
+  3;
 
 // ========================================================================
 
@@ -100,6 +103,8 @@ export type Service = [
   'facebook' |
   /** GitHub */
   'github' |
+  /** Instagram */
+  'instagram' |
   /** League of Legends */
   'leagueoflegends' |
   /** PayPal */
@@ -116,6 +121,8 @@ export type Service = [
   'skype' |
   /** Steam */
   'steam' |
+  /** TikTok */
+  'tiktok' |
   /** Twitch */
   'twitch' |
   /** Twitter */
@@ -133,3 +140,14 @@ export type VisibilityType =
   0 |
   /** Everyone */
   1;
+
+// ========================================================================
+
+export type ApplicationRoleConnection = {
+  /** the vanity name of the platform a bot has connected (max 50 characters) */
+  platform_name: string | null;
+  /** the username on the platform a bot has connected (max 100 characters) */
+  platform_username: string | null;
+  /** object mapping application role connection metadata keys to their `string`-ified value (max 100 characters) for the user on the platform a bot has connected */
+  metadata: object;
+};

@@ -1,7 +1,5 @@
 import type {
-  Snowflake, GuildMember, User, Role, Attachment, AllowedMention, Channel, Embed, MessageComponent,
-  SelectOption, Message, ApplicationCommandOptionChoice,
-  ComponentType, ApplicationCommandOptionType, MessageFlags, Component,
+  AllowedMention, ApplicationCommandOptionChoice, ApplicationCommandOptionType, Attachment, Channel, Component, ComponentType, Embed, GuildMember, Message, MessageComponent, MessageFlags, Role, Snowflake, User,
 } from '.';
 
 export type Interaction = {
@@ -15,6 +13,8 @@ export type Interaction = {
   data?: ApplicationCommandData | MessageComponentData | ModalSubmitData;
   /** Guild that the interaction was sent from */
   guild_id?: Snowflake;
+  /** Channel that the interaction was sent from */
+  channel?: Partial<Channel>;
   /** Channel that the interaction was sent from */
   channel_id?: Snowflake;
   /** Guild member data for the invoking user, including permissions */
@@ -113,7 +113,7 @@ export type ApplicationCommandInteractionDataOption = {
   /** Value of application command option type */
   type: ApplicationCommandOptionType;
   /** Value of the option resulting from user input */
-  value?: string | number;
+  value?: string | number | boolean;
   /** Present if this option is a group or subcommand */
   options?: ApplicationCommandInteractionDataOption[];
   /** `true` if this option is the currently focused option for autocomplete */
@@ -191,7 +191,7 @@ export type AutocompleteCallback = {
 // ========================================================================
 
 export type ModalCallback = {
-  /** a developer-defined identifier for the component, max 100 characters */
+  /** a developer-defined identifier for the modal, max 100 characters */
   custom_id: string;
   /** the title of the popup modal, max 45 characters */
   title: string;

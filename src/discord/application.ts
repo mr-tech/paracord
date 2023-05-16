@@ -21,6 +21,8 @@ export type Application = {
   privacy_policy_url?: string;
   /** partial user object containing info on the owner of the application */
   owner?: Partial<User>;
+  /** deprecated and will be removed in v11. An empty string. */
+  summary: string;
   /** the hex encoded key for verification in interactions and the GameSDK's GetTicket */
   verify_key: string;
   /** if the application belongs to a team, this will be a list of the members of that team */
@@ -41,11 +43,14 @@ export type Application = {
   install_params?: InstallParam;
   /** the application's default custom authorization link, if enabled */
   custom_install_url?: string;
+  /** the application's role connection verification entry point, which when configured will render the app as a verification method in the guild role verification configuration */
+  role_connections_verification_url?: string;
 };
 
 // ========================================================================
 
 export enum ApplicationFlags {
+  APPLICATION_AUTO_MODERATION_RULE_CREATE_BADGE = 1 << 6,
   GATEWAY_PRESENCE = 1 << 12,
   GATEWAY_PRESENCE_LIMITED = 1 << 13,
   GATEWAY_GUILD_MEMBERS = 1 << 14,

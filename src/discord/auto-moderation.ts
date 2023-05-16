@@ -41,13 +41,17 @@ export type TriggerType =
 
 export type TriggerMetadata = {
   /** KEYWORD */
-  keyword_filter: string[]; // substrings which will be searched for in content
+  keyword_filter: string[]; // substrings which will be searched for in content (Maximum of 1000)
+  /** KEYWORD */
+  regex_patterns: string[]; // regular expression patterns which will be matched against content (Maximum of 10)
   /** KEYWORD_PRESET */
   presets: KeywordPresetType[]; // the internally pre-defined wordsets which will be searched for in content
-  /** KEYWORD_PRESET */
-  allow_list: string[]; // substrings which will be exempt from triggering the preset trigger type
+  /** KEYWORD, KEYWORD_PRESET */
+  allow_list: string[]; // substrings which should not trigger the rule (Maximum of 100 or 1000)
   /** MENTION_SPAM */
   mention_total_limit: number; // total number of unique role and user mentions allowed per message (Maximum of 50)
+  /** MENTION_SPAM */
+  mention_raid_protection_enabled: boolean; // whether to automatically detect mention raids
 };
 
 // ========================================================================
@@ -92,4 +96,6 @@ export type AutoModerationActionMetadata = {
   channel_id: Snowflake; // channel to which user content should be logged
   /** TIMEOUT */
   duration_seconds: number; // timeout duration in seconds
+  /** BLOCK_MESSAGE */
+  custom_message?: string; // additional explanation that will be shown to members whenever their message is blocked
 };

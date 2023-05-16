@@ -7,9 +7,9 @@ export type ApplicationCommand = {
   type?: ApplicationCommandType; // all
   /** ID of the parent application */
   application_id: Snowflake; // all
-  /** guild id of the command, if not global */
+  /** Guild ID of the command, if not global */
   guild_id?: Snowflake; // all
-  /** Name of command), 1-32 characters */
+  /** Name of command, 1-32 characters */
   name: string; // all
   /** Localization dictionary for `name` field. Values follow the same restrictions as `name` */
   name_localizations?: AvailableLocale | null; // all
@@ -20,11 +20,13 @@ export type ApplicationCommand = {
   /** Parameters for the command, max of 25 */
   options?: ApplicationCommandOption[]; // CHAT_INPUT
   /** Set of permissions represented as a bit set */
-  default_member_permissions?: string | null; // all
+  default_member_permissions: string | null; // all
   /** Indicates whether the command is available in DMs with the app, only for globally-scoped commands. By default, commands are visible. */
-  dm_permission?: boolean | null; // all
+  dm_permission?: boolean; // all
   /** Not recommended for use as field will soon be deprecated. Indicates whether the command is enabled by default when the app is added to a guild, defaults to `true` */
   default_permission?: boolean | null; // all
+  /** Indicates whether the command is age-restricted, defaults to `false` */
+  nsfw?: boolean; // all
   /** Autoincrementing version identifier updated during substantial record changes */
   version: Snowflake; // all
 };

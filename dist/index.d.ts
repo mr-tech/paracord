@@ -406,6 +406,8 @@ export declare type Application = {
     privacy_policy_url?: string;
     /** partial user object containing info on the owner of the application */
     owner?: Partial<User>;
+    /** deprecated and will be removed in v11. An empty string. */
+    summary: string;
     /** the hex encoded key for verification in interactions and the GameSDK's GetTicket */
     verify_key: string;
     /** if the application belongs to a team, this will be a list of the members of that team */
@@ -426,6 +428,8 @@ export declare type Application = {
     install_params?: InstallParam;
     /** the application's default custom authorization link, if enabled */
     custom_install_url?: string;
+    /** the application's role connection verification entry point, which when configured will render the app as a verification method in the guild role verification configuration */
+    role_connections_verification_url?: string;
 };
 
 export declare type ApplicationCommand = {
@@ -435,9 +439,9 @@ export declare type ApplicationCommand = {
     type?: ApplicationCommandType;
     /** ID of the parent application */
     application_id: Snowflake;
-    /** guild id of the command, if not global */
+    /** Guild ID of the command, if not global */
     guild_id?: Snowflake;
-    /** Name of command), 1-32 characters */
+    /** Name of command, 1-32 characters */
     name: string;
     /** Localization dictionary for `name` field. Values follow the same restrictions as `name` */
     name_localizations?: AvailableLocale | null;
@@ -448,11 +452,13 @@ export declare type ApplicationCommand = {
     /** Parameters for the command, max of 25 */
     options?: ApplicationCommandOption[];
     /** Set of permissions represented as a bit set */
-    default_member_permissions?: string | null;
+    default_member_permissions: string | null;
     /** Indicates whether the command is available in DMs with the app, only for globally-scoped commands. By default, commands are visible. */
-    dm_permission?: boolean | null;
+    dm_permission?: boolean;
     /** Not recommended for use as field will soon be deprecated. Indicates whether the command is enabled by default when the app is added to a guild, defaults to `true` */
     default_permission?: boolean | null;
+    /** Indicates whether the command is age-restricted, defaults to `false` */
+    nsfw?: boolean;
     /** Autoincrementing version identifier updated during substantial record changes */
     version: Snowflake;
 };
@@ -480,7 +486,7 @@ export declare type ApplicationCommandInteractionDataOption = {
     /** Value of application command option type */
     type: ApplicationCommandOptionType;
     /** Value of the option resulting from user input */
-    value?: string | number;
+    value?: string | number | boolean;
     /** Present if this option is a group or subcommand */
     options?: ApplicationCommandInteractionDataOption[];
     /** `true` if this option is the currently focused option for autocomplete */
@@ -577,6 +583,7 @@ export declare type ApplicationCommandType =
 3;
 
 export declare enum ApplicationFlags {
+    APPLICATION_AUTO_MODERATION_RULE_CREATE_BADGE = 64,
     GATEWAY_PRESENCE = 4096,
     GATEWAY_PRESENCE_LIMITED = 8192,
     GATEWAY_GUILD_MEMBERS = 16384,
@@ -587,6 +594,15 @@ export declare enum ApplicationFlags {
     GATEWAY_MESSAGE_CONTENT_LIMITED = 524288,
     APPLICATION_COMMAND_BADGE = 8388608
 }
+
+export declare type ApplicationRoleConnection = {
+    /** the vanity name of the platform a bot has connected (max 50 characters) */
+    platform_name: string | null;
+    /** the username on the platform a bot has connected (max 100 characters) */
+    platform_username: string | null;
+    /** object mapping application role connection metadata keys to their `string`-ified value (max 100 characters) for the user on the platform a bot has connected */
+    metadata: object;
+};
 
 export declare type Attachment = {
     /** attachment id */
@@ -609,6 +625,10 @@ export declare type Attachment = {
     width?: number | null;
     /** whether this attachment is ephemeral */
     ephemeral?: boolean;
+    /** the duration of the audio file (currently for voice messages) */
+    duration_secs?: number;
+    /** base64 encoded bytearray representing a sampled waveform (currently for voice messages) */
+    waveform?: string;
 };
 
 export declare type AuditLog = {
@@ -834,6 +854,8 @@ export declare type AutoModerationActionMetadata = {
     channel_id: Snowflake;
     /** TIMEOUT */
     duration_seconds: number;
+    /** BLOCK_MESSAGE */
+    custom_message?: string;
 };
 
 export declare type AutoModerationActionType = 
@@ -979,6 +1001,8 @@ export declare type Channel = {
     owner_id?: Snowflake;
     /** application id of the group DM creator if it is bot-created */
     application_id?: Snowflake;
+    /** for group DM channels: whether the channel is managed by an application via the `gdm.join` OAuth2 scope */
+    managed?: boolean;
     /** for guild channels: id of the parent category for a channel (each parent category can contain up to 50 channels), for threads: id of the text channel this thread was created */
     parent_id?: Snowflake | null;
     /** when the last pinned message was pinned. This may be `null` in events such as `GUILD_CREATE` when a message is not pinned. */
@@ -1013,6 +1037,8 @@ export declare type Channel = {
     default_thread_rate_limit_per_user?: number;
     /** the default sort order type used to order posts in `GUILD_FORUM` channels. Defaults to `null`, which indicates a preferred sort order hasn't been set by a channel admin */
     default_sort_order?: number | null;
+    /** the default forum layout view used to display posts in `GUILD_FORUM` channels. Defaults to `0`, which indicates a layout view has not been set by a channel admin */
+    default_forum_layout?: number;
 };
 
 export declare type CHANNEL_CREATE_EVENT = GuildChannel;
@@ -1244,7 +1270,7 @@ export declare type Embed = {
 export declare type EmbedAuthor = {
     /** name of author */
     name: string;
-    /** url of author */
+    /** url of author (only supports http(s)) */
     url?: string;
     /** url of author icon (only supports http(s) and attachments) */
     icon_url?: string;
@@ -1352,6 +1378,12 @@ export declare type FollowedChannel = {
     webhook_id: Snowflake;
 };
 
+export declare enum ForumLayoutTypes {
+    NOT_SET = 0,
+    LIST_VIEW = 1,
+    GALLERY_VIEW = 2
+}
+
 export declare type ForumTag = {
     /** the id of the tag */
     id: Snowflake;
@@ -1360,7 +1392,7 @@ export declare type ForumTag = {
     /** whether this tag can only be added to or removed from threads by a member with the `MANAGE_THREADS` permission */
     moderated: boolean;
     /** the id of a guild's custom emoji */
-    emoji_id: Snowflake;
+    emoji_id: Snowflake | null;
     /** the unicode character of the emoji */
     emoji_name: string | null;
 };
@@ -1733,7 +1765,7 @@ export declare type Guild = {
     region?: VoiceRegion | null;
     /** id of afk channel */
     afk_channel_id: Snowflake | null;
-    /** afk timeout in seconds, can be set to: 60, 300, 900, 1800, 3600 */
+    /** afk timeout in seconds */
     afk_timeout: number;
     /** true if the server widget is enabled */
     widget_enabled?: boolean;
@@ -1781,6 +1813,8 @@ export declare type Guild = {
     public_updates_channel_id: Snowflake | null;
     /** the maximum amount of users in a video channel */
     max_video_channel_users?: number;
+    /** the maximum amount of users in a stage video channel */
+    max_stage_video_channel_users?: number;
     /** approximate number of members in this guild, returned from the `GET /guilds/<id>` endpoint when `with_counts` is `true` */
     approximate_member_count?: number;
     /** approximate number of non-offline members in this guild, returned from the `GET /guilds/<id>` endpoint when `with_counts` is `true` */
@@ -1793,6 +1827,8 @@ export declare type Guild = {
     stickers?: Sticker[];
     /** whether the guild has the boost progress bar enabled */
     premium_progress_bar_enabled: boolean;
+    /** the id of the channel where admins and moderators of Community guilds receive safety alerts from Discord */
+    safety_alerts_channel_id: Snowflake | null;
 };
 
 export declare type GUILD_BAN_ADD_EVENT = GuildBanAddEventField;
@@ -1927,12 +1963,20 @@ export declare type GuildFeatureType =
 'ANIMATED_BANNER' | 
 /** guild has access to set an animated guild icon */
 'ANIMATED_ICON' | 
+/** guild is using the [old permissions configuration behavior](#DOCS_CHANGE_LOG/upcoming-application-command-permission-changes) */
+'APPLICATION_COMMAND_PERMISSIONS_V2' | 
 /** guild has set up auto moderation rules */
 'AUTO_MODERATION' | 
 /** guild has access to set a guild banner image */
 'BANNER' | 
 /** guild can enable welcome screen, Membership Screening, stage channels and discovery, and receives community updates */
 'COMMUNITY' | 
+/** guild has enabled monetization */
+'CREATOR_MONETIZABLE_PROVISIONAL' | 
+/** guild has enabled the role subscription promo page */
+'CREATOR_STORE_PAGE' | 
+/** guild has been set as a support server on the App Directory */
+'DEVELOPER_SUPPORT_SERVER' | 
 /** guild is able to be discovered in the directory */
 'DISCOVERABLE' | 
 /** guild is able to be featured in the directory */
@@ -1943,8 +1987,6 @@ export declare type GuildFeatureType =
 'INVITE_SPLASH' | 
 /** guild has enabled [Membership Screening](#DOCS_RESOURCES_GUILD/membership-screening-object) */
 'MEMBER_VERIFICATION_GATE_ENABLED' | 
-/** guild has enabled monetization */
-'MONETIZATION_ENABLED' | 
 /** guild has increased custom sticker slots */
 'MORE_STICKERS' | 
 /** guild has access to create announcement channels */
@@ -1953,10 +1995,14 @@ export declare type GuildFeatureType =
 'PARTNERED' | 
 /** guild can be previewed before joining via Membership Screening or the directory */
 'PREVIEW_ENABLED' | 
-/** guild has access to create private threads */
-'PRIVATE_THREADS' | 
+/** guild has disabled alerts for join raids in the configured safety alerts channel */
+'RAID_ALERTS_DISABLED' | 
 /** guild is able to set role icons */
 'ROLE_ICONS' | 
+/** guild has role subscriptions that can be purchased */
+'ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE' | 
+/** guild has enabled role subscriptions */
+'ROLE_SUBSCRIPTIONS_ENABLED' | 
 /** guild has enabled ticketed events */
 'TICKETED_EVENTS_ENABLED' | 
 /** guild has access to set a vanity URL */
@@ -1995,6 +2041,8 @@ export declare type GuildMember = {
     deaf: boolean;
     /** whether the user is muted in voice channels */
     mute: boolean;
+    /** guild member flags represented as a bit set, defaults to `0` */
+    flags: GuildMemberFlags;
     /** whether the user has not yet passed the guild's Membership Screening requirements */
     pending?: boolean;
     /** total permissions of the member in the channel, including overwrites, returned when in the interaction object */
@@ -2007,6 +2055,13 @@ export declare type GuildMemberAddExtraField = {
     /** ID of the guild */
     guild_id: Snowflake;
 };
+
+export declare enum GuildMemberFlags {
+    DID_REJOIN = 1,
+    COMPLETED_ONBOARDING = 2,
+    BYPASSES_VERIFICATION = 4,
+    STARTED_ONBOARDING = 8
+}
 
 export declare type GuildMemberRemoveEventField = {
     /** ID of the guild */
@@ -2077,6 +2132,17 @@ export declare type GuildNSFWLevel =
 2 | 
 /** AGE_RESTRICTED */
 3;
+
+export declare type GuildOnboarding = {
+    /** ID of the guild this onboarding is part of */
+    guild_id: Snowflake;
+    /** Prompts shown during onboarding and in customize community */
+    prompts: OnboardingPrompt[];
+    /** Channel IDs that members get opted into automatically */
+    default_channel_ids: Snowflake[];
+    /** Whether onboarding is enabled in the guild */
+    enabled: boolean;
+};
 
 export declare type GuildPreview = {
     /** guild id */
@@ -2374,10 +2440,10 @@ export declare type Integration = {
     id: Snowflake;
     /** integration name */
     name: string;
-    /** integration type (twitch, youtube, or discord) */
+    /** integration type (twitch, youtube, discord, or guild_subscription) */
     type: string;
     /** is this integration enabled */
-    enabled?: boolean;
+    enabled: boolean;
     /** is this integration syncing */
     syncing?: boolean;
     /** id that this integration uses for "subscribers" */
@@ -2466,6 +2532,8 @@ export declare type Interaction = {
     data?: ApplicationCommandData | MessageComponentData | ModalSubmitData;
     /** Guild that the interaction was sent from */
     guild_id?: Snowflake;
+    /** Channel that the interaction was sent from */
+    channel?: Partial<Channel>;
     /** Channel that the interaction was sent from */
     channel_id?: Snowflake;
     /** Guild member data for the invoking user, including permissions */
@@ -2788,6 +2856,8 @@ export declare type Message = {
     stickers?: Sticker[];
     /** A generally increasing integer (there may be gaps or duplicates) that represents the approximate position of the message in a thread, it can be used to estimate the relative position of the message in a thread in company with `total_message_sent` on parent thread */
     position?: number;
+    /** data of the role subscription purchase or renewal that prompted this ROLE_SUBSCRIPTION_PURCHASE message */
+    role_subscription_data?: RoleSubscriptionData;
 };
 
 export declare type MESSAGE_CREATE_EVENT = Message & MessageCreateExtraField;
@@ -2884,9 +2954,12 @@ export declare enum MessageFlags {
     SUPPRESS_EMBEDS = 4,
     SOURCE_MESSAGE_DELETED = 8,
     URGENT = 16,
+    HAS_THREAD = 32,
     EPHEMERAL = 64,
     LOADING = 128,
-    FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 256
+    FAILED_TO_MENTION_SOME_ROLES_IN_THREAD = 256,
+    SUPPRESS_NOTIFICATIONS = 4096,
+    IS_VOICE_MESSAGE = 8192
 }
 
 export declare type MessageInteraction = {
@@ -3000,16 +3073,28 @@ export declare type MessageType =
 18 | 
 /** REPLY */
 19 | 
-/** THREAD_STARTER_MESSAGE */
-21 | 
 /** APPLICATION_COMMAND */
 20 | 
+/** THREAD_STARTER_MESSAGE */
+21 | 
 /** GUILD_INVITE_REMINDER */
 22 | 
 /** CONTEXT_MENU_COMMAND */
 23 | 
 /** AUTO_MODERATION_ACTION */
-24;
+24 | 
+/** INTERACTION_PREMIUM_UPSELL */
+26 | 
+/** STAGE_START */
+27 | 
+/** STAGE_END */
+28 | 
+/** STAGE_SPEAKER */
+29 | 
+/** STAGE_TOPIC */
+31 | 
+/** GUILD_APPLICATION_PREMIUM_SUBSCRIPTION */
+32;
 
 export declare type MFALevel = 
 /** NONE */
@@ -3026,7 +3111,7 @@ export declare function millisecondsFromNow(timestamp: number): number;
 export declare const MINUTE_IN_MILLISECONDS: number;
 
 export declare type ModalCallback = {
-    /** a developer-defined identifier for the component, max 100 characters */
+    /** a developer-defined identifier for the modal, max 100 characters */
     custom_id: string;
     /** the title of the popup modal, max 45 characters */
     title: string;
@@ -3044,6 +3129,23 @@ export declare type ModalSubmitData = {
 export declare type NonLinkButton = Omit<Button, 'url' | 'style' | 'emoji'> & Pick<Required<Button>, 'custom_id'> & {
     style: Exclude<ButtonStyleType, 5>;
     emoji?: ButtonEmoji;
+};
+
+export declare type OnboardingPrompt = {
+    /** ID of the prompt */
+    id: Snowflake;
+    /** Type of prompt */
+    type: PromptType;
+    /** Options available within the prompt */
+    options: PromptOption[];
+    /** Title of the prompt */
+    title: string;
+    /** Indicates whether users are limited to selecting one option for the prompt */
+    single_select: boolean;
+    /** Indicates whether the prompt is required before a user completes the onboarding flow */
+    required: boolean;
+    /** Indicates whether the prompt is present in the onboarding flow. If `false`, the prompt will only appear in the Channels & Roles tab */
+    in_onboarding: boolean;
 };
 
 export declare type OptionalAuditEntryInfo = {
@@ -3235,7 +3337,7 @@ export declare const PERMISSIONS: {
     readonly MANAGE_NICKNAMES: bigint;
     readonly MANAGE_ROLES: bigint;
     readonly MANAGE_WEBHOOKS: bigint;
-    readonly MANAGE_EMOJIS_AND_STICKERS: bigint;
+    readonly MANAGE_GUILD_EXPRESSIONS: bigint;
     readonly USE_APPLICATION_COMMANDS: bigint;
     readonly REQUEST_TO_SPEAK: bigint;
     readonly MANAGE_EVENTS: bigint;
@@ -3246,6 +3348,9 @@ export declare const PERMISSIONS: {
     readonly SEND_MESSAGES_IN_THREADS: bigint;
     readonly USE_EMBEDDED_ACTIVITIES: bigint;
     readonly MODERATE_MEMBERS: bigint;
+    readonly VIEW_CREATOR_MONETIZATION_ANALYTICS: bigint;
+    readonly USE_SOUNDBOARD: bigint;
+    readonly SEND_VOICE_MESSAGES: bigint;
 };
 
 export declare type PremiumTier = 
@@ -3264,7 +3369,9 @@ export declare type PremiumType =
 /** Nitro Classic */
 1 | 
 /** Nitro */
-2;
+2 | 
+/** Nitro Basic */
+3;
 
 export declare type Presence = {
     /** User whose presence is being updated */
@@ -3280,6 +3387,27 @@ export declare type Presence = {
 };
 
 export declare type PRESENCE_UPDATE_EVENT = GatewayPresence;
+
+export declare type PromptOption = {
+    /** ID of the prompt option */
+    id: Snowflake;
+    /** IDs for channels a member is added to when the option is selected */
+    channel_ids: Snowflake[];
+    /** IDs for roles assigned to a member when the option is selected */
+    role_ids: Snowflake[];
+    /** Emoji of the option */
+    emoji: Emoji;
+    /** Title of the option */
+    title: string;
+    /** Description of the option */
+    description: string | null;
+};
+
+export declare type PromptType = 
+/** MULTIPLE_CHOICE */
+0 | 
+/** DROPDOWN */
+1;
 
 export declare type QueryStringParam = {
     /** include number of users subscribed to each event */
@@ -3638,13 +3766,30 @@ export declare type RoleSelectMenu = {
     type: 6;
 } & Omit<SelectMenu, 'options' | 'channel_types'>;
 
+export declare type RoleSubscriptionData = {
+    /** the id of the sku and listing that the user is subscribed to */
+    role_subscription_listing_id: Snowflake;
+    /** the name of the tier that the user is subscribed to */
+    tier_name: string;
+    /** the cumulative number of months that the user has been subscribed for */
+    total_months_subscribed: number;
+    /** whether this notification is for a renewal rather than a new purchase */
+    is_renewal: boolean;
+};
+
 export declare type RoleTag = {
     /** the id of the bot this role belongs to */
     bot_id?: Snowflake;
     /** the id of the integration this role belongs to */
     integration_id?: Snowflake;
-    /** whether this is the guild's premium subscriber role */
+    /** whether this is the guild's Booster role */
     premium_subscriber?: null;
+    /** the id of this role's subscription sku and listing */
+    subscription_listing_id?: Snowflake;
+    /** whether this role is available for purchase */
+    available_for_purchase?: null;
+    /** whether this role is a guild's linked role */
+    guild_connections?: null;
 };
 
 export declare const RPC_CLOSE_CODES: {
@@ -3747,6 +3892,8 @@ export declare type Service = [
 'facebook' | 
 /** GitHub */
 'github' | 
+/** Instagram */
+'instagram' | 
 /** League of Legends */
 'leagueoflegends' | 
 /** PayPal */
@@ -3763,6 +3910,8 @@ export declare type Service = [
 'skype' | 
 /** Steam */
 'steam' | 
+/** TikTok */
+'tiktok' | 
 /** Twitch */
 'twitch' | 
 /** Twitter */
@@ -4029,7 +4178,9 @@ export declare type StickerFormatType =
 /** APNG */
 2 | 
 /** LOTTIE */
-3;
+3 | 
+/** GIF */
+4;
 
 export declare type StickerItem = {
     /** id of the sticker */
@@ -4069,7 +4220,9 @@ export declare enum SystemChannelFlags {
     SUPPRESS_JOIN_NOTIFICATIONS = 1,
     SUPPRESS_PREMIUM_SUBSCRIPTIONS = 2,
     SUPPRESS_GUILD_REMINDER_NOTIFICATIONS = 4,
-    SUPPRESS_JOIN_NOTIFICATION_REPLIES = 8
+    SUPPRESS_JOIN_NOTIFICATION_REPLIES = 8,
+    SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATIONS = 16,
+    SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATION_REPLIES = 32
 }
 
 export declare type Team = {
@@ -4147,14 +4300,16 @@ export declare type ThreadListSyncEventField = {
 };
 
 export declare type ThreadMember = {
-    /** the id of the thread */
+    /** ID of the thread */
     id?: Snowflake;
-    /** the id of the user */
+    /** ID of the user */
     user_id?: Snowflake;
-    /** the time the current user last joined the thread */
+    /** Time the user last joined the thread */
     join_timestamp: ISO8601timestamp;
-    /** any user-thread settings, currently only used for notifications */
+    /** Any user-thread settings, currently only used for notifications */
     flags: number;
+    /** Additional information about the user */
+    member?: GuildMember;
 };
 
 export declare type ThreadMembersUpdateEventField = {
@@ -4211,12 +4366,16 @@ export declare function timestampNSecondsInFuture(seconds: number): number;
 export declare type TriggerMetadata = {
     /** KEYWORD */
     keyword_filter: string[];
+    /** KEYWORD */
+    regex_patterns: string[];
     /** KEYWORD_PRESET */
     presets: KeywordPresetType[];
-    /** KEYWORD_PRESET */
+    /** KEYWORD, KEYWORD_PRESET */
     allow_list: string[];
     /** MENTION_SPAM */
     mention_total_limit: number;
+    /** MENTION_SPAM */
+    mention_raid_protection_enabled: boolean;
 };
 
 export declare type TriggerType = 
@@ -4303,7 +4462,8 @@ export declare enum UserFlags {
     VERIFIED_BOT = 65536,
     VERIFIED_DEVELOPER = 131072,
     CERTIFIED_MODERATOR = 262144,
-    BOT_HTTP_INTERACTIONS = 524288
+    BOT_HTTP_INTERACTIONS = 524288,
+    ACTIVE_DEVELOPER = 4194304
 }
 
 export declare type UserSelectMenu = {

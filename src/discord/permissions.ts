@@ -31,7 +31,7 @@ export const PERMISSIONS = {
   MANAGE_NICKNAMES: BigInt(0x8000000),
   MANAGE_ROLES: BigInt(0x10000000),
   MANAGE_WEBHOOKS: BigInt(0x20000000),
-  MANAGE_EMOJIS_AND_STICKERS: BigInt(0x40000000),
+  MANAGE_GUILD_EXPRESSIONS: BigInt(0x40000000),
   USE_APPLICATION_COMMANDS: BigInt(0x80000000),
   REQUEST_TO_SPEAK: BigInt(0x100000000),
   MANAGE_EVENTS: BigInt(0x200000000),
@@ -42,6 +42,9 @@ export const PERMISSIONS = {
   SEND_MESSAGES_IN_THREADS: BigInt(0x4000000000),
   USE_EMBEDDED_ACTIVITIES: BigInt(0x8000000000),
   MODERATE_MEMBERS: BigInt(0x10000000000),
+  VIEW_CREATOR_MONETIZATION_ANALYTICS: BigInt(0x20000000000),
+  USE_SOUNDBOARD: BigInt(0x40000000000),
+  SEND_VOICE_MESSAGES: BigInt(0x400000000000),
 } as const;
 
 // ========================================================================
@@ -78,6 +81,12 @@ export type RoleTag = {
   bot_id?: Snowflake;
   /** the id of the integration this role belongs to */
   integration_id?: Snowflake;
-  /** whether this is the guild's premium subscriber role */
+  /** whether this is the guild's Booster role */
   premium_subscriber?: null;
+  /** the id of this role's subscription sku and listing */
+  subscription_listing_id?: Snowflake;
+  /** whether this role is available for purchase */
+  available_for_purchase?: null;
+  /** whether this role is a guild's linked role */
+  guild_connections?: null;
 };

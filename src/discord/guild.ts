@@ -25,7 +25,7 @@ export type Guild = {
   region?: VoiceRegion | null;
   /** id of afk channel */
   afk_channel_id: Snowflake | null;
-  /** afk timeout in seconds, can be set to: 60, 300, 900, 1800, 3600 */
+  /** afk timeout in seconds */
   afk_timeout: number;
   /** true if the server widget is enabled */
   widget_enabled?: boolean;
@@ -73,6 +73,8 @@ export type Guild = {
   public_updates_channel_id: Snowflake | null;
   /** the maximum amount of users in a video channel */
   max_video_channel_users?: number;
+  /** the maximum amount of users in a stage video channel */
+  max_stage_video_channel_users?: number;
   /** approximate number of members in this guild, returned from the `GET /guilds/<id>` endpoint when `with_counts` is `true` */
   approximate_member_count?: number;
   /** approximate number of non-offline members in this guild, returned from the `GET /guilds/<id>` endpoint when `with_counts` is `true` */
@@ -85,6 +87,8 @@ export type Guild = {
   stickers?: Sticker[];
   /** whether the guild has the boost progress bar enabled */
   premium_progress_bar_enabled: boolean;
+  /** the id of the channel where admins and moderators of Community guilds receive safety alerts from Discord */
+  safety_alerts_channel_id: Snowflake | null;
 };
 
 // ========================================================================
@@ -157,7 +161,9 @@ export enum SystemChannelFlags {
   SUPPRESS_JOIN_NOTIFICATIONS = 1 << 0,
   SUPPRESS_PREMIUM_SUBSCRIPTIONS = 1 << 1,
   SUPPRESS_GUILD_REMINDER_NOTIFICATIONS = 1 << 2,
-  SUPPRESS_JOIN_NOTIFICATION_REPLIES = 1 << 3
+  SUPPRESS_JOIN_NOTIFICATION_REPLIES = 1 << 3,
+  SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATIONS = 1 << 4,
+  SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATION_REPLIES = 1 << 5
 }
 
 // ========================================================================
@@ -167,12 +173,20 @@ export type GuildFeatureType =
   'ANIMATED_BANNER' |
   /** guild has access to set an animated guild icon */
   'ANIMATED_ICON' |
+  /** guild is using the [old permissions configuration behavior](#DOCS_CHANGE_LOG/upcoming-application-command-permission-changes) */
+  'APPLICATION_COMMAND_PERMISSIONS_V2' |
   /** guild has set up auto moderation rules */
   'AUTO_MODERATION' |
   /** guild has access to set a guild banner image */
   'BANNER' |
   /** guild can enable welcome screen, Membership Screening, stage channels and discovery, and receives community updates */
   'COMMUNITY' |
+  /** guild has enabled monetization */
+  'CREATOR_MONETIZABLE_PROVISIONAL' |
+  /** guild has enabled the role subscription promo page */
+  'CREATOR_STORE_PAGE' |
+  /** guild has been set as a support server on the App Directory */
+  'DEVELOPER_SUPPORT_SERVER' |
   /** guild is able to be discovered in the directory */
   'DISCOVERABLE' |
   /** guild is able to be featured in the directory */
@@ -183,8 +197,6 @@ export type GuildFeatureType =
   'INVITE_SPLASH' |
   /** guild has enabled [Membership Screening](#DOCS_RESOURCES_GUILD/membership-screening-object) */
   'MEMBER_VERIFICATION_GATE_ENABLED' |
-  /** guild has enabled monetization */
-  'MONETIZATION_ENABLED' |
   /** guild has increased custom sticker slots */
   'MORE_STICKERS' |
   /** guild has access to create announcement channels */
@@ -193,10 +205,14 @@ export type GuildFeatureType =
   'PARTNERED' |
   /** guild can be previewed before joining via Membership Screening or the directory */
   'PREVIEW_ENABLED' |
-  /** guild has access to create private threads */
-  'PRIVATE_THREADS' |
+  /** guild has disabled alerts for join raids in the configured safety alerts channel */
+  'RAID_ALERTS_DISABLED' |
   /** guild is able to set role icons */
   'ROLE_ICONS' |
+  /** guild has role subscriptions that can be purchased */
+  'ROLE_SUBSCRIPTIONS_AVAILABLE_FOR_PURCHASE' |
+  /** guild has enabled role subscriptions */
+  'ROLE_SUBSCRIPTIONS_ENABLED' |
   /** guild has enabled ticketed events */
   'TICKETED_EVENTS_ENABLED' |
   /** guild has access to set a vanity URL */
@@ -280,6 +296,8 @@ export type GuildMember = {
   deaf: boolean;
   /** whether the user is muted in voice channels */
   mute: boolean;
+  /** guild member flags represented as a bit set, defaults to `0` */
+  flags: GuildMemberFlags;
   /** whether the user has not yet passed the guild's Membership Screening requirements */
   pending?: boolean;
   /** total permissions of the member in the channel, including overwrites, returned when in the interaction object */
@@ -290,15 +308,24 @@ export type GuildMember = {
 
 // ========================================================================
 
+export enum GuildMemberFlags {
+  DID_REJOIN = 1 << 0,
+  COMPLETED_ONBOARDING = 1 << 1,
+  BYPASSES_VERIFICATION = 1 << 2,
+  STARTED_ONBOARDING = 1 << 3
+}
+
+// ========================================================================
+
 export type Integration = {
   /** integration id */
   id: Snowflake;
   /** integration name */
   name: string;
-  /** integration type (twitch, youtube, or discord) */
+  /** integration type (twitch, youtube, discord, or guild_subscription) */
   type: string;
   /** is this integration enabled */
-  enabled?: boolean;
+  enabled: boolean;
   /** is this integration syncing */
   syncing?: boolean;
   /** id that this integration uses for "subscribers" */
@@ -387,3 +414,60 @@ export type WelcomeScreenChannel = {
   /** the emoji name if custom, the unicode character if standard, or `null` if no emoji is set */
   emoji_name: string | null;
 };
+
+// ========================================================================
+
+export type GuildOnboarding = {
+  /** ID of the guild this onboarding is part of */
+  guild_id: Snowflake;
+  /** Prompts shown during onboarding and in customize community */
+  prompts: OnboardingPrompt[];
+  /** Channel IDs that members get opted into automatically */
+  default_channel_ids: Snowflake[];
+  /** Whether onboarding is enabled in the guild */
+  enabled: boolean;
+};
+
+// ========================================================================
+
+export type OnboardingPrompt = {
+  /** ID of the prompt */
+  id: Snowflake;
+  /** Type of prompt */
+  type: PromptType;
+  /** Options available within the prompt */
+  options: PromptOption[];
+  /** Title of the prompt */
+  title: string;
+  /** Indicates whether users are limited to selecting one option for the prompt */
+  single_select: boolean;
+  /** Indicates whether the prompt is required before a user completes the onboarding flow */
+  required: boolean;
+  /** Indicates whether the prompt is present in the onboarding flow. If `false`, the prompt will only appear in the Channels & Roles tab */
+  in_onboarding: boolean;
+};
+
+// ========================================================================
+
+export type PromptOption = {
+  /** ID of the prompt option */
+  id: Snowflake;
+  /** IDs for channels a member is added to when the option is selected */
+  channel_ids: Snowflake[];
+  /** IDs for roles assigned to a member when the option is selected */
+  role_ids: Snowflake[];
+  /** Emoji of the option */
+  emoji: Emoji;
+  /** Title of the option */
+  title: string;
+  /** Description of the option */
+  description: string | null;
+};
+
+// ========================================================================
+
+export type PromptType =
+  /** MULTIPLE_CHOICE */
+  0 |
+  /** DROPDOWN */
+  1;
