@@ -31,7 +31,7 @@ export type User = {
   premium_type?: number; // identify
   /** the public flags on a user's account */
   public_flags?: number; // identify
-  global_username?: string; // identify
+  global_name?: string; // identify
 };
 
 // ========================================================================

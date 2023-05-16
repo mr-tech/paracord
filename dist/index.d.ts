@@ -4444,7 +4444,7 @@ export declare type User = {
     premium_type?: number;
     /** the public flags on a user's account */
     public_flags?: number;
-    global_username?: string;
+    global_name?: string;
 };
 
 export declare type USER_UPDATE_EVENT = User;
