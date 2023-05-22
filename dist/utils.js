@@ -176,7 +176,7 @@ function _applyOverwrites(perms, overwrites) {
  */
 function constructUserAvatarUrl(user, { fileType = 'jpg', animate = false } = {}) {
     if (user.avatar === null) {
-        return `${constants_1.DISCORD_CDN_URL}/embed/avatars/${Number(user.discriminator) % 5}.${fileType}`;
+        return `${constants_1.DISCORD_CDN_URL}/embed/avatars/${(BigInt(user.id) << BigInt(22)) % BigInt(5)}.${fileType}`;
     }
     if (animate && user.avatar.startsWith('a_') && fileType && fileType !== 'webp') {
         fileType = 'gif';

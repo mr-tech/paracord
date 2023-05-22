@@ -1,6 +1,5 @@
 import {
-  DISCORD_CDN_URL, DISCORD_EPOCH,
-  SECOND_IN_MILLISECONDS, OVERWRITE_ROLE_VALUE,
+  DISCORD_CDN_URL, DISCORD_EPOCH, OVERWRITE_ROLE_VALUE, SECOND_IN_MILLISECONDS,
 } from './constants';
 import {
   Guild, GuildChannel, GuildMember, Overwrite, PERMISSIONS, Snowflake, User,
@@ -199,9 +198,9 @@ type AvatarParams = {
  * @param user User whose avatar url to generate.
  * @param fileType File extension of the image.
  */
-export function constructUserAvatarUrl(user: Pick<User, 'id' | 'discriminator' | 'avatar'>, { fileType = 'jpg', animate = false }: AvatarParams = {}): string {
+export function constructUserAvatarUrl(user: Pick<User, 'id' | 'avatar'> & { discriminator?: string }, { fileType = 'jpg', animate = false }: AvatarParams = {}): string {
   if (user.avatar === null) {
-    return `${DISCORD_CDN_URL}/embed/avatars/${Number(user.discriminator) % 5}.${fileType}`;
+    return `${DISCORD_CDN_URL}/embed/avatars/${(BigInt(user.id) << BigInt(22)) % BigInt(5)}.${fileType}`;
   }
 
   if (animate && user.avatar.startsWith('a_') && fileType && fileType !== 'webp') {

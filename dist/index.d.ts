@@ -1208,7 +1208,9 @@ export declare function constructGuildIcon(guild: Pick<Guild, 'id' | 'icon_hash'
  * @param user User whose avatar url to generate.
  * @param fileType File extension of the image.
  */
-export declare function constructUserAvatarUrl(user: Pick<User, 'id' | 'discriminator' | 'avatar'>, { fileType, animate }?: AvatarParams): string;
+export declare function constructUserAvatarUrl(user: Pick<User, 'id' | 'avatar'> & {
+    discriminator?: string;
+}, { fileType, animate }?: AvatarParams): string;
 
 declare type DebugLevel = 'FATAL' | 'ERROR' | 'WARNING' | 'INFO' | 'DEBUG';
 
