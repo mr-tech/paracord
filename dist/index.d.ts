@@ -190,7 +190,7 @@ export declare class Api {
      * @param data Data to send with the event.
      */
     private emit;
-    on: <T extends "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" = "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
+    on: <T extends "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "SERVER_ERROR" = "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "SERVER_ERROR">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
     /**
      * Adds the service that has a server make requests to Discord on behalf of the client.
      * @param serviceOptions
@@ -239,6 +239,7 @@ export declare class Api {
      * @param request Request being sent.
      */
     private handleRateLimitResponse;
+    private handleServerErrorResponse;
     /**
      * Puts the Api Request onto the queue to be executed when the rate limit has reset.
      * @param request The Api Request to queue.
@@ -262,6 +263,7 @@ export declare const API_DEBUG_CODES: {
     readonly REQUEST_REQUEUED: 5;
     readonly RESPONSE_RECEIVED: 6;
     readonly RATE_LIMITED: 7;
+    readonly SERVER_ERROR: 8;
 };
 
 export declare const API_GLOBAL_RATE_LIMIT = 50;

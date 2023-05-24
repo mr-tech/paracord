@@ -10,11 +10,15 @@ const constants_1 = require("../../constants");
 const rpc_1 = require("../../rpc");
 const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
+const MAX_SERVER_ERROR_RETRIES = 3;
 function validateStatusDefault(status) {
     return status >= 200 && status <= 299;
 }
 function isRateLimitResponse(response) {
     return response.status === 429;
+}
+function isServerErrorResponse(response) {
+    return response.status >= 500 && response.status <= 599;
 }
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
 class Api {
@@ -377,6 +381,9 @@ class Api {
                     if (isRateLimitResponse(response)) {
                         return this.handleRateLimitResponse(request, response, rateLimitHeaders, !!fromQueue);
                     }
+                    if (isServerErrorResponse(response)) {
+                        return this.handleServerErrorResponse(request, response, !!fromQueue);
+                    }
                     return response;
                 }
                 request.assignIfStricter(new Date().getTime() + waitFor);
@@ -463,6 +470,14 @@ class Api {
             return fromQueue ? 'rate limited' : this.queueRequest(request, 'rate limited');
         }
         throw createError(new Error(response.statusText), request.config, response.status, request, response);
+    }
+    async handleServerErrorResponse(request, headers, fromQueue) {
+        if (request.attempts >= MAX_SERVER_ERROR_RETRIES) {
+            throw createError(new Error(headers.statusText), request.config, headers.status, request, headers);
+        }
+        this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
+        await new Promise((resolve) => { setTimeout(resolve, constants_1.SECOND_IN_MILLISECONDS); });
+        return this.queueRequest(request, 'server error');
     }
     /**
      * Puts the Api Request onto the queue to be executed when the rate limit has reset.

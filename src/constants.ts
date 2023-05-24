@@ -99,6 +99,7 @@ export const API_DEBUG_CODES = {
   REQUEST_REQUEUED: 5,
   RESPONSE_RECEIVED: 6,
   RATE_LIMITED: 7,
+  SERVER_ERROR: 8,
 } as const;
 
 export type ApiDebugCodeName = keyof typeof API_DEBUG_CODES;

@@ -4,7 +4,7 @@ import { EventEmitter } from 'events';
 
 import {
   ApiDebugCodeName, API_DEBUG_CODES, API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, DISCORD_API_DEFAULT_VERSION,
-  DISCORD_API_URL, LogSource, LOG_LEVELS, LOG_SOURCES, PARACORD_URL, PARACORD_VERSION_NUMBER, RPC_CLOSE_CODES,
+  DISCORD_API_URL, LogSource, LOG_LEVELS, LOG_SOURCES, PARACORD_URL, PARACORD_VERSION_NUMBER, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 import {
   createRateLimitService, createRequestService, RateLimitService, RemoteApiResponse, RequestService,
@@ -20,12 +20,18 @@ import type {
   ApiDebugData, ApiDebugEvent, ApiOptions, ApiResponse, RateLimitedResponse, RateLimitState, RequestOptions, ServiceOptions, WrappedRequest,
 } from './types';
 
+const MAX_SERVER_ERROR_RETRIES = 3;
+
 function validateStatusDefault(status: number) {
   return status >= 200 && status <= 299;
 }
 
 function isRateLimitResponse(response: ApiResponse | RateLimitedResponse): response is RateLimitedResponse {
   return response.status === 429;
+}
+
+function isServerErrorResponse(response: ApiResponse | RateLimitedResponse) {
+  return response.status >= 500 && response.status <= 599;
 }
 
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
@@ -509,6 +515,9 @@ export default class Api {
           if (isRateLimitResponse(response)) {
             return this.handleRateLimitResponse<T>(request, response, rateLimitHeaders, !!fromQueue);
           }
+          if (isServerErrorResponse(response)) {
+            return this.handleServerErrorResponse<T>(request, response, !!fromQueue);
+          }
 
           return response;
         }
@@ -611,6 +620,22 @@ export default class Api {
     }
 
     throw createError(new Error(response.statusText), request.config, response.status, request, response);
+  }
+
+  private async handleServerErrorResponse<T>(
+    request: ApiRequest,
+    headers: ApiResponse<T>,
+    fromQueue: boolean,
+  ): Promise<string | ApiResponse<T>> {
+    if (request.attempts >= MAX_SERVER_ERROR_RETRIES) {
+      throw createError(new Error(headers.statusText), request.config, headers.status, request, headers);
+    }
+
+    this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
+
+    await new Promise((resolve) => { setTimeout(resolve, SECOND_IN_MILLISECONDS); });
+
+    return this.queueRequest<T>(request, 'server error');
   }
 
   /**
