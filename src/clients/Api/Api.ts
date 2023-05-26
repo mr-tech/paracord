@@ -132,7 +132,7 @@ export default class Api {
    * @returns A key used internally to find related buckets.
    */
   public static extractBucketHashKey(method: string, url: string): string[] {
-    const [topLevelResource, topLevelID, ...rateLimitMinorParameters] = stripLeadingSlash(url).split('/');
+    const [topLevelResource, topLevelID, ...rateLimitMinorParameters] = stripLeadingSlash(url).split('?')[0].split('/');
 
     const key = [shortMethod(method)];
 
