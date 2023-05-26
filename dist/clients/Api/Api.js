@@ -106,7 +106,7 @@ class Api {
                     key.push('c');
                     break;
                 case 'audit-log':
-                    key.push('a');
+                    key.push('au');
                     break;
                 case 'members':
                     key.push('m');
@@ -122,6 +122,27 @@ class Api {
                     break;
                 case 'webhooks':
                     key.push('w');
+                    break;
+                case 'archived':
+                    key.push('ar');
+                    break;
+                case 'threads':
+                    key.push('t');
+                    break;
+                case 'private':
+                    key.push('pr');
+                    break;
+                case 'public':
+                    key.push('pu');
+                    break;
+                case 'active':
+                    key.push('ac');
+                    break;
+                case 'reactions':
+                    key.push('re');
+                    break;
+                case 'thread-members':
+                    key.push('tm');
                     break;
                 default:
                     if (!/^[0-9]/.test(param.charAt(0))) {

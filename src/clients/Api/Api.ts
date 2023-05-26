@@ -138,27 +138,21 @@ export default class Api {
 
     for (const param of rateLimitMinorParameters) {
       switch (param) {
-        case 'channels':
-          key.push('c');
-          break;
-        case 'audit-log':
-          key.push('a');
-          break;
-        case 'members':
-          key.push('m');
-          break;
-        case 'guilds':
-          key.push('g');
-          break;
-        case 'messages':
-          key.push('s');
-          break;
-        case 'roles':
-          key.push('r');
-          break;
-        case 'webhooks':
-          key.push('w');
-          break;
+        case 'channels': key.push('c'); break;
+        case 'audit-log': key.push('au'); break;
+        case 'members': key.push('m'); break;
+        case 'guilds': key.push('g'); break;
+        case 'messages': key.push('s'); break;
+        case 'roles': key.push('r'); break;
+        case 'webhooks': key.push('w'); break;
+        case 'archived': key.push('ar'); break;
+        case 'threads': key.push('t'); break;
+        case 'private': key.push('pr'); break;
+        case 'public': key.push('pu'); break;
+        case 'active': key.push('ac'); break;
+        case 'reactions': key.push('re'); break;
+        case 'thread-members': key.push('tm'); break;
+
         default:
           if (!/^[0-9]/.test(param.charAt(0))) {
             key.push(param);
