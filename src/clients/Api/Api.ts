@@ -80,12 +80,9 @@ export default class Api {
   private static allowQueue(request: ApiRequest, globalRateLimited: boolean): boolean {
     const { returnOnRateLimit, returnOnGlobalRateLimit } = request;
 
-    if (request.retriesLeft !== undefined) {
-      if (--request.retriesLeft <= 0) return false;
-    } else {
-      if (returnOnRateLimit && !globalRateLimited) return false;
-      if (returnOnGlobalRateLimit && globalRateLimited) return false;
-    }
+    if (globalRateLimited && returnOnGlobalRateLimit) return false;
+    if (!globalRateLimited && returnOnRateLimit) return false;
+    if (request.retriesLeft !== undefined && request.retriesLeft <= 0) return false;
 
     return true;
   }
@@ -492,9 +489,12 @@ export default class Api {
 
         if (waitFor === 0) {
           request.startTime = new Date().getTime();
+
           ++request.attempts;
           this.log('DEBUG', 'REQUEST_SENT', 'Request sent.', { request });
           const response = await this.#makeRequest(request);
+          this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
+
           request.completeTime = new Date().getTime();
 
           const rateLimitHeaders = RateLimitHeaders.extractRateLimitFromHeaders(
@@ -503,8 +503,6 @@ export default class Api {
           );
 
           this.updateRateLimitCache(request, rateLimitHeaders);
-
-          this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
 
           if (isRateLimitResponse(response)) {
             return this.handleRateLimitResponse<T>(request, response, rateLimitHeaders, !!fromQueue);
@@ -596,7 +594,7 @@ export default class Api {
   ): Promise<string | ApiResponse<T>> {
     const { resetTimestamp } = headers;
     const { waitUntil } = request;
-    const oldestTimestamp = Math.max(resetTimestamp ?? waitUntil ?? 0);
+    const oldestTimestamp = Math.max(resetTimestamp ?? (waitUntil ?? 0));
     if (oldestTimestamp > 0) {
       request.assignIfStricter(oldestTimestamp);
     }
@@ -663,6 +661,7 @@ export default class Api {
       const { bucketHashKey } = request;
       this.#rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
     }
+    this.#rateLimitCache.updateGlobal(rateLimitHeaders);
     void this.updateRpcCache(request, rateLimitHeaders);
   }
 

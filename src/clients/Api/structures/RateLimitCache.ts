@@ -88,7 +88,7 @@ export default class RateLimitCache {
 
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
   public wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest {
-    const wrappedRequest = async <T>(request: ApiRequest) => {
+    const wrappedRequest = <T>(request: ApiRequest) => {
       const rateLimit = this.getRateLimitFromCache(request);
 
       if (rateLimit !== undefined) {
@@ -155,6 +155,18 @@ export default class RateLimitCache {
       this.bucketHashes.set(bucketHashKey, bucketHash);
       const template = this.#rateLimitTemplateMap.upsert(bucketHash, rateLimitHeaders);
       this.#rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+    }
+  }
+
+  /**
+   * Sets the global rate limit state if the response headers indicate a global rate limit.
+   *
+   * @param rateLimitHeaders Rate limit values from the response.
+   */
+  public updateGlobal(rateLimitHeaders: RateLimitHeaders): void {
+    if (rateLimitHeaders.global) {
+      this.#globalRateLimitState.remaining = 0;
+      this.#globalRateLimitState.resetTimestamp = Date.now() + rateLimitHeaders.retryAfter;
     }
   }
 

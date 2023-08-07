@@ -9,6 +9,8 @@ export default class RequestQueue {
   /** Api client through which to emit events. */
   #apiClient: Api;
 
+  #processing = false;
+
   /**
    * Creates a new requests queue for rate limits requests.
    * @param apiClient Api client through which to emit events.
@@ -29,19 +31,24 @@ export default class RequestQueue {
   }
 
   private processQueue = (): void => {
-    const remove: QueuedRequest[] = [];
-    for (const item of this.#queue) {
-      if (this.#apiClient.maxExceeded) break;
+    if (this.#processing) return;
 
-      const allow = item.request.waitUntil === undefined || item.request.waitUntil < new Date().getTime();
-      if (allow) {
-        void this.sendRequest(item);
-        remove.push(item);
+    this.#processing = true;
+    try {
+      for (let i = 0; i < this.#queue.length; ++i) {
+        if (this.#apiClient.maxExceeded) break;
+
+        const item = this.#queue[i];
+        if (!item) break; // this shouldn't happen, but just in case
+
+        const allow = item.request.waitUntil === undefined || item.request.waitUntil < new Date().getTime();
+        if (allow) {
+          void this.sendRequest(item);
+          this.#queue.splice(i--, 1);
+        }
       }
-    }
-
-    if (remove.length) {
-      this.#queue = this.#queue.filter((item) => !remove.includes(item));
+    } finally {
+      this.#processing = false;
     }
   };
 
@@ -53,7 +60,7 @@ export default class RequestQueue {
       } else {
         const message = 'Requeuing request.';
         this.#apiClient.log('DEBUG', 'REQUEST_REQUEUED', message, { request: queuedItem.request, reason: response });
-        this.push(queuedItem);
+        setImmediate(() => this.push(queuedItem)); // break out of the current stack in case sendRequest returns synchronously
       }
     } catch (err) {
       queuedItem.reject(err);

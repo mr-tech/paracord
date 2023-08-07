@@ -60,6 +60,7 @@ function update(call, callback) {
             const [tlr, tlrID, bucketHashKey] = clients_1.Api.extractBucketHashKey(method, url);
             const rateLimitKey = clients_1.BaseRequest.formatRateLimitKey(tlr, tlrID, bucketHash);
             this.rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
+            this.rateLimitCache.updateGlobal(rateLimitHeaders);
         }
         const message = `Rate limit cache updated: ${method} ${url} | Remaining: ${remaining}`;
         this.log('DEBUG', message);

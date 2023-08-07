@@ -3499,6 +3499,12 @@ export declare class RateLimitCache {
      */
     update(rateLimitKey: string, bucketHashKey: string, rateLimitHeaders: RateLimitHeaders): void;
     /**
+     * Sets the global rate limit state if the response headers indicate a global rate limit.
+     *
+     * @param rateLimitHeaders Rate limit values from the response.
+     */
+    updateGlobal(rateLimitHeaders: RateLimitHeaders): void;
+    /**
      * Runs a request's rate limit meta against the cache to determine if it would trigger a rate limit.
      *
      * @param request The request to reference when checking the rate limit state.

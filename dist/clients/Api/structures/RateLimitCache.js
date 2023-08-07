@@ -61,7 +61,7 @@ class RateLimitCache {
     }
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc) {
-        const wrappedRequest = async (request) => {
+        const wrappedRequest = (request) => {
             const rateLimit = this.getRateLimitFromCache(request);
             if (rateLimit !== undefined) {
                 rateLimit.decrementRemaining();
@@ -116,6 +116,17 @@ class RateLimitCache {
             this.bucketHashes.set(bucketHashKey, bucketHash);
             const template = this.#rateLimitTemplateMap.upsert(bucketHash, rateLimitHeaders);
             this.#rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
+        }
+    }
+    /**
+     * Sets the global rate limit state if the response headers indicate a global rate limit.
+     *
+     * @param rateLimitHeaders Rate limit values from the response.
+     */
+    updateGlobal(rateLimitHeaders) {
+        if (rateLimitHeaders.global) {
+            this.#globalRateLimitState.remaining = 0;
+            this.#globalRateLimitState.resetTimestamp = Date.now() + rateLimitHeaders.retryAfter;
         }
     }
     /**
