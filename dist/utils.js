@@ -175,7 +175,7 @@ function _applyOverwrites(perms, overwrites) {
  * @param fileType File extension of the image.
  */
 function constructUserAvatarUrl(user, { fileType = 'jpg', animate = false } = {}) {
-    if (user.avatar === null) {
+    if (!user.avatar) {
         return `${constants_1.DISCORD_CDN_URL}/embed/avatars/${(BigInt(user.id) << BigInt(22)) % BigInt(5)}.${fileType}`;
     }
     if (animate && user.avatar.startsWith('a_') && fileType && fileType !== 'webp') {
@@ -190,7 +190,7 @@ exports.constructUserAvatarUrl = constructUserAvatarUrl;
  * @param fileType File extension of the image.
  */
 function constructGuildIcon(guild, fileType = '') {
-    if (guild.icon_hash === null || guild.icon_hash === undefined)
+    if (!guild.icon_hash)
         return undefined;
     if (guild.icon_hash.startsWith('a_')) {
         return `${constants_1.DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon_hash}${fileType ? `.${fileType}` : ''}`;

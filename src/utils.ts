@@ -199,7 +199,7 @@ type AvatarParams = {
  * @param fileType File extension of the image.
  */
 export function constructUserAvatarUrl(user: Pick<User, 'id' | 'avatar'> & { discriminator?: string }, { fileType = 'jpg', animate = false }: AvatarParams = {}): string {
-  if (user.avatar === null) {
+  if (!user.avatar) {
     return `${DISCORD_CDN_URL}/embed/avatars/${(BigInt(user.id) << BigInt(22)) % BigInt(5)}.${fileType}`;
   }
 
@@ -216,7 +216,7 @@ export function constructUserAvatarUrl(user: Pick<User, 'id' | 'avatar'> & { dis
  * @param fileType File extension of the image.
  */
 export function constructGuildIcon(guild: Pick<Guild, 'id' | 'icon_hash'>, fileType = ''): string | undefined {
-  if (guild.icon_hash === null || guild.icon_hash === undefined) return undefined;
+  if (!guild.icon_hash) return undefined;
 
   if (guild.icon_hash.startsWith('a_')) {
     return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon_hash}${fileType ? `.${fileType}` : ''}`;
