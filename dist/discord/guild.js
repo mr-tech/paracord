@@ -10,7 +10,7 @@ var SystemChannelFlags;
     SystemChannelFlags[SystemChannelFlags["SUPPRESS_JOIN_NOTIFICATION_REPLIES"] = 8] = "SUPPRESS_JOIN_NOTIFICATION_REPLIES";
     SystemChannelFlags[SystemChannelFlags["SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATIONS"] = 16] = "SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATIONS";
     SystemChannelFlags[SystemChannelFlags["SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATION_REPLIES"] = 32] = "SUPPRESS_ROLE_SUBSCRIPTION_PURCHASE_NOTIFICATION_REPLIES";
-})(SystemChannelFlags = exports.SystemChannelFlags || (exports.SystemChannelFlags = {}));
+})(SystemChannelFlags || (exports.SystemChannelFlags = SystemChannelFlags = {}));
 // ========================================================================
 var GuildMemberFlags;
 (function (GuildMemberFlags) {
@@ -18,4 +18,4 @@ var GuildMemberFlags;
     GuildMemberFlags[GuildMemberFlags["COMPLETED_ONBOARDING"] = 2] = "COMPLETED_ONBOARDING";
     GuildMemberFlags[GuildMemberFlags["BYPASSES_VERIFICATION"] = 4] = "BYPASSES_VERIFICATION";
     GuildMemberFlags[GuildMemberFlags["STARTED_ONBOARDING"] = 8] = "STARTED_ONBOARDING";
-})(GuildMemberFlags = exports.GuildMemberFlags || (exports.GuildMemberFlags = {}));
+})(GuildMemberFlags || (exports.GuildMemberFlags = GuildMemberFlags = {}));

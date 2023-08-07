@@ -71,6 +71,7 @@ class Api {
     /** Creates an isolated axios instance for use by this REST handler. */
     static createWrappedRequestMethod(rateLimitCache, token, requestOptions) {
         const instance = axios_1.default.create({
+            ...(requestOptions ?? {}),
             baseURL: `${constants_1.DISCORD_API_URL}/v${requestOptions?.version ?? constants_1.DISCORD_API_DEFAULT_VERSION}`,
             headers: {
                 Authorization: token,
@@ -78,8 +79,8 @@ class Api {
                 'Content-Type': 'application/json',
                 'X-RateLimit-Precision': 'millisecond',
                 'Accept-Encoding': 'gzip,deflate',
+                ...(requestOptions?.headers ?? {}),
             },
-            ...(requestOptions ?? {}),
         });
         instance.interceptors.response.use((response) => response, (error) => ({
             status: 500, headers: {}, data: { message: error.message },

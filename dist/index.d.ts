@@ -3978,7 +3978,7 @@ export declare interface ShardLauncherOptions {
     env?: Record<string, unknown>;
 }
 
-export declare function shortMethod(method: string): "" | "a" | "p" | "g" | "o" | "d";
+export declare function shortMethod(method: string): "" | "g" | "p" | "o" | "a" | "d";
 
 export declare type Snowflake = string;
 

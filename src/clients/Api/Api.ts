@@ -100,6 +100,7 @@ export default class Api {
   /** Creates an isolated axios instance for use by this REST handler. */
   private static createWrappedRequestMethod(rateLimitCache: RateLimitCache, token: string, requestOptions: RequestOptions | undefined): WrappedRequest {
     const instance = axios.create({
+      ...(requestOptions ?? {}),
       baseURL: `${DISCORD_API_URL}/v${requestOptions?.version ?? DISCORD_API_DEFAULT_VERSION}`, // TODO does not support webhooks
       headers: {
         Authorization: token,
@@ -107,8 +108,8 @@ export default class Api {
         'Content-Type': 'application/json',
         'X-RateLimit-Precision': 'millisecond',
         'Accept-Encoding': 'gzip,deflate',
+        ...(requestOptions?.headers ?? {}),
       },
-      ...(requestOptions ?? {}),
     });
 
     instance.interceptors.response.use(

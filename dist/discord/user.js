@@ -19,4 +19,4 @@ var UserFlags;
     UserFlags[UserFlags["CERTIFIED_MODERATOR"] = 262144] = "CERTIFIED_MODERATOR";
     UserFlags[UserFlags["BOT_HTTP_INTERACTIONS"] = 524288] = "BOT_HTTP_INTERACTIONS";
     UserFlags[UserFlags["ACTIVE_DEVELOPER"] = 4194304] = "ACTIVE_DEVELOPER";
-})(UserFlags = exports.UserFlags || (exports.UserFlags = {}));
+})(UserFlags || (exports.UserFlags = UserFlags = {}));

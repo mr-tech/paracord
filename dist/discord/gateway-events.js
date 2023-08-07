@@ -13,4 +13,4 @@ var ActivityFlags;
     ActivityFlags[ActivityFlags["PARTY_PRIVACY_FRIENDS"] = 64] = "PARTY_PRIVACY_FRIENDS";
     ActivityFlags[ActivityFlags["PARTY_PRIVACY_VOICE_CHANNEL"] = 128] = "PARTY_PRIVACY_VOICE_CHANNEL";
     ActivityFlags[ActivityFlags["EMBEDDED"] = 256] = "EMBEDDED";
-})(ActivityFlags = exports.ActivityFlags || (exports.ActivityFlags = {}));
+})(ActivityFlags || (exports.ActivityFlags = ActivityFlags = {}));

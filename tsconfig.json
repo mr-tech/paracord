@@ -8,8 +8,11 @@
     "esModuleInterop": true,
     "noImplicitReturns": true,
     "forceConsistentCasingInFileNames": true,
-    "keyofStringsOnly": true,
-    "exactOptionalPropertyTypes": true
+    "exactOptionalPropertyTypes": true,
+    "skipDefaultLibCheck": true
   },
-  "exclude": ["dist", "build"]
+  "exclude": [
+    "dist",
+    "build"
+  ]
 }

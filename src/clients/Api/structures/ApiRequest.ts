@@ -1,6 +1,6 @@
 import BaseRequest from './BaseRequest';
 
-import type { AxiosRequestConfig, Method } from 'axios';
+import type { AxiosRequestConfig, Method, RawAxiosRequestHeaders } from 'axios';
 import type { RequestOptions, RequestFormDataFunction } from '../types';
 
 /**
@@ -93,7 +93,7 @@ export default class ApiRequest extends BaseRequest {
       method: this.method,
       url: this.url,
       data,
-      headers,
+      headers: headers as RawAxiosRequestHeaders,
       params,
       validateStatus: null, // Tells axios not to throw errors when non-200 response codes are encountered.
     };

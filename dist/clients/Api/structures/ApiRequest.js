@@ -70,7 +70,7 @@ class ApiRequest extends BaseRequest_1.default {
             method: this.method,
             url: this.url,
             data,
-            headers,
+            headers: headers,
             params,
             validateStatus: null, // Tells axios not to throw errors when non-200 response codes are encountered.
         };
