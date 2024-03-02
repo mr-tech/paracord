@@ -120,9 +120,7 @@ export type GUILD_UPDATE_EVENT = Pick<Required<Guild>,
   'system_channel_id' |
   'vanity_url_code' |
   'verification_level'
-> & {
-  guild_id: string;
-}
+>
 export type GUILD_DELETE_EVENT = {
   id: string;
   unavailable?: true;

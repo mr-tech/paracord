@@ -1890,9 +1890,7 @@ export declare type GUILD_SCHEDULED_EVENT_USER_REMOVE_EVENT = GuildScheduledEven
 
 export declare type GUILD_STICKERS_UPDATE_EVENT = GuildStickersUpdateEventField;
 
-export declare type GUILD_UPDATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' | 'afk_timeout' | 'application_id' | 'banner' | 'default_message_notifications' | 'description' | 'discovery_splash' | 'emojis' | 'features' | 'icon' | 'id' | 'max_members' | 'max_video_channel_users' | 'mfa_level' | 'name' | 'nsfw_level' | 'owner_id' | 'preferred_locale' | 'premium_subscription_count' | 'premium_progress_bar_enabled' | 'premium_tier' | 'public_updates_channel_id' | 'region' | 'roles' | 'rules_channel_id' | 'splash' | 'stickers' | 'system_channel_id' | 'vanity_url_code' | 'verification_level'> & {
-    guild_id: string;
-};
+export declare type GUILD_UPDATE_EVENT = Pick<Required<Guild>, 'afk_channel_id' | 'afk_timeout' | 'application_id' | 'banner' | 'default_message_notifications' | 'description' | 'discovery_splash' | 'emojis' | 'features' | 'icon' | 'id' | 'max_members' | 'max_video_channel_users' | 'mfa_level' | 'name' | 'nsfw_level' | 'owner_id' | 'preferred_locale' | 'premium_subscription_count' | 'premium_progress_bar_enabled' | 'premium_tier' | 'public_updates_channel_id' | 'region' | 'roles' | 'rules_channel_id' | 'splash' | 'stickers' | 'system_channel_id' | 'vanity_url_code' | 'verification_level'>;
 
 export declare type GuildApplicationCommandPermission = {
     /** ID of the command or the application ID */
