@@ -166,7 +166,12 @@ export default class Paracord extends EventEmitter {
     if (this.#startingGateway === gateway && this.#guildWaitCount !== undefined) {
       if (eventType === 'GUILD_CREATE') {
         --this.#guildWaitCount;
-        this.checkIfDoneStarting();
+        if (this.#guildWaitCount <= 0) {
+          // this ensures that the guild create event will be emitted before the start up complete events
+          setImmediate(() => this.checkIfDoneStarting());
+        } else {
+          this.checkIfDoneStarting();
+        }
       }
     }
   }
