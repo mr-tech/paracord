@@ -73,6 +73,8 @@ export default class Paracord extends EventEmitter {
 
   #gatewayHeartbeats: Gateway['checkIfShouldHeartbeat'][];
 
+  #allowConnect: boolean;
+
   /** A gateway whose events to ignore. Used in the case of failing to start up correctly. */
   #drain: null | Gateway;
 
@@ -100,6 +102,7 @@ export default class Paracord extends EventEmitter {
     this.#gatewayHeartbeats = [];
     this.#emittedStartupComplete = false;
     this.#drain = null;
+    this.#allowConnect = true;
 
     const {
       gatewayOptions, unavailableGuildTolerance, unavailableGuildWait,
@@ -125,6 +128,14 @@ export default class Paracord extends EventEmitter {
   /** Whether or not there are gateways currently starting up. */
   public get connecting(): boolean {
     return this.gatewayLoginQueue.length !== 0 || this.#startingGateway !== undefined;
+  }
+
+  public set allowConnect(value: boolean) {
+    this.#allowConnect = value;
+  }
+
+  public get allowConnect(): boolean {
+    return this.#allowConnect;
   }
 
   /*
@@ -259,7 +270,7 @@ export default class Paracord extends EventEmitter {
 
   /** Takes a gateway off of the queue and logs it in. */
   private processGatewayQueue = async (): Promise<void> => {
-    if (this.#startingGateway === undefined && !this.#drain) {
+    if (this.#allowConnect && this.#startingGateway === undefined && !this.#drain) {
       const gateway = this.gatewayLoginQueue.shift();
       if (gateway) {
         this.#startingGateway = gateway;

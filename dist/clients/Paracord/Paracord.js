@@ -47,6 +47,7 @@ class Paracord extends events_1.EventEmitter {
     #previousGuildTimestamp;
     #startupHeartbeatTolerance;
     #gatewayHeartbeats;
+    #allowConnect;
     /** A gateway whose events to ignore. Used in the case of failing to start up correctly. */
     #drain;
     /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
@@ -71,6 +72,7 @@ class Paracord extends events_1.EventEmitter {
         this.#gatewayHeartbeats = [];
         this.#emittedStartupComplete = false;
         this.#drain = null;
+        this.#allowConnect = true;
         const { gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance, shardStartupTimeout, } = options;
         this.#gatewayOptions = gatewayOptions;
         this.#unavailableGuildTolerance = unavailableGuildTolerance;
@@ -88,6 +90,12 @@ class Paracord extends events_1.EventEmitter {
     /** Whether or not there are gateways currently starting up. */
     get connecting() {
         return this.gatewayLoginQueue.length !== 0 || this.#startingGateway !== undefined;
+    }
+    set allowConnect(value) {
+        this.#allowConnect = value;
+    }
+    get allowConnect() {
+        return this.#allowConnect;
     }
     /*
      ********************************
@@ -209,7 +217,7 @@ class Paracord extends events_1.EventEmitter {
     }
     /** Takes a gateway off of the queue and logs it in. */
     processGatewayQueue = async () => {
-        if (this.#startingGateway === undefined && !this.#drain) {
+        if (this.#allowConnect && this.#startingGateway === undefined && !this.#drain) {
             const gateway = this.gatewayLoginQueue.shift();
             if (gateway) {
                 this.#startingGateway = gateway;

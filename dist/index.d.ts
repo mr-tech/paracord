@@ -3208,6 +3208,8 @@ declare class Paracord extends EventEmitter {
     get shards(): GatewayMap;
     /** Whether or not there are gateways currently starting up. */
     get connecting(): boolean;
+    set allowConnect(value: boolean);
+    get allowConnect(): boolean;
     /**
      * Processes a gateway event.
      * @param eventType The type of the event from the gateway. https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events (Events tend to be emitted in all caps and underlines in place of spaces.)
