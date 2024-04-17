@@ -476,6 +476,7 @@ class Gateway {
             case UNKNOWN:
                 level = 'ERROR';
                 message = 'Something odd happened. Refer to other ERROR level logging events.';
+                this.clearSession();
                 break;
             default:
                 level = 'WARNING';
@@ -530,7 +531,16 @@ class Gateway {
         // if (this.#zlibInflate) {
         //   return this.decompress(this.#zlibInflate, data);
         // }
-        return this.handleMessage(JSON.parse(data.toString()));
+        let parsed;
+        try {
+            parsed = JSON.parse(data.toString());
+        }
+        catch (e) {
+            this.log('ERROR', `Failed to parse message. Message: ${data}`);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            throw e;
+        }
+        return this.handleMessage(parsed);
     };
     // // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
