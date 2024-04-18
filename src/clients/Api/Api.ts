@@ -82,7 +82,7 @@ export default class Api {
 
     if (globalRateLimited && returnOnGlobalRateLimit) return false;
     if (!globalRateLimited && returnOnRateLimit) return false;
-    if (request.retriesLeft !== undefined && request.retriesLeft <= 0) return false;
+    if (request.retriesLeft !== undefined && --request.retriesLeft <= 0) return false;
 
     return true;
   }
