@@ -3270,6 +3270,7 @@ declare class Paracord extends EventEmitter {
     private handleGatewayReady;
     private handleGatewayClose;
     private upsertGatewayQueue;
+    private isStartingGateway;
 }
 export { Paracord }
 export default Paracord;

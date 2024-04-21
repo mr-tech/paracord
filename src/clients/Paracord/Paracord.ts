@@ -1,16 +1,20 @@
 import { EventEmitter } from 'events';
 
-import Gateway, {
-  IdentityOptions, GatewayCloseEvent, ParacordGatewayEvent, ParacordEvent, GatewayOptions,
-} from '../Gateway';
-import { clone, coerceTokenToBotLike } from '../../utils';
 import {
   GATEWAY_CLOSE_CODES,
   LOG_LEVELS, LOG_SOURCES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
+import { clone, coerceTokenToBotLike } from '../../utils';
+import Gateway, {
+  GatewayCloseEvent,
+  GatewayOptions,
+  IdentityOptions,
+  ParacordEvent,
+  ParacordGatewayEvent,
+} from '../Gateway';
 
-import type { GatewayEvent, ReadyEventField } from '../../discord';
 import type { DebugLevel } from '../../@types';
+import type { GatewayEvent, ReadyEventField } from '../../discord';
 import type {
   GatewayMap, ParacordGatewayOptions, ParacordLoginOptions, ParacordOptions, ParacordStartupEvent,
 } from './types';
@@ -127,7 +131,7 @@ export default class Paracord extends EventEmitter {
 
   /** Whether or not there are gateways currently starting up. */
   public get connecting(): boolean {
-    return this.gatewayLoginQueue.length !== 0 || this.#startingGateway !== undefined;
+    return this.gatewayLoginQueue.length !== 0 || !!this.#startingGateway;
   }
 
   public set allowConnect(value: boolean) {
@@ -163,7 +167,7 @@ export default class Paracord extends EventEmitter {
       default:
     }
 
-    if (this.#startingGateway === gateway && this.#guildWaitCount !== undefined) {
+    if (this.isStartingGateway(gateway) && this.#guildWaitCount !== undefined) {
       if (eventType === 'GUILD_CREATE') {
         --this.#guildWaitCount;
         if (this.#guildWaitCount <= 0) {
@@ -275,7 +279,7 @@ export default class Paracord extends EventEmitter {
 
   /** Takes a gateway off of the queue and logs it in. */
   private processGatewayQueue = async (): Promise<void> => {
-    if (this.#allowConnect && this.#startingGateway === undefined && !this.#drain) {
+    if (this.#allowConnect && !this.#drain && (!this.#startingGateway || this.isStartingGateway(this.gatewayLoginQueue[0]))) {
       const gateway = this.gatewayLoginQueue.shift();
       if (gateway) {
         this.#startingGateway = gateway;
@@ -298,7 +302,8 @@ export default class Paracord extends EventEmitter {
             this.#unavailableGuildsInterval = interval;
           }
         } catch (err: unknown) {
-          this.clearStartingShardState(gateway, true);
+          this.clearStartingShardState(gateway);
+          this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
           this.log('FATAL', err instanceof Error ? err.message : String(err), gateway);
         }
       }
@@ -309,11 +314,11 @@ export default class Paracord extends EventEmitter {
     const timedOut = !!this.#previousGuildTimestamp && this.#previousGuildTimestamp + (waitSeconds * SECOND_IN_MILLISECONDS) < new Date().getTime();
     const withinTolerance = this.#guildWaitCount <= tolerance;
 
-    if (this.#startingGateway === gateway && timedOut && withinTolerance) {
-      const message = `Forcing startup complete for shard ${this.#startingGateway.id} with ${this.#guildWaitCount} unavailable guilds.`;
+    if (this.isStartingGateway(gateway) && timedOut && withinTolerance) {
+      const message = `Forcing startup complete for shard ${this.#startingGateway?.id} with ${this.#guildWaitCount} unavailable guilds.`;
       this.log('WARNING', message);
       this.checkIfDoneStarting(true);
-    } else if (this.#startingGateway !== gateway) {
+    } else if (!this.isStartingGateway(gateway)) {
       const message = `Unavailable check expected shard ${gateway.id}. Got ${this.#startingGateway?.id} instead.`;
       clearInterval(self);
       this.log('WARNING', message);
@@ -321,7 +326,7 @@ export default class Paracord extends EventEmitter {
   }
 
   private timeoutShard(gateway: Gateway, waitTime: number) {
-    if (this.#startingGateway === gateway) {
+    if (this.isStartingGateway(gateway)) {
       this.#drain = gateway;
       setTimeout(() => { this.#drain = null; }, 3 * SECOND_IN_MILLISECONDS);
 
@@ -358,7 +363,7 @@ export default class Paracord extends EventEmitter {
     };
 
     if (this.#startupHeartbeatTolerance !== undefined) {
-      gatewayOptions.isStarting = (gateway: Gateway) => this.#startingGateway === gateway;
+      gatewayOptions.isStarting = (gateway: Gateway) => this.isStartingGateway(gateway);
     }
 
     return gatewayOptions;
@@ -432,18 +437,14 @@ export default class Paracord extends EventEmitter {
     this.emit('SHARD_STARTUP_COMPLETE', event);
   }
 
-  private clearStartingShardState(gateway: Gateway, requeue = false): void {
-    const shardWasStarting = this.#startingGateway === gateway;
+  private clearStartingShardState(gateway: Gateway): void {
+    const shardWasStarting = this.isStartingGateway(gateway);
     if (shardWasStarting) {
       this.#startingGateway = undefined;
       this.#previousGuildTimestamp = undefined;
       this.#guildWaitCount = 0;
       this.#unavailableGuildsInterval && clearInterval(this.#unavailableGuildsInterval);
       this.#shardTimeout && clearTimeout(this.#shardTimeout);
-    }
-
-    if (requeue) {
-      this.upsertGatewayQueue(gateway, shardWasStarting);
     }
   }
 
@@ -486,15 +487,12 @@ export default class Paracord extends EventEmitter {
   // { gateway, shouldReconnect }: { gateway: Gateway, shouldReconnect: boolean },
   private handleGatewayClose(data: GatewayCloseEvent): void {
     const { gateway, shouldReconnect } = data;
-    if (shouldReconnect) {
-      if (this.startingGateway === gateway) {
-        this.clearStartingShardState(gateway, true);
-      } else if (gateway.resumable) {
-        void gateway.login();
-      } else {
-        this.upsertGatewayQueue(gateway);
-      }
+
+    if (this.isStartingGateway(gateway) && !gateway.resumable) {
+      this.clearStartingShardState(gateway);
     }
+
+    this.upsertGatewayQueue(gateway, shouldReconnect);
   }
 
   private upsertGatewayQueue(gateway: Gateway, front = false): void {
@@ -505,5 +503,9 @@ export default class Paracord extends EventEmitter {
         this.gatewayLoginQueue.push(gateway);
       }
     }
+  }
+
+  private isStartingGateway(gateway: Gateway): boolean {
+    return this.#startingGateway === gateway;
   }
 }
