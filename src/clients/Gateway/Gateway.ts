@@ -974,7 +974,7 @@ export default class Gateway {
       return true;
     }
 
-    this.log('DEBUG', 'Failed to send payload.', { payload: { op, d: data } });
+    this.log('ERROR', 'Failed to send payload.', { payload: { op, d: data } });
 
     return false;
   }
@@ -1023,7 +1023,7 @@ export default class Gateway {
    */
   private handleInvalidSession(resumable: boolean): void {
     this.log(
-      'INFO',
+      'WARNING',
       `Received Invalid Session packet. Resumable: ${resumable}`,
     );
 

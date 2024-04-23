@@ -766,7 +766,7 @@ class Gateway {
             this.log('DEBUG', 'Sent payload.', { payload: { op, d: data } });
             return true;
         }
-        this.log('DEBUG', 'Failed to send payload.', { payload: { op, d: data } });
+        this.log('ERROR', 'Failed to send payload.', { payload: { op, d: data } });
         return false;
     }
     /**
@@ -803,7 +803,7 @@ class Gateway {
      * @param resumable Whether or not Discord has said that the connection as able to be resumed.
      */
     handleInvalidSession(resumable) {
-        this.log('INFO', `Received Invalid Session packet. Resumable: ${resumable}`);
+        this.log('WARNING', `Received Invalid Session packet. Resumable: ${resumable}`);
         if (!resumable) {
             this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
         }
