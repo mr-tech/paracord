@@ -315,7 +315,7 @@ export default class Paracord extends EventEmitter {
 
     if (this.isStartingGateway(gateway) && timedOut && withinTolerance) {
       const message = `Forcing startup complete for shard ${this.#startingGateway?.id} with ${this.#guildWaitCount} unavailable guilds.`;
-      this.log('WARNING', message);
+      this.log('INFO', message);
       this.checkIfDoneStarting(true);
     } else if (!this.isStartingGateway(gateway)) {
       const message = `Unavailable guilds check expected shard ${gateway.id}. Got ${this.#startingGateway?.id} instead.`;
