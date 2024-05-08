@@ -1,8 +1,13 @@
-import type Gateway from './Gateway';
-import type {
-  IdentifyConnectionProperties, GatewayPresenceUpdate, GuildRequestMember, GatewayURLQueryStringParam,
-} from '../../discord';
+import { Heartbeat } from './structures';
+
 import type { EventHandler } from '../../@types';
+import type {
+  GatewayPresenceUpdate,
+  GatewayURLQueryStringParam,
+  GuildRequestMember,
+  IdentifyConnectionProperties,
+} from '../../discord';
+import type Gateway from './Gateway';
 
 export type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY'
 | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK' | 'REQUEST_GUILD_MEMBERS';
@@ -23,22 +28,18 @@ export interface GatewayOptions {
   heartbeatIntervalOffset?: undefined | number;
   /** How long to wait after a heartbeat ack before timing out the shard. */
   heartbeatTimeoutSeconds?: undefined | number;
-  /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
-  isStarting?: undefined | StartupCheckFunction;
   /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
-  checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
+  checkSiblingHeartbeats?: undefined | Heartbeat['checkIfShouldHeartbeat'][];
   /** Discord gateway version to use. Default: 10 */
   version?: undefined | number;
 }
-
-export type Heartbeat = number;
 
 /** Information about the current request count and time that it should reset in relation to Discord rate limits. https://discord.com/developers/docs/topics/gateway#rate-limiting */
 export type WebsocketRateLimitCache = {
   /** Timestamp in ms when the request limit is expected to reset. */
   resetTimestamp: number;
-  /** How many more requests will be allowed. */
-  remainingRequests: number;
+  /** Number of requests made since last reset. */
+  count: number;
 }
 
 export type IdentityOptions = {
@@ -87,5 +88,3 @@ export type GatewayRequestMembersEvent = {
   options: GuildRequestMember;
   gateway: Gateway;
 }
-
-export type StartupCheckFunction = (x: Gateway) => boolean;

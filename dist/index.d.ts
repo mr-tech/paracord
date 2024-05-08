@@ -1424,12 +1424,7 @@ export declare class Gateway {
     get online(): boolean;
     /** This gateway's active websocket connection. */
     get ws(): ws | undefined;
-    /** If the last heartbeat packet sent to Discord received an ACK. */
-    get heartbeatAck(): boolean;
-    /** Between Heartbeat/ACK, time when last heartbeat packet was sent in ms. */
-    get lastHeartbeatTimestamp(): number | undefined;
-    /** Time when the next heartbeat packet should be sent in ms. */
-    get nextHeartbeatTimestamp(): number | undefined;
+    get heart(): Heartbeat;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -1455,7 +1450,6 @@ export declare class Gateway {
      * @param _websocket Ignore. For unittest dependency injection only.
      */
     login: (_websocket?: typeof ws) => Promise<void>;
-    private setConnectTimeout;
     private constructWsUrl;
     /**
      * Closes the connection.
@@ -1472,7 +1466,7 @@ export declare class Gateway {
     private updateRequestMembersState;
     /** Assigned to websocket `onopen`. */
     private handleWsOpen;
-    private checkIfStarting;
+    private clearStartingInterval;
     /** Assigned to websocket `onerror`. */
     private handleWsError;
     /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
@@ -1486,11 +1480,6 @@ export declare class Gateway {
     private handleCloseCode;
     /** Removes current session information. */
     private clearSession;
-    /** Clears heartbeat values and clears the heartbeatTimers. */
-    private clearHeartbeat;
-    private clearHeartbeatTimer;
-    private clearAckTimeout;
-    private clearConnectTimeout;
     /** Assigned to websocket `onmessage`. */
     private handleWsMessage;
     /** Processes incoming messages from Discord's gateway.
@@ -1499,15 +1488,6 @@ export declare class Gateway {
     private handleMessage;
     /** Proxy for inline heartbeat checking. */
     private checkHeartbeatInline;
-    /**
-     * Set inline with the firehose of events to check if the heartbeat needs to be sent.
-     * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
-     * May be passed as array to other gateways so that no one gateway blocks the others from sending timely heartbeats.
-     * Now receiving the ACKs on the other hand...
-     */
-    checkIfShouldHeartbeat: () => void;
-    /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
-    private handleHeartbeatAck;
     /**
      * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
      * @param data From Discord.
@@ -1520,24 +1500,13 @@ export declare class Gateway {
      * @param data From Discord.
      */
     private handleHello;
-    /**
-     * Starts heartbeat. https://discord.com/developers/docs/topics/gateway#heartbeating
-     * @param heartbeatTimeout From Discord - Number of ms to wait between sending heartbeats.
-     */
-    private startHeartbeat;
-    /**
-     * Clears old heartbeat timeout and starts a new one.
-     */
-    private setHeartbeatTimer;
-    private sendHeartbeat;
-    /** Checks if heartbeat ack was received. */
-    private timeoutShard;
     /** Connects to gateway. */
     private connect;
     /** Sends a "Resume" payload to Discord's gateway. */
     private resume;
     /** Sends an "Identify" payload. */
     private identify;
+    sendHeartbeat(): void;
     /**
      * Sends a websocket message to Discord.
      * @param op Gateway Opcode https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
@@ -1550,7 +1519,7 @@ export declare class Gateway {
      * @param op Op code of the message to be sent.
      * @returns true if sending message won't exceed rate limit or padding; false if it will
      */
-    private canSendPacket;
+    private isPacketRateLimited;
     /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
     private updateWsRateLimit;
     /**
@@ -1683,10 +1652,8 @@ export declare interface GatewayOptions {
     heartbeatIntervalOffset?: undefined | number;
     /** How long to wait after a heartbeat ack before timing out the shard. */
     heartbeatTimeoutSeconds?: undefined | number;
-    /** Function returning boolean indicated if the gateway should consider the client "starting" or not.  */
-    isStarting?: undefined | StartupCheckFunction;
     /** Array of Gateway inline heartbeat checks functions for use when internally sharding. */
-    checkSiblingHeartbeats?: undefined | Gateway['checkIfShouldHeartbeat'][];
+    checkSiblingHeartbeats?: undefined | Heartbeat['checkIfShouldHeartbeat'][];
     /** Discord gateway version to use. Default: 10 */
     version?: undefined | number;
 }
@@ -2356,7 +2323,38 @@ export declare type GuildWidgetSetting = {
 
 export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) => void;
 
-export declare type Heartbeat = number;
+export declare class Heartbeat {
+    #private;
+    constructor(gateway: Gateway, options: Options);
+    /** Starts the timeout for the connection to Discord. */
+    startConnectTimeout(client: ws): void;
+    /** Clears heartbeat values and clears the heartbeatTimers. */
+    reset(): void;
+    /**
+     * Set inline with the firehose of events to check if the heartbeat needs to be sent.
+     * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
+     * May be passed as array to other gateways so that no one gateway blocks the others from sending timely heartbeats.
+     * Now receiving the ACKs on the other hand...
+     */
+    checkIfShouldHeartbeat: () => void;
+    /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
+    ack(): void;
+    /**
+     * Starts heartbeat. https://discord.com/developers/docs/topics/gateway#heartbeating
+     * @param heartbeatTimeout From Discord - Number of ms to wait between sending heartbeats.
+     */
+    start(heartbeatTimeout: number): void;
+    private clearHeartbeatTimeout;
+    private clearAckTimeout;
+    clearConnectTimeout(): void;
+    /**
+     * Clears old heartbeat timeout and starts a new one.
+     */
+    private scheduleNextHeartbeat;
+    private sendHeartbeat;
+    /** Checks if heartbeat ack was received. */
+    private checkForAck;
+}
 
 export declare type Hello = {
     /** Interval (in milliseconds) an app should heartbeat with */
@@ -3175,6 +3173,13 @@ export declare type OptionalAuditEntryInfo = {
     type: string;
 };
 
+declare interface Options {
+    heartbeatIntervalOffset?: undefined | number;
+    heartbeatTimeoutSeconds?: undefined | number;
+    log: Gateway['log'];
+    handleEvent: Gateway['handleEvent'];
+}
+
 export declare type Overwrite = {
     /** role or user id */
     id: Snowflake;
@@ -3295,7 +3300,6 @@ export declare interface ParacordOptions {
     gatewayOptions: ParacordGatewayOptions;
     unavailableGuildTolerance?: number;
     unavailableGuildWait?: number;
-    startupHeartbeatTolerance?: number;
     shardStartupTimeout?: number;
 }
 
@@ -4154,8 +4158,6 @@ declare interface StartOptions {
 
 export declare type STARTUP_GUILD_EVENT = GUILD_CREATE_EVENT | UNAVAILABLE_GUILD;
 
-export declare type StartupCheckFunction = (x: Gateway) => boolean;
-
 export declare type StatusType = 
 /** Online */
 'online' | 
@@ -4622,8 +4624,8 @@ export declare type WebhookType =
 export declare type WebsocketRateLimitCache = {
     /** Timestamp in ms when the request limit is expected to reset. */
     resetTimestamp: number;
-    /** How many more requests will be allowed. */
-    remainingRequests: number;
+    /** Number of requests made since last reset. */
+    count: number;
 };
 
 export declare type WelcomeScreen = {

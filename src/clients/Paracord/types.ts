@@ -11,7 +11,6 @@ export interface ParacordOptions {
   gatewayOptions: ParacordGatewayOptions;
   unavailableGuildTolerance?: number;
   unavailableGuildWait?: number;
-  startupHeartbeatTolerance?: number;
   shardStartupTimeout?: number;
 }
 

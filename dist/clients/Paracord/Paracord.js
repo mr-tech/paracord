@@ -45,7 +45,6 @@ class Paracord extends events_1.EventEmitter {
     #guildWaitCount;
     /** Timestamp of last GUILD_CREATE event on start up for the current `#startingGateway`. */
     #previousGuildTimestamp;
-    #startupHeartbeatTolerance;
     #gatewayHeartbeats;
     #allowConnect;
     /** A gateway whose events to ignore. Used in the case of failing to start up correctly. */
@@ -73,11 +72,10 @@ class Paracord extends events_1.EventEmitter {
         this.#emittedStartupComplete = false;
         this.#drain = null;
         this.#allowConnect = true;
-        const { gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, startupHeartbeatTolerance, shardStartupTimeout, } = options;
+        const { gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, shardStartupTimeout, } = options;
         this.#gatewayOptions = gatewayOptions;
         this.#unavailableGuildTolerance = unavailableGuildTolerance;
         this.#unavailableGuildWait = unavailableGuildWait;
-        this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
         this.#shardStartupTimeout = shardStartupTimeout;
     }
     get startingGateway() {
@@ -235,7 +233,9 @@ class Paracord extends events_1.EventEmitter {
                             this.timeoutShard(gateway, timeout);
                         }, timeout * constants_1.SECOND_IN_MILLISECONDS);
                     }
-                    if (this.#unavailableGuildTolerance !== undefined && this.#unavailableGuildWait !== undefined) {
+                    if (this.#unavailableGuildTolerance !== undefined
+                        && this.#unavailableGuildWait !== undefined
+                        && !gateway.resumable) {
                         const tolerance = this.#unavailableGuildTolerance;
                         const waitSeconds = this.#unavailableGuildWait;
                         const interval = setInterval(() => {
@@ -261,7 +261,7 @@ class Paracord extends events_1.EventEmitter {
             this.checkIfDoneStarting(true);
         }
         else if (!this.isStartingGateway(gateway)) {
-            const message = `Unavailable check expected shard ${gateway.id}. Got ${this.#startingGateway?.id} instead.`;
+            const message = `Unavailable guilds check expected shard ${gateway.id}. Got ${this.#startingGateway?.id} instead.`;
             clearInterval(self);
             this.log('WARNING', message);
         }
@@ -284,7 +284,7 @@ class Paracord extends events_1.EventEmitter {
         if (this.#gateways.get(gateway.id) !== undefined) {
             throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
         }
-        this.#gatewayHeartbeats.push(gateway.checkIfShouldHeartbeat);
+        this.#gatewayHeartbeats.push(gateway.heart.checkIfShouldHeartbeat.bind(gateway.heart));
         this.#gateways.set(gateway.id, gateway);
         this.upsertGatewayQueue(gateway);
     }
@@ -295,9 +295,6 @@ class Paracord extends events_1.EventEmitter {
             emitter: this,
             checkSiblingHeartbeats: this.#gatewayHeartbeats,
         };
-        if (this.#startupHeartbeatTolerance !== undefined) {
-            gatewayOptions.isStarting = (gateway) => this.isStartingGateway(gateway);
-        }
         return gatewayOptions;
     }
     /*
@@ -362,13 +359,12 @@ class Paracord extends events_1.EventEmitter {
         this.emit('SHARD_STARTUP_COMPLETE', event);
     }
     clearStartingShardState(gateway) {
-        const shardWasStarting = this.isStartingGateway(gateway);
-        if (shardWasStarting) {
+        if (this.isStartingGateway(gateway)) {
             this.#startingGateway = undefined;
             this.#previousGuildTimestamp = undefined;
             this.#guildWaitCount = 0;
-            this.#unavailableGuildsInterval && clearInterval(this.#unavailableGuildsInterval);
-            this.#shardTimeout && clearTimeout(this.#shardTimeout);
+            clearInterval(this.#unavailableGuildsInterval);
+            clearTimeout(this.#shardTimeout);
         }
     }
     /**
@@ -404,7 +400,7 @@ class Paracord extends events_1.EventEmitter {
     // { gateway, shouldReconnect }: { gateway: Gateway, shouldReconnect: boolean },
     handleGatewayClose(data) {
         const { gateway, shouldReconnect } = data;
-        if (this.isStartingGateway(gateway) && !gateway.resumable) {
+        if (!gateway.resumable) {
             this.clearStartingShardState(gateway);
         }
         this.upsertGatewayQueue(gateway, shouldReconnect);

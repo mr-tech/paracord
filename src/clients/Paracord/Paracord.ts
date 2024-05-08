@@ -1,22 +1,21 @@
 import { EventEmitter } from 'events';
 
 import {
-  GATEWAY_CLOSE_CODES,
-  LOG_LEVELS, LOG_SOURCES, SECOND_IN_MILLISECONDS,
+  GATEWAY_CLOSE_CODES, LOG_LEVELS,
+  LOG_SOURCES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 import { clone, coerceTokenToBotLike } from '../../utils';
 import Gateway, {
-  GatewayCloseEvent,
-  GatewayOptions,
-  IdentityOptions,
-  ParacordEvent,
-  ParacordGatewayEvent,
+  GatewayCloseEvent, GatewayOptions, Heartbeat,
+  IdentityOptions, ParacordEvent, ParacordGatewayEvent,
 } from '../Gateway';
 
 import type { DebugLevel } from '../../@types';
 import type { GatewayEvent, ReadyEventField } from '../../discord';
 import type {
-  GatewayMap, ParacordGatewayOptions, ParacordLoginOptions, ParacordOptions, ParacordStartupEvent,
+  GatewayMap, ParacordGatewayOptions,
+  ParacordLoginOptions, ParacordOptions,
+  ParacordStartupEvent,
 } from './types';
 
 /**
@@ -73,9 +72,7 @@ export default class Paracord extends EventEmitter {
   /** Timestamp of last GUILD_CREATE event on start up for the current `#startingGateway`. */
   #previousGuildTimestamp?: undefined | number;
 
-  #startupHeartbeatTolerance?: undefined | number;
-
-  #gatewayHeartbeats: Gateway['checkIfShouldHeartbeat'][];
+  #gatewayHeartbeats: Heartbeat['checkIfShouldHeartbeat'][];
 
   #allowConnect: boolean;
 
@@ -109,14 +106,12 @@ export default class Paracord extends EventEmitter {
     this.#allowConnect = true;
 
     const {
-      gatewayOptions, unavailableGuildTolerance, unavailableGuildWait,
-      startupHeartbeatTolerance, shardStartupTimeout,
+      gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, shardStartupTimeout,
     } = options;
     this.#gatewayOptions = gatewayOptions;
 
     this.#unavailableGuildTolerance = unavailableGuildTolerance;
     this.#unavailableGuildWait = unavailableGuildWait;
-    this.#startupHeartbeatTolerance = startupHeartbeatTolerance;
     this.#shardStartupTimeout = shardStartupTimeout;
   }
 
@@ -293,7 +288,11 @@ export default class Paracord extends EventEmitter {
             }, timeout * SECOND_IN_MILLISECONDS);
           }
 
-          if (this.#unavailableGuildTolerance !== undefined && this.#unavailableGuildWait !== undefined) {
+          if (
+            this.#unavailableGuildTolerance !== undefined
+            && this.#unavailableGuildWait !== undefined
+            && !gateway.resumable
+          ) {
             const tolerance = this.#unavailableGuildTolerance;
             const waitSeconds = this.#unavailableGuildWait;
             const interval = setInterval(() => {
@@ -319,7 +318,7 @@ export default class Paracord extends EventEmitter {
       this.log('WARNING', message);
       this.checkIfDoneStarting(true);
     } else if (!this.isStartingGateway(gateway)) {
-      const message = `Unavailable check expected shard ${gateway.id}. Got ${this.#startingGateway?.id} instead.`;
+      const message = `Unavailable guilds check expected shard ${gateway.id}. Got ${this.#startingGateway?.id} instead.`;
       clearInterval(self);
       this.log('WARNING', message);
     }
@@ -348,7 +347,7 @@ export default class Paracord extends EventEmitter {
       throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
     }
 
-    this.#gatewayHeartbeats.push(gateway.checkIfShouldHeartbeat);
+    this.#gatewayHeartbeats.push(gateway.heart.checkIfShouldHeartbeat.bind(gateway.heart));
 
     this.#gateways.set(gateway.id, gateway);
     this.upsertGatewayQueue(gateway);
@@ -361,10 +360,6 @@ export default class Paracord extends EventEmitter {
       emitter: this,
       checkSiblingHeartbeats: this.#gatewayHeartbeats,
     };
-
-    if (this.#startupHeartbeatTolerance !== undefined) {
-      gatewayOptions.isStarting = (gateway: Gateway) => this.isStartingGateway(gateway);
-    }
 
     return gatewayOptions;
   }
@@ -438,13 +433,12 @@ export default class Paracord extends EventEmitter {
   }
 
   private clearStartingShardState(gateway: Gateway): void {
-    const shardWasStarting = this.isStartingGateway(gateway);
-    if (shardWasStarting) {
+    if (this.isStartingGateway(gateway)) {
       this.#startingGateway = undefined;
       this.#previousGuildTimestamp = undefined;
       this.#guildWaitCount = 0;
-      this.#unavailableGuildsInterval && clearInterval(this.#unavailableGuildsInterval);
-      this.#shardTimeout && clearTimeout(this.#shardTimeout);
+      clearInterval(this.#unavailableGuildsInterval);
+      clearTimeout(this.#shardTimeout);
     }
   }
 
@@ -488,7 +482,7 @@ export default class Paracord extends EventEmitter {
   private handleGatewayClose(data: GatewayCloseEvent): void {
     const { gateway, shouldReconnect } = data;
 
-    if (this.isStartingGateway(gateway) && !gateway.resumable) {
+    if (!gateway.resumable) {
       this.clearStartingShardState(gateway);
     }
 
