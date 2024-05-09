@@ -24,7 +24,8 @@ class Gateway {
     #requestingMembersStateMap;
     // WEBSOCKET
     /** Websocket used to connect to gateway. */
-    #ws;
+    #websocket;
+    #wsId;
     /** Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
     #wsUrl;
     /** From Discord - Url to reconnect to. */
@@ -64,6 +65,7 @@ class Gateway {
             count: 0,
             resetTimestamp: 0,
         };
+        this.#wsId = 0;
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
         this.#emitter = emitter;
@@ -91,7 +93,7 @@ class Gateway {
     }
     /** Whether or not the client is connected to the gateway. */
     get connected() {
-        return this.#ws !== undefined;
+        return this.#websocket !== undefined;
     }
     /** Whether or not the client is connected to the gateway. */
     get online() {
@@ -99,7 +101,7 @@ class Gateway {
     }
     /** This gateway's active websocket connection. */
     get ws() {
-        return this.#ws;
+        return this.#websocket?.ws;
     }
     get heart() {
         return this.#heartbeat;
@@ -164,7 +166,7 @@ class Gateway {
      * @param _websocket Ignore. For unittest dependency injection only.
      */
     login = async (_websocket = ws_1.default) => {
-        if (this.#ws !== undefined) {
+        if (this.#websocket !== undefined) {
             throw Error('Client is already initialized.');
         }
         // if (ZlibSync || this.#identity.compress) {
@@ -179,11 +181,14 @@ class Gateway {
             this.log('DEBUG', `Connecting to url: ${wsUrl}`);
             const client = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
             this.#heartbeat.startConnectTimeout(client);
-            this.#ws = client;
-            this.#ws.onopen = this.handleWsOpen;
-            this.#ws.onclose = this.handleWsClose;
-            this.#ws.onerror = this.handleWsError;
-            this.#ws.onmessage = this.handleWsMessage;
+            this.#websocket = {
+                ws: client,
+                id: ++this.#wsId,
+            };
+            this.#websocket.ws.onopen = this.handleWsOpen.bind(this, this.#websocket.id);
+            this.#websocket.ws.onclose = this.handleWsClose.bind(this, this.#websocket.id);
+            this.#websocket.ws.onerror = this.handleWsError.bind(this, this.#websocket.id);
+            this.#websocket.ws.onmessage = this.handleWsMessage.bind(this, this.#websocket.id);
         }
         catch (err) {
             if ((0, utils_1.isApiError)(err)) {
@@ -194,7 +199,7 @@ class Gateway {
                 /* eslint-disable-next-line no-console */
                 console.error(err); // TODO: emit
             }
-            this.#ws = undefined;
+            this.#websocket = undefined;
             this.#heartbeat.clearConnectTimeout();
             this.clearStartingInterval();
         }
@@ -210,12 +215,12 @@ class Gateway {
      * @param reconnect Whether to reconnect after closing.
      */
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
-        if (this.#ws?.readyState === ws_1.default.OPEN) {
-            this.#ws?.close(code);
+        if (this.#websocket?.ws.readyState === ws_1.default.OPEN) {
+            this.#websocket?.ws.close(code);
         }
-        else {
-            this.handleWsClose({ code });
-            this.log('WARNING', `Websocket is already ${this.#ws?.CLOSED ? 'closed' : 'closing'}.`);
+        else if (this.#websocket) {
+            this.handleWsClose(this.#websocket?.id, { code });
+            this.log('WARNING', `Websocket is already ${this.#websocket?.ws.CLOSED ? 'closed' : 'closing'}.`);
         }
     }
     /**
@@ -255,7 +260,11 @@ class Gateway {
      ********************************
      */
     /** Assigned to websocket `onopen`. */
-    handleWsOpen = () => {
+    handleWsOpen = (wsId) => {
+        if (this.#websocket?.id !== wsId) {
+            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            return;
+        }
         this.log('DEBUG', 'Websocket open.');
         this.#wsRateLimitCache.count = 0;
         this.emit('GATEWAY_OPEN', this);
@@ -272,7 +281,11 @@ class Gateway {
      ********************************
      */
     /** Assigned to websocket `onerror`. */
-    handleWsError = (err) => {
+    handleWsError = (wsId, err) => {
+        if (this.#websocket?.id !== wsId) {
+            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            return;
+        }
         this.log('ERROR', `Websocket error. Message: ${err.message}`);
     };
     /*
@@ -283,8 +296,12 @@ class Gateway {
     /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
      * @param event Object containing information about the close.
      */
-    handleWsClose = ({ code }) => {
-        this.#ws = undefined;
+    handleWsClose = (wsId, { code }) => {
+        if (this.#websocket?.id !== wsId) {
+            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            return;
+        }
+        this.#websocket = undefined;
         this.#online = false;
         this.#resuming = false;
         this.#eventsDuringResume = 0;
@@ -443,7 +460,11 @@ class Gateway {
      */
     /** Assigned to websocket `onmessage`. */
     // eslint-disable-next-line arrow-body-style
-    handleWsMessage = ({ data }) => {
+    handleWsMessage = (wsId, { data }) => {
+        if (this.#websocket?.id !== wsId) {
+            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            return;
+        }
         // if (this.#zlibInflate) {
         //   return this.decompress(this.#zlibInflate, data);
         // }
@@ -455,7 +476,7 @@ class Gateway {
             this.log('ERROR', `Failed to parse message. Message: ${data}`);
             this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
-        return this.handleMessage(parsed);
+        this.handleMessage(parsed);
     };
     // // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
@@ -512,7 +533,7 @@ class Gateway {
                 this.handleInvalidSession(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.RECONNECT:
-                this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
+                this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
                 break;
             default:
                 this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
@@ -583,7 +604,7 @@ class Gateway {
         }
         else {
             this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-            this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
     }
     /** Sends an "Identify" payload. */
@@ -606,12 +627,12 @@ class Gateway {
             this.log('WARNING', 'Failed to send payload. Rate limited.', { payload });
             return false;
         }
-        if (this.#ws?.readyState !== ws_1.default.OPEN) {
+        if (this.#websocket?.ws.readyState !== ws_1.default.OPEN) {
             this.log('ERROR', 'Failed to send payload. Websocket not open.', { payload });
             this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
             return false;
         }
-        this.#ws.send(JSON.stringify(payload));
+        this.#websocket.ws.send(JSON.stringify(payload));
         this.updateWsRateLimit();
         this.log('DEBUG', 'Sent payload.', { payload });
         return true;
@@ -649,10 +670,10 @@ class Gateway {
     handleInvalidSession(resumable) {
         this.log('WARNING', `Received Invalid Session packet. Resumable: ${resumable}`);
         if (!resumable) {
-            this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+            this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
         }
         else {
-            this.#ws?.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+            this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
         }
         void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
     }
