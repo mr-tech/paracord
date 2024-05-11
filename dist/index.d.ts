@@ -1466,7 +1466,6 @@ export declare class Gateway {
     private updateRequestMembersState;
     /** Assigned to websocket `onopen`. */
     private handleWsOpen;
-    private clearStartingInterval;
     /** Assigned to websocket `onerror`. */
     private handleWsError;
     /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.

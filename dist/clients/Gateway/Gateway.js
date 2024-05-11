@@ -19,7 +19,6 @@ class Gateway {
     #emitter;
     /** Object passed to Discord when identifying. */
     #identity;
-    #checkIfStartingInterval;
     #membersRequestCounter;
     #requestingMembersStateMap;
     // WEBSOCKET
@@ -201,7 +200,6 @@ class Gateway {
             }
             this.#websocket = undefined;
             this.#heartbeat.clearConnectTimeout();
-            this.clearStartingInterval();
         }
     };
     constructWsUrl() {
@@ -219,8 +217,8 @@ class Gateway {
             this.#websocket?.ws.close(code);
         }
         else if (this.#websocket) {
-            this.handleWsClose(this.#websocket?.id, { code });
             this.log('WARNING', `Websocket is already ${this.#websocket?.ws.CLOSED ? 'closed' : 'closing'}.`);
+            this.handleWsClose(this.#websocket?.id, { code });
         }
     }
     /**
@@ -262,19 +260,13 @@ class Gateway {
     /** Assigned to websocket `onopen`. */
     handleWsOpen = (wsId) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         this.log('DEBUG', 'Websocket open.');
         this.#wsRateLimitCache.count = 0;
         this.emit('GATEWAY_OPEN', this);
     };
-    clearStartingInterval() {
-        if (this.#checkIfStartingInterval !== undefined) {
-            clearInterval(this.#checkIfStartingInterval);
-            this.#checkIfStartingInterval = undefined;
-        }
-    }
     /*
      ********************************
      ******* WEBSOCKET - ERROR ******
@@ -283,7 +275,7 @@ class Gateway {
     /** Assigned to websocket `onerror`. */
     handleWsError = (wsId, err) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         this.log('ERROR', `Websocket error. Message: ${err.message}`);
@@ -298,7 +290,7 @@ class Gateway {
      */
     handleWsClose = (wsId, { code }) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         this.#websocket = undefined;
@@ -308,7 +300,6 @@ class Gateway {
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
         this.#heartbeat.reset();
-        this.clearStartingInterval();
         const shouldReconnect = this.handleCloseCode(code);
         this.#wsRateLimitCache = {
             resetTimestamp: 0,
@@ -462,7 +453,7 @@ class Gateway {
     // eslint-disable-next-line arrow-body-style
     handleWsMessage = (wsId, { data }) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         // if (this.#zlibInflate) {
@@ -541,10 +532,12 @@ class Gateway {
     }
     /** Proxy for inline heartbeat checking. */
     checkHeartbeatInline() {
-        if (this.#checkSiblingHeartbeats !== undefined)
+        if (this.#checkSiblingHeartbeats) {
             this.#checkSiblingHeartbeats.forEach((f) => f());
-        else
+        }
+        else {
             this.#heartbeat.checkIfShouldHeartbeat();
+        }
     }
     /**
      * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready

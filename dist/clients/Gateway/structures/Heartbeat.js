@@ -41,8 +41,8 @@ class Heart {
         this.#connectTimeout = setTimeout(() => {
             this.clearConnectTimeout();
             if (client.readyState === ws_1.default.OPEN || client.readyState === ws_1.default.CONNECTING) {
-                client.close(constants_1.GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
                 this.#log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
+                client.close(constants_1.GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
             }
             else {
                 this.#log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
@@ -55,10 +55,10 @@ class Heart {
         this.clearHeartbeatTimeout();
         this.clearConnectTimeout();
         this.#isAcknowledged = false;
-        this.#ackWaitTime = undefined;
         this.#previousTimestamp = undefined;
         this.#nextTimestamp = undefined;
         this.#intervalTime = undefined;
+        this.#ackWaitTime = undefined;
         this.#log('DEBUG', 'Heartbeat cleared.');
     }
     /**
@@ -71,7 +71,8 @@ class Heart {
         const now = new Date().getTime();
         if (this.#isAcknowledged
             && this.#nextTimestamp !== undefined
-            && now > this.#nextTimestamp) {
+            && now > this.#nextTimestamp
+            && this.#intervalTime !== undefined) {
             this.sendHeartbeat();
         }
     };
@@ -83,9 +84,8 @@ class Heart {
             const now = new Date().getTime();
             const latency = now - this.#previousTimestamp;
             void this.#handleEvent('HEARTBEAT_ACK', { latency, gateway: this });
-            const message = `Heartbeat acknowledged. Latency: ${latency}ms.`;
+            this.#log('DEBUG', `Heartbeat acknowledged. Latency: ${latency}ms.`);
             this.#previousTimestamp = undefined;
-            this.#log('DEBUG', message);
         }
     }
     /**
@@ -98,18 +98,15 @@ class Heart {
         this.scheduleNextHeartbeat();
     }
     clearHeartbeatTimeout() {
-        if (this.#nextHbTimer)
-            clearInterval(this.#nextHbTimer);
+        clearInterval(this.#nextHbTimer);
         this.#nextHbTimer = undefined;
     }
     clearAckTimeout() {
-        if (this.#ackTimeout)
-            clearTimeout(this.#ackTimeout);
+        clearTimeout(this.#ackTimeout);
         this.#ackTimeout = undefined;
     }
     clearConnectTimeout() {
-        if (this.#connectTimeout)
-            clearTimeout(this.#connectTimeout);
+        clearTimeout(this.#connectTimeout);
         this.#connectTimeout = undefined;
     }
     /**

@@ -64,8 +64,8 @@ export default class Heart {
       this.clearConnectTimeout();
 
       if (client.readyState === ws.OPEN || client.readyState === ws.CONNECTING) {
-        client.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
         this.#log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
+        client.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
       } else {
         this.#log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
       }
@@ -79,10 +79,10 @@ export default class Heart {
     this.clearConnectTimeout();
 
     this.#isAcknowledged = false;
-    this.#ackWaitTime = undefined;
     this.#previousTimestamp = undefined;
     this.#nextTimestamp = undefined;
     this.#intervalTime = undefined;
+    this.#ackWaitTime = undefined;
 
     this.#log('DEBUG', 'Heartbeat cleared.');
   }
@@ -99,6 +99,7 @@ export default class Heart {
       this.#isAcknowledged
       && this.#nextTimestamp !== undefined
       && now > this.#nextTimestamp
+      && this.#intervalTime !== undefined
     ) {
       this.sendHeartbeat();
     }
@@ -115,9 +116,8 @@ export default class Heart {
       const latency = now - this.#previousTimestamp;
       void this.#handleEvent('HEARTBEAT_ACK', { latency, gateway: this });
 
-      const message = `Heartbeat acknowledged. Latency: ${latency}ms.`;
+      this.#log('DEBUG', `Heartbeat acknowledged. Latency: ${latency}ms.`);
       this.#previousTimestamp = undefined;
-      this.#log('DEBUG', message);
     }
   }
 
@@ -132,17 +132,17 @@ export default class Heart {
   }
 
   private clearHeartbeatTimeout() {
-    if (this.#nextHbTimer) clearInterval(this.#nextHbTimer);
+    clearInterval(this.#nextHbTimer);
     this.#nextHbTimer = undefined;
   }
 
   private clearAckTimeout() {
-    if (this.#ackTimeout) clearTimeout(this.#ackTimeout);
+    clearTimeout(this.#ackTimeout);
     this.#ackTimeout = undefined;
   }
 
   public clearConnectTimeout() {
-    if (this.#connectTimeout) clearTimeout(this.#connectTimeout);
+    clearTimeout(this.#connectTimeout);
     this.#connectTimeout = undefined;
   }
 

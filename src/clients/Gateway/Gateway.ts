@@ -52,8 +52,6 @@ export default class Gateway {
   /** Object passed to Discord when identifying. */
   #identity: GatewayIdentify;
 
-  #checkIfStartingInterval?: undefined | NodeJS.Timer;
-
   #membersRequestCounter: number;
 
   #requestingMembersStateMap: Map<string, GuildChunkState>;
@@ -281,7 +279,6 @@ export default class Gateway {
 
       this.#websocket = undefined;
       this.#heartbeat.clearConnectTimeout();
-      this.clearStartingInterval();
     }
   };
 
@@ -299,8 +296,8 @@ export default class Gateway {
     if (this.#websocket?.ws.readyState === ws.OPEN) {
       this.#websocket?.ws.close(code);
     } else if (this.#websocket) {
-      this.handleWsClose(this.#websocket?.id, { code });
       this.log('WARNING', `Websocket is already ${this.#websocket?.ws.CLOSED ? 'closed' : 'closing'}.`);
+      this.handleWsClose(this.#websocket?.id, { code });
     }
   }
 
@@ -347,7 +344,7 @@ export default class Gateway {
   /** Assigned to websocket `onopen`. */
   private handleWsOpen = (wsId: number): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -358,13 +355,6 @@ export default class Gateway {
     this.emit('GATEWAY_OPEN', this);
   };
 
-  private clearStartingInterval() {
-    if (this.#checkIfStartingInterval !== undefined) {
-      clearInterval(this.#checkIfStartingInterval);
-      this.#checkIfStartingInterval = undefined;
-    }
-  }
-
   /*
    ********************************
    ******* WEBSOCKET - ERROR ******
@@ -374,7 +364,7 @@ export default class Gateway {
   /** Assigned to websocket `onerror`. */
   private handleWsError = (wsId: number, err: ws.ErrorEvent): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -392,7 +382,7 @@ export default class Gateway {
    */
   private handleWsClose = (wsId: number, { code }: Pick<ws.CloseEvent, 'code'>): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -404,8 +394,6 @@ export default class Gateway {
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
     this.#heartbeat.reset();
-
-    this.clearStartingInterval();
 
     const shouldReconnect = this.handleCloseCode(code);
 
@@ -599,7 +587,7 @@ export default class Gateway {
   // eslint-disable-next-line arrow-body-style
   private handleWsMessage = (wsId: number, { data }: ws.MessageEvent): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -695,8 +683,11 @@ export default class Gateway {
 
   /** Proxy for inline heartbeat checking. */
   private checkHeartbeatInline(): void {
-    if (this.#checkSiblingHeartbeats !== undefined) this.#checkSiblingHeartbeats.forEach((f) => f());
-    else this.#heartbeat.checkIfShouldHeartbeat();
+    if (this.#checkSiblingHeartbeats) {
+      this.#checkSiblingHeartbeats.forEach((f) => f());
+    } else {
+      this.#heartbeat.checkIfShouldHeartbeat();
+    }
   }
 
   /**
