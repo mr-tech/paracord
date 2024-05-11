@@ -83,7 +83,7 @@ class Heart {
         if (this.#previousTimestamp !== undefined) {
             const now = new Date().getTime();
             const latency = now - this.#previousTimestamp;
-            void this.#handleEvent('HEARTBEAT_ACK', { latency, gateway: this });
+            void this.#handleEvent('HEARTBEAT_ACK', { latency, gateway: this.#gateway });
             this.#log('DEBUG', `Heartbeat acknowledged. Latency: ${latency}ms.`);
             this.#previousTimestamp = undefined;
         }
@@ -137,7 +137,7 @@ class Heart {
         const now = new Date().getTime();
         if (this.#nextTimestamp) {
             const scheduleDiff = Math.max(0, now - (this.#nextTimestamp ?? now));
-            void this.#handleEvent('HEARTBEAT_SENT', { scheduleDiff, gateway: this });
+            void this.#handleEvent('HEARTBEAT_SENT', { scheduleDiff, gateway: this.#gateway });
             this.#log('DEBUG', `Heartbeat sent ${scheduleDiff}ms after scheduled time.`);
         }
         else {
