@@ -165,12 +165,14 @@ export default class Heart {
   }
 
   private sendHeartbeat = (): void => {
+    if (this.#intervalTime === undefined) return;
+
     if (!this.#isAcknowledged) {
       this.#gateway.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
       return;
     }
 
-    if (!this.#ackTimeout && this.#intervalTime && this.#ackWaitTime) {
+    if (!this.#ackTimeout && this.#ackWaitTime) {
       this.#ackTimeout = setTimeout(this.checkForAck, this.#intervalTime + this.#ackWaitTime);
     }
 
