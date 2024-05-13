@@ -86,7 +86,9 @@ export default class Heart {
     this.#intervalTime = undefined;
     this.#ackWaitTime = undefined;
 
-    this.#log('INFO', 'Heartbeat cleared.');
+    if (this.#intervalTime) {
+      this.#log('INFO', 'Heartbeat cleared.');
+    }
   }
 
   /**

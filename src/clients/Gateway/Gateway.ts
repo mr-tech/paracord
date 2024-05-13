@@ -400,6 +400,8 @@ export default class Gateway {
       return;
     }
 
+    this.#heartbeat.reset();
+
     this.#eventsDuringFlush = 0;
     this.#closing = true;
     this.waitForFlush().finally(() => {

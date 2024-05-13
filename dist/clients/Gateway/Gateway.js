@@ -299,6 +299,7 @@ class Gateway {
             this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
+        this.#heartbeat.reset();
         this.#eventsDuringFlush = 0;
         this.#closing = true;
         this.waitForFlush().finally(() => {

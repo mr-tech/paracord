@@ -60,7 +60,9 @@ class Heart {
         this.#nextTimestamp = undefined;
         this.#intervalTime = undefined;
         this.#ackWaitTime = undefined;
-        this.#log('INFO', 'Heartbeat cleared.');
+        if (this.#intervalTime) {
+            this.#log('INFO', 'Heartbeat cleared.');
+        }
     }
     /**
      * Set inline with the firehose of events to check if the heartbeat needs to be sent.
