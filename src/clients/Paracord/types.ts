@@ -18,6 +18,9 @@ export interface ParacordLoginOptions {
   identity: IdentityOptions;
   shards?: number[];
   shardCount?: number;
+
+  /** Function that determines if the gateway is allowed to connect. */
+  allowConnection?: undefined | ((gw: Gateway) => boolean | Promise<boolean>);
 }
 
 export type InternalShardIds = number[]

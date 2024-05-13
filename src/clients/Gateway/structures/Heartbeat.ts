@@ -11,6 +11,8 @@ interface Options {
   handleEvent: Gateway['handleEvent'];
 }
 
+const CONNECT_TIMEOUT = 10 * SECOND_IN_MILLISECONDS;
+
 export default class Heart {
   #gateway: Gateway;
 
@@ -69,7 +71,7 @@ export default class Heart {
       } else {
         this.#log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
       }
-    }, 5 * SECOND_IN_MILLISECONDS);
+    }, CONNECT_TIMEOUT);
   }
 
   /** Clears heartbeat values and clears the heartbeatTimers. */
@@ -84,7 +86,7 @@ export default class Heart {
     this.#intervalTime = undefined;
     this.#ackWaitTime = undefined;
 
-    this.#log('DEBUG', 'Heartbeat cleared.');
+    this.#log('INFO', 'Heartbeat cleared.');
   }
 
   /**
@@ -183,7 +185,7 @@ export default class Heart {
 
       this.#log('DEBUG', `Heartbeat sent ${scheduleDiff}ms after scheduled time.`);
     } else {
-      this.#log('DEBUG', 'nextHeartbeatTimestamp is undefined.');
+      this.#log('WARNING', 'nextHeartbeatTimestamp is undefined.');
     }
 
     this.#previousTimestamp = now;

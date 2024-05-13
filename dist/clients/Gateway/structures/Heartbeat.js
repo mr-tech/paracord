@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = __importDefault(require("ws"));
 const constants_1 = require("../../../constants");
+const CONNECT_TIMEOUT = 10 * constants_1.SECOND_IN_MILLISECONDS;
 class Heart {
     #gateway;
     /** If the last heartbeat packet sent to Discord received an ACK. */
@@ -47,7 +48,7 @@ class Heart {
             else {
                 this.#log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
             }
-        }, 5 * constants_1.SECOND_IN_MILLISECONDS);
+        }, CONNECT_TIMEOUT);
     }
     /** Clears heartbeat values and clears the heartbeatTimers. */
     reset() {
@@ -59,7 +60,7 @@ class Heart {
         this.#nextTimestamp = undefined;
         this.#intervalTime = undefined;
         this.#ackWaitTime = undefined;
-        this.#log('DEBUG', 'Heartbeat cleared.');
+        this.#log('INFO', 'Heartbeat cleared.');
     }
     /**
      * Set inline with the firehose of events to check if the heartbeat needs to be sent.
@@ -143,7 +144,7 @@ class Heart {
             this.#log('DEBUG', `Heartbeat sent ${scheduleDiff}ms after scheduled time.`);
         }
         else {
-            this.#log('DEBUG', 'nextHeartbeatTimestamp is undefined.');
+            this.#log('WARNING', 'nextHeartbeatTimestamp is undefined.');
         }
         this.#previousTimestamp = now;
         this.#isAcknowledged = false;

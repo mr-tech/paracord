@@ -74,10 +74,7 @@ export default class Paracord extends EventEmitter {
 
   #gatewayHeartbeats: Heartbeat['checkIfShouldHeartbeat'][];
 
-  #allowConnect: boolean;
-
-  /** A gateway whose events to ignore. Used in the case of failing to start up correctly. */
-  #drain: null | Gateway;
+  #allowConnection?: undefined | ((shard: Gateway) => boolean | Promise<boolean>);
 
   /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
   private static validateParams(token: string): void {
@@ -102,11 +99,10 @@ export default class Paracord extends EventEmitter {
     this.#guildWaitCount = 0;
     this.#gatewayHeartbeats = [];
     this.#emittedStartupComplete = false;
-    this.#drain = null;
-    this.#allowConnect = true;
 
     const {
-      gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, shardStartupTimeout,
+      gatewayOptions, unavailableGuildTolerance,
+      unavailableGuildWait, shardStartupTimeout,
     } = options;
     this.#gatewayOptions = gatewayOptions;
 
@@ -129,14 +125,6 @@ export default class Paracord extends EventEmitter {
     return this.gatewayLoginQueue.length !== 0 || !!this.#startingGateway;
   }
 
-  public set allowConnect(value: boolean) {
-    this.#allowConnect = value;
-  }
-
-  public get allowConnect(): boolean {
-    return this.#allowConnect;
-  }
-
   /*
    ********************************
    *********** INTERNAL ***********
@@ -150,8 +138,6 @@ export default class Paracord extends EventEmitter {
    * @param gateway Gateway that emitted this event.
    */
   public handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void {
-    if (this.#drain === gateway) return;
-
     switch (eventType) {
       case 'READY':
         this.handleGatewayReady(<ReadyEventField>data);
@@ -219,7 +205,9 @@ export default class Paracord extends EventEmitter {
    */
   public async login(options: Partial<ParacordLoginOptions> = {}): Promise<void> {
     const { PARACORD_SHARD_IDS, PARACORD_SHARD_COUNT } = process.env;
-    const loginOptions = clone<Partial<ParacordLoginOptions>>(options);
+
+    const loginOptions = { ...options };
+    this.#allowConnection = loginOptions.allowConnection;
 
     if (PARACORD_SHARD_IDS !== undefined) {
       loginOptions.shards = PARACORD_SHARD_IDS.split(',').map((s) => Number(s));
@@ -274,10 +262,20 @@ export default class Paracord extends EventEmitter {
 
   /** Takes a gateway off of the queue and logs it in. */
   private processGatewayQueue = async (): Promise<void> => {
-    if (this.#allowConnect && !this.#drain && (!this.#startingGateway || this.isStartingGateway(this.gatewayLoginQueue[0]))) {
-      const gateway = this.gatewayLoginQueue.shift();
-      if (gateway) {
-        this.#startingGateway = gateway;
+    if (!this.#startingGateway || this.isStartingGateway(this.gatewayLoginQueue[0])) {
+      const idx = this.gatewayLoginQueue.findIndex((g) => g.allowConnect);
+
+      const gateway = idx !== -1 ? this.gatewayLoginQueue.splice(idx, 1)[0] : undefined;
+      this.#startingGateway = gateway;
+
+      if (gateway && !gateway.connected) {
+        if (await this.#allowConnection?.(gateway) === false) {
+          gateway.allowConnect = false;
+          this.#startingGateway = undefined;
+          this.upsertGatewayQueue(gateway, true);
+          return;
+        }
+
         try {
           await gateway.login();
 
@@ -303,8 +301,10 @@ export default class Paracord extends EventEmitter {
         } catch (err: unknown) {
           this.clearStartingShardState(gateway);
           this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
-          this.log('FATAL', err instanceof Error ? err.message : String(err), gateway);
+          this.log('ERROR', err instanceof Error ? err.message : String(err), gateway);
         }
+      } else if (gateway?.connected) {
+        this.log('WARNING', 'Gateway already connected.', gateway);
       }
     }
   };
@@ -326,12 +326,8 @@ export default class Paracord extends EventEmitter {
 
   private timeoutShard(gateway: Gateway, waitTime: number) {
     if (this.isStartingGateway(gateway)) {
-      this.#drain = gateway;
-      setTimeout(() => { this.#drain = null; }, 3 * SECOND_IN_MILLISECONDS);
-
+      this.log('WARNING', `Shard timed out after ${waitTime} seconds during startup. Reconnecting.`);
       gateway.close(GATEWAY_CLOSE_CODES.INTERNAL_TERMINATE_RECONNECT);
-
-      this.log('WARNING', `Shard timed out after ${waitTime} seconds. Draining and reconnecting.`);
     }
   }
 

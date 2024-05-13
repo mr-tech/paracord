@@ -1404,6 +1404,9 @@ export declare type ForumTag = {
 /** A client to handle a Discord gateway connection. */
 export declare class Gateway {
     #private;
+    allowConnect: boolean;
+    /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
+    flushInterval: null | NodeJS.Timeout;
     /**
      * Creates a new Discord gateway handler.
      * @param token Discord token. Will be coerced into a bot token.
@@ -1472,6 +1475,7 @@ export declare class Gateway {
      * @param event Object containing information about the close.
      */
     private handleWsClose;
+    private waitForFlush;
     /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
      * @param code Code that came with the websocket close event.
      * @return Whether or not the client should attempt to login again.
@@ -3210,8 +3214,6 @@ declare class Paracord extends EventEmitter {
     get shards(): GatewayMap;
     /** Whether or not there are gateways currently starting up. */
     get connecting(): boolean;
-    set allowConnect(value: boolean);
-    get allowConnect(): boolean;
     /**
      * Processes a gateway event.
      * @param eventType The type of the event from the gateway. https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events (Events tend to be emitted in all caps and underlines in place of spaces.)
@@ -3293,6 +3295,8 @@ export declare interface ParacordLoginOptions {
     identity: IdentityOptions;
     shards?: number[];
     shardCount?: number;
+    /** Function that determines if the gateway is allowed to connect. */
+    allowConnection?: undefined | ((gw: Gateway) => boolean | Promise<boolean>);
 }
 
 export declare interface ParacordOptions {

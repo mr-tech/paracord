@@ -9,37 +9,46 @@ const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 /** A client to handle a Discord gateway connection. */
 class Gateway {
+    allowConnect;
     #heartbeat;
     /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
-    #online;
+    #online = false;
     /** Whether or not the client is currently resuming a session. */
-    #resuming;
+    #resuming = false;
+    #closing = false;
     #options;
     /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
     #emitter;
     /** Object passed to Discord when identifying. */
     #identity;
-    #membersRequestCounter;
-    #requestingMembersStateMap;
+    #membersRequestCounter = 0;
+    #requestingMembersStateMap = new Map();
+    /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
+    flushInterval = null;
+    #eventsDuringFlush = 0;
+    #lastEventTimestamp = 0;
+    /** The amount of events received during a resume. */
+    #eventsDuringResume = 0;
+    /** Other gateway heartbeat checks. */
+    #checkSiblingHeartbeats;
     // WEBSOCKET
     /** Websocket used to connect to gateway. */
     #websocket;
-    #wsId;
+    #wsId = 0;
     /** Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
     #wsUrl;
     /** From Discord - Url to reconnect to. */
     #resumeUrl;
     #wsParams;
-    #wsRateLimitCache;
+    #wsRateLimitCache = {
+        resetTimestamp: 0,
+        count: 0,
+    };
     /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
-    #sequence;
+    #sequence = null;
     /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
     // #zlibInflate: null | ZlibSyncType.Inflate = null;
-    /** Other gateway heartbeat checks. */
-    #checkSiblingHeartbeats;
-    /** The amount of events received during a resume. */
-    #eventsDuringResume;
     /**
      * Creates a new Discord gateway handler.
      * @param token Discord token. Will be coerced into a bot token.
@@ -50,6 +59,7 @@ class Gateway {
         if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
             throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
         }
+        this.allowConnect = true;
         this.#heartbeat = new structures_1.Heartbeat(this, {
             heartbeatIntervalOffset,
             heartbeatTimeoutSeconds,
@@ -58,21 +68,10 @@ class Gateway {
         });
         this.#identity = new structures_1.GatewayIdentify((0, utils_1.coerceTokenToBotLike)(token), identity);
         this.#options = options;
-        this.#sequence = null;
-        this.#online = false;
-        this.#wsRateLimitCache = {
-            count: 0,
-            resetTimestamp: 0,
-        };
-        this.#wsId = 0;
-        this.#membersRequestCounter = 0;
-        this.#requestingMembersStateMap = new Map();
         this.#emitter = emitter;
         this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
         this.#wsUrl = wsUrl;
         this.#wsParams = wsParams;
-        this.#resuming = false;
-        this.#eventsDuringResume = 0;
     }
     /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
     get resumable() {
@@ -168,6 +167,10 @@ class Gateway {
         if (this.#websocket !== undefined) {
             throw Error('Client is already initialized.');
         }
+        if (!this.allowConnect) {
+            this.log('WARNING', 'Connection disallowed. Ignoring login request.');
+            return;
+        }
         // if (ZlibSync || this.#identity.compress) {
         //   if (!ZlibSync) throw Error('zlib-sync is required for compression');
         //   this.#zlibInflate = new ZlibSync.Inflate({
@@ -213,6 +216,9 @@ class Gateway {
      * @param reconnect Whether to reconnect after closing.
      */
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
+        if (this.#closing)
+            return;
+        this.#heartbeat.reset();
         if (this.#websocket?.ws.readyState === ws_1.default.OPEN) {
             this.#websocket?.ws.close(code);
         }
@@ -293,21 +299,38 @@ class Gateway {
             this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
-        this.#websocket = undefined;
-        this.#online = false;
-        this.#resuming = false;
-        this.#eventsDuringResume = 0;
-        this.#membersRequestCounter = 0;
-        this.#requestingMembersStateMap = new Map();
-        this.#heartbeat.reset();
-        const shouldReconnect = this.handleCloseCode(code);
-        this.#wsRateLimitCache = {
-            resetTimestamp: 0,
-            count: 0,
-        };
-        const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
-        this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
+        this.#eventsDuringFlush = 0;
+        this.#closing = true;
+        this.waitForFlush().finally(() => {
+            this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
+            this.#websocket = undefined;
+            this.#online = false;
+            this.#resuming = false;
+            this.#eventsDuringResume = 0;
+            this.#membersRequestCounter = 0;
+            this.#requestingMembersStateMap = new Map();
+            this.#wsRateLimitCache = {
+                resetTimestamp: 0,
+                count: 0,
+            };
+            const shouldReconnect = this.handleCloseCode(code);
+            const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
+            this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
+            this.#closing = false;
+        });
     };
+    async waitForFlush() {
+        this.log('INFO', 'Waiting for events to flush.');
+        const lastEventTimestamp = this.#lastEventTimestamp;
+        await new Promise((resolve) => {
+            const interval = setInterval(() => {
+                if (this.#lastEventTimestamp === lastEventTimestamp) {
+                    clearInterval(interval);
+                    resolve(null);
+                }
+            }, constants_1.SECOND_IN_MILLISECONDS);
+        });
+    }
     /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
      * @param code Code that came with the websocket close event.
      * @return Whether or not the client should attempt to login again.
@@ -442,7 +465,7 @@ class Gateway {
         this.#resumeUrl = undefined;
         this.#sequence = null;
         this.#wsUrl = this.#options.wsUrl;
-        this.log('DEBUG', 'Session cleared.');
+        this.log('INFO', 'Session cleared.');
     }
     /*
      ********************************
@@ -452,8 +475,9 @@ class Gateway {
     /** Assigned to websocket `onmessage`. */
     // eslint-disable-next-line arrow-body-style
     handleWsMessage = (wsId, { data }) => {
+        this.#lastEventTimestamp = Date.now();
         if (this.#websocket?.id !== wsId) {
-            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         // if (this.#zlibInflate) {
@@ -493,6 +517,11 @@ class Gateway {
         this.updateSequence(sequence);
         if (this.#resuming && (opCode !== constants_1.GATEWAY_OP_CODES.DISPATCH || (type !== 'RESUMED' && type !== 'READY'))) {
             ++this.#eventsDuringResume;
+        }
+        if (this.#closing && opCode !== constants_1.GATEWAY_OP_CODES.DISPATCH) {
+            ++this.#eventsDuringFlush;
+            this.log('DEBUG', `Received message after close. op: ${opCode} | type: ${type}`);
+            return;
         }
         switch (opCode) {
             case constants_1.GATEWAY_OP_CODES.DISPATCH:
@@ -563,7 +592,7 @@ class Gateway {
      */
     handleHello(data) {
         this.#heartbeat.clearConnectTimeout();
-        this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
+        this.log('INFO', `Received Hello. ${JSON.stringify(data)}.`);
         this.#heartbeat.start(data.heartbeat_interval);
         this.connect(this.resumable);
         void this.handleEvent('HELLO', data);
