@@ -86,8 +86,8 @@ class Heart {
         if (this.#previousTimestamp !== undefined) {
             const now = new Date().getTime();
             const latency = now - this.#previousTimestamp;
-            void this.#handleEvent('HEARTBEAT_ACK', { latency, gateway: this.#gateway });
             this.#log('DEBUG', `Heartbeat acknowledged. Latency: ${latency}ms.`);
+            void this.#handleEvent('HEARTBEAT_ACK', { latency, gateway: this.#gateway });
             this.#previousTimestamp = undefined;
         }
     }
@@ -133,7 +133,7 @@ class Heart {
         if (this.#intervalTime === undefined)
             return;
         if (!this.#isAcknowledged) {
-            this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+            this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 0);
             return;
         }
         if (!this.#ackTimeout && this.#ackWaitTime) {

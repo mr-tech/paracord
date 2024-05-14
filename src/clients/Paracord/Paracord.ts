@@ -262,18 +262,24 @@ export default class Paracord extends EventEmitter {
 
   /** Takes a gateway off of the queue and logs it in. */
   private processGatewayQueue = async (): Promise<void> => {
-    if (!this.#startingGateway || this.isStartingGateway(this.gatewayLoginQueue[0])) {
-      const idx = this.gatewayLoginQueue.findIndex((g) => g.allowConnect);
-
-      const gateway = idx !== -1 ? this.gatewayLoginQueue.splice(idx, 1)[0] : undefined;
+    const idx = this.gatewayLoginQueue.findIndex((g) => g.allowConnect || g.resumable);
+    if (!this.#startingGateway && idx !== -1) {
+      const gateway = this.gatewayLoginQueue.splice(idx, 1)[0];
       this.#startingGateway = gateway;
 
-      if (gateway && !gateway.connected) {
+      if (!gateway.connected) {
+        if (this.#allowConnection) {
+          this.log('INFO', `Checking if shard ${gateway.id} is allowed to connect.`);
+        }
         if (await this.#allowConnection?.(gateway) === false) {
+          this.log('INFO', `Shard ${gateway.id} is not allowed to connect.`);
           gateway.allowConnect = false;
           this.#startingGateway = undefined;
-          this.upsertGatewayQueue(gateway, true);
+          this.upsertGatewayQueue(gateway);
           return;
+        }
+        if (this.#allowConnection) {
+          this.log('INFO', `Shard ${gateway.id} now connecting.`);
         }
 
         try {
@@ -303,7 +309,7 @@ export default class Paracord extends EventEmitter {
           this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
           this.log('ERROR', err instanceof Error ? err.message : String(err), gateway);
         }
-      } else if (gateway?.connected) {
+      } else {
         this.log('WARNING', 'Gateway already connected.', gateway);
       }
     }
@@ -482,7 +488,9 @@ export default class Paracord extends EventEmitter {
       this.clearStartingShardState(gateway);
     }
 
-    this.upsertGatewayQueue(gateway, shouldReconnect);
+    if (shouldReconnect) {
+      this.upsertGatewayQueue(gateway, gateway.resumable);
+    }
   }
 
   private upsertGatewayQueue(gateway: Gateway, front = false): void {

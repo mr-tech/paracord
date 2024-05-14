@@ -48,6 +48,7 @@ class Gateway {
     #sequence = null;
     /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
+    #flushWaitTime = 0;
     // #zlibInflate: null | ZlibSyncType.Inflate = null;
     /**
      * Creates a new Discord gateway handler.
@@ -89,11 +90,11 @@ class Gateway {
     get id() {
         return this.#identity.shard !== undefined ? this.#identity.shard[0] : 0;
     }
-    /** Whether or not the client is connected to the gateway. */
+    /** Whether or not the websocket is open. */
     get connected() {
-        return this.#websocket !== undefined;
+        return this.#websocket?.ws.readyState === ws_1.default.OPEN;
     }
-    /** Whether or not the client is connected to the gateway. */
+    /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     get online() {
         return this.#online;
     }
@@ -101,6 +102,7 @@ class Gateway {
     get ws() {
         return this.#websocket?.ws;
     }
+    /** This client's heartbeat manager. */
     get heart() {
         return this.#heartbeat;
     }
@@ -215,16 +217,16 @@ class Gateway {
      * Closes the connection.
      * @param reconnect Whether to reconnect after closing.
      */
-    close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
+    close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWaitTime = null) {
         if (this.#closing)
             return;
         this.#heartbeat.reset();
+        this.#flushWaitTime = flushWaitTime;
         if (this.#websocket?.ws.readyState === ws_1.default.OPEN) {
             this.#websocket?.ws.close(code);
         }
         else if (this.#websocket) {
             this.log('WARNING', `Websocket is already ${this.#websocket?.ws.CLOSED ? 'closed' : 'closing'}.`);
-            this.handleWsClose(this.#websocket?.id, { code });
         }
     }
     /**
@@ -266,7 +268,7 @@ class Gateway {
     /** Assigned to websocket `onopen`. */
     handleWsOpen = (wsId) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('FATAL', `Websocket id mismatch on open. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         this.log('DEBUG', 'Websocket open.');
@@ -281,7 +283,7 @@ class Gateway {
     /** Assigned to websocket `onerror`. */
     handleWsError = (wsId, err) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('ERROR', `Websocket id mismatch on error. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         this.log('ERROR', `Websocket error. Message: ${err.message}`);
@@ -296,41 +298,51 @@ class Gateway {
      */
     handleWsClose = (wsId, { code }) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('ERROR', `Websocket id mismatch on close. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         this.#heartbeat.reset();
         this.#eventsDuringFlush = 0;
         this.#closing = true;
-        this.waitForFlush().finally(() => {
+        if (this.#flushWaitTime === null) {
+            this.cleanup(code);
+            return;
+        }
+        this.waitForFlush(this.#flushWaitTime).finally(() => {
             this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
-            this.#websocket = undefined;
-            this.#online = false;
-            this.#resuming = false;
-            this.#eventsDuringResume = 0;
-            this.#membersRequestCounter = 0;
-            this.#requestingMembersStateMap = new Map();
-            this.#wsRateLimitCache = {
-                resetTimestamp: 0,
-                count: 0,
-            };
-            const shouldReconnect = this.handleCloseCode(code);
-            const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
-            this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
-            this.#closing = false;
+            this.cleanup(code);
         });
     };
-    async waitForFlush() {
+    async waitForFlush(waitTime) {
         this.log('INFO', 'Waiting for events to flush.');
         const lastEventTimestamp = this.#lastEventTimestamp;
         await new Promise((resolve) => {
-            const interval = setInterval(() => {
-                if (this.#lastEventTimestamp === lastEventTimestamp) {
-                    clearInterval(interval);
-                    resolve(null);
-                }
-            }, constants_1.SECOND_IN_MILLISECONDS);
+            setTimeout(() => {
+                const interval = setInterval(() => {
+                    if (this.#lastEventTimestamp === lastEventTimestamp) {
+                        clearInterval(interval);
+                        resolve(null);
+                    }
+                }, 5 * constants_1.SECOND_IN_MILLISECONDS);
+            }, waitTime);
         });
+    }
+    cleanup(code) {
+        this.#flushWaitTime = 0;
+        this.#websocket = undefined;
+        this.#online = false;
+        this.#resuming = false;
+        this.#eventsDuringResume = 0;
+        this.#membersRequestCounter = 0;
+        this.#requestingMembersStateMap = new Map();
+        this.#wsRateLimitCache = {
+            resetTimestamp: 0,
+            count: 0,
+        };
+        const shouldReconnect = this.handleCloseCode(code);
+        const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
+        this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
+        this.#closing = false;
     }
     /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
      * @param code Code that came with the websocket close event.

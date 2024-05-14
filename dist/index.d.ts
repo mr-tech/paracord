@@ -1421,12 +1421,13 @@ export declare class Gateway {
     get shard(): GatewayIdentify['shard'];
     /** The shard id that this gateway is connected to. */
     get id(): number;
-    /** Whether or not the client is connected to the gateway. */
+    /** Whether or not the websocket is open. */
     get connected(): boolean;
-    /** Whether or not the client is connected to the gateway. */
+    /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     get online(): boolean;
     /** This gateway's active websocket connection. */
     get ws(): ws | undefined;
+    /** This client's heartbeat manager. */
     get heart(): Heartbeat;
     /**
      * Simple alias for logging events emitted by this client.
@@ -1458,7 +1459,7 @@ export declare class Gateway {
      * Closes the connection.
      * @param reconnect Whether to reconnect after closing.
      */
-    close(code?: GatewayCloseCode): void;
+    close(code?: GatewayCloseCode, flushWaitTime?: null | number): void;
     /**
      * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
      * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
@@ -1476,6 +1477,7 @@ export declare class Gateway {
      */
     private handleWsClose;
     private waitForFlush;
+    private cleanup;
     /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
      * @param code Code that came with the websocket close event.
      * @return Whether or not the client should attempt to login again.

@@ -102,6 +102,8 @@ export default class Gateway {
   /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
   #sessionId?: undefined | string;
 
+  #flushWaitTime: null | number = 0;
+
   // #zlibInflate: null | ZlibSyncType.Inflate = null;
 
   /**
@@ -157,12 +159,12 @@ export default class Gateway {
     return this.#identity.shard !== undefined ? this.#identity.shard[0] : 0;
   }
 
-  /** Whether or not the client is connected to the gateway. */
+  /** Whether or not the websocket is open. */
   public get connected(): boolean {
-    return this.#websocket !== undefined;
+    return this.#websocket?.ws.readyState === ws.OPEN;
   }
 
-  /** Whether or not the client is connected to the gateway. */
+  /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
   public get online(): boolean {
     return this.#online;
   }
@@ -172,6 +174,7 @@ export default class Gateway {
     return this.#websocket?.ws;
   }
 
+  /** This client's heartbeat manager. */
   public get heart(): Heartbeat {
     return this.#heartbeat;
   }
@@ -302,16 +305,16 @@ export default class Gateway {
    * Closes the connection.
    * @param reconnect Whether to reconnect after closing.
    */
-  public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT) {
+  public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWaitTime: null | number = null) {
     if (this.#closing) return;
 
     this.#heartbeat.reset();
+    this.#flushWaitTime = flushWaitTime;
 
     if (this.#websocket?.ws.readyState === ws.OPEN) {
       this.#websocket?.ws.close(code);
     } else if (this.#websocket) {
       this.log('WARNING', `Websocket is already ${this.#websocket?.ws.CLOSED ? 'closed' : 'closing'}.`);
-      this.handleWsClose(this.#websocket?.id, { code });
     }
   }
 
@@ -358,7 +361,7 @@ export default class Gateway {
   /** Assigned to websocket `onopen`. */
   private handleWsOpen = (wsId: number): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('FATAL', `Websocket id mismatch on open. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -378,7 +381,7 @@ export default class Gateway {
   /** Assigned to websocket `onerror`. */
   private handleWsError = (wsId: number, err: ws.ErrorEvent): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('ERROR', `Websocket id mismatch on error. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -396,7 +399,7 @@ export default class Gateway {
    */
   private handleWsClose = (wsId: number, { code }: Pick<ws.CloseEvent, 'code'>): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('DEBUG', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('ERROR', `Websocket id mismatch on close. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -404,42 +407,54 @@ export default class Gateway {
 
     this.#eventsDuringFlush = 0;
     this.#closing = true;
-    this.waitForFlush().finally(() => {
+
+    if (this.#flushWaitTime === null) {
+      this.cleanup(code);
+      return;
+    }
+
+    this.waitForFlush(this.#flushWaitTime).finally(() => {
       this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
-
-      this.#websocket = undefined;
-      this.#online = false;
-      this.#resuming = false;
-
-      this.#eventsDuringResume = 0;
-      this.#membersRequestCounter = 0;
-      this.#requestingMembersStateMap = new Map();
-
-      this.#wsRateLimitCache = {
-        resetTimestamp: 0,
-        count: 0,
-      };
-
-      const shouldReconnect = this.handleCloseCode(code);
-
-      const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code, gateway: this };
-      this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
-      this.#closing = false;
+      this.cleanup(code);
     });
   };
 
-  private async waitForFlush(): Promise<void> {
+  private async waitForFlush(waitTime: number): Promise<void> {
     this.log('INFO', 'Waiting for events to flush.');
     const lastEventTimestamp = this.#lastEventTimestamp;
 
     await new Promise((resolve) => {
-      const interval = setInterval(() => {
-        if (this.#lastEventTimestamp === lastEventTimestamp) {
-          clearInterval(interval);
-          resolve(null);
-        }
-      }, SECOND_IN_MILLISECONDS);
+      setTimeout(() => {
+        const interval = setInterval(() => {
+          if (this.#lastEventTimestamp === lastEventTimestamp) {
+            clearInterval(interval);
+            resolve(null);
+          }
+        }, 5 * SECOND_IN_MILLISECONDS);
+      }, waitTime);
     });
+  }
+
+  private cleanup(code: number) {
+    this.#flushWaitTime = 0;
+    this.#websocket = undefined;
+    this.#online = false;
+    this.#resuming = false;
+
+    this.#eventsDuringResume = 0;
+    this.#membersRequestCounter = 0;
+    this.#requestingMembersStateMap = new Map();
+
+    this.#wsRateLimitCache = {
+      resetTimestamp: 0,
+      count: 0,
+    };
+
+    const shouldReconnect = this.handleCloseCode(code);
+
+    const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code, gateway: this };
+    this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
+    this.#closing = false;
   }
 
   /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
