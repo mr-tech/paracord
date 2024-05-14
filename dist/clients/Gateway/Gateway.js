@@ -554,7 +554,7 @@ class Gateway {
                 this.handleInvalidSession(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.RECONNECT:
-                this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
+                this.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
                 break;
             default:
                 this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
@@ -627,7 +627,7 @@ class Gateway {
         }
         else {
             this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-            this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
     }
     /** Sends an "Identify" payload. */
@@ -693,10 +693,10 @@ class Gateway {
     handleInvalidSession(resumable) {
         this.log('WARNING', `Received Invalid Session packet. Resumable: ${resumable}`);
         if (!resumable) {
-            this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
         }
         else {
-            this.#websocket?.ws.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
         }
         void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
     }

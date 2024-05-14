@@ -717,7 +717,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
-        this.#websocket?.ws.close(GATEWAY_CLOSE_CODES.RECONNECT);
+        this.close(GATEWAY_CLOSE_CODES.RECONNECT);
         break;
 
       default:
@@ -803,7 +803,7 @@ export default class Gateway {
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
       this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-      this.#websocket?.ws.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
 
@@ -908,9 +908,9 @@ export default class Gateway {
     );
 
     if (!resumable) {
-      this.#websocket?.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+      this.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
     } else {
-      this.#websocket?.ws.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+      this.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
     }
 
     void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
