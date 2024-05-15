@@ -182,7 +182,7 @@ class Gateway {
         // }
         try {
             const wsUrl = this.constructWsUrl();
-            this.log('DEBUG', `Connecting to url: ${wsUrl}`);
+            this.log('DEBUG', `${this.#resumeUrl ? 'Resuming on' : 'Connecting to'} url: ${wsUrl}`);
             const client = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
             this.#heartbeat.startConnectTimeout(client);
             this.#websocket = {
@@ -328,10 +328,11 @@ class Gateway {
         });
     }
     cleanup(code) {
-        this.#flushWaitTime = 0;
         this.#websocket = undefined;
         this.#online = false;
         this.#resuming = false;
+        this.#flushWaitTime = null;
+        this.#closing = false;
         this.#eventsDuringResume = 0;
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
@@ -342,7 +343,6 @@ class Gateway {
         const shouldReconnect = this.handleCloseCode(code);
         const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
         this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
-        this.#closing = false;
     }
     /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
      * @param code Code that came with the websocket close event.

@@ -257,6 +257,9 @@ class Paracord extends events_1.EventEmitter {
                 this.log('WARNING', 'Gateway already connected.', gateway);
             }
         }
+        else if (!this.startingGateway && this.gatewayLoginQueue.length > 0) {
+            this.log('DEBUG', `No gateways available to connect. ${this.gatewayLoginQueue.length} in queue.`);
+        }
     };
     checkUnavailable(self, gateway, tolerance, waitSeconds) {
         const timedOut = !!this.#previousGuildTimestamp && this.#previousGuildTimestamp + (waitSeconds * constants_1.SECOND_IN_MILLISECONDS) < new Date().getTime();
@@ -414,7 +417,7 @@ class Paracord extends events_1.EventEmitter {
     }
     upsertGatewayQueue(gateway, front = false) {
         if (!this.gatewayLoginQueue.includes(gateway)) {
-            this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue.`);
+            this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`);
             if (front) {
                 this.gatewayLoginQueue.unshift(gateway);
             }

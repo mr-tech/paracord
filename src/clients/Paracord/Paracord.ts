@@ -312,6 +312,8 @@ export default class Paracord extends EventEmitter {
       } else {
         this.log('WARNING', 'Gateway already connected.', gateway);
       }
+    } else if (!this.startingGateway && this.gatewayLoginQueue.length > 0) {
+      this.log('DEBUG', `No gateways available to connect. ${this.gatewayLoginQueue.length} in queue.`);
     }
   };
 
@@ -497,7 +499,7 @@ export default class Paracord extends EventEmitter {
 
   private upsertGatewayQueue(gateway: Gateway, front = false): void {
     if (!this.gatewayLoginQueue.includes(gateway)) {
-      this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue.`);
+      this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`);
 
       if (front) {
         this.gatewayLoginQueue.unshift(gateway);
