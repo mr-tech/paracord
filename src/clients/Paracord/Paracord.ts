@@ -262,8 +262,8 @@ export default class Paracord extends EventEmitter {
 
   /** Takes a gateway off of the queue and logs it in. */
   private processGatewayQueue = async (): Promise<void> => {
-    const idx = this.gatewayLoginQueue.findIndex((g) => g.allowConnect || g.resumable);
-    if (!this.#startingGateway && idx !== -1) {
+    const idx = this.gatewayLoginQueue.findIndex((g) => (this.#startingGateway ? g === this.#startingGateway : (g.allowConnect || g.resumable)));
+    if (idx !== -1) {
       const gateway = this.gatewayLoginQueue.splice(idx, 1)[0];
       this.#startingGateway = gateway;
 
@@ -436,6 +436,8 @@ export default class Paracord extends EventEmitter {
 
   private clearStartingShardState(gateway: Gateway): void {
     if (this.isStartingGateway(gateway)) {
+      this.log('INFO', `Clearing start up state for shard ${gateway.id}.`);
+
       this.#startingGateway = undefined;
       this.#previousGuildTimestamp = undefined;
       this.#guildWaitCount = 0;
@@ -495,6 +497,8 @@ export default class Paracord extends EventEmitter {
 
   private upsertGatewayQueue(gateway: Gateway, front = false): void {
     if (!this.gatewayLoginQueue.includes(gateway)) {
+      this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue.`);
+
       if (front) {
         this.gatewayLoginQueue.unshift(gateway);
       } else {
