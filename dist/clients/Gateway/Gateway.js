@@ -16,6 +16,7 @@ class Gateway {
     /** Whether or not the client is currently resuming a session. */
     #resuming = false;
     #closing = false;
+    #closeTimeout = undefined;
     #options;
     /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
     #emitter;
@@ -49,6 +50,7 @@ class Gateway {
     /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
     #flushWaitTime = 0;
+    #flushInterval = undefined;
     // #zlibInflate: null | ZlibSyncType.Inflate = null;
     /**
      * Creates a new Discord gateway handler.
@@ -220,14 +222,33 @@ class Gateway {
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWaitTime = null) {
         if (this.#closing)
             return;
-        this.#heartbeat.reset();
-        this.#flushWaitTime = flushWaitTime;
         if (this.#websocket?.ws.readyState === ws_1.default.OPEN) {
+            this.#flushWaitTime = flushWaitTime;
+            this.#heartbeat.reset();
             this.#websocket?.ws.close(code);
         }
         else if (this.#websocket) {
-            this.log('WARNING', `Websocket is already ${this.#websocket?.ws.CLOSED ? 'closed' : 'closing'}.`);
+            if (!this.#websocket) {
+                this.log('WARNING', 'Websocket is undefined when closing.');
+            }
+            else {
+                this.log('WARNING', `Websocket is already ${this.#websocket.ws.readyState === ws_1.default.CLOSED ? 'closed' : 'closing'}.`);
+            }
+            if (!this.#closeTimeout) {
+                this.#closeTimeout = this.startCloseTimeout();
+            }
         }
+    }
+    startCloseTimeout() {
+        return setTimeout(() => {
+            if (!this.#websocket) {
+                this.log('ERROR', 'Websocket undefined during close timeout. This shouldn\'t ever happen.');
+            }
+            else if (this.#wsId === this.#websocket?.id) {
+                this.log('ERROR', 'Websocket did not close in time. Forcing close.');
+                this.handleWsClose(this.#wsId, { code: constants_1.GATEWAY_CLOSE_CODES.UNKNOWN }, true);
+            }
+        }, constants_1.MINUTE_IN_MILLISECONDS);
     }
     /**
      * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
@@ -268,7 +289,7 @@ class Gateway {
     /** Assigned to websocket `onopen`. */
     handleWsOpen = (wsId) => {
         if (this.#websocket?.id !== wsId) {
-            this.log('FATAL', `Websocket id mismatch on open. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+            this.log('ERROR', `Websocket id mismatch on open. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
         this.log('DEBUG', 'Websocket open.');
@@ -296,18 +317,25 @@ class Gateway {
     /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
      * @param event Object containing information about the close.
      */
-    handleWsClose = (wsId, { code }) => {
+    handleWsClose = (wsId, { code }, unbind) => {
         if (this.#websocket?.id !== wsId) {
             this.log('ERROR', `Websocket id mismatch on close. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
+        if (unbind) {
+            this.#websocket.ws.onclose = null;
+            this.#websocket.ws.onerror = null;
+            this.#websocket.ws.onmessage = null;
+            this.#websocket.ws.onopen = null;
+            this.#websocket.ws.removeAllListeners();
+        }
         this.#heartbeat.reset();
-        this.#eventsDuringFlush = 0;
         this.#closing = true;
-        if (this.#flushWaitTime === null) {
+        if (this.#flushWaitTime === null || unbind) {
             this.cleanup(code);
             return;
         }
+        this.#eventsDuringFlush = 0;
         this.waitForFlush(this.#flushWaitTime).finally(() => {
             this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
             this.cleanup(code);
@@ -318,9 +346,9 @@ class Gateway {
         const lastEventTimestamp = this.#lastEventTimestamp;
         await new Promise((resolve) => {
             setTimeout(() => {
-                const interval = setInterval(() => {
+                this.#flushInterval = setInterval(() => {
                     if (this.#lastEventTimestamp === lastEventTimestamp) {
-                        clearInterval(interval);
+                        clearInterval(this.#flushInterval);
                         resolve(null);
                     }
                 }, 5 * constants_1.SECOND_IN_MILLISECONDS);
@@ -328,6 +356,8 @@ class Gateway {
         });
     }
     cleanup(code) {
+        clearTimeout(this.#closeTimeout);
+        clearInterval(this.#flushInterval);
         this.#websocket = undefined;
         this.#online = false;
         this.#resuming = false;
@@ -499,6 +529,9 @@ class Gateway {
         let parsed;
         try {
             parsed = JSON.parse(data.toString());
+            const { 
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            t: _, s: __, op: ___, d: ____, } = parsed;
         }
         catch (e) {
             this.log('ERROR', `Failed to parse message. Message: ${data}`);

@@ -48,6 +48,8 @@ export default class Gateway {
 
   #closing = false;
 
+  #closeTimeout: undefined | NodeJS.Timeout = undefined;
+
   #options: GatewayOptions;
 
   /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
@@ -103,6 +105,8 @@ export default class Gateway {
   #sessionId?: undefined | string;
 
   #flushWaitTime: null | number = 0;
+
+  #flushInterval: undefined | NodeJS.Timeout = undefined;
 
   // #zlibInflate: null | ZlibSyncType.Inflate = null;
 
@@ -308,14 +312,32 @@ export default class Gateway {
   public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWaitTime: null | number = null) {
     if (this.#closing) return;
 
-    this.#heartbeat.reset();
-    this.#flushWaitTime = flushWaitTime;
-
     if (this.#websocket?.ws.readyState === ws.OPEN) {
+      this.#flushWaitTime = flushWaitTime;
+      this.#heartbeat.reset();
       this.#websocket?.ws.close(code);
     } else if (this.#websocket) {
-      this.log('WARNING', `Websocket is already ${this.#websocket?.ws.CLOSED ? 'closed' : 'closing'}.`);
+      if (!this.#websocket) {
+        this.log('WARNING', 'Websocket is undefined when closing.');
+      } else {
+        this.log('WARNING', `Websocket is already ${this.#websocket.ws.readyState === ws.CLOSED ? 'closed' : 'closing'}.`);
+      }
+
+      if (!this.#closeTimeout) {
+        this.#closeTimeout = this.startCloseTimeout();
+      }
     }
+  }
+
+  private startCloseTimeout() {
+    return setTimeout(() => {
+      if (!this.#websocket) {
+        this.log('ERROR', 'Websocket undefined during close timeout. This shouldn\'t ever happen.');
+      } else if (this.#wsId === this.#websocket?.id) {
+        this.log('ERROR', 'Websocket did not close in time. Forcing close.');
+        this.handleWsClose(this.#wsId, { code: GATEWAY_CLOSE_CODES.UNKNOWN }, true);
+      }
+    }, MINUTE_IN_MILLISECONDS);
   }
 
   /**
@@ -361,7 +383,7 @@ export default class Gateway {
   /** Assigned to websocket `onopen`. */
   private handleWsOpen = (wsId: number): void => {
     if (this.#websocket?.id !== wsId) {
-      this.log('FATAL', `Websocket id mismatch on open. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
+      this.log('ERROR', `Websocket id mismatch on open. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
@@ -397,22 +419,30 @@ export default class Gateway {
   /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
    * @param event Object containing information about the close.
    */
-  private handleWsClose = (wsId: number, { code }: Pick<ws.CloseEvent, 'code'>): void => {
+  private handleWsClose = (wsId: number, { code }: Pick<ws.CloseEvent, 'code'>, unbind?: boolean): void => {
     if (this.#websocket?.id !== wsId) {
       this.log('ERROR', `Websocket id mismatch on close. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
       return;
     }
 
+    if (unbind) {
+      this.#websocket.ws.onclose = null;
+      this.#websocket.ws.onerror = null;
+      this.#websocket.ws.onmessage = null;
+      this.#websocket.ws.onopen = null;
+      this.#websocket.ws.removeAllListeners();
+    }
+
     this.#heartbeat.reset();
 
-    this.#eventsDuringFlush = 0;
     this.#closing = true;
 
-    if (this.#flushWaitTime === null) {
+    if (this.#flushWaitTime === null || unbind) {
       this.cleanup(code);
       return;
     }
 
+    this.#eventsDuringFlush = 0;
     this.waitForFlush(this.#flushWaitTime).finally(() => {
       this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
       this.cleanup(code);
@@ -425,9 +455,9 @@ export default class Gateway {
 
     await new Promise((resolve) => {
       setTimeout(() => {
-        const interval = setInterval(() => {
+        this.#flushInterval = setInterval(() => {
           if (this.#lastEventTimestamp === lastEventTimestamp) {
-            clearInterval(interval);
+            clearInterval(this.#flushInterval);
             resolve(null);
           }
         }, 5 * SECOND_IN_MILLISECONDS);
@@ -436,6 +466,9 @@ export default class Gateway {
   }
 
   private cleanup(code: number) {
+    clearTimeout(this.#closeTimeout);
+    clearInterval(this.#flushInterval);
+
     this.#websocket = undefined;
     this.#online = false;
     this.#resuming = false;
@@ -651,6 +684,11 @@ export default class Gateway {
     let parsed;
     try {
       parsed = JSON.parse(data.toString());
+
+      const {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        t: _, s: __, op: ___, d: ____,
+      } = parsed;
     } catch (e) {
       this.log('ERROR', `Failed to parse message. Message: ${data}`);
       this.close(GATEWAY_CLOSE_CODES.UNKNOWN);

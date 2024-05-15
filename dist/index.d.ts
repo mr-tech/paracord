@@ -1460,6 +1460,7 @@ export declare class Gateway {
      * @param reconnect Whether to reconnect after closing.
      */
     close(code?: GatewayCloseCode, flushWaitTime?: null | number): void;
+    private startCloseTimeout;
     /**
      * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
      * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
