@@ -26,7 +26,7 @@ class Gateway {
     #requestingMembersStateMap = new Map();
     /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
     flushInterval = null;
-    #eventsDuringFlush = 0;
+    #eventsDuringFlush = null;
     #lastEventTimestamp = 0;
     /** The amount of events received during a resume. */
     #eventsDuringResume = 0;
@@ -225,6 +225,7 @@ class Gateway {
         if (this.#websocket?.ws.readyState === ws_1.default.OPEN) {
             this.#flushWaitTime = flushWaitTime;
             this.#heartbeat.reset();
+            this.#closing = true;
             this.#websocket?.ws.close(code);
         }
         else if (this.#websocket) {
@@ -335,7 +336,6 @@ class Gateway {
             this.cleanup(code);
             return;
         }
-        this.#eventsDuringFlush = 0;
         this.waitForFlush(this.#flushWaitTime).finally(() => {
             this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
             this.cleanup(code);
@@ -364,6 +364,7 @@ class Gateway {
         this.#flushWaitTime = null;
         this.#closing = false;
         this.#eventsDuringResume = 0;
+        this.#eventsDuringFlush = null;
         this.#membersRequestCounter = 0;
         this.#requestingMembersStateMap = new Map();
         this.#wsRateLimitCache = {
@@ -564,10 +565,14 @@ class Gateway {
         if (this.#resuming && (opCode !== constants_1.GATEWAY_OP_CODES.DISPATCH || (type !== 'RESUMED' && type !== 'READY'))) {
             ++this.#eventsDuringResume;
         }
-        if (this.#closing && opCode !== constants_1.GATEWAY_OP_CODES.DISPATCH) {
+        if (this.#closing) {
+            if (this.#eventsDuringFlush === null)
+                this.#eventsDuringFlush = 0;
             ++this.#eventsDuringFlush;
             this.log('DEBUG', `Received message after close. op: ${opCode} | type: ${type}`);
-            return;
+            if (opCode !== constants_1.GATEWAY_OP_CODES.DISPATCH || type === 'RESUMED' || type === 'READY') {
+                return;
+            }
         }
         switch (opCode) {
             case constants_1.GATEWAY_OP_CODES.DISPATCH:

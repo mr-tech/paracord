@@ -65,7 +65,7 @@ export default class Gateway {
   /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
   flushInterval: null | NodeJS.Timeout = null;
 
-  #eventsDuringFlush = 0;
+  #eventsDuringFlush: null | number = null;
 
   #lastEventTimestamp = 0;
 
@@ -315,6 +315,7 @@ export default class Gateway {
     if (this.#websocket?.ws.readyState === ws.OPEN) {
       this.#flushWaitTime = flushWaitTime;
       this.#heartbeat.reset();
+      this.#closing = true;
       this.#websocket?.ws.close(code);
     } else if (this.#websocket) {
       if (!this.#websocket) {
@@ -442,7 +443,6 @@ export default class Gateway {
       return;
     }
 
-    this.#eventsDuringFlush = 0;
     this.waitForFlush(this.#flushWaitTime).finally(() => {
       this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
       this.cleanup(code);
@@ -476,6 +476,7 @@ export default class Gateway {
     this.#closing = false;
 
     this.#eventsDuringResume = 0;
+    this.#eventsDuringFlush = null;
     this.#membersRequestCounter = 0;
     this.#requestingMembersStateMap = new Map();
 
@@ -732,10 +733,13 @@ export default class Gateway {
       ++this.#eventsDuringResume;
     }
 
-    if (this.#closing && opCode !== GATEWAY_OP_CODES.DISPATCH) {
+    if (this.#closing) {
+      if (this.#eventsDuringFlush === null) this.#eventsDuringFlush = 0;
       ++this.#eventsDuringFlush;
       this.log('DEBUG', `Received message after close. op: ${opCode} | type: ${type}`);
-      return;
+      if (opCode !== GATEWAY_OP_CODES.DISPATCH || type === 'RESUMED' || type === 'READY') {
+        return;
+      }
     }
 
     switch (opCode) {
