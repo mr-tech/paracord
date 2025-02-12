@@ -7,6 +7,7 @@ class RequestQueue {
     /** Api client through which to emit events. */
     #apiClient;
     #processing = false;
+    #processInterval;
     /**
      * Creates a new requests queue for rate limits requests.
      * @param apiClient Api client through which to emit events.
@@ -14,7 +15,10 @@ class RequestQueue {
     constructor(apiClient) {
         this.#queue = [];
         this.#apiClient = apiClient;
-        setInterval(this.processQueue, 1000);
+        this.#processInterval = setInterval(this.processQueue, 1000);
+    }
+    end() {
+        clearInterval(this.#processInterval);
     }
     /**
      * Adds any number of requests to the queue.

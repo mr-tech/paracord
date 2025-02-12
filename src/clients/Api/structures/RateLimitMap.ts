@@ -10,10 +10,16 @@ import type RateLimitTemplate from './RateLimitTemplate';
 export default class RateLimitMap extends Map<string, RateLimit> {
   #logger?: undefined | Api;
 
+  #expiredInterval: NodeJS.Timeout;
+
   public constructor(logger?: undefined | Api) {
     super();
     this.#logger = logger;
-    setInterval(this.sweepExpiredRateLimits, API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
+    this.#expiredInterval = setInterval(this.sweepExpiredRateLimits, API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
+  }
+
+  public end() {
+    clearInterval(this.#expiredInterval);
   }
 
   /**

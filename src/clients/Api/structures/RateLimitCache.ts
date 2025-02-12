@@ -86,6 +86,10 @@ export default class RateLimitCache {
     return waitFor > 0 ? waitFor : 0;
   }
 
+  public end() {
+    this.#rateLimitMap.end();
+  }
+
   /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
   public wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest {
     const wrappedRequest = <T>(request: ApiRequest) => {

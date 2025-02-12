@@ -176,6 +176,7 @@ export declare class Api {
     get hasRequestService(): boolean;
     get queue(): RequestQueue;
     get maxExceeded(): boolean;
+    end(): void;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -3241,6 +3242,7 @@ declare class Paracord extends EventEmitter {
      * @param options Options used when logging in.
      */
     login(options?: Partial<ParacordLoginOptions>): Promise<void>;
+    end(): void;
     /** Begins the interval that kicks off gateway logins from the queue. */
     private startGatewayLoginInterval;
     /** Decides shards to spawn and pushes a gateway onto the queue for each one.
@@ -3492,6 +3494,7 @@ export declare class RateLimitCache {
     private get globalRateLimitHasRemainingUses();
     /** How long until the rate limit resets in ms. */
     private get globalRateLimitResetAfter();
+    end(): void;
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest;
     private decrementGlobalRemaining;
@@ -3593,6 +3596,7 @@ export declare class RateLimitHeaders {
 export declare class RateLimitMap extends Map<string, RateLimit> {
     #private;
     constructor(logger?: undefined | Api);
+    end(): void;
     /**
      * Inserts rate limit if not exists. Otherwise, updates its state.
      * @param rateLimitKey Internally-generated key for this state.
@@ -3718,6 +3722,7 @@ export declare class RequestQueue {
      * @param apiClient Api client through which to emit events.
      */
     constructor(apiClient: Api);
+    end(): void;
     /**
      * Adds any number of requests to the queue.
      * @param items Request objects being queued.

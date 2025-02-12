@@ -219,6 +219,11 @@ export default class Api {
     return !!this.#maxConcurrency && this.#inFlight > this.#maxConcurrency;
   }
 
+  public end() {
+    this.#requestQueue.end();
+    this.#rateLimitCache.end();
+  }
+
   /*
    ********************************
    *********** INTERNAL ***********

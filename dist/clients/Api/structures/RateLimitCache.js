@@ -59,6 +59,9 @@ class RateLimitCache {
         const waitFor = (0, utils_1.millisecondsFromNow)(this.#globalRateLimitState.resetTimestamp);
         return waitFor > 0 ? waitFor : 0;
     }
+    end() {
+        this.#rateLimitMap.end();
+    }
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc) {
         const wrappedRequest = (request) => {

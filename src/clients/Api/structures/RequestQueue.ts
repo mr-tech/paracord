@@ -11,6 +11,8 @@ export default class RequestQueue {
 
   #processing = false;
 
+  #processInterval: NodeJS.Timeout;
+
   /**
    * Creates a new requests queue for rate limits requests.
    * @param apiClient Api client through which to emit events.
@@ -19,7 +21,11 @@ export default class RequestQueue {
     this.#queue = [];
     this.#apiClient = apiClient;
 
-    setInterval(this.processQueue, 1000);
+    this.#processInterval = setInterval(this.processQueue, 1000);
+  }
+
+  public end() {
+    clearInterval(this.#processInterval);
   }
 
   /**

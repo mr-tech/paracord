@@ -188,6 +188,10 @@ class Api {
     get maxExceeded() {
         return !!this.#maxConcurrency && this.#inFlight > this.#maxConcurrency;
     }
+    end() {
+        this.#requestQueue.end();
+        this.#rateLimitCache.end();
+    }
     log(level, code, message, data) {
         const event = {
             source: constants_1.LOG_SOURCES.API,

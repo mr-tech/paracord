@@ -8,10 +8,14 @@ const RateLimit_1 = __importDefault(require("./RateLimit"));
 /** Rate limit keys to their associated state. */
 class RateLimitMap extends Map {
     #logger;
+    #expiredInterval;
     constructor(logger) {
         super();
         this.#logger = logger;
-        setInterval(this.sweepExpiredRateLimits, constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
+        this.#expiredInterval = setInterval(this.sweepExpiredRateLimits, constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
+    }
+    end() {
+        clearInterval(this.#expiredInterval);
     }
     /**
      * Inserts rate limit if not exists. Otherwise, updates its state.

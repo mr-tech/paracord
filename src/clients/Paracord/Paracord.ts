@@ -58,6 +58,8 @@ export default class Paracord extends EventEmitter {
 
   #shardStartupTimeout?: undefined | number;
 
+  #gatewayLoginInterval?: undefined | NodeJS.Timeout;
+
   /** Gateway clients keyed to their shard #. */
   #gateways: GatewayMap;
 
@@ -220,9 +222,16 @@ export default class Paracord extends EventEmitter {
     this.enqueueGateways(loginOptions);
   }
 
+  public end() {
+    clearInterval(this.#gatewayLoginInterval);
+    this.#gateways.forEach((gateway) => {
+      gateway.close(GATEWAY_CLOSE_CODES.USER_TERMINATE);
+    });
+  }
+
   /** Begins the interval that kicks off gateway logins from the queue. */
   private startGatewayLoginInterval(): void {
-    setInterval(() => { void this.processGatewayQueue(); }, SECOND_IN_MILLISECONDS);
+    this.#gatewayLoginInterval = setInterval(() => { void this.processGatewayQueue(); }, SECOND_IN_MILLISECONDS);
   }
 
   /** Decides shards to spawn and pushes a gateway onto the queue for each one.
