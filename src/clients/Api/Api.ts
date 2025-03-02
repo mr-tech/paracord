@@ -592,12 +592,12 @@ export default class Api {
    * @param headers Response headers.
    * @param request Request being sent.
    */
-  private async handleRateLimitResponse<T>(
+  private handleRateLimitResponse<T>(
     request: ApiRequest,
     response: RateLimitedResponse,
     headers: RateLimitHeaders,
     fromQueue: boolean,
-  ): Promise<string | ApiResponse<T>> {
+  ): string | Promise<ApiResponse<T>> {
     const { resetTimestamp } = headers;
     const { waitUntil } = request;
     const oldestTimestamp = Math.max(resetTimestamp ?? (waitUntil ?? 0));
@@ -633,7 +633,7 @@ export default class Api {
 
     await new Promise((resolve) => { setTimeout(resolve, SECOND_IN_MILLISECONDS); });
 
-    return this.queueRequest<T>(request, 'server error');
+    return fromQueue ? 'server error' : this.queueRequest<T>(request, 'server error');
   }
 
   /**

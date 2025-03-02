@@ -910,6 +910,7 @@ export declare type Ban = {
 
 /** Basic information in a request to Discord. */
 export declare class BaseRequest {
+    #private;
     /** HTTP method of the request. */
     method: Method;
     /** Discord REST endpoint target of the request. (e.g. channels/123) */
@@ -931,6 +932,7 @@ export declare class BaseRequest {
      */
     constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string);
     get logKey(): string;
+    get id(): string;
     getRateLimitKey(bucketHash?: undefined): undefined | string;
     getRateLimitKey(bucketHash: string): string;
 }

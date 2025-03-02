@@ -473,7 +473,7 @@ class Api {
      * @param headers Response headers.
      * @param request Request being sent.
      */
-    async handleRateLimitResponse(request, response, headers, fromQueue) {
+    handleRateLimitResponse(request, response, headers, fromQueue) {
         const { resetTimestamp } = headers;
         const { waitUntil } = request;
         const oldestTimestamp = Math.max(resetTimestamp ?? (waitUntil ?? 0));
@@ -499,7 +499,7 @@ class Api {
         }
         this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
         await new Promise((resolve) => { setTimeout(resolve, constants_1.SECOND_IN_MILLISECONDS); });
-        return this.queueRequest(request, 'server error');
+        return fromQueue ? 'server error' : this.queueRequest(request, 'server error');
     }
     /**
      * Puts the Api Request onto the queue to be executed when the rate limit has reset.

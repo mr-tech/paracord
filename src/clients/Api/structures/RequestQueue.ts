@@ -41,6 +41,8 @@ export default class RequestQueue {
 
     this.#processing = true;
     try {
+      this.#queue.sort((a, b) => a.request.createdAt - b.request.createdAt);
+
       for (let i = 0; i < this.#queue.length; ++i) {
         if (this.#apiClient.maxExceeded) break;
 
@@ -49,8 +51,8 @@ export default class RequestQueue {
 
         const allow = item.request.waitUntil === undefined || item.request.waitUntil < new Date().getTime();
         if (allow) {
-          void this.sendRequest(item);
           this.#queue.splice(i--, 1);
+          void this.sendRequest(item);
         }
       }
     } finally {

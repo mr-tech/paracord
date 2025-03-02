@@ -67,7 +67,6 @@ export default class RpcServer extends grpc.Server {
         });
       } else {
         try {
-          this.start();
           const message = `Rpc server running at http://${this.#host}:${this.#port}`;
           this.emit('DEBUG', {
             source: LOG_SOURCES.RPC,

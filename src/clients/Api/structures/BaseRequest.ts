@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto';
+
 import { stripLeadingSlash } from '../../../utils';
 
 import type { Method } from 'axios';
@@ -26,6 +28,8 @@ export default class BaseRequest {
     return `${tlr}-${tlrID}-${bucketHash}`;
   }
 
+  #id: string;
+
   /**
    * Creates a new base request object with its associated rate limit identifiers.
    *
@@ -40,10 +44,16 @@ export default class BaseRequest {
     this.topLevelID = topLevelID;
     this.bucketHashKey = bucketHashKey;
     this.rateLimitKey = bucketHash && BaseRequest.formatRateLimitKey(this.topLevelResource, this.topLevelID, bucketHash);
+
+    this.#id = randomUUID();
   }
 
   public get logKey(): string {
     return `${this.topLevelResource}-${this.bucketHashKey}`;
+  }
+
+  public get id(): string {
+    return this.#id;
   }
 
   getRateLimitKey(bucketHash?: undefined): undefined | string;

@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const crypto_1 = require("crypto");
 const utils_1 = require("../../../utils");
 /** Basic information in a request to Discord. */
 class BaseRequest {
@@ -18,6 +19,7 @@ class BaseRequest {
     static formatRateLimitKey(tlr, tlrID, bucketHash) {
         return `${tlr}-${tlrID}-${bucketHash}`;
     }
+    #id;
     /**
      * Creates a new base request object with its associated rate limit identifiers.
      *
@@ -31,9 +33,13 @@ class BaseRequest {
         this.topLevelID = topLevelID;
         this.bucketHashKey = bucketHashKey;
         this.rateLimitKey = bucketHash && BaseRequest.formatRateLimitKey(this.topLevelResource, this.topLevelID, bucketHash);
+        this.#id = (0, crypto_1.randomUUID)();
     }
     get logKey() {
         return `${this.topLevelResource}-${this.bucketHashKey}`;
+    }
+    get id() {
+        return this.#id;
     }
     getRateLimitKey(bucketHash) {
         if (this.rateLimitKey)
