@@ -1491,6 +1491,7 @@ export declare class Gateway {
     private clearSession;
     /** Assigned to websocket `onmessage`. */
     private handleWsMessage;
+    private decompress;
     /** Processes incoming messages from Discord's gateway.
      * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
      */

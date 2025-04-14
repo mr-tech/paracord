@@ -3,7 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const util_1 = require("util");
 const ws_1 = __importDefault(require("ws"));
+const zlib_1 = __importDefault(require("zlib"));
 const constants_1 = require("../../constants");
 const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
@@ -51,7 +53,9 @@ class Gateway {
     #sessionId;
     #flushWaitTime = 0;
     #flushInterval = undefined;
-    // #zlibInflate: null | ZlibSyncType.Inflate = null;
+    #zlibInflate = null;
+    #inflateBuffer = [];
+    #textDecoder = new util_1.TextDecoder();
     /**
      * Creates a new Discord gateway handler.
      * @param token Discord token. Will be coerced into a bot token.
@@ -175,17 +179,25 @@ class Gateway {
             this.log('WARNING', 'Connection disallowed. Ignoring login request.');
             return;
         }
-        // if (ZlibSync || this.#identity.compress) {
-        //   if (!ZlibSync) throw Error('zlib-sync is required for compression');
-        //   this.#zlibInflate = new ZlibSync.Inflate({
-        //     flush: ZlibSync.Z_SYNC_FLUSH,
-        //     chunkSize: ZLIB_CHUNKS_SIZE,
-        //   });
-        // }
+        if (this.#identity.compress) {
+            this.#inflateBuffer = [];
+            const inflate = zlib_1.default.createInflate({
+                chunkSize: 65535,
+                flush: zlib_1.default.constants.Z_SYNC_FLUSH,
+            });
+            inflate.on('data', (chunk) => {
+                this.#inflateBuffer.push(chunk);
+            });
+            inflate.on('error', (error) => {
+                this.log('ERROR', error.stack ?? error.message);
+            });
+            this.#zlibInflate = inflate;
+        }
         try {
             const wsUrl = this.constructWsUrl();
             this.log('DEBUG', `${this.#resumeUrl ? 'Resuming on' : 'Connecting to'} url: ${wsUrl}`);
             const client = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
+            client.binaryType = 'arraybuffer';
             this.#heartbeat.startConnectTimeout(client);
             this.#websocket = {
                 ws: client,
@@ -524,9 +536,10 @@ class Gateway {
             this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
-        // if (this.#zlibInflate) {
-        //   return this.decompress(this.#zlibInflate, data);
-        // }
+        if (this.#zlibInflate && data instanceof ArrayBuffer) {
+            void this.decompress(data);
+            return;
+        }
         let parsed;
         try {
             parsed = JSON.parse(data.toString());
@@ -540,22 +553,29 @@ class Gateway {
         }
         this.handleMessage(parsed);
     };
-    // // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    // private decompress(inflate: ZlibSyncType.Inflate, data: any): void {
-    //   if (data instanceof ArrayBuffer) data = new Uint8Array(data);
-    //   const done = data.length >= 4 && data.readUInt32BE(data.length - 4) === 0xFFFF;
-    //   if (done) {
-    //     inflate.push(data, Z_SYNC_FLUSH);
-    //     if (inflate.err) {
-    //       this.log('ERROR', `zlib error ${inflate.err}: ${inflate.msg}`);
-    //       return;
-    //     }
-    //     data = Buffer.from(inflate.result);
-    //     this.handleMessage(JSON.parse(data.toString()));
-    //     return;
-    //   }
-    //   inflate.push(data, false);
-    // }
+    async decompress(data) {
+        const decompressable = new Uint8Array(data);
+        const flush = decompressable.length >= 4
+            && decompressable.at(-4) === 0x00
+            && decompressable.at(-3) === 0x00
+            && decompressable.at(-2) === 0xff
+            && decompressable.at(-1) === 0xff;
+        const doneWriting = new Promise((resolve) => {
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            this.#zlibInflate.write(decompressable, 'binary', (error) => {
+                if (error) {
+                    this.log('ERROR', error.stack ?? error.message);
+                }
+                resolve();
+            });
+        });
+        if (!flush)
+            return;
+        await doneWriting;
+        const result = Buffer.concat(this.#inflateBuffer);
+        this.#inflateBuffer = [];
+        this.handleMessage(JSON.parse(this.#textDecoder.decode(result)));
+    }
     /** Processes incoming messages from Discord's gateway.
      * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
      */

@@ -13,7 +13,6 @@ exports.GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
 /** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
 exports.GATEWAY_REQUEST_BUFFER = 4;
 exports.DEFAULT_GATEWAY_BOT_WAIT = 5 * exports.SECOND_IN_MILLISECONDS;
-// export const ZLIB_CHUNKS_SIZE = 65535;
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes */
 exports.GATEWAY_OP_CODES = {
     DISPATCH: 0,
