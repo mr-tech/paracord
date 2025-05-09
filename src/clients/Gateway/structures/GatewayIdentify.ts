@@ -3,6 +3,9 @@ import type { IdentityOptions } from '../types';
 
 /** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
 export default class GatewayIdentify {
+  /** whether this connection supports compression of packets */
+  public compress: boolean | undefined; // false
+
   /** used for Guild Sharding */
   readonly shard?: [number, number]; // (shardId, numShards);
 
@@ -11,9 +14,6 @@ export default class GatewayIdentify {
 
   /** information about the client and how it's connecting */
   #properties: IdentifyConnectionProperties;
-
-  /** whether this connection supports compression of packets */
-  #compress: boolean | undefined; // false
 
   /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
   #largeThreshold: number | undefined; // 50
@@ -45,7 +45,7 @@ export default class GatewayIdentify {
       since: null,
     };
 
-    this.#compress = identity.compress;
+    this.compress = identity.compress;
     this.#largeThreshold = identity.largeThreshold;
     this.#presence = identity.presence;
     this.#intents = identity.intents;
@@ -57,10 +57,6 @@ export default class GatewayIdentify {
     }
 
     this.token = token;
-  }
-
-  get compress() {
-    return this.#compress;
   }
 
   updatePresence(presence: GatewayPresenceUpdate) {
@@ -82,7 +78,7 @@ export default class GatewayIdentify {
         properties: this.#properties,
       };
 
-    if (this.#compress !== undefined) data.compress = this.#compress;
+    if (this.compress !== undefined) data.compress = this.compress;
     if (this.#guildSubscriptions !== undefined) data.guild_subscription = this.#guildSubscriptions;
     if (this.#intents !== undefined) data.intents = this.#intents;
     if (this.#largeThreshold !== undefined) data.large_threshold = this.#largeThreshold;

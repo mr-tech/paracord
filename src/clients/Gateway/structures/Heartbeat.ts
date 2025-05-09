@@ -169,7 +169,7 @@ export default class Heart {
     }
   }
 
-  private sendHeartbeat = (): void => {
+  public sendHeartbeat = (): void => {
     if (this.#intervalTime === undefined) return;
 
     if (!this.#isAcknowledged) {

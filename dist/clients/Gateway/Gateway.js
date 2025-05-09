@@ -11,7 +11,7 @@ const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 /** A client to handle a Discord gateway connection. */
 class Gateway {
-    allowConnect;
+    allowConnect = true;
     #heartbeat;
     /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     #online = false;
@@ -66,7 +66,6 @@ class Gateway {
         if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
             throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
         }
-        this.allowConnect = true;
         this.#heartbeat = new structures_1.Heartbeat(this, {
             heartbeatIntervalOffset,
             heartbeatTimeoutSeconds,
@@ -111,6 +110,12 @@ class Gateway {
     /** This client's heartbeat manager. */
     get heart() {
         return this.#heartbeat;
+    }
+    get compression() {
+        return !!this.#identity.compress;
+    }
+    setCompression(compress) {
+        this.#identity.compress = compress;
     }
     /*
      ********************************
@@ -225,7 +230,12 @@ class Gateway {
         if (!this.resumable)
             this.#resumeUrl = undefined;
         const endpoint = this.#resumeUrl ?? this.#wsUrl;
-        return `${endpoint}?${Object.entries(this.#wsParams).map(([k, v]) => `${k}=${v}`).join('&')}`;
+        const params = { ...this.#wsParams };
+        if (this.#identity.compress) {
+            this.log('DEBUG', 'Compressing websocket connection.');
+            params.compress = 'zlib-stream';
+        }
+        return `${endpoint}?${Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&')}`;
     }
     /**
      * Closes the connection.

@@ -1432,6 +1432,8 @@ export declare class Gateway {
     get ws(): ws | undefined;
     /** This client's heartbeat manager. */
     get heart(): Heartbeat;
+    get compression(): boolean;
+    setCompression(compress: boolean): void;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -1634,6 +1636,8 @@ export declare type GatewayHeartbeatSentEvent = {
 /** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
 export declare class GatewayIdentify {
     #private;
+    /** whether this connection supports compression of packets */
+    compress: boolean | undefined;
     /** used for Guild Sharding */
     readonly shard?: [number, number];
     /** authentication token */
@@ -1643,7 +1647,6 @@ export declare class GatewayIdentify {
      * @param identity Properties to add to this identity.
      */
     constructor(token: string, identity: Partial<IdentityOptions>);
-    get compress(): boolean | undefined;
     updatePresence(presence: GatewayPresenceUpdate): void;
     toJSON(): Partial<GatewayIdentify>;
 }
@@ -2361,7 +2364,7 @@ export declare class Heartbeat {
      * Clears old heartbeat timeout and starts a new one.
      */
     private scheduleNextHeartbeat;
-    private sendHeartbeat;
+    sendHeartbeat: () => void;
     /** Checks if heartbeat ack was received. */
     private checkForAck;
 }
@@ -3206,6 +3209,7 @@ export declare const OVERWRITE_ROLE_VALUE = 0;
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 declare class Paracord extends EventEmitter {
     #private;
+    compressShards?: undefined | number[];
     readonly gatewayLoginQueue: Gateway[];
     /** Throws errors and warns if the parameters passed to the constructor aren't sufficient. */
     private static validateParams;
@@ -3312,6 +3316,7 @@ export declare interface ParacordOptions {
     unavailableGuildTolerance?: number;
     unavailableGuildWait?: number;
     shardStartupTimeout?: number;
+    compressShards?: number[];
 }
 
 export declare interface ParacordStartupEvent {

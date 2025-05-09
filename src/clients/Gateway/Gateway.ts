@@ -27,7 +27,7 @@ interface GuildChunkState {
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
-  public allowConnect: boolean;
+  public allowConnect = true;
 
   #heartbeat: Heartbeat;
 
@@ -120,8 +120,6 @@ export default class Gateway {
       throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
     }
 
-    this.allowConnect = true;
-
     this.#heartbeat = new Heartbeat(this, {
       heartbeatIntervalOffset,
       heartbeatTimeoutSeconds,
@@ -176,6 +174,14 @@ export default class Gateway {
   /** This client's heartbeat manager. */
   public get heart(): Heartbeat {
     return this.#heartbeat;
+  }
+
+  public get compression(): boolean {
+    return !!this.#identity.compress;
+  }
+
+  public setCompression(compress: boolean) {
+    this.#identity.compress = compress;
   }
 
   /*
@@ -308,7 +314,14 @@ export default class Gateway {
   private constructWsUrl() {
     if (!this.resumable) this.#resumeUrl = undefined;
     const endpoint = this.#resumeUrl ?? this.#wsUrl;
-    return `${endpoint}?${Object.entries(this.#wsParams).map(([k, v]) => `${k}=${v}`).join('&')}`;
+
+    const params = { ...this.#wsParams };
+    if (this.#identity.compress) {
+      this.log('DEBUG', 'Compressing websocket connection.');
+      params.compress = 'zlib-stream';
+    }
+
+    return `${endpoint}?${Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&')}`;
   }
 
   /**

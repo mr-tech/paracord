@@ -2,14 +2,14 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 /** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
 class GatewayIdentify {
+    /** whether this connection supports compression of packets */
+    compress; // false
     /** used for Guild Sharding */
     shard; // (shardId, numShards);
     /** authentication token */
     token;
     /** information about the client and how it's connecting */
     #properties;
-    /** whether this connection supports compression of packets */
-    #compress; // false
     /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
     #largeThreshold; // 50
     /** presence structure for initial presence information */
@@ -34,7 +34,7 @@ class GatewayIdentify {
             activities: [],
             since: null,
         };
-        this.#compress = identity.compress;
+        this.compress = identity.compress;
         this.#largeThreshold = identity.largeThreshold;
         this.#presence = identity.presence;
         this.#intents = identity.intents;
@@ -45,9 +45,6 @@ class GatewayIdentify {
         }
         this.token = token;
     }
-    get compress() {
-        return this.#compress;
-    }
     updatePresence(presence) {
         this.#presence = presence;
     }
@@ -56,8 +53,8 @@ class GatewayIdentify {
             token: this.token,
             properties: this.#properties,
         };
-        if (this.#compress !== undefined)
-            data.compress = this.#compress;
+        if (this.compress !== undefined)
+            data.compress = this.compress;
         if (this.#guildSubscriptions !== undefined)
             data.guild_subscription = this.#guildSubscriptions;
         if (this.#intents !== undefined)

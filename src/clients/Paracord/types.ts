@@ -12,6 +12,7 @@ export interface ParacordOptions {
   unavailableGuildTolerance?: number;
   unavailableGuildWait?: number;
   shardStartupTimeout?: number;
+  compressShards?: number[];
 }
 
 export interface ParacordLoginOptions {

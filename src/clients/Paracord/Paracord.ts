@@ -38,6 +38,8 @@ function computeShards(shards: number[], shardCount: number): { shards: number[]
 
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 export default class Paracord extends EventEmitter {
+  public compressShards?: undefined | number[];
+
   public readonly gatewayLoginQueue: Gateway[];
 
   /** Discord bot token. */
@@ -105,7 +107,10 @@ export default class Paracord extends EventEmitter {
     const {
       gatewayOptions, unavailableGuildTolerance,
       unavailableGuildWait, shardStartupTimeout,
+      compressShards,
     } = options;
+
+    this.compressShards = compressShards;
     this.#gatewayOptions = gatewayOptions;
 
     this.#unavailableGuildTolerance = unavailableGuildTolerance;
@@ -243,6 +248,10 @@ export default class Paracord extends EventEmitter {
 
     if (identity && Array.isArray(identity.shard)) {
       const identityCopy = clone<IdentityOptions>(identity);
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      if (this.compressShards?.includes(identityCopy.shard![0])) {
+        identityCopy.compress = true;
+      }
       this.addNewGateway(identityCopy);
     } else {
       if (!identity?.intents) throw Error('intents missing on options#identity');
@@ -263,6 +272,9 @@ export default class Paracord extends EventEmitter {
         for (const shard of shards) {
           const identityCopy: IdentityOptions = identity ? clone<IdentityOptions>(identity) : { token: this.#token, intents: 0 };
           identityCopy.shard = [shard, shardCount];
+          if (this.compressShards?.includes(identityCopy.shard[0])) {
+            identityCopy.compress = true;
+          }
           this.addNewGateway(identityCopy);
         }
       }

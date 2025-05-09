@@ -24,6 +24,7 @@ function computeShards(shards, shardCount) {
 /* "Start up" refers to logging in to the gateway and waiting for all the guilds to be returned. By default, events will be suppressed during start up. */
 /** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
 class Paracord extends events_1.EventEmitter {
+    compressShards;
     gatewayLoginQueue;
     /** Discord bot token. */
     #token;
@@ -69,7 +70,8 @@ class Paracord extends events_1.EventEmitter {
         this.#guildWaitCount = 0;
         this.#gatewayHeartbeats = [];
         this.#emittedStartupComplete = false;
-        const { gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, shardStartupTimeout, } = options;
+        const { gatewayOptions, unavailableGuildTolerance, unavailableGuildWait, shardStartupTimeout, compressShards, } = options;
+        this.compressShards = compressShards;
         this.#gatewayOptions = gatewayOptions;
         this.#unavailableGuildTolerance = unavailableGuildTolerance;
         this.#unavailableGuildWait = unavailableGuildWait;
@@ -188,6 +190,10 @@ class Paracord extends events_1.EventEmitter {
         let { shards, shardCount } = options;
         if (identity && Array.isArray(identity.shard)) {
             const identityCopy = (0, utils_1.clone)(identity);
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            if (this.compressShards?.includes(identityCopy.shard[0])) {
+                identityCopy.compress = true;
+            }
             this.addNewGateway(identityCopy);
         }
         else {
@@ -210,6 +216,9 @@ class Paracord extends events_1.EventEmitter {
                 for (const shard of shards) {
                     const identityCopy = identity ? (0, utils_1.clone)(identity) : { token: this.#token, intents: 0 };
                     identityCopy.shard = [shard, shardCount];
+                    if (this.compressShards?.includes(identityCopy.shard[0])) {
+                        identityCopy.compress = true;
+                    }
                     this.addNewGateway(identityCopy);
                 }
             }
