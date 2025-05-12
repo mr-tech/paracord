@@ -3278,7 +3278,6 @@ declare class Paracord extends EventEmitter {
     private clearStartingShardState;
     /**
      * Cleans up Paracord start up process and emits `PARACORD_STARTUP_COMPLETE`.
-     * @param reason Reason for the time out.
      */
     private emitStartupComplete;
     /**

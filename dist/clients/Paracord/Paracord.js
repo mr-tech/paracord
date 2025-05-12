@@ -232,17 +232,17 @@ class Paracord extends events_1.EventEmitter {
             this.#startingGateway = gateway;
             if (!gateway.connected) {
                 if (this.#allowConnection) {
-                    this.log('INFO', `Checking if shard ${gateway.id} is allowed to connect.`);
+                    this.log('INFO', `Checking if shard ${gateway.id} is allowed to connect.`, { shard: gateway });
                 }
                 if (await this.#allowConnection?.(gateway) === false) {
-                    this.log('INFO', `Shard ${gateway.id} is not allowed to connect.`);
+                    this.log('INFO', `Shard ${gateway.id} is not allowed to connect.`, { shard: gateway });
                     gateway.allowConnect = false;
                     this.#startingGateway = undefined;
                     this.upsertGatewayQueue(gateway);
                     return;
                 }
                 if (this.#allowConnection) {
-                    this.log('INFO', `Shard ${gateway.id} now connecting.`);
+                    this.log('INFO', `Shard ${gateway.id} now connecting.`, { shard: gateway });
                 }
                 try {
                     await gateway.login();
@@ -266,11 +266,11 @@ class Paracord extends events_1.EventEmitter {
                 catch (err) {
                     this.clearStartingShardState(gateway);
                     this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
-                    this.log('ERROR', err instanceof Error ? err.message : String(err), gateway);
+                    this.log('ERROR', err instanceof Error ? err.message : String(err), { shard: gateway });
                 }
             }
             else {
-                this.log('WARNING', 'Gateway already connected.', gateway);
+                this.log('WARNING', 'Gateway already connected.', { shard: gateway });
             }
         }
         else if (!this.startingGateway && this.gatewayLoginQueue.length > 0) {
@@ -282,18 +282,18 @@ class Paracord extends events_1.EventEmitter {
         const withinTolerance = this.#guildWaitCount <= tolerance;
         if (this.isStartingGateway(gateway) && timedOut && withinTolerance) {
             const message = `Forcing startup complete for shard ${this.#startingGateway?.id} with ${this.#guildWaitCount} unavailable guilds.`;
-            this.log('INFO', message);
+            this.log('INFO', message, { shard: gateway });
             this.checkIfDoneStarting(true);
         }
         else if (!this.isStartingGateway(gateway)) {
             const message = `Unavailable guilds check expected shard ${gateway.id}. Got ${this.#startingGateway?.id} instead.`;
             clearInterval(self);
-            this.log('WARNING', message);
+            this.log('WARNING', message, { shard: gateway });
         }
     }
     timeoutShard(gateway, waitTime) {
         if (this.isStartingGateway(gateway)) {
-            this.log('WARNING', `Shard timed out after ${waitTime} seconds during startup. Reconnecting.`);
+            this.log('WARNING', `Shard timed out after ${waitTime} seconds during startup. Reconnecting.`, { shard: gateway });
             gateway.close(constants_1.GATEWAY_CLOSE_CODES.INTERNAL_TERMINATE_RECONNECT);
         }
     }
@@ -360,7 +360,7 @@ class Paracord extends events_1.EventEmitter {
             else {
                 this.#previousGuildTimestamp = new Date().getTime();
                 const message = `Shard ${startingGateway.id} - ${guildWaitCount} guilds left in start up.`;
-                this.log('INFO', message);
+                this.log('INFO', message, { shard: startingGateway });
             }
         }
         else {
@@ -372,11 +372,11 @@ class Paracord extends events_1.EventEmitter {
         const { shard: gateway, forced = false, resumed = false } = event;
         if (resumed) {
             const message = 'Resumed shard.';
-            this.log('INFO', message, { shard: gateway.id });
+            this.log('INFO', message, { shard: gateway });
         }
         else if (!forced) {
             const message = 'Received all start up guilds.';
-            this.log('INFO', message, { shard: gateway.id });
+            this.log('INFO', message, { shard: gateway });
         }
         this.clearStartingShardState(gateway);
         this.emit('SHARD_STARTUP_COMPLETE', event);
@@ -393,15 +393,10 @@ class Paracord extends events_1.EventEmitter {
     }
     /**
      * Cleans up Paracord start up process and emits `PARACORD_STARTUP_COMPLETE`.
-     * @param reason Reason for the time out.
      */
-    emitStartupComplete(reason) {
+    emitStartupComplete() {
         this.#emittedStartupComplete = true;
-        let message = 'Paracord start up complete.';
-        if (reason !== undefined) {
-            message += ` ${reason}`;
-        }
-        this.log('INFO', message);
+        this.log('INFO', 'Paracord start up complete.');
         this.emit('PARACORD_STARTUP_COMPLETE');
     }
     /**
@@ -409,11 +404,9 @@ class Paracord extends events_1.EventEmitter {
      * @param data From Discord - Initial ready event after identify.
      */
     handleGatewayReady(data) {
-        const { user, guilds } = data;
+        const { user, guilds, shard } = data;
         this.#guildWaitCount = guilds.length;
-        this.log('INFO', `Logged in as ${user.username}#${user.discriminator}.`);
-        const message = `Ready event received. Waiting on ${guilds.length} guilds.`;
-        this.log('INFO', message);
+        this.log('INFO', `Ready event received. Logged in as ${user.username}#${user.discriminator}. Waiting on ${guilds.length} guilds.`, { shard });
         if (guilds.length === 0) {
             this.checkIfDoneStarting();
         }
@@ -433,7 +426,7 @@ class Paracord extends events_1.EventEmitter {
     }
     upsertGatewayQueue(gateway, front = false) {
         if (!this.gatewayLoginQueue.includes(gateway)) {
-            this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`);
+            this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`, { shard: gateway });
             if (front) {
                 this.gatewayLoginQueue.unshift(gateway);
             }
