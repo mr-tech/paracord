@@ -1407,7 +1407,6 @@ export declare type ForumTag = {
 /** A client to handle a Discord gateway connection. */
 export declare class Gateway {
     #private;
-    allowConnect: boolean;
     /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
     flushInterval: null | NodeJS.Timeout;
     /**

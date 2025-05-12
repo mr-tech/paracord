@@ -11,7 +11,6 @@ const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 /** A client to handle a Discord gateway connection. */
 class Gateway {
-    allowConnect = true;
     #heartbeat = undefined;
     /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     #online = false;
@@ -180,10 +179,6 @@ class Gateway {
         if (this.#websocket !== undefined) {
             throw Error('Client is already initialized.');
         }
-        if (!this.allowConnect) {
-            this.log('WARNING', 'Connection disallowed. Ignoring login request.');
-            return;
-        }
         if (this.#identity.compress) {
             this.#inflateBuffer = [];
             const inflate = zlib_1.default.createInflate({
@@ -257,6 +252,7 @@ class Gateway {
             this.log('DEBUG', `Closing websocket. Code: ${code}.${flushWaitTime ? ` Waiting for ${flushWaitTime}ms to flush events.` : ''}`);
             this.#flushWaitTime = flushWaitTime;
             this.#heartbeat?.destroy();
+            this.#heartbeat = undefined;
             this.#closing = true;
             this.#websocket?.ws.close(code);
         }
@@ -353,7 +349,10 @@ class Gateway {
             this.log('ERROR', `Websocket id mismatch on close. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
+        this.#closing = true;
         this.log('DEBUG', `Websocket closed. Code: ${code}.`);
+        this.#heartbeat?.destroy();
+        this.#heartbeat = undefined;
         if (unbind) {
             this.#websocket.ws.onclose = null;
             this.#websocket.ws.onerror = null;
@@ -361,8 +360,6 @@ class Gateway {
             this.#websocket.ws.onopen = null;
             this.#websocket.ws.removeAllListeners();
         }
-        this.#heartbeat?.destroy();
-        this.#closing = true;
         if (this.#flushWaitTime === null || unbind) {
             this.cleanup(code);
             return;

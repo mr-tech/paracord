@@ -83,7 +83,7 @@ class Heart {
      * Now receiving the ACKs on the other hand...
      */
     checkIfShouldHeartbeat = () => {
-        if (this.checkDestroyed())
+        if (this.#destroyed)
             return;
         const now = new Date().getTime();
         if (this.#isAcknowledged

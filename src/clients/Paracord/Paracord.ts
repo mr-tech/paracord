@@ -283,58 +283,80 @@ export default class Paracord extends EventEmitter {
 
   /** Takes a gateway off of the queue and logs it in. */
   private processGatewayQueue = async (): Promise<void> => {
-    const idx = this.gatewayLoginQueue.findIndex((g) => (this.#startingGateway ? g === this.#startingGateway : (g.allowConnect || g.resumable)));
-    if (idx !== -1) {
-      const gateway = this.gatewayLoginQueue.splice(idx, 1)[0];
-      this.#startingGateway = gateway;
+    if (this.gatewayLoginQueue.length === 0) return;
 
-      if (!gateway.connected) {
-        if (this.#allowConnection) {
-          this.log('INFO', `Checking if shard ${gateway.id} is allowed to connect.`, { shard: gateway });
-        }
-        if (await this.#allowConnection?.(gateway) === false) {
-          this.log('INFO', `Shard ${gateway.id} is not allowed to connect.`, { shard: gateway });
-          gateway.allowConnect = false;
-          this.#startingGateway = undefined;
-          this.upsertGatewayQueue(gateway);
-          return;
-        }
-        if (this.#allowConnection) {
+    if (this.#startingGateway) {
+      return;
+    }
+
+    // get resumable shard
+    this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable);
+
+    // if no resumable shard, get first shard in queue that is allowed to connect
+    if (!this.#startingGateway && this.#allowConnection) {
+      this.log('INFO', 'Checking if a shard is allowed to connect.');
+      for (const gateway of this.gatewayLoginQueue) {
+        if (await this.#allowConnection(gateway)) {
+          this.#startingGateway = gateway;
           this.log('INFO', `Shard ${gateway.id} now connecting.`, { shard: gateway });
+          break;
         }
+      }
 
-        try {
-          await gateway.login();
+      // if no resumable shard and no shard allowed to connect, return
+      if (!this.#startingGateway) {
+        this.log('DEBUG', `No shards available to connect. ${this.gatewayLoginQueue.length} in queue.`);
+        return;
+      }
+    }
 
-          if (this.#shardStartupTimeout) {
-            const timeout = this.#shardStartupTimeout;
-            this.#shardTimeout = setTimeout(() => {
-              this.timeoutShard(gateway, timeout);
-            }, timeout * SECOND_IN_MILLISECONDS);
-          }
+    // if no resumable shard, get first shard in queue
+    if (!this.#startingGateway) {
+      this.#startingGateway = this.gatewayLoginQueue.shift();
+    }
 
-          if (
-            this.#unavailableGuildTolerance !== undefined
+    if (this.#startingGateway) {
+      // remove the starting shard from the queue
+      this.gatewayLoginQueue.splice(this.gatewayLoginQueue.indexOf(this.#startingGateway), 1);
+    }
+
+    if (!this.#startingGateway) {
+      return;
+    }
+
+    if (this.#startingGateway.connected) {
+      this.log('DEBUG', `Shard ${this.#startingGateway.id} already connected.`, { shard: this.#startingGateway });
+      return;
+    }
+
+    const gateway = this.#startingGateway;
+
+    try {
+      await gateway.login();
+
+      if (this.#shardStartupTimeout) {
+        const timeout = this.#shardStartupTimeout;
+        this.#shardTimeout = setTimeout(() => {
+          this.timeoutShard(gateway, timeout);
+        }, timeout * SECOND_IN_MILLISECONDS);
+      }
+
+      if (
+        this.#unavailableGuildTolerance !== undefined
             && this.#unavailableGuildWait !== undefined
             && !gateway.resumable
-          ) {
-            const tolerance = this.#unavailableGuildTolerance;
-            const waitSeconds = this.#unavailableGuildWait;
-            const interval = setInterval(() => {
-              this.checkUnavailable(interval, gateway, tolerance, waitSeconds);
-            }, SECOND_IN_MILLISECONDS);
-            this.#unavailableGuildsInterval = interval;
-          }
-        } catch (err: unknown) {
-          this.clearStartingShardState(gateway);
-          this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
-          this.log('ERROR', err instanceof Error ? err.message : String(err), { shard: gateway });
-        }
-      } else {
-        this.log('WARNING', 'Gateway already connected.', { shard: gateway });
+      ) {
+        const tolerance = this.#unavailableGuildTolerance;
+        const waitSeconds = this.#unavailableGuildWait;
+        const interval = setInterval(() => {
+          this.checkUnavailable(interval, gateway, tolerance, waitSeconds);
+        }, SECOND_IN_MILLISECONDS);
+        this.#unavailableGuildsInterval = interval;
       }
-    } else if (!this.startingGateway && this.gatewayLoginQueue.length > 0) {
-      this.log('DEBUG', `No gateways available to connect. ${this.gatewayLoginQueue.length} in queue.`);
+    } catch (err: unknown) {
+      this.clearStartingShardState(gateway);
+      this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
+      this.log('ERROR', err instanceof Error ? err.message : String(err), { shard: gateway });
     }
   };
 
@@ -459,7 +481,7 @@ export default class Paracord extends EventEmitter {
 
   private clearStartingShardState(gateway: Gateway): void {
     if (this.isStartingGateway(gateway)) {
-      this.log('INFO', `Clearing start up state for shard ${gateway.id}.`);
+      this.log('INFO', 'Clearing start up state.', { shard: gateway });
 
       this.#startingGateway = undefined;
       this.#previousGuildTimestamp = undefined;
@@ -484,10 +506,10 @@ export default class Paracord extends EventEmitter {
    * @param data From Discord - Initial ready event after identify.
    */
   private handleGatewayReady(data: ReadyEventField): void {
-    const { user, guilds, shard } = data;
+    const { user, guilds } = data;
 
     this.#guildWaitCount = guilds.length;
-    this.log('INFO', `Ready event received. Logged in as ${user.username}#${user.discriminator}. Waiting on ${guilds.length} guilds.`, { shard });
+    this.log('INFO', `Ready event received. Logged in as ${user.username}#${user.discriminator}. Waiting on ${guilds.length} guilds.`, { shard: this.#startingGateway });
 
     if (guilds.length === 0) {
       this.checkIfDoneStarting();

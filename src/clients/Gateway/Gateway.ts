@@ -27,8 +27,6 @@ interface GuildChunkState {
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
-  public allowConnect = true;
-
   #heartbeat: undefined | Heartbeat = undefined;
 
   /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
@@ -257,11 +255,6 @@ export default class Gateway {
       throw Error('Client is already initialized.');
     }
 
-    if (!this.allowConnect) {
-      this.log('WARNING', 'Connection disallowed. Ignoring login request.');
-      return;
-    }
-
     if (this.#identity.compress) {
       this.#inflateBuffer = [];
 
@@ -348,6 +341,7 @@ export default class Gateway {
 
       this.#flushWaitTime = flushWaitTime;
       this.#heartbeat?.destroy();
+      this.#heartbeat = undefined;
       this.#closing = true;
       this.#websocket?.ws.close(code);
     } else if (this.#websocket) {
@@ -457,7 +451,12 @@ export default class Gateway {
       return;
     }
 
+    this.#closing = true;
+
     this.log('DEBUG', `Websocket closed. Code: ${code}.`);
+
+    this.#heartbeat?.destroy();
+    this.#heartbeat = undefined;
 
     if (unbind) {
       this.#websocket.ws.onclose = null;
@@ -466,9 +465,6 @@ export default class Gateway {
       this.#websocket.ws.onopen = null;
       this.#websocket.ws.removeAllListeners();
     }
-
-    this.#heartbeat?.destroy();
-    this.#closing = true;
 
     if (this.#flushWaitTime === null || unbind) {
       this.cleanup(code);

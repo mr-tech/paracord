@@ -112,7 +112,7 @@ export default class Heart {
    * Now receiving the ACKs on the other hand...
    */
   public checkIfShouldHeartbeat = (): void => {
-    if (this.checkDestroyed()) return;
+    if (this.#destroyed) return;
 
     const now = new Date().getTime();
     if (
