@@ -26,6 +26,7 @@ function computeShards(shards, shardCount) {
 class Paracord extends events_1.EventEmitter {
     compressShards;
     gatewayLoginQueue;
+    #processingQueue = false;
     /** Discord bot token. */
     #token;
     #emittedStartupComplete;
@@ -226,68 +227,69 @@ class Paracord extends events_1.EventEmitter {
     }
     /** Takes a gateway off of the queue and logs it in. */
     processGatewayQueue = async () => {
-        if (this.gatewayLoginQueue.length === 0)
+        if (this.#processingQueue || this.gatewayLoginQueue.length === 0 || this.#startingGateway)
             return;
-        if (this.#startingGateway) {
-            return;
-        }
-        // get resumable shard
-        this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable);
-        // if no resumable shard, get first shard in queue that is allowed to connect
-        if (!this.#startingGateway && this.#allowConnection) {
-            this.log('INFO', 'Checking if a shard is allowed to connect.');
-            for (const gateway of this.gatewayLoginQueue) {
-                if (await this.#allowConnection(gateway)) {
-                    this.#startingGateway = gateway;
-                    this.log('INFO', `Shard ${gateway.id} now connecting.`, { shard: gateway });
-                    break;
+        this.#processingQueue = true;
+        try {
+            // get resumable shard
+            this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable);
+            // if no resumable shard, get first shard in queue that is allowed to connect
+            if (!this.#startingGateway && this.#allowConnection) {
+                this.log('INFO', 'Checking if a shard is allowed to connect.');
+                for (const gateway of this.gatewayLoginQueue) {
+                    if (await this.#allowConnection(gateway)) {
+                        this.#startingGateway = gateway;
+                        this.log('INFO', 'Shard is allowed to connect.', { shard: gateway });
+                        break;
+                    }
+                }
+                // if no resumable shard and no shard allowed to connect, return
+                if (!this.#startingGateway) {
+                    this.log('DEBUG', `No shards available to connect. ${this.gatewayLoginQueue.length} in queue.`);
+                    return;
                 }
             }
-            // if no resumable shard and no shard allowed to connect, return
+            // if no resumable shard, get first shard in queue
             if (!this.#startingGateway) {
-                this.log('DEBUG', `No shards available to connect. ${this.gatewayLoginQueue.length} in queue.`);
+                this.#startingGateway = this.gatewayLoginQueue.shift();
+            }
+            if (!this.#startingGateway) {
                 return;
             }
-        }
-        // if no resumable shard, get first shard in queue
-        if (!this.#startingGateway) {
-            this.#startingGateway = this.gatewayLoginQueue.shift();
-        }
-        if (this.#startingGateway) {
             // remove the starting shard from the queue
             this.gatewayLoginQueue.splice(this.gatewayLoginQueue.indexOf(this.#startingGateway), 1);
-        }
-        if (!this.#startingGateway) {
-            return;
-        }
-        if (this.#startingGateway.connected) {
-            this.log('DEBUG', `Shard ${this.#startingGateway.id} already connected.`, { shard: this.#startingGateway });
-            return;
-        }
-        const gateway = this.#startingGateway;
-        try {
-            await gateway.login();
-            if (this.#shardStartupTimeout) {
-                const timeout = this.#shardStartupTimeout;
-                this.#shardTimeout = setTimeout(() => {
-                    this.timeoutShard(gateway, timeout);
-                }, timeout * constants_1.SECOND_IN_MILLISECONDS);
+            if (this.#startingGateway.connected) {
+                this.log('DEBUG', `Shard ${this.#startingGateway.id} already connected.`, { shard: this.#startingGateway });
+                return;
             }
-            if (this.#unavailableGuildTolerance !== undefined
-                && this.#unavailableGuildWait !== undefined
-                && !gateway.resumable) {
-                const tolerance = this.#unavailableGuildTolerance;
-                const waitSeconds = this.#unavailableGuildWait;
-                const interval = setInterval(() => {
-                    this.checkUnavailable(interval, gateway, tolerance, waitSeconds);
-                }, constants_1.SECOND_IN_MILLISECONDS);
-                this.#unavailableGuildsInterval = interval;
+            const gateway = this.#startingGateway;
+            try {
+                await gateway.login();
+                if (this.#shardStartupTimeout) {
+                    const timeout = this.#shardStartupTimeout;
+                    this.#shardTimeout = setTimeout(() => {
+                        this.timeoutShard(gateway, timeout);
+                    }, timeout * constants_1.SECOND_IN_MILLISECONDS);
+                }
+                if (this.#unavailableGuildTolerance !== undefined
+                    && this.#unavailableGuildWait !== undefined
+                    && !gateway.resumable) {
+                    const tolerance = this.#unavailableGuildTolerance;
+                    const waitSeconds = this.#unavailableGuildWait;
+                    const interval = setInterval(() => {
+                        this.checkUnavailable(interval, gateway, tolerance, waitSeconds);
+                    }, constants_1.SECOND_IN_MILLISECONDS);
+                    this.#unavailableGuildsInterval = interval;
+                }
+            }
+            catch (err) {
+                this.clearStartingShardState(gateway);
+                this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
+                this.log('ERROR', err instanceof Error ? err.message : String(err), { shard: gateway });
             }
         }
-        catch (err) {
-            this.clearStartingShardState(gateway);
-            this.upsertGatewayQueue(gateway, this.isStartingGateway(gateway));
-            this.log('ERROR', err instanceof Error ? err.message : String(err), { shard: gateway });
+        finally {
+            this.#processingQueue = false;
         }
     };
     checkUnavailable(self, gateway, tolerance, waitSeconds) {
@@ -439,7 +441,6 @@ class Paracord extends events_1.EventEmitter {
     }
     upsertGatewayQueue(gateway, front = false) {
         if (!this.gatewayLoginQueue.includes(gateway)) {
-            this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`, { shard: gateway });
             if (front) {
                 this.gatewayLoginQueue.unshift(gateway);
             }
@@ -447,6 +448,7 @@ class Paracord extends events_1.EventEmitter {
                 this.gatewayLoginQueue.push(gateway);
             }
         }
+        this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`, { shard: gateway });
     }
     isStartingGateway(gateway) {
         return this.#startingGateway === gateway;
