@@ -227,16 +227,21 @@ class Paracord extends events_1.EventEmitter {
     }
     /** Takes a gateway off of the queue and logs it in. */
     processGatewayQueue = async () => {
-        if (this.#processingQueue || this.gatewayLoginQueue.length === 0 || this.#startingGateway)
+        if (this.#processingQueue || this.gatewayLoginQueue.length === 0)
+            return;
+        if (this.#startingGateway && !this.gatewayLoginQueue.some((g) => g === this.#startingGateway))
             return;
         this.#processingQueue = true;
         try {
-            // get resumable shard
-            this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable);
+            if (!this.#startingGateway) {
+                // get resumable shard
+                this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable);
+            }
             // if no resumable shard, get first shard in queue that is allowed to connect
             if (!this.#startingGateway && this.#allowConnection) {
                 this.log('INFO', 'Checking if a shard is allowed to connect.');
-                for (const gateway of this.gatewayLoginQueue) {
+                const queue = [...this.gatewayLoginQueue];
+                for (const gateway of queue) {
                     if (await this.#allowConnection(gateway)) {
                         this.#startingGateway = gateway;
                         this.log('INFO', 'Shard is allowed to connect.', { shard: gateway });
