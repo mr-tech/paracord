@@ -46,6 +46,8 @@ export default class Heart {
 
   #log: Gateway['log'];
 
+  #destroyed = false;
+
   public constructor(gateway: Gateway, options: Options) {
     const {
       heartbeatIntervalOffset, heartbeatTimeoutSeconds, log, handleEvent,
@@ -60,8 +62,22 @@ export default class Heart {
     this.#handleEvent = handleEvent;
   }
 
+  public get recentTimestamp() {
+    return this.#previousTimestamp;
+  }
+
+  private checkDestroyed() {
+    if (this.#destroyed) {
+      this.#log('WARNING', 'Heartbeat is destroyed.');
+      return true;
+    }
+    return false;
+  }
+
   /** Starts the timeout for the connection to Discord. */
   public startConnectTimeout(client: ws) {
+    if (this.checkDestroyed()) return;
+
     this.#connectTimeout = setTimeout(() => {
       this.clearConnectTimeout();
 
@@ -75,19 +91,17 @@ export default class Heart {
   }
 
   /** Clears heartbeat values and clears the heartbeatTimers. */
-  public reset() {
+  public destroy() {
+    this.#destroyed = true;
+
     this.clearAckTimeout();
     this.clearHeartbeatTimeout();
     this.clearConnectTimeout();
 
-    this.#isAcknowledged = false;
-    this.#previousTimestamp = undefined;
-    this.#nextTimestamp = undefined;
-    this.#intervalTime = undefined;
-    this.#ackWaitTime = undefined;
-
-    if (this.#intervalTime) {
-      this.#log('INFO', 'Heartbeat cleared.');
+    if (this.#destroyed) {
+      this.#log('INFO', 'Heartbeat destroyed.');
+    } else {
+      this.#log('WARNING', 'Heartbeat already destroyed.');
     }
   }
 
@@ -98,6 +112,8 @@ export default class Heart {
    * Now receiving the ACKs on the other hand...
    */
   public checkIfShouldHeartbeat = (): void => {
+    if (this.checkDestroyed()) return;
+
     const now = new Date().getTime();
     if (
       this.#isAcknowledged
@@ -111,6 +127,8 @@ export default class Heart {
 
   /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
   public ack(): void {
+    if (this.checkDestroyed()) return;
+
     this.clearAckTimeout();
 
     this.#isAcknowledged = true;
@@ -123,6 +141,8 @@ export default class Heart {
 
       void this.#handleEvent('HEARTBEAT_ACK', { latency, gateway: this.#gateway });
       this.#previousTimestamp = undefined;
+    } else {
+      this.#log('WARNING', 'Previous heartbeat timestamp is undefined.');
     }
   }
 
@@ -131,6 +151,10 @@ export default class Heart {
    * @param heartbeatTimeout From Discord - Number of ms to wait between sending heartbeats.
    */
   public start(heartbeatTimeout: number): void {
+    if (this.checkDestroyed()) return;
+
+    this.#log('DEBUG', `Starting heartbeat with timeout of ${heartbeatTimeout}ms.`);
+
     this.#isAcknowledged = true;
     this.#intervalTime = heartbeatTimeout - (this.#intervalOffset * SECOND_IN_MILLISECONDS);
     this.scheduleNextHeartbeat();
@@ -155,6 +179,8 @@ export default class Heart {
    * Clears old heartbeat timeout and starts a new one.
    */
   private scheduleNextHeartbeat() {
+    if (this.checkDestroyed()) return;
+
     if (this.#intervalTime !== undefined) {
       this.clearHeartbeatTimeout();
 
@@ -163,6 +189,8 @@ export default class Heart {
       this.#nextHbTimer = setTimeout(this.sendHeartbeat, nextSendTime);
       const now = new Date().getTime();
       this.#nextTimestamp = now + nextSendTime;
+
+      this.#log('DEBUG', `Next heartbeat scheduled in ${nextSendTime}ms. Random offset: ${randomOffset}ms.`);
     } else {
       this.#log('ERROR', 'heartbeatIntervalTime undefined.');
       this.#gateway.close(GATEWAY_CLOSE_CODES.UNKNOWN);
@@ -170,9 +198,12 @@ export default class Heart {
   }
 
   public sendHeartbeat = (): void => {
+    if (this.checkDestroyed()) return;
+
     if (this.#intervalTime === undefined) return;
 
     if (!this.#isAcknowledged) {
+      this.#log('ERROR', 'Heartbeat not acknowledged. Closing connection.');
       this.#gateway.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 0);
       return;
     }
@@ -199,6 +230,8 @@ export default class Heart {
 
   /** Checks if heartbeat ack was received. */
   private checkForAck = () => {
+    if (this.checkDestroyed()) return;
+
     if (!this.#isAcknowledged) {
       this.#log('ERROR', 'Heartbeat not acknowledged in time.');
       this.#gateway.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);

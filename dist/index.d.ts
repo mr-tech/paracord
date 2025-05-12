@@ -1431,7 +1431,7 @@ export declare class Gateway {
     /** This gateway's active websocket connection. */
     get ws(): ws | undefined;
     /** This client's heartbeat manager. */
-    get heart(): Heartbeat;
+    get heart(): undefined | Heartbeat;
     get compression(): boolean;
     setCompression(compress: boolean): void;
     /**
@@ -2339,10 +2339,12 @@ export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | Gat
 export declare class Heartbeat {
     #private;
     constructor(gateway: Gateway, options: Options);
+    get recentTimestamp(): number | undefined;
+    private checkDestroyed;
     /** Starts the timeout for the connection to Discord. */
     startConnectTimeout(client: ws): void;
     /** Clears heartbeat values and clears the heartbeatTimers. */
-    reset(): void;
+    destroy(): void;
     /**
      * Set inline with the firehose of events to check if the heartbeat needs to be sent.
      * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.

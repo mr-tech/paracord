@@ -29,7 +29,7 @@ interface GuildChunkState {
 export default class Gateway {
   public allowConnect = true;
 
-  #heartbeat: Heartbeat;
+  #heartbeat: undefined | Heartbeat = undefined;
 
   /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
   #online = false;
@@ -172,7 +172,7 @@ export default class Gateway {
   }
 
   /** This client's heartbeat manager. */
-  public get heart(): Heartbeat {
+  public get heart(): undefined | Heartbeat {
     return this.#heartbeat;
   }
 
@@ -283,10 +283,18 @@ export default class Gateway {
 
     try {
       const wsUrl = this.constructWsUrl();
-      this.log('DEBUG', `${this.#resumeUrl ? 'Resuming on' : 'Connecting to'} url: ${wsUrl}`);
+      this.log('INFO', `${this.#resumeUrl ? 'Resuming on' : 'Connecting to'} url: ${wsUrl}`);
+
+      this.#heartbeat = new Heartbeat(this, {
+        heartbeatIntervalOffset: this.#options.heartbeatIntervalOffset,
+        heartbeatTimeoutSeconds: this.#options.heartbeatTimeoutSeconds,
+        log: this.log.bind(this),
+        handleEvent: this.handleEvent.bind(this),
+      });
 
       const client = new _websocket(wsUrl, { maxPayload: GIGABYTE_IN_BYTES });
       client.binaryType = 'arraybuffer';
+
       this.#heartbeat.startConnectTimeout(client);
 
       this.#websocket = {
@@ -307,7 +315,8 @@ export default class Gateway {
       }
 
       this.#websocket = undefined;
-      this.#heartbeat.clearConnectTimeout();
+      this.#heartbeat?.clearConnectTimeout();
+      this.#heartbeat = undefined;
     }
   };
 
@@ -329,23 +338,26 @@ export default class Gateway {
    * @param reconnect Whether to reconnect after closing.
    */
   public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWaitTime: null | number = null) {
-    if (this.#closing) return;
+    if (this.#closing) {
+      this.log('WARNING', 'Websocket is already closing.');
+      return;
+    }
 
     if (this.#websocket?.ws.readyState === ws.OPEN) {
+      this.log('DEBUG', `Closing websocket. Code: ${code}.${flushWaitTime ? ` Waiting for ${flushWaitTime}ms to flush events.` : ''}`);
+
       this.#flushWaitTime = flushWaitTime;
-      this.#heartbeat.reset();
+      this.#heartbeat?.destroy();
       this.#closing = true;
       this.#websocket?.ws.close(code);
     } else if (this.#websocket) {
-      if (!this.#websocket) {
-        this.log('WARNING', 'Websocket is undefined when closing.');
-      } else {
-        this.log('WARNING', `Websocket is already ${this.#websocket.ws.readyState === ws.CLOSED ? 'closed' : 'closing'}.`);
-      }
+      this.log('WARNING', `Websocket is already ${this.#websocket.ws.readyState === ws.CLOSED ? 'closed' : 'closing'}.`);
 
       if (!this.#closeTimeout) {
         this.#closeTimeout = this.startCloseTimeout();
       }
+    } else {
+      this.log('WARNING', 'Websocket is undefined when closing.');
     }
   }
 
@@ -445,6 +457,8 @@ export default class Gateway {
       return;
     }
 
+    this.log('DEBUG', `Websocket closed. Code: ${code}.`);
+
     if (unbind) {
       this.#websocket.ws.onclose = null;
       this.#websocket.ws.onerror = null;
@@ -453,8 +467,7 @@ export default class Gateway {
       this.#websocket.ws.removeAllListeners();
     }
 
-    this.#heartbeat.reset();
-
+    this.#heartbeat?.destroy();
     this.#closing = true;
 
     if (this.#flushWaitTime === null || unbind) {
@@ -463,13 +476,13 @@ export default class Gateway {
     }
 
     this.waitForFlush(this.#flushWaitTime).finally(() => {
-      this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
+      this.log('DEBUG', `Received ${this.#eventsDuringFlush} events during close.`);
       this.cleanup(code);
     });
   };
 
   private async waitForFlush(waitTime: number): Promise<void> {
-    this.log('INFO', 'Waiting for events to flush.');
+    this.log('DEBUG', 'Waiting for events to flush.');
     const lastEventTimestamp = this.#lastEventTimestamp;
 
     await new Promise((resolve) => {
@@ -479,16 +492,19 @@ export default class Gateway {
             clearInterval(this.#flushInterval);
             resolve(null);
           }
-        }, 5 * SECOND_IN_MILLISECONDS);
+        }, SECOND_IN_MILLISECONDS);
       }, waitTime);
     });
   }
 
   private cleanup(code: number) {
+    this.log('DEBUG', 'Cleaning up websocket.');
+
     clearTimeout(this.#closeTimeout);
     clearInterval(this.#flushInterval);
 
     this.#websocket = undefined;
+    this.#heartbeat = undefined;
     this.#online = false;
     this.#resuming = false;
     this.#flushWaitTime = null;
@@ -678,7 +694,7 @@ export default class Gateway {
     this.#resumeUrl = undefined;
     this.#sequence = null;
     this.#wsUrl = this.#options.wsUrl;
-    this.log('INFO', 'Session cleared.');
+    this.log('DEBUG', 'Session cleared.');
   }
 
   /*
@@ -765,9 +781,7 @@ export default class Gateway {
       if (this.#eventsDuringFlush === null) this.#eventsDuringFlush = 0;
       ++this.#eventsDuringFlush;
       this.log('DEBUG', `Received message after close. op: ${opCode} | type: ${type}`);
-      if (opCode !== GATEWAY_OP_CODES.DISPATCH || type === 'RESUMED' || type === 'READY') {
-        return;
-      }
+      return;
     }
 
     switch (opCode) {
@@ -790,7 +804,7 @@ export default class Gateway {
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT_ACK:
-        this.#heartbeat.ack();
+        this.#heartbeat?.ack();
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT:
@@ -815,7 +829,7 @@ export default class Gateway {
     if (this.#checkSiblingHeartbeats) {
       this.#checkSiblingHeartbeats.forEach((f) => f());
     } else {
-      this.#heartbeat.checkIfShouldHeartbeat();
+      this.#heartbeat?.checkIfShouldHeartbeat();
     }
   }
 
@@ -824,7 +838,7 @@ export default class Gateway {
    * @param data From Discord.
    */
   private handleReady(data: ReadyEventField): void {
-    this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
+    this.log('DEBUG', `Received Ready. Session ID: ${data.session_id}.`);
 
     this.#resumeUrl = data.resume_gateway_url;
     this.#sessionId = data.session_id;
@@ -847,9 +861,14 @@ export default class Gateway {
    * @param data From Discord.
    */
   private handleHello(data: Hello): void {
+    if (!this.#heartbeat) {
+      this.log('FATAL', 'Heartbeat is undefined when handling hello.');
+      return;
+    }
+
     this.#heartbeat.clearConnectTimeout();
 
-    this.log('INFO', `Received Hello. ${JSON.stringify(data)}.`);
+    this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
     this.#heartbeat.start(data.heartbeat_interval);
     this.connect(this.resumable);
 
@@ -867,8 +886,7 @@ export default class Gateway {
 
   /** Sends a "Resume" payload to Discord's gateway. */
   private resume(): void {
-    const message = `Attempting to resume connection. Session Id: ${this.#sessionId}. Sequence: ${this.#sequence}`;
-    this.log('INFO', message);
+    this.log('DEBUG', `Attempting to resume connection. Session Id: ${this.#sessionId}. Sequence: ${this.#sequence}`);
 
     const { token } = this.#identity;
     const sequence = this.#sequence;

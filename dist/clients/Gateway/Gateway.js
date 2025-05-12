@@ -12,7 +12,7 @@ const structures_1 = require("./structures");
 /** A client to handle a Discord gateway connection. */
 class Gateway {
     allowConnect = true;
-    #heartbeat;
+    #heartbeat = undefined;
     /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
     #online = false;
     /** Whether or not the client is currently resuming a session. */
@@ -200,7 +200,13 @@ class Gateway {
         }
         try {
             const wsUrl = this.constructWsUrl();
-            this.log('DEBUG', `${this.#resumeUrl ? 'Resuming on' : 'Connecting to'} url: ${wsUrl}`);
+            this.log('INFO', `${this.#resumeUrl ? 'Resuming on' : 'Connecting to'} url: ${wsUrl}`);
+            this.#heartbeat = new structures_1.Heartbeat(this, {
+                heartbeatIntervalOffset: this.#options.heartbeatIntervalOffset,
+                heartbeatTimeoutSeconds: this.#options.heartbeatTimeoutSeconds,
+                log: this.log.bind(this),
+                handleEvent: this.handleEvent.bind(this),
+            });
             const client = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
             client.binaryType = 'arraybuffer';
             this.#heartbeat.startConnectTimeout(client);
@@ -223,7 +229,8 @@ class Gateway {
                 console.error(err); // TODO: emit
             }
             this.#websocket = undefined;
-            this.#heartbeat.clearConnectTimeout();
+            this.#heartbeat?.clearConnectTimeout();
+            this.#heartbeat = undefined;
         }
     };
     constructWsUrl() {
@@ -242,24 +249,25 @@ class Gateway {
      * @param reconnect Whether to reconnect after closing.
      */
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWaitTime = null) {
-        if (this.#closing)
+        if (this.#closing) {
+            this.log('WARNING', 'Websocket is already closing.');
             return;
+        }
         if (this.#websocket?.ws.readyState === ws_1.default.OPEN) {
+            this.log('DEBUG', `Closing websocket. Code: ${code}.${flushWaitTime ? ` Waiting for ${flushWaitTime}ms to flush events.` : ''}`);
             this.#flushWaitTime = flushWaitTime;
-            this.#heartbeat.reset();
+            this.#heartbeat?.destroy();
             this.#closing = true;
             this.#websocket?.ws.close(code);
         }
         else if (this.#websocket) {
-            if (!this.#websocket) {
-                this.log('WARNING', 'Websocket is undefined when closing.');
-            }
-            else {
-                this.log('WARNING', `Websocket is already ${this.#websocket.ws.readyState === ws_1.default.CLOSED ? 'closed' : 'closing'}.`);
-            }
+            this.log('WARNING', `Websocket is already ${this.#websocket.ws.readyState === ws_1.default.CLOSED ? 'closed' : 'closing'}.`);
             if (!this.#closeTimeout) {
                 this.#closeTimeout = this.startCloseTimeout();
             }
+        }
+        else {
+            this.log('WARNING', 'Websocket is undefined when closing.');
         }
     }
     startCloseTimeout() {
@@ -345,6 +353,7 @@ class Gateway {
             this.log('ERROR', `Websocket id mismatch on close. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
             return;
         }
+        this.log('DEBUG', `Websocket closed. Code: ${code}.`);
         if (unbind) {
             this.#websocket.ws.onclose = null;
             this.#websocket.ws.onerror = null;
@@ -352,19 +361,19 @@ class Gateway {
             this.#websocket.ws.onopen = null;
             this.#websocket.ws.removeAllListeners();
         }
-        this.#heartbeat.reset();
+        this.#heartbeat?.destroy();
         this.#closing = true;
         if (this.#flushWaitTime === null || unbind) {
             this.cleanup(code);
             return;
         }
         this.waitForFlush(this.#flushWaitTime).finally(() => {
-            this.log('INFO', `Received ${this.#eventsDuringFlush} events during close.`);
+            this.log('DEBUG', `Received ${this.#eventsDuringFlush} events during close.`);
             this.cleanup(code);
         });
     };
     async waitForFlush(waitTime) {
-        this.log('INFO', 'Waiting for events to flush.');
+        this.log('DEBUG', 'Waiting for events to flush.');
         const lastEventTimestamp = this.#lastEventTimestamp;
         await new Promise((resolve) => {
             setTimeout(() => {
@@ -373,14 +382,16 @@ class Gateway {
                         clearInterval(this.#flushInterval);
                         resolve(null);
                     }
-                }, 5 * constants_1.SECOND_IN_MILLISECONDS);
+                }, constants_1.SECOND_IN_MILLISECONDS);
             }, waitTime);
         });
     }
     cleanup(code) {
+        this.log('DEBUG', 'Cleaning up websocket.');
         clearTimeout(this.#closeTimeout);
         clearInterval(this.#flushInterval);
         this.#websocket = undefined;
+        this.#heartbeat = undefined;
         this.#online = false;
         this.#resuming = false;
         this.#flushWaitTime = null;
@@ -531,7 +542,7 @@ class Gateway {
         this.#resumeUrl = undefined;
         this.#sequence = null;
         this.#wsUrl = this.#options.wsUrl;
-        this.log('INFO', 'Session cleared.');
+        this.log('DEBUG', 'Session cleared.');
     }
     /*
      ********************************
@@ -600,9 +611,7 @@ class Gateway {
                 this.#eventsDuringFlush = 0;
             ++this.#eventsDuringFlush;
             this.log('DEBUG', `Received message after close. op: ${opCode} | type: ${type}`);
-            if (opCode !== constants_1.GATEWAY_OP_CODES.DISPATCH || type === 'RESUMED' || type === 'READY') {
-                return;
-            }
+            return;
         }
         switch (opCode) {
             case constants_1.GATEWAY_OP_CODES.DISPATCH:
@@ -625,7 +634,7 @@ class Gateway {
                 this.handleHello(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.HEARTBEAT_ACK:
-                this.#heartbeat.ack();
+                this.#heartbeat?.ack();
                 break;
             case constants_1.GATEWAY_OP_CODES.HEARTBEAT:
                 this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.#sequence);
@@ -646,7 +655,7 @@ class Gateway {
             this.#checkSiblingHeartbeats.forEach((f) => f());
         }
         else {
-            this.#heartbeat.checkIfShouldHeartbeat();
+            this.#heartbeat?.checkIfShouldHeartbeat();
         }
     }
     /**
@@ -654,7 +663,7 @@ class Gateway {
      * @param data From Discord.
      */
     handleReady(data) {
-        this.log('INFO', `Received Ready. Session ID: ${data.session_id}.`);
+        this.log('DEBUG', `Received Ready. Session ID: ${data.session_id}.`);
         this.#resumeUrl = data.resume_gateway_url;
         this.#sessionId = data.session_id;
         this.#online = true;
@@ -672,8 +681,12 @@ class Gateway {
      * @param data From Discord.
      */
     handleHello(data) {
+        if (!this.#heartbeat) {
+            this.log('FATAL', 'Heartbeat is undefined when handling hello.');
+            return;
+        }
         this.#heartbeat.clearConnectTimeout();
-        this.log('INFO', `Received Hello. ${JSON.stringify(data)}.`);
+        this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
         this.#heartbeat.start(data.heartbeat_interval);
         this.connect(this.resumable);
         void this.handleEvent('HELLO', data);
@@ -689,8 +702,7 @@ class Gateway {
     }
     /** Sends a "Resume" payload to Discord's gateway. */
     resume() {
-        const message = `Attempting to resume connection. Session Id: ${this.#sessionId}. Sequence: ${this.#sequence}`;
-        this.log('INFO', message);
+        this.log('DEBUG', `Attempting to resume connection. Session Id: ${this.#sessionId}. Sequence: ${this.#sequence}`);
         const { token } = this.#identity;
         const sequence = this.#sequence;
         const sessionId = this.#sessionId;

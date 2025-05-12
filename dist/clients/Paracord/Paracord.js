@@ -307,7 +307,7 @@ class Paracord extends events_1.EventEmitter {
         if (this.#gateways.get(gateway.id) !== undefined) {
             throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
         }
-        this.#gatewayHeartbeats.push(gateway.heart.checkIfShouldHeartbeat.bind(gateway.heart));
+        this.#gatewayHeartbeats.push(() => gateway.heart?.checkIfShouldHeartbeat());
         this.#gateways.set(gateway.id, gateway);
         this.upsertGatewayQueue(gateway);
     }
