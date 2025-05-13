@@ -291,7 +291,7 @@ export default class Paracord extends EventEmitter {
     this.#processingQueue = true;
     try {
       if (!this.#startingGateway) {
-      // get resumable shard
+        // get resumable shard
         this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable);
       }
 
@@ -532,7 +532,11 @@ export default class Paracord extends EventEmitter {
     }
 
     if (shouldReconnect) {
-      this.upsertGatewayQueue(gateway, gateway.resumable);
+      if (gateway.resumable) {
+        void gateway.login();
+      } else {
+        this.upsertGatewayQueue(gateway);
+      }
     }
   }
 

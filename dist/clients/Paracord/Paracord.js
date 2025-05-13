@@ -441,7 +441,12 @@ class Paracord extends events_1.EventEmitter {
             this.clearStartingShardState(gateway);
         }
         if (shouldReconnect) {
-            this.upsertGatewayQueue(gateway, gateway.resumable);
+            if (gateway.resumable) {
+                void gateway.login();
+            }
+            else {
+                this.upsertGatewayQueue(gateway);
+            }
         }
     }
     upsertGatewayQueue(gateway, front = false) {
