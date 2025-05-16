@@ -1407,32 +1407,27 @@ export declare type ForumTag = {
 /** A client to handle a Discord gateway connection. */
 export declare class Gateway {
     #private;
-    /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
-    flushInterval: null | NodeJS.Timeout;
     /**
      * Creates a new Discord gateway handler.
      * @param token Discord token. Will be coerced into a bot token.
      * @param options Optional parameters for this handler.
      */
     constructor(token: string, options: GatewayOptions);
-    /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
-    get resumable(): boolean;
-    /** Whether or not the client is currently resuming a session. */
-    get resuming(): boolean;
     /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
     get shard(): GatewayIdentify['shard'];
     /** The shard id that this gateway is connected to. */
     get id(): number;
-    /** Whether or not the websocket is open. */
-    get connected(): boolean;
-    /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
-    get online(): boolean;
-    /** This gateway's active websocket connection. */
-    get ws(): ws | undefined;
-    /** This client's heartbeat manager. */
-    get heart(): undefined | Heartbeat;
     get compression(): boolean;
     setCompression(compress: boolean): void;
+    /** This gateway's active websocket connection. */
+    get ws(): ws | undefined;
+    /** Whether or not the websocket is open. */
+    get connected(): boolean;
+    get resumable(): boolean;
+    /** Whether or not the client is currently resuming a session. */
+    get resuming(): boolean;
+    get options(): GatewayOptions;
+    get heartbeat(): Heartbeat | undefined;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -1453,97 +1448,22 @@ export declare class Gateway {
      */
     requestGuildMembers(options: GuildRequestMember): boolean;
     updatePresence(presence: GatewayPresenceUpdate): boolean;
-    /**
-     * Connects to Discord's event gateway.
-     * @param _websocket Ignore. For unittest dependency injection only.
-     */
-    login: (_websocket?: typeof ws) => Promise<void>;
-    private constructWsUrl;
-    /**
-     * Closes the connection.
-     * @param reconnect Whether to reconnect after closing.
-     */
-    close(code?: GatewayCloseCode, flushWaitTime?: null | number): void;
-    private startCloseTimeout;
+    login: () => Promise<void>;
+    close(code?: GatewayCloseCode, flushWait?: number): void;
+    checkIfShouldHeartbeat(): void;
     /**
      * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
      * @param type Type of event. (e.g. CHANNEL_CREATE) https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
      * @param data Data of the event from Discord.
      */
     private handleEvent;
-    private handleGuildMemberChunk;
-    private updateRequestMembersState;
-    /** Assigned to websocket `onopen`. */
-    private handleWsOpen;
-    /** Assigned to websocket `onerror`. */
-    private handleWsError;
-    /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
-     * @param event Object containing information about the close.
-     */
-    private handleWsClose;
-    private waitForFlush;
-    private cleanup;
+    private handleClose;
     /** Uses the close code to determine what message to log and if the client should attempt to reconnect.
      * @param code Code that came with the websocket close event.
      * @return Whether or not the client should attempt to login again.
      */
     private handleCloseCode;
-    /** Removes current session information. */
     private clearSession;
-    /** Assigned to websocket `onmessage`. */
-    private handleWsMessage;
-    private decompress;
-    /** Processes incoming messages from Discord's gateway.
-     * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
-     */
-    private handleMessage;
-    /** Proxy for inline heartbeat checking. */
-    private checkHeartbeatInline;
-    /**
-     * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
-     * @param data From Discord.
-     */
-    private handleReady;
-    /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
-    private handleResumed;
-    /**
-     * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
-     * @param data From Discord.
-     */
-    private handleHello;
-    /** Connects to gateway. */
-    private connect;
-    /** Sends a "Resume" payload to Discord's gateway. */
-    private resume;
-    /** Sends an "Identify" payload. */
-    private identify;
-    sendHeartbeat(): void;
-    /**
-     * Sends a websocket message to Discord.
-     * @param op Gateway Opcode https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
-     * @param data Data of the message.
-     * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
-     */
-    private send;
-    /**
-     * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).
-     * @param op Op code of the message to be sent.
-     * @returns true if sending message won't exceed rate limit or padding; false if it will
-     */
-    private isPacketRateLimited;
-    /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
-    private updateWsRateLimit;
-    /**
-     * Handles "Invalid Session" packet from Discord. Will attempt to resume a connection if Discord allows it and there is already a sessionId and sequence.
-     * Otherwise, will send a new identify payload. https://discord.com/developers/docs/topics/gateway#invalid-session
-     * @param resumable Whether or not Discord has said that the connection as able to be resumed.
-     */
-    private handleInvalidSession;
-    /**
-     * Updates the sequence value of Discord's gateway if it's larger than the current.
-     * @param s Sequence value from Discord.
-     */
-    private updateSequence;
 }
 
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-close-event-codes */
@@ -2337,11 +2257,9 @@ export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | Gat
 
 export declare class Heartbeat {
     #private;
-    constructor(gateway: Gateway, options: Options);
+    constructor(params: Params);
     get recentTimestamp(): number | undefined;
     private checkDestroyed;
-    /** Starts the timeout for the connection to Discord. */
-    startConnectTimeout(client: ws): void;
     /** Clears heartbeat values and clears the heartbeatTimers. */
     destroy(): void;
     /**
@@ -2360,7 +2278,6 @@ export declare class Heartbeat {
     start(heartbeatTimeout: number): void;
     private clearHeartbeatTimeout;
     private clearAckTimeout;
-    clearConnectTimeout(): void;
     /**
      * Clears old heartbeat timeout and starts a new one.
      */
@@ -3187,13 +3104,6 @@ export declare type OptionalAuditEntryInfo = {
     type: string;
 };
 
-declare interface Options {
-    heartbeatIntervalOffset?: undefined | number;
-    heartbeatTimeoutSeconds?: undefined | number;
-    log: Gateway['log'];
-    handleEvent: Gateway['handleEvent'];
-}
-
 export declare type Overwrite = {
     /** role or user id */
     id: Snowflake;
@@ -3323,6 +3233,14 @@ export declare interface ParacordStartupEvent {
     shard: Gateway;
     forced?: boolean;
     resumed?: boolean;
+}
+
+declare interface Params {
+    gateway: Gateway;
+    websocket: Websocket;
+    heartbeatIntervalOffset?: undefined | number;
+    heartbeatTimeoutSeconds?: undefined | number;
+    log: Gateway['log'];
 }
 
 declare type PermissibleChannel = Pick<GuildChannel, 'id' | 'permission_overwrites'>;
@@ -3963,6 +3881,76 @@ export declare interface ServiceOptions {
     allowFallback?: boolean;
 }
 
+export declare class Session {
+    #private;
+    constructor(params: SessionParams);
+    get connection(): undefined | ws;
+    /** Whether or not the websocket is open. */
+    get connected(): boolean;
+    /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
+    get resumable(): boolean;
+    /** Whether or not the client is currently resuming a session. */
+    get resuming(): boolean;
+    get sequence(): null | number;
+    get websocket(): undefined | Websocket;
+    get gateway(): Gateway;
+    get identity(): GatewayIdentify;
+    log: Gateway['log'];
+    emit: Gateway['emit'];
+    /**
+     * Sends a `Request Guild Members` websocket message.
+     * @param guildId Id of the guild to request members from.
+     * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
+     */
+    requestGuildMembers(options: GuildRequestMember): boolean;
+    /**
+     * Connects to Discord's event gateway.
+     * @param _websocket Ignore. For unittest dependency injection only.
+     */
+    login: () => Promise<void>;
+    close(code: GatewayCloseCode, flushWaitTime?: number): void;
+    send: Websocket['send'];
+    destroy(): void;
+    private constructWsUrl;
+    /** Processes incoming messages from Discord's gateway.
+     * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
+     */
+    handleMessage(p: GatewayPayload): void;
+    /**
+     * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
+     * @param data From Discord.
+     */
+    private handleReady;
+    /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
+    private handleResumed;
+    /**
+     * Handles "Invalid Session" packet from Discord. Will attempt to resume a connection if Discord allows it and there is already a sessionId and sequence.
+     * Otherwise, will send a new identify payload. https://discord.com/developers/docs/topics/gateway#invalid-session
+     * @param resumable Whether or not Discord has said that the connection as able to be resumed.
+     */
+    private handleInvalidSession;
+    /**
+     * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
+     * @param data From Discord.
+     */
+    private handleHello;
+    /** Connects to gateway. */
+    private connect;
+    /** Sends a "Resume" payload to Discord's gateway. */
+    private resume;
+    /** Sends an "Identify" payload. */
+    private identify;
+    handleEvent(type: GatewayEvent | ParacordGatewayEvent, data: unknown): void;
+    /**
+     * Updates the sequence value of Discord's gateway if it's larger than the current.
+     * @param s Sequence value from Discord.
+     */
+    private updateSequence;
+    private handleClose;
+    private handleGuildMemberChunk;
+    private updateRequestMembersState;
+}
+
 export declare type SessionLimitData = {
     /** Total number of identifies application can make in this period. */
     total: number;
@@ -3973,6 +3961,15 @@ export declare type SessionLimitData = {
     /** How many shards are allowed to identify in parallel. */
     max_concurrency: number;
 };
+
+declare interface SessionParams extends Pick<GatewayOptions, 'wsUrl' | 'wsParams'> {
+    gateway: Gateway;
+    identity: GatewayIdentify;
+    log: Gateway['log'];
+    handleEvent: Gateway['handleEvent'];
+    emit: Gateway['emit'];
+    onClose: Gateway['handleClose'];
+}
 
 /** A script that spawns shards into pm2, injecting shard information into the Paracord client. */
 export declare class ShardLauncher {
@@ -4639,13 +4636,77 @@ export declare type WebhookType =
 /** Application */
 3;
 
-/** Information about the current request count and time that it should reset in relation to Discord rate limits. https://discord.com/developers/docs/topics/gateway#rate-limiting */
-export declare type WebsocketRateLimitCache = {
-    /** Timestamp in ms when the request limit is expected to reset. */
-    resetTimestamp: number;
-    /** Number of requests made since last reset. */
-    count: number;
-};
+declare class Websocket {
+    #private;
+    /** This this.#connection's heartbeat manager. */
+    get heart(): undefined | Heartbeat;
+    /**
+     * Connects to Discord's event gateway.
+     * @param _websocket Ignore. For unittest dependency injection only.
+     */
+    constructor(params: WebsocketParams);
+    get heartbeat(): Heartbeat;
+    private setupConnection;
+    get connection(): ws;
+    /** Whether or not the websocket is open. */
+    get connected(): boolean;
+    close(code: GatewayCloseCode, flushWaitTime?: number): void;
+    destroy(): void;
+    /** Assigned to websocket `onopen`. */
+    private handleWsOpen;
+    /** Starts the timeout for the connection to Discord. */
+    private startConnectTimeout;
+    private clearConnectTimeout;
+    /** Assigned to websocket `onerror`. */
+    private handleWsError;
+    /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
+     * @param event Object containing information about the close.
+     */
+    private handleWsClose;
+    /** Assigned to websocket `onmessage`. */
+    private handleWsMessage;
+    private decompress;
+    /** Processes incoming messages from Discord's gateway.
+     * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
+     */
+    private handleMessage;
+    /**
+     * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
+     * @param data From Discord.
+     */
+    private handleHello;
+    handleEvent(type: GatewayEvent | ParacordGatewayEvent, data: unknown): void;
+    /** Proxy for inline heartbeat checking. */
+    private checkHeartbeatInline;
+    sendHeartbeat(): void;
+    /**
+     * Sends a websocket message to Discord.
+     * @param op Gateway Opcode https://discord.com/developers/docs/topics/opcodes-and-status-codes#gateway-gateway-opcodes
+     * @param data Data of the message.
+     * @returns true if the packet was sent; false if the packet was not due to rate limiting or websocket not open.
+     */
+    send(op: typeof GATEWAY_OP_CODES['HEARTBEAT'], data: number): boolean;
+    send(op: typeof GATEWAY_OP_CODES['IDENTIFY'], data: GatewayIdentify): boolean;
+    send(op: typeof GATEWAY_OP_CODES['RESUME'], data: Resume): boolean;
+    send(op: typeof GATEWAY_OP_CODES['REQUEST_GUILD_MEMBERS'], data: GuildRequestMember): boolean;
+    send(op: typeof GATEWAY_OP_CODES['GATEWAY_PRESENCE_UPDATE'], data: GatewayPresenceUpdate): boolean;
+    /**
+     * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).
+     * @param op Op code of the message to be sent.
+     * @returns true if sending message won't exceed rate limit or padding; false if it will
+     */
+    private isPacketRateLimited;
+    /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
+    private updateWsRateLimit;
+    private startCloseTimeout;
+}
+
+declare interface WebsocketParams {
+    ws: typeof ws;
+    session: Session;
+    url: string;
+    onClose: Session['handleClose'];
+}
 
 export declare type WelcomeScreen = {
     /** the server description shown in the welcome screen */

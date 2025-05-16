@@ -34,14 +34,6 @@ export interface GatewayOptions {
   version?: undefined | number;
 }
 
-/** Information about the current request count and time that it should reset in relation to Discord rate limits. https://discord.com/developers/docs/topics/gateway#rate-limiting */
-export type WebsocketRateLimitCache = {
-  /** Timestamp in ms when the request limit is expected to reset. */
-  resetTimestamp: number;
-  /** Number of requests made since last reset. */
-  count: number;
-}
-
 export type IdentityOptions = {
   /** authentication token */
   token?: undefined | string;

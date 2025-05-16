@@ -1,90 +1,29 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const util_1 = require("util");
-const ws_1 = __importDefault(require("ws"));
-const zlib_1 = __importDefault(require("zlib"));
 const constants_1 = require("../../constants");
 const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 /** A client to handle a Discord gateway connection. */
 class Gateway {
-    #heartbeat = undefined;
-    /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
-    #online = false;
-    /** Whether or not the client is currently resuming a session. */
-    #resuming = false;
-    #closing = false;
-    #closeTimeout = undefined;
     #options;
     /** Emitter for gateway and Api events. Will create a default if not provided via the options. */
     #emitter;
     /** Object passed to Discord when identifying. */
     #identity;
-    #membersRequestCounter = 0;
-    #requestingMembersStateMap = new Map();
-    /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
-    flushInterval = null;
-    #eventsDuringFlush = null;
-    #lastEventTimestamp = 0;
-    /** The amount of events received during a resume. */
-    #eventsDuringResume = 0;
-    /** Other gateway heartbeat checks. */
-    #checkSiblingHeartbeats;
-    // WEBSOCKET
-    /** Websocket used to connect to gateway. */
-    #websocket;
-    #wsId = 0;
-    /** Websocket URL instructed to connect to. Also used to indicate it the client has an open websocket. */
-    #wsUrl;
-    /** From Discord - Url to reconnect to. */
-    #resumeUrl;
-    #wsParams;
-    #wsRateLimitCache = {
-        resetTimestamp: 0,
-        count: 0,
-    };
-    /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
-    #sequence = null;
-    /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
-    #sessionId;
-    #flushWaitTime = 0;
-    #flushInterval = undefined;
-    #zlibInflate = null;
-    #inflateBuffer = [];
-    #textDecoder = new util_1.TextDecoder();
+    #session = null;
     /**
      * Creates a new Discord gateway handler.
      * @param token Discord token. Will be coerced into a bot token.
      * @param options Optional parameters for this handler.
      */
     constructor(token, options) {
-        const { emitter, identity, identity: { shard }, wsUrl, wsParams, heartbeatIntervalOffset, checkSiblingHeartbeats, heartbeatTimeoutSeconds, } = options;
+        const { emitter, identity, identity: { shard }, } = options;
         if (shard !== undefined && (shard[0] === undefined || shard[1] === undefined)) {
             throw Error(`Invalid shard provided to gateway. shard id: ${shard[0]} | shard count: ${shard[1]}`);
         }
-        this.#heartbeat = new structures_1.Heartbeat(this, {
-            heartbeatIntervalOffset,
-            heartbeatTimeoutSeconds,
-            log: this.log.bind(this),
-            handleEvent: this.handleEvent.bind(this),
-        });
         this.#identity = new structures_1.GatewayIdentify((0, utils_1.coerceTokenToBotLike)(token), identity);
         this.#options = options;
         this.#emitter = emitter;
-        this.#checkSiblingHeartbeats = checkSiblingHeartbeats;
-        this.#wsUrl = wsUrl;
-        this.#wsParams = wsParams;
-    }
-    /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
-    get resumable() {
-        return this.#sessionId !== undefined && this.#sequence !== null && this.#resumeUrl !== undefined;
-    }
-    /** Whether or not the client is currently resuming a session. */
-    get resuming() {
-        return this.#resuming;
     }
     /** [ShardID, ShardCount] to identify with; `undefined` if not sharding. */
     get shard() {
@@ -94,27 +33,32 @@ class Gateway {
     get id() {
         return this.#identity.shard !== undefined ? this.#identity.shard[0] : 0;
     }
-    /** Whether or not the websocket is open. */
-    get connected() {
-        return this.#websocket?.ws.readyState === ws_1.default.OPEN;
-    }
-    /** Whether or not this client should be considered 'online', connected to the gateway and receiving events. */
-    get online() {
-        return this.#online;
-    }
-    /** This gateway's active websocket connection. */
-    get ws() {
-        return this.#websocket?.ws;
-    }
-    /** This client's heartbeat manager. */
-    get heart() {
-        return this.#heartbeat;
-    }
     get compression() {
         return !!this.#identity.compress;
     }
     setCompression(compress) {
         this.#identity.compress = compress;
+    }
+    /** This gateway's active websocket connection. */
+    get ws() {
+        return this.#session?.connection;
+    }
+    /** Whether or not the websocket is open. */
+    get connected() {
+        return !!this.#session?.connected;
+    }
+    get resumable() {
+        return !!this.#session?.resumable;
+    }
+    /** Whether or not the client is currently resuming a session. */
+    get resuming() {
+        return !!this.#session?.resuming;
+    }
+    get options() {
+        return this.#options;
+    }
+    get heartbeat() {
+        return this.#session?.websocket?.heartbeat;
     }
     /*
      ********************************
@@ -157,125 +101,39 @@ class Gateway {
      * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
      */
     requestGuildMembers(options) {
-        if (options.nonce === undefined) {
-            options.nonce = `${options.guild_id}-${++this.#membersRequestCounter}`;
-        }
-        this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: [] });
-        void this.handleEvent('REQUEST_GUILD_MEMBERS', { gateway: this, options });
-        return this.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
+        return this.#session?.requestGuildMembers(options) ?? false;
     }
     updatePresence(presence) {
         void this.handleEvent('PRESENCE_UPDATE', { gateway: this, presence });
-        const sent = this.send(constants_1.GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, presence);
+        if (!this.#session) {
+            this.log('WARNING', 'Session is null when updating presence.');
+            return false;
+        }
+        const sent = this.#session.send(constants_1.GATEWAY_OP_CODES.GATEWAY_PRESENCE_UPDATE, presence);
         if (sent)
             this.#identity.updatePresence(presence);
         return sent;
     }
-    /**
-     * Connects to Discord's event gateway.
-     * @param _websocket Ignore. For unittest dependency injection only.
-     */
-    login = async (_websocket = ws_1.default) => {
-        if (this.#websocket !== undefined) {
-            throw Error('Client is already initialized.');
-        }
-        if (this.#identity.compress) {
-            this.#inflateBuffer = [];
-            const inflate = zlib_1.default.createInflate({
-                chunkSize: 65535,
-                flush: zlib_1.default.constants.Z_SYNC_FLUSH,
-            });
-            inflate.on('data', (chunk) => {
-                this.#inflateBuffer.push(chunk);
-            });
-            inflate.on('error', (error) => {
-                this.log('ERROR', error.stack ?? error.message);
-            });
-            this.#zlibInflate = inflate;
-        }
-        try {
-            const wsUrl = this.constructWsUrl();
-            this.log('INFO', `${this.#resumeUrl ? 'Resuming on' : 'Connecting to'} url: ${wsUrl}`);
-            this.#heartbeat = new structures_1.Heartbeat(this, {
-                heartbeatIntervalOffset: this.#options.heartbeatIntervalOffset,
-                heartbeatTimeoutSeconds: this.#options.heartbeatTimeoutSeconds,
+    login = async () => {
+        if (!this.#session) {
+            this.#session = new structures_1.Session({
+                gateway: this,
+                identity: this.#identity,
+                wsUrl: this.#options.wsUrl,
+                wsParams: this.#options.wsParams,
                 log: this.log.bind(this),
                 handleEvent: this.handleEvent.bind(this),
+                emit: this.emit.bind(this),
+                onClose: this.handleClose.bind(this),
             });
-            const client = new _websocket(wsUrl, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
-            client.binaryType = 'arraybuffer';
-            this.#heartbeat.startConnectTimeout(client);
-            this.#websocket = {
-                ws: client,
-                id: ++this.#wsId,
-            };
-            this.#websocket.ws.onopen = this.handleWsOpen.bind(this, this.#websocket.id);
-            this.#websocket.ws.onclose = this.handleWsClose.bind(this, this.#websocket.id);
-            this.#websocket.ws.onerror = this.handleWsError.bind(this, this.#websocket.id);
-            this.#websocket.ws.onmessage = this.handleWsMessage.bind(this, this.#websocket.id);
         }
-        catch (err) {
-            if ((0, utils_1.isApiError)(err)) {
-                /* eslint-disable-next-line no-console */
-                console.error(err.response?.data?.message); // TODO: emit
-            }
-            else {
-                /* eslint-disable-next-line no-console */
-                console.error(err); // TODO: emit
-            }
-            this.#websocket = undefined;
-            this.#heartbeat?.clearConnectTimeout();
-            this.#heartbeat = undefined;
-        }
+        await this.#session?.login();
     };
-    constructWsUrl() {
-        if (!this.resumable)
-            this.#resumeUrl = undefined;
-        const endpoint = this.#resumeUrl ?? this.#wsUrl;
-        const params = { ...this.#wsParams };
-        if (this.#identity.compress) {
-            this.log('DEBUG', 'Compressing websocket connection.');
-            params.compress = 'zlib-stream';
-        }
-        return `${endpoint}?${Object.entries(params).map(([k, v]) => `${k}=${v}`).join('&')}`;
+    close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWait = 0) {
+        this.#session?.close(code, flushWait);
     }
-    /**
-     * Closes the connection.
-     * @param reconnect Whether to reconnect after closing.
-     */
-    close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWaitTime = null) {
-        if (this.#closing) {
-            this.log('WARNING', 'Websocket is already closing.');
-            return;
-        }
-        if (this.#websocket?.ws.readyState === ws_1.default.OPEN) {
-            this.log('DEBUG', `Closing websocket. Code: ${code}.${flushWaitTime ? ` Waiting for ${flushWaitTime}ms to flush events.` : ''}`);
-            this.#flushWaitTime = flushWaitTime;
-            this.#heartbeat?.destroy();
-            this.#heartbeat = undefined;
-            this.#closing = true;
-            this.#websocket?.ws.close(code);
-        }
-        else if (this.#websocket) {
-            this.log('WARNING', `Websocket is already ${this.#websocket.ws.readyState === ws_1.default.CLOSED ? 'closed' : 'closing'}.`);
-            if (!this.#closeTimeout) {
-                this.#closeTimeout = this.startCloseTimeout();
-            }
-        }
-        else {
-            this.log('WARNING', 'Websocket is undefined when closing.');
-        }
-    }
-    startCloseTimeout() {
-        return setTimeout(() => {
-            if (!this.#websocket) {
-                this.log('ERROR', 'Websocket undefined during close timeout. This shouldn\'t ever happen.');
-            }
-            else if (this.#wsId === this.#websocket?.id) {
-                this.log('ERROR', 'Websocket did not close in time. Forcing close.');
-                this.handleWsClose(this.#wsId, { code: constants_1.GATEWAY_CLOSE_CODES.UNKNOWN }, true);
-            }
-        }, constants_1.MINUTE_IN_MILLISECONDS);
+    checkIfShouldHeartbeat() {
+        return this.#session?.websocket?.heartbeat.checkIfShouldHeartbeat();
     }
     /**
      * Handles emitting events from Discord. Will first pass through `this.#emitter.handleEvent` function if one exists.
@@ -283,124 +141,9 @@ class Gateway {
      * @param data Data of the event from Discord.
      */
     handleEvent(type, data) {
-        if (type === 'GUILD_MEMBERS_CHUNK')
-            this.handleGuildMemberChunk(data);
         void this.#emitter.handleEvent(type, data, this);
     }
-    handleGuildMemberChunk(data) {
-        const { nonce, not_found, chunk_count, chunk_index, } = data;
-        if (nonce) {
-            if (not_found) {
-                this.#requestingMembersStateMap.delete(nonce);
-            }
-            else {
-                this.updateRequestMembersState(nonce, chunk_count, chunk_index);
-            }
-        }
-    }
-    updateRequestMembersState(nonce, chunkCount, chunkIndex) {
-        const guildChunkState = this.#requestingMembersStateMap.get(nonce);
-        if (guildChunkState) {
-            const { receivedIndexes } = guildChunkState;
-            receivedIndexes.push(chunkIndex);
-            if (receivedIndexes.length === chunkCount) {
-                this.#requestingMembersStateMap.delete(nonce);
-            }
-        }
-    }
-    /*
-     ********************************
-     ******* WEBSOCKET - OPEN *******
-     ********************************
-     */
-    /** Assigned to websocket `onopen`. */
-    handleWsOpen = (wsId) => {
-        if (this.#websocket?.id !== wsId) {
-            this.log('ERROR', `Websocket id mismatch on open. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
-            return;
-        }
-        this.log('DEBUG', 'Websocket open.');
-        this.#wsRateLimitCache.count = 0;
-        this.emit('GATEWAY_OPEN', this);
-    };
-    /*
-     ********************************
-     ******* WEBSOCKET - ERROR ******
-     ********************************
-     */
-    /** Assigned to websocket `onerror`. */
-    handleWsError = (wsId, err) => {
-        if (this.#websocket?.id !== wsId) {
-            this.log('ERROR', `Websocket id mismatch on error. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
-            return;
-        }
-        this.log('ERROR', `Websocket error. Message: ${err.message}`);
-    };
-    /*
-     ********************************
-     ****** WEBSOCKET - CLOSE *******
-     ********************************
-     */
-    /** Assigned to websocket `onclose`. Cleans up and attempts to re-connect with a fresh connection after waiting some time.
-     * @param event Object containing information about the close.
-     */
-    handleWsClose = (wsId, { code }, unbind) => {
-        if (this.#websocket?.id !== wsId) {
-            this.log('ERROR', `Websocket id mismatch on close. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
-            return;
-        }
-        this.#closing = true;
-        this.log('DEBUG', `Websocket closed. Code: ${code}.`);
-        this.#heartbeat?.destroy();
-        this.#heartbeat = undefined;
-        if (unbind) {
-            this.#websocket.ws.onclose = null;
-            this.#websocket.ws.onerror = null;
-            this.#websocket.ws.onmessage = null;
-            this.#websocket.ws.onopen = null;
-            this.#websocket.ws.removeAllListeners();
-        }
-        if (this.#flushWaitTime === null || unbind) {
-            this.cleanup(code);
-            return;
-        }
-        this.waitForFlush(this.#flushWaitTime).finally(() => {
-            this.log('DEBUG', `Received ${this.#eventsDuringFlush} events during close.`);
-            this.cleanup(code);
-        });
-    };
-    async waitForFlush(waitTime) {
-        this.log('DEBUG', 'Waiting for events to flush.');
-        const lastEventTimestamp = this.#lastEventTimestamp;
-        await new Promise((resolve) => {
-            setTimeout(() => {
-                this.#flushInterval = setInterval(() => {
-                    if (this.#lastEventTimestamp === lastEventTimestamp) {
-                        clearInterval(this.#flushInterval);
-                        resolve(null);
-                    }
-                }, constants_1.SECOND_IN_MILLISECONDS);
-            }, waitTime);
-        });
-    }
-    cleanup(code) {
-        this.log('DEBUG', 'Cleaning up websocket.');
-        clearTimeout(this.#closeTimeout);
-        clearInterval(this.#flushInterval);
-        this.#websocket = undefined;
-        this.#heartbeat = undefined;
-        this.#online = false;
-        this.#resuming = false;
-        this.#flushWaitTime = null;
-        this.#closing = false;
-        this.#eventsDuringResume = 0;
-        this.#eventsDuringFlush = null;
-        this.#membersRequestCounter = 0;
-        this.#requestingMembersStateMap = new Map();
-        this.#wsRateLimitCache = {
-            resetTimestamp: 0,
-            count: 0,
-        };
+    handleClose(code) {
         const shouldReconnect = this.handleCloseCode(code);
         const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
         this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
@@ -533,278 +276,9 @@ class Gateway {
         this.log(level, `Websocket closed. Code: ${code}. Reason: ${message}`);
         return shouldReconnect;
     }
-    /** Removes current session information. */
     clearSession() {
-        this.#sessionId = undefined;
-        this.#resumeUrl = undefined;
-        this.#sequence = null;
-        this.#wsUrl = this.#options.wsUrl;
-        this.log('DEBUG', 'Session cleared.');
-    }
-    /*
-     ********************************
-     ****** WEBSOCKET MESSAGE *******
-     ********************************
-     */
-    /** Assigned to websocket `onmessage`. */
-    // eslint-disable-next-line arrow-body-style
-    handleWsMessage = (wsId, { data }) => {
-        this.#lastEventTimestamp = Date.now();
-        if (this.#websocket?.id !== wsId) {
-            this.log('WARNING', `Websocket id mismatch. Expected: ${this.#websocket?.id} | Received: ${wsId}`);
-            return;
-        }
-        if (this.#zlibInflate && data instanceof ArrayBuffer) {
-            void this.decompress(data);
-            return;
-        }
-        let parsed;
-        try {
-            parsed = JSON.parse(data.toString());
-            const { 
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            t: _, s: __, op: ___, d: ____, } = parsed;
-        }
-        catch (e) {
-            this.log('ERROR', `Failed to parse message. Message: ${data}`);
-            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
-        }
-        this.handleMessage(parsed);
-    };
-    async decompress(data) {
-        const decompressable = new Uint8Array(data);
-        const flush = decompressable.length >= 4
-            && decompressable.at(-4) === 0x00
-            && decompressable.at(-3) === 0x00
-            && decompressable.at(-2) === 0xff
-            && decompressable.at(-1) === 0xff;
-        const doneWriting = new Promise((resolve) => {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            this.#zlibInflate.write(decompressable, 'binary', (error) => {
-                if (error) {
-                    this.log('ERROR', error.stack ?? error.message);
-                }
-                resolve();
-            });
-        });
-        if (!flush)
-            return;
-        await doneWriting;
-        const result = Buffer.concat(this.#inflateBuffer);
-        this.#inflateBuffer = [];
-        this.handleMessage(JSON.parse(this.#textDecoder.decode(result)));
-    }
-    /** Processes incoming messages from Discord's gateway.
-     * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
-     */
-    handleMessage(p) {
-        const { t: type, s: sequence, op: opCode, d: data, } = p;
-        this.updateSequence(sequence);
-        if (this.#resuming && (opCode !== constants_1.GATEWAY_OP_CODES.DISPATCH || (type !== 'RESUMED' && type !== 'READY'))) {
-            ++this.#eventsDuringResume;
-        }
-        if (this.#closing) {
-            if (this.#eventsDuringFlush === null)
-                this.#eventsDuringFlush = 0;
-            ++this.#eventsDuringFlush;
-            this.log('DEBUG', `Received message after close. op: ${opCode} | type: ${type}`);
-            return;
-        }
-        switch (opCode) {
-            case constants_1.GATEWAY_OP_CODES.DISPATCH:
-                if (type === 'READY') {
-                    this.handleReady(data);
-                }
-                else if (type === 'RESUMED') {
-                    this.handleResumed();
-                }
-                else if (type !== null) {
-                    // back pressure may cause the interval to occur too late, hence this check
-                    this.checkHeartbeatInline();
-                    void this.handleEvent(type, data);
-                }
-                else {
-                    this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
-                }
-                break;
-            case constants_1.GATEWAY_OP_CODES.HELLO:
-                this.handleHello(data);
-                break;
-            case constants_1.GATEWAY_OP_CODES.HEARTBEAT_ACK:
-                this.#heartbeat?.ack();
-                break;
-            case constants_1.GATEWAY_OP_CODES.HEARTBEAT:
-                this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.#sequence);
-                break;
-            case constants_1.GATEWAY_OP_CODES.INVALID_SESSION:
-                this.handleInvalidSession(data);
-                break;
-            case constants_1.GATEWAY_OP_CODES.RECONNECT:
-                this.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
-                break;
-            default:
-                this.log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
-        }
-    }
-    /** Proxy for inline heartbeat checking. */
-    checkHeartbeatInline() {
-        if (this.#checkSiblingHeartbeats) {
-            this.#checkSiblingHeartbeats.forEach((f) => f());
-        }
-        else {
-            this.#heartbeat?.checkIfShouldHeartbeat();
-        }
-    }
-    /**
-     * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
-     * @param data From Discord.
-     */
-    handleReady(data) {
-        this.log('DEBUG', `Received Ready. Session ID: ${data.session_id}.`);
-        this.#resumeUrl = data.resume_gateway_url;
-        this.#sessionId = data.session_id;
-        this.#online = true;
-        void this.handleEvent('READY', data);
-    }
-    /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
-    handleResumed() {
-        this.log('INFO', `Replay finished after ${this.#eventsDuringResume} events. Resuming events.`);
-        this.#online = true;
-        this.#resuming = false;
-        void this.handleEvent('RESUMED', null);
-    }
-    /**
-     * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
-     * @param data From Discord.
-     */
-    handleHello(data) {
-        if (!this.#heartbeat) {
-            this.log('FATAL', 'Heartbeat is undefined when handling hello.');
-            return;
-        }
-        this.#heartbeat.clearConnectTimeout();
-        this.log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
-        this.#heartbeat.start(data.heartbeat_interval);
-        this.connect(this.resumable);
-        void this.handleEvent('HELLO', data);
-    }
-    /** Connects to gateway. */
-    connect(resume) {
-        if (resume) {
-            this.resume();
-        }
-        else {
-            this.identify();
-        }
-    }
-    /** Sends a "Resume" payload to Discord's gateway. */
-    resume() {
-        this.log('DEBUG', `Attempting to resume connection. Session Id: ${this.#sessionId}. Sequence: ${this.#sequence}`);
-        const { token } = this.#identity;
-        const sequence = this.#sequence;
-        const sessionId = this.#sessionId;
-        if (sessionId !== undefined && sequence !== null) {
-            this.#resuming = true;
-            this.#eventsDuringResume = 0;
-            const payload = {
-                token,
-                session_id: sessionId,
-                seq: sequence,
-            };
-            void this.handleEvent('GATEWAY_RESUME', payload);
-            this.send(constants_1.GATEWAY_OP_CODES.RESUME, payload);
-        }
-        else {
-            this.log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
-        }
-    }
-    /** Sends an "Identify" payload. */
-    identify() {
-        if (this.#sequence !== null) {
-            this.log('WARNING', `Unexpected sequence ${this.#sequence} when identifying.`);
-            this.#sequence = null;
-        }
-        const [shardId, shardCount] = this.shard ?? [0, 1];
-        this.log('INFO', `Identifying as shard: ${shardId}/${shardCount - 1} (0-indexed)`);
-        this.emit('GATEWAY_IDENTIFY', this);
-        this.send(constants_1.GATEWAY_OP_CODES.IDENTIFY, this.#identity.toJSON());
-    }
-    sendHeartbeat() {
-        this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.#sequence);
-    }
-    send(op, data) {
-        const payload = { op, d: data };
-        if (this.isPacketRateLimited(op)) {
-            this.log('WARNING', 'Failed to send payload. Rate limited.', { payload });
-            return false;
-        }
-        if (this.#websocket?.ws.readyState !== ws_1.default.OPEN) {
-            this.log('ERROR', 'Failed to send payload. Websocket not open.', { payload });
-            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
-            return false;
-        }
-        this.#websocket.ws.send(JSON.stringify(payload));
-        this.updateWsRateLimit();
-        this.log('DEBUG', 'Sent payload.', { payload });
-        return true;
-    }
-    /**
-     * Returns whether or not the message to be sent will exceed the rate limit or not, taking into account padded buffers for high priority packets (e.g. heartbeats, resumes).
-     * @param op Op code of the message to be sent.
-     * @returns true if sending message won't exceed rate limit or padding; false if it will
-     */
-    isPacketRateLimited(op) {
-        if (op === constants_1.GATEWAY_OP_CODES.HEARTBEAT || op === constants_1.GATEWAY_OP_CODES.RESUME) {
-            return false;
-        }
-        if (new Date().getTime() > this.#wsRateLimitCache.resetTimestamp) {
-            return false;
-        }
-        if (this.#wsRateLimitCache.count <= constants_1.GATEWAY_REQUEST_BUFFER) {
-            return false;
-        }
-        return true;
-    }
-    /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
-    updateWsRateLimit() {
-        if (this.#wsRateLimitCache.count === constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE) {
-            const now = new Date().getTime();
-            this.#wsRateLimitCache.resetTimestamp = now + constants_1.MINUTE_IN_MILLISECONDS;
-        }
-        --this.#wsRateLimitCache.count;
-    }
-    /**
-     * Handles "Invalid Session" packet from Discord. Will attempt to resume a connection if Discord allows it and there is already a sessionId and sequence.
-     * Otherwise, will send a new identify payload. https://discord.com/developers/docs/topics/gateway#invalid-session
-     * @param resumable Whether or not Discord has said that the connection as able to be resumed.
-     */
-    handleInvalidSession(resumable) {
-        this.log('WARNING', `Received Invalid Session packet. Resumable: ${resumable}`);
-        if (!resumable) {
-            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
-        }
-        else {
-            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
-        }
-        void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
-    }
-    /**
-     * Updates the sequence value of Discord's gateway if it's larger than the current.
-     * @param s Sequence value from Discord.
-     */
-    updateSequence(s) {
-        if (this.#sequence === null) {
-            this.#sequence = s;
-        }
-        else if (s !== null) {
-            if (s !== this.#sequence + 1) {
-                this.log('WARNING', `Non-consecutive sequence (${this.#sequence} -> ${s})`);
-            }
-            if (s > this.#sequence) {
-                this.#sequence = s;
-            }
-        }
+        this.#session?.destroy();
+        this.#session = null;
     }
 }
 exports.default = Gateway;

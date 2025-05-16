@@ -399,7 +399,7 @@ export default class Paracord extends EventEmitter {
       throw Error(`duplicate shard id ${gateway.id}. shard ids must be unique`);
     }
 
-    this.#gatewayHeartbeats.push(() => gateway.heart?.checkIfShouldHeartbeat());
+    this.#gatewayHeartbeats.push(() => gateway.checkIfShouldHeartbeat());
 
     this.#gateways.set(gateway.id, gateway);
     this.upsertGatewayQueue(gateway);
