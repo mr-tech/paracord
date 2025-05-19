@@ -106,7 +106,9 @@ class Paracord extends events_1.EventEmitter {
                 this.handleGatewayReady(data);
                 break;
             case 'RESUMED':
-                this.completeShardStartup({ shard: gateway, resumed: true });
+                if (!this.isStartingGateway(gateway)) {
+                    this.completeShardStartup({ shard: gateway, resumed: true });
+                }
                 break;
             default:
         }
