@@ -119,6 +119,10 @@ export default class Session {
     return this.#identity;
   }
 
+  public get isFetchingMembers(): boolean {
+    return this.#requestingMembersStateMap.size > 0;
+  }
+
   public log: Gateway['log'] = (...args: Parameters<Gateway['log']>) => this.#log(...args);
 
   public emit: Gateway['emit'] = (...args: Parameters<Gateway['emit']>) => this.#emit(...args);

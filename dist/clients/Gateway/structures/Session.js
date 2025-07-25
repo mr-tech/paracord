@@ -70,6 +70,9 @@ class Session {
     get identity() {
         return this.#identity;
     }
+    get isFetchingMembers() {
+        return this.#requestingMembersStateMap.size > 0;
+    }
     log = (...args) => this.#log(...args);
     emit = (...args) => this.#emit(...args);
     /**

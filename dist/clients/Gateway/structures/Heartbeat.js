@@ -77,16 +77,18 @@ class Heart {
         if (this.checkDestroyed())
             return;
         this.clearAckTimeout();
-        this.#isAcknowledged = true;
-        if (this.#previousTimestamp !== undefined) {
-            const now = new Date().getTime();
-            const latency = now - this.#previousTimestamp;
-            this.#log('DEBUG', `Heartbeat acknowledged. Latency: ${latency}ms.`);
-            void this.#websocket.handleEvent('HEARTBEAT_ACK', { latency, gateway: this.#gateway });
-            this.#previousTimestamp = undefined;
-        }
-        else {
-            this.#log('WARNING', 'Previous heartbeat timestamp is undefined.');
+        if (!this.#isAcknowledged) {
+            this.#isAcknowledged = true;
+            if (this.#previousTimestamp !== undefined) {
+                const now = new Date().getTime();
+                const latency = now - this.#previousTimestamp;
+                this.#log('DEBUG', `Heartbeat acknowledged. Latency: ${latency}ms.`);
+                void this.#websocket.handleEvent('HEARTBEAT_ACK', { latency, gateway: this.#gateway });
+                this.#previousTimestamp = undefined;
+            }
+            else {
+                this.#log('WARNING', 'Previous heartbeat timestamp is undefined.');
+            }
         }
     }
     /**
@@ -136,13 +138,19 @@ class Heart {
             return;
         if (!this.#isAcknowledged) {
             if (this.#gateway.connected) {
-                this.#log('ERROR', 'Heartbeat not acknowledged. Closing connection.');
-                this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 3 * constants_1.SECOND_IN_MILLISECONDS);
+                if (this.#gateway.isFetchingMembers) {
+                    this.#log('WARNING', 'Heartbeat not acknowledged but fetching members. Will retry later.');
+                }
+                else {
+                    this.#log('ERROR', 'Heartbeat not acknowledged. Closing connection.');
+                    this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 3 * constants_1.SECOND_IN_MILLISECONDS);
+                    return;
+                }
             }
             else {
                 this.#log('INFO', 'Heartbeat not acknowledged but connection is already closed.');
+                return;
             }
-            return;
         }
         if (!this.#ackTimeout && this.#ackWaitTime) {
             this.#ackTimeout = setTimeout(this.checkForAck, this.#intervalTime + this.#ackWaitTime);

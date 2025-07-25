@@ -60,6 +60,9 @@ class Gateway {
     get heartbeat() {
         return this.#session?.websocket?.heartbeat;
     }
+    get isFetchingMembers() {
+        return !!this.#session?.isFetchingMembers;
+    }
     /*
      ********************************
      *********** INTERNAL ***********

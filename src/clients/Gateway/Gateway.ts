@@ -89,6 +89,10 @@ export default class Gateway {
     return this.#session?.websocket?.heartbeat;
   }
 
+  public get isFetchingMembers(): boolean {
+    return !!this.#session?.isFetchingMembers;
+  }
+
   /*
    ********************************
    *********** INTERNAL ***********

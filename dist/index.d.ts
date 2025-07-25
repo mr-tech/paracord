@@ -1428,6 +1428,7 @@ export declare class Gateway {
     get resuming(): boolean;
     get options(): GatewayOptions;
     get heartbeat(): Heartbeat | undefined;
+    get isFetchingMembers(): boolean;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -3895,6 +3896,7 @@ export declare class Session {
     get websocket(): undefined | Websocket;
     get gateway(): Gateway;
     get identity(): GatewayIdentify;
+    get isFetchingMembers(): boolean;
     log: Gateway['log'];
     emit: Gateway['emit'];
     /**
