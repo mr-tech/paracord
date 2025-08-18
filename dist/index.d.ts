@@ -501,7 +501,7 @@ export declare type GatewayCloseEvent = {
     gateway: Gateway;
 };
 
-export declare type GatewayEvent = GatewayDispatchEvents[keyof GatewayDispatchEvents];
+export declare type GatewayEvent = `${GatewayDispatchEvents}` | 'HELLO' | 'INVALID_SESSION';
 
 export declare type GatewayHeartbeatAckEvent = {
     latency: number;

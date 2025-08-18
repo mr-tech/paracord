@@ -8,7 +8,7 @@ import { Heartbeat } from './structures';
 import type { EventHandler } from '../../@types';
 import type Gateway from './Gateway';
 
-export type GatewayEvent = GatewayDispatchEvents[keyof GatewayDispatchEvents];
+export type GatewayEvent = `${GatewayDispatchEvents}` | 'HELLO' | 'INVALID_SESSION';
 
 export type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY'
 | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK' | 'REQUEST_GUILD_MEMBERS';
