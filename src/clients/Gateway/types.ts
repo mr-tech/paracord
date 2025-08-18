@@ -1,13 +1,14 @@
+import {
+  GatewayDispatchEvents,
+  GatewayIdentifyProperties, GatewayPresenceUpdateData, GatewayRequestGuildMembersData, GatewayURLQuery,
+} from 'discord-api-types/v10';
+
 import { Heartbeat } from './structures';
 
 import type { EventHandler } from '../../@types';
-import type {
-  GatewayPresenceUpdate,
-  GatewayURLQueryStringParam,
-  GuildRequestMember,
-  IdentifyConnectionProperties,
-} from '../../discord';
 import type Gateway from './Gateway';
+
+export type GatewayEvent = GatewayDispatchEvents[keyof GatewayDispatchEvents];
 
 export type ParacordGatewayEvent = 'DEBUG' | 'GATEWAY_OPEN' | 'GATEWAY_CLOSE' | 'GATEWAY_RESUME' | 'GATEWAY_IDENTIFY'
 | 'HEARTBEAT_SENT' | 'HEARTBEAT_ACK' | 'GUILD_MEMBERS_CHUNK' | 'REQUEST_GUILD_MEMBERS';
@@ -23,7 +24,7 @@ export interface GatewayOptions {
   /** Websocket url to connect to. */
   wsUrl: string;
 
-  wsParams: GatewayURLQueryStringParam;
+  wsParams: GatewayURLQuery;
   /** Time in seconds subtracted from the heartbeat interval. Useful for applications that tread a thin line between timeouts. */
   heartbeatIntervalOffset?: undefined | number;
   /** How long to wait after a heartbeat ack before timing out the shard. */
@@ -42,7 +43,7 @@ export type IdentityOptions = {
   shard?: undefined | [number, number]; // (shardId, numShards);
 
   /** information about the client and how it's connecting */
-  properties?: undefined | IdentifyConnectionProperties;
+  properties?: undefined | GatewayIdentifyProperties;
 
   /** whether this connection supports compression of packets */
   compress?: undefined | boolean; // false
@@ -51,7 +52,7 @@ export type IdentityOptions = {
   largeThreshold?: undefined | number; // 50
 
   /** presence structure for initial presence information */
-  presence?: undefined | GatewayPresenceUpdate;
+  presence?: undefined | GatewayPresenceUpdateData;
 
   /** enables dispatching of guild subscription events (presence and typing events) */
   guildSubscriptions?: undefined | boolean; // true
@@ -77,6 +78,6 @@ export type GatewayHeartbeatAckEvent = {
 }
 
 export type GatewayRequestMembersEvent = {
-  options: GuildRequestMember;
+  options: GatewayRequestGuildMembersData;
   gateway: Gateway;
 }

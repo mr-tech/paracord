@@ -1,8 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.shortMethod = exports.stripLeadingSlash = exports.isApiError = exports.isObject = exports.constructGuildIcon = exports.constructUserAvatarUrl = exports.computeGuildPerms = exports.computeChannelPerms = exports.coerceTokenToBotLike = exports.timestampFromSnowflake = exports.millisecondsFromNow = exports.timestampNMillisecondsInFuture = exports.timestampNSecondsInFuture = exports.clone = void 0;
+const v10_1 = require("discord-api-types/v10");
 const constants_1 = require("./constants");
-const discord_1 = require("./discord");
 /**
  * Returns a new object that is a clone of the original.
  * @param object Object to clone.
@@ -65,8 +65,8 @@ exports.coerceTokenToBotLike = coerceTokenToBotLike;
  */
 function computeChannelPerms({ member, guild, channel, stopOnOwnerAdmin = true, }) {
     const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
-    if (stopOnOwnerAdmin && guildPerms & discord_1.PERMISSIONS.ADMINISTRATOR) {
-        return discord_1.PERMISSIONS.ADMINISTRATOR;
+    if (stopOnOwnerAdmin && guildPerms & v10_1.PermissionFlagsBits.Administrator) {
+        return v10_1.PermissionFlagsBits.Administrator;
     }
     return computeChannelOverwrites(guildPerms, member, guild, channel);
 }
@@ -91,7 +91,7 @@ function computeGuildPerms({ member, guild, stopOnOwnerAdmin = true }) {
             memberRoles.push(role);
     }
     if (stopOnOwnerAdmin && guild.owner_id === member.user.id) {
-        return discord_1.PERMISSIONS.ADMINISTRATOR;
+        return v10_1.PermissionFlagsBits.Administrator;
     }
     const everyone = guildRoles.find(({ id }) => id === guild.id);
     if (everyone === undefined)

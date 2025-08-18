@@ -1,9 +1,11 @@
 import {
+  APIGuild, APIGuildChannel, APIGuildMember, APIOverwrite,
+  APIUser, ChannelType, PermissionFlagsBits, Snowflake,
+} from 'discord-api-types/v10';
+
+import {
   DISCORD_CDN_URL, DISCORD_EPOCH, OVERWRITE_ROLE_VALUE, SECOND_IN_MILLISECONDS,
 } from './constants';
-import {
-  Guild, GuildChannel, GuildMember, Overwrite, PERMISSIONS, Snowflake, User,
-} from './discord';
 
 import type { ApiError } from './clients';
 
@@ -58,9 +60,9 @@ export function coerceTokenToBotLike(token: string): string {
   return token;
 }
 
-type PermissibleMember = Pick<Required<GuildMember>, 'user' | 'roles'>;
-type PermissibleGuild = Pick<Guild, 'id' | 'owner_id' | 'roles'>;
-type PermissibleChannel = Pick<GuildChannel, 'id' | 'permission_overwrites'>;
+type PermissibleMember = Pick<Required<APIGuildMember>, 'user' | 'roles'>;
+type PermissibleGuild = Pick<APIGuild, 'id' | 'owner_id' | 'roles'>;
+type PermissibleChannel = Pick<APIGuildChannel<ChannelType>, 'id' | 'permission_overwrites'>;
 
 /**
  * Compute a member's channel-level permissions.
@@ -75,8 +77,8 @@ export function computeChannelPerms({
 }: { member: PermissibleMember; guild: PermissibleGuild; channel: PermissibleChannel; stopOnOwnerAdmin?: boolean; }): bigint {
   const guildPerms = computeGuildPerms({ member, guild, stopOnOwnerAdmin });
 
-  if (stopOnOwnerAdmin && guildPerms & PERMISSIONS.ADMINISTRATOR) {
-    return PERMISSIONS.ADMINISTRATOR;
+  if (stopOnOwnerAdmin && guildPerms & PermissionFlagsBits.Administrator) {
+    return PermissionFlagsBits.Administrator;
   }
 
   return computeChannelOverwrites(guildPerms, member, guild, channel);
@@ -104,7 +106,7 @@ export function computeGuildPerms(
   }
 
   if (stopOnOwnerAdmin && guild.owner_id === member.user.id) {
-    return PERMISSIONS.ADMINISTRATOR;
+    return PermissionFlagsBits.Administrator;
   }
 
   const everyone = guildRoles.find(({ id }) => id === guild.id);
@@ -134,8 +136,8 @@ function computeChannelOverwrites(perms: bigint, member: PermissibleMember, guil
   const { roles: memberRoles } = member;
   if (memberRoles === undefined) throw Error('no roles on member object');
 
-  const roleOverwrites: Overwrite[] = [];
-  const memberOverwrites: Overwrite[] = [];
+  const roleOverwrites: APIOverwrite[] = [];
+  const memberOverwrites: APIOverwrite[] = [];
   overwrites.forEach((o) => {
     if (o.type === OVERWRITE_ROLE_VALUE) {
       if (o.id === guild.id) {
@@ -161,7 +163,7 @@ function computeChannelOverwrites(perms: bigint, member: PermissibleMember, guil
  * @param guildId id of the guild in which the permissions are being checked.
  * @returns The new perms.
  */
-function _applyEveryoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
+function _applyEveryoneOverwrites(perms: bigint, overwrite: APIOverwrite): bigint {
   perms &= ~BigInt(overwrite.deny);
   perms |= BigInt(overwrite.allow);
   return perms;
@@ -173,7 +175,7 @@ function _applyEveryoneOverwrites(perms: bigint, overwrite: Overwrite): bigint {
  * @param overwrites Channel's overwrites.
  * @returns The new perms.
  */
-function _applyOverwrites(perms: bigint, overwrites: Overwrite[]): bigint {
+function _applyOverwrites(perms: bigint, overwrites: APIOverwrite[]): bigint {
   let deny = BigInt(0);
   let allow = BigInt(0);
 
@@ -198,7 +200,7 @@ type AvatarParams = {
  * @param user User whose avatar url to generate.
  * @param fileType File extension of the image.
  */
-export function constructUserAvatarUrl(user: Pick<User, 'id' | 'avatar'> & { discriminator?: string }, { fileType = 'jpg', animate = false }: AvatarParams = {}): string {
+export function constructUserAvatarUrl(user: Pick<APIUser, 'id' | 'avatar'> & { discriminator?: string }, { fileType = 'jpg', animate = false }: AvatarParams = {}): string {
   if (!user.avatar) {
     return `${DISCORD_CDN_URL}/embed/avatars/${(BigInt(user.id) << BigInt(22)) % BigInt(5)}.${fileType}`;
   }
@@ -215,7 +217,7 @@ export function constructUserAvatarUrl(user: Pick<User, 'id' | 'avatar'> & { dis
  * @param guild Guild whose icon url to generate.s
  * @param fileType File extension of the image.
  */
-export function constructGuildIcon(guild: Pick<Guild, 'id' | 'icon_hash'>, fileType = ''): string | undefined {
+export function constructGuildIcon(guild: Pick<APIGuild, 'id' | 'icon_hash'>, fileType = ''): string | undefined {
   if (!guild.icon_hash) return undefined;
 
   if (guild.icon_hash.startsWith('a_')) {

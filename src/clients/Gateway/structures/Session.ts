@@ -1,3 +1,7 @@
+import {
+  GatewayDispatchEvents, GatewayGuildMembersChunkDispatchData, GatewayHelloData,
+  GatewayReadyDispatchData, GatewayReceivePayload, GatewayRequestGuildMembersData, GatewayResumeData, GatewayURLQuery,
+} from 'discord-api-types/v10';
 import ws from 'ws';
 
 import { GATEWAY_CLOSE_CODES, GATEWAY_OP_CODES, GatewayCloseCode } from '../../../constants';
@@ -7,12 +11,7 @@ import Gateway from '../Gateway';
 import GatewayIdentify from './GatewayIdentify';
 import Websocket from './Websocket';
 
-import type {
-  GUILD_MEMBERS_CHUNK_EVENT, GatewayEvent, GatewayPayload,
-  GatewayURLQueryStringParam, GuildRequestMember, Hello,
-  ReadyEventField, Resume,
-} from '../../../discord';
-import type { GatewayOptions, ParacordGatewayEvent } from '../types';
+import type { GatewayEvent, GatewayOptions, ParacordGatewayEvent } from '../types';
 
 interface GuildChunkState {
   receivedIndexes: number[];
@@ -47,7 +46,7 @@ export default class Session {
   /** Whether or not the client is currently resuming a session. */
   #resuming = false;
 
-  #wsParams: GatewayURLQueryStringParam;
+  #wsParams: GatewayURLQuery;
 
   /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
   #sequence: null | number = null;
@@ -132,7 +131,7 @@ export default class Session {
    * @param guildId Id of the guild to request members from.
    * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
    */
-  public requestGuildMembers(options: GuildRequestMember): boolean {
+  public requestGuildMembers(options: GatewayRequestGuildMembersData): boolean {
     if (this.#websocket === undefined) {
       this.#log('WARNING', 'Failed to request guild members. Session websocket is undefined.');
       return false;
@@ -230,7 +229,7 @@ export default class Session {
   /** Processes incoming messages from Discord's gateway.
    * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
    */
-  public handleMessage(p: GatewayPayload): void {
+  public handleMessage(p: GatewayReceivePayload): void {
     const {
       t: type, s: sequence, op: opCode, d: data,
     } = p;
@@ -243,19 +242,19 @@ export default class Session {
     switch (opCode) {
       case GATEWAY_OP_CODES.DISPATCH:
         if (type === 'READY') {
-          this.handleReady(<ReadyEventField><unknown>data);
+          this.handleReady(<GatewayReadyDispatchData><unknown>data);
         } else if (type === 'RESUMED') {
           this.handleResumed();
         } else if (type !== null) {
           // back pressure may cause the interval to occur too late, hence this check
-          void this.handleEvent(type as GatewayEvent, data);
+          void this.handleEvent(type as GatewayDispatchEvents, data);
         } else {
           this.#log('WARNING', `Unhandled packet. op: ${opCode} | data: ${data}`);
         }
         break;
 
       case GATEWAY_OP_CODES.HELLO:
-        this.handleHello(<Hello><unknown>data);
+        this.handleHello(<GatewayHelloData><unknown>data);
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT:
@@ -278,7 +277,7 @@ export default class Session {
    * Handles "Ready" packet from Discord. https://discord.com/developers/docs/topics/gateway#ready
    * @param data From Discord.
    */
-  private handleReady(data: ReadyEventField): void {
+  private handleReady(data: GatewayReadyDispatchData): void {
     this.#log('DEBUG', `Received Ready. Session ID: ${data.session_id}.`);
 
     this.#resumeUrl = data.resume_gateway_url;
@@ -319,7 +318,7 @@ export default class Session {
    * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
    * @param data From Discord.
    */
-  private handleHello(data: Hello): void {
+  private handleHello(data: GatewayHelloData): void {
     this.#log('DEBUG', `Received Hello. ${JSON.stringify(data)}.`);
     this.connect(this.resumable);
 
@@ -346,7 +345,7 @@ export default class Session {
     if (sessionId !== undefined && sequence !== null) {
       this.#resuming = true;
       this.#eventsDuringResume = 0;
-      const payload: Resume = {
+      const payload: GatewayResumeData = {
         token,
         session_id: sessionId,
         seq: sequence,
@@ -375,7 +374,7 @@ export default class Session {
   }
 
   public handleEvent(type: GatewayEvent | ParacordGatewayEvent, data: unknown): void {
-    if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GUILD_MEMBERS_CHUNK_EVENT);
+    if (type === 'GUILD_MEMBERS_CHUNK') this.handleGuildMemberChunk(data as GatewayGuildMembersChunkDispatchData);
     void this.#gatewayHandleEvent(type, data);
   }
 
@@ -407,7 +406,7 @@ export default class Session {
     this.#onClose(code);
   }
 
-  private handleGuildMemberChunk(data: GUILD_MEMBERS_CHUNK_EVENT): void {
+  private handleGuildMemberChunk(data: GatewayGuildMembersChunkDispatchData): void {
     const {
       nonce, not_found, chunk_count, chunk_index,
     } = data;

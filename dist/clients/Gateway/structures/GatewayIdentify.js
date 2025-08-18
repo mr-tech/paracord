@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+const v10_1 = require("discord-api-types/v10");
 /** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
 class GatewayIdentify {
     /** whether this connection supports compression of packets */
@@ -29,7 +30,7 @@ class GatewayIdentify {
             device: 'Paracord',
         };
         this.#presence = {
-            status: 'online',
+            status: v10_1.PresenceUpdateStatus.Online,
             afk: false,
             activities: [],
             since: null,

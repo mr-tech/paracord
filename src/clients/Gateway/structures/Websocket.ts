@@ -1,3 +1,6 @@
+import {
+  GatewayHelloData, GatewayPresenceUpdateData, GatewayReceivePayload, GatewayRequestGuildMembersData, GatewayResumeData,
+} from 'discord-api-types/v10';
 import { TextDecoder } from 'util';
 import ws from 'ws';
 import zlib from 'zlib';
@@ -12,10 +15,7 @@ import { isApiError } from '../../../utils';
 import GatewayIdentify from './GatewayIdentify';
 import Heartbeat from './Heartbeat';
 
-import type {
-  GatewayEvent, GatewayPayload, GatewayPresenceUpdate, GuildRequestMember, Hello, Resume,
-} from '../../../discord';
-import type { ParacordGatewayEvent } from '../types';
+import type { GatewayEvent, ParacordGatewayEvent } from '../types';
 import type Session from './Session';
 
 interface WebsocketParams {
@@ -356,13 +356,13 @@ export default class Websocket {
 
     const result = Buffer.concat(this.#inflateBuffer);
     this.#inflateBuffer = [];
-    this.handleMessage(JSON.parse(this.#textDecoder.decode(result)) as GatewayPayload);
+    this.handleMessage(JSON.parse(this.#textDecoder.decode(result)) as GatewayReceivePayload);
   }
 
   /** Processes incoming messages from Discord's gateway.
    * @param p Packet from Discord. https://discord.com/developers/docs/topics/gateway#payloads-gateway-payload-structure
    */
-  private handleMessage(p: GatewayPayload): void {
+  private handleMessage(p: GatewayReceivePayload): void {
     if (!this.connected) return;
 
     const { op: opCode, d: data } = p;
@@ -373,7 +373,7 @@ export default class Websocket {
         break;
 
       case GATEWAY_OP_CODES.HELLO:
-        this.handleHello(<Hello><unknown>data);
+        this.handleHello(<GatewayHelloData><unknown>data);
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT_ACK:
@@ -389,7 +389,7 @@ export default class Websocket {
    * Handles "Hello" packet from Discord. Start heartbeats and identifies with gateway. https://discord.com/developers/docs/topics/gateway#connecting-to-the-gateway
    * @param data From Discord.
    */
-  private handleHello(data: Hello): void {
+  private handleHello(data: GatewayHelloData): void {
     this.clearConnectTimeout();
     this.#heartbeat.start(data.heartbeat_interval);
   }
@@ -422,13 +422,13 @@ export default class Websocket {
 
   public send(op: typeof GATEWAY_OP_CODES['IDENTIFY'], data: GatewayIdentify): boolean
 
-  public send(op: typeof GATEWAY_OP_CODES['RESUME'], data: Resume): boolean
+  public send(op: typeof GATEWAY_OP_CODES['RESUME'], data: GatewayResumeData): boolean
 
-  public send(op: typeof GATEWAY_OP_CODES['REQUEST_GUILD_MEMBERS'], data: GuildRequestMember): boolean
+  public send(op: typeof GATEWAY_OP_CODES['REQUEST_GUILD_MEMBERS'], data: GatewayRequestGuildMembersData): boolean
 
-  public send(op: typeof GATEWAY_OP_CODES['GATEWAY_PRESENCE_UPDATE'], data: GatewayPresenceUpdate): boolean
+  public send(op: typeof GATEWAY_OP_CODES['GATEWAY_PRESENCE_UPDATE'], data: GatewayPresenceUpdateData): boolean
 
-  public send(op: number, data: number | GatewayIdentify | GuildRequestMember | Resume | GatewayPresenceUpdate): boolean {
+  public send(op: number, data: number | GatewayIdentify | GatewayRequestGuildMembersData | GatewayResumeData | GatewayPresenceUpdateData): boolean {
     const payload = { op, d: data };
 
     if (!this.#connection) return false;

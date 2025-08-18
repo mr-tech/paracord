@@ -1,7 +1,7 @@
+import { Snowflake } from 'discord-api-types/globals';
 import { EventEmitter } from 'events';
 
 import type { ChannelCredentials } from '@grpc/grpc-js';
-import type { Snowflake } from '../discord';
 import type { HandleEventCallback } from '../clients';
 
 export interface IServerOptions {
@@ -23,6 +23,6 @@ export interface EventHandler extends EventEmitter {
   handleEvent: HandleEventCallback
 }
 
-export type DeleteEvent = ({ guildId }: {guildId: Snowflake}) => unknown;
+export type DeleteEvent = ({ guildId }: { guildId: Snowflake }) => unknown;
 
 // export type NotVoid = string | number | boolean | symbol | bigint | Record<string, unknown>;

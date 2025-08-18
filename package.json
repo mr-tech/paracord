@@ -22,6 +22,7 @@
     "@grpc/grpc-js": "^1.9.0",
     "@grpc/proto-loader": "^0.7.8",
     "axios": "^1.4.0",
+    "discord-api-types": "^0.38.20",
     "form-data": "^4.0.0",
     "pm2": "^5.3.0",
     "protobufjs": "^7.2.4",

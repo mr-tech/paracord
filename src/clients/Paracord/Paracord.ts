@@ -1,3 +1,4 @@
+import { GatewayReadyDispatchData } from 'discord-api-types/v10';
 import { EventEmitter } from 'events';
 
 import {
@@ -6,12 +7,11 @@ import {
 } from '../../constants';
 import { clone, coerceTokenToBotLike } from '../../utils';
 import Gateway, {
-  GatewayCloseEvent, GatewayOptions, Heartbeat,
+  GatewayCloseEvent, GatewayEvent, GatewayOptions, Heartbeat,
   IdentityOptions, ParacordEvent, ParacordGatewayEvent,
 } from '../Gateway';
 
 import type { DebugLevel } from '../../@types';
-import type { GatewayEvent, ReadyEventField } from '../../discord';
 import type {
   GatewayMap, ParacordGatewayOptions,
   ParacordLoginOptions, ParacordOptions,
@@ -149,7 +149,7 @@ export default class Paracord extends EventEmitter {
   public handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void {
     switch (eventType) {
       case 'READY':
-        this.handleGatewayReady(<ReadyEventField>data);
+        this.handleGatewayReady(<GatewayReadyDispatchData>data);
         break;
       case 'RESUMED':
         if (!this.isStartingGateway(gateway)) {
@@ -512,7 +512,7 @@ export default class Paracord extends EventEmitter {
    * Prepares the client for caching guilds on start up.
    * @param data From Discord - Initial ready event after identify.
    */
-  private handleGatewayReady(data: ReadyEventField): void {
+  private handleGatewayReady(data: GatewayReadyDispatchData): void {
     const { user, guilds } = data;
 
     this.#guildWaitCount = guilds.length;

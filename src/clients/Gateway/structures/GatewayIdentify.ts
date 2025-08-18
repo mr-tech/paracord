@@ -1,4 +1,5 @@
-import type { GatewayPresenceUpdate, IdentifyConnectionProperties } from '../../../discord';
+import { GatewayIdentifyProperties, GatewayPresenceUpdateData, PresenceUpdateStatus } from 'discord-api-types/v10';
+
 import type { IdentityOptions } from '../types';
 
 /** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
@@ -13,13 +14,13 @@ export default class GatewayIdentify {
   readonly token: string;
 
   /** information about the client and how it's connecting */
-  #properties: IdentifyConnectionProperties;
+  #properties: GatewayIdentifyProperties;
 
   /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
   #largeThreshold: number | undefined; // 50
 
   /** presence structure for initial presence information */
-  #presence: GatewayPresenceUpdate | undefined;
+  #presence: GatewayPresenceUpdateData | undefined;
 
   /** enables dispatching of guild subscription events (presence and typing events) */
   #guildSubscriptions: boolean | undefined; // true
@@ -39,7 +40,7 @@ export default class GatewayIdentify {
     };
 
     this.#presence = {
-      status: 'online',
+      status: PresenceUpdateStatus.Online,
       afk: false,
       activities: [],
       since: null,
@@ -59,19 +60,19 @@ export default class GatewayIdentify {
     this.token = token;
   }
 
-  updatePresence(presence: GatewayPresenceUpdate) {
+  updatePresence(presence: GatewayPresenceUpdateData) {
     this.#presence = presence;
   }
 
   public toJSON(): Partial<GatewayIdentify> {
     const data: {
         token: string
-        properties: IdentifyConnectionProperties,
+        properties: GatewayIdentifyProperties,
         compress?: boolean,
         guild_subscription?: boolean,
         intents?: number,
         large_threshold?: number,
-        presence?: GatewayPresenceUpdate,
+        presence?: GatewayPresenceUpdateData,
         shard?: [number, number]
       } = {
         token: this.token,

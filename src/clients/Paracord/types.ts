@@ -1,6 +1,6 @@
-import type { GatewayEvent } from '../../discord';
 import type Gateway from '../Gateway';
 import type {
+  GatewayEvent,
   GatewayOptions, IdentityOptions, ParacordEvent, ParacordGatewayEvent,
 } from '../Gateway';
 

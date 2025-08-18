@@ -1,3 +1,4 @@
+import { GatewayPresenceUpdateData, GatewayRequestGuildMembersData } from 'discord-api-types/v10';
 import ws from 'ws';
 
 import {
@@ -9,8 +10,9 @@ import { GatewayIdentify, Session } from './structures';
 import Heart from './structures/Heartbeat';
 
 import type { DebugLevel, EventHandler } from '../../@types';
-import type { GatewayEvent, GatewayPresenceUpdate, GuildRequestMember } from '../../discord';
-import type { GatewayCloseEvent, GatewayOptions, ParacordGatewayEvent } from './types';
+import type {
+  GatewayCloseEvent, GatewayEvent, GatewayOptions, ParacordGatewayEvent,
+} from './types';
 
 /** A client to handle a Discord gateway connection. */
 export default class Gateway {
@@ -137,11 +139,11 @@ export default class Gateway {
    * @param guildId Id of the guild to request members from.
    * @param options Additional options to send with the request. Mirrors the remaining fields in the docs: https://discord.com/developers/docs/topics/gateway#request-guild-members
    */
-  public requestGuildMembers(options: GuildRequestMember): boolean {
+  public requestGuildMembers(options: GatewayRequestGuildMembersData): boolean {
     return this.#session?.requestGuildMembers(options) ?? false;
   }
 
-  public updatePresence(presence: GatewayPresenceUpdate) {
+  public updatePresence(presence: GatewayPresenceUpdateData) {
     void this.handleEvent('PRESENCE_UPDATE', { gateway: this, presence });
 
     if (!this.#session) {
