@@ -318,7 +318,7 @@ export default class Paracord extends EventEmitter {
 
       // if no resumable shard, get first shard in queue
       if (!this.#startingGateway) {
-        this.#startingGateway = this.gatewayLoginQueue.shift();
+        [this.#startingGateway] = this.gatewayLoginQueue;
       }
 
       if (!this.#startingGateway) {
