@@ -36,7 +36,7 @@ function computeShards(shards: number[], shardCount: number): { shards: number[]
 
 /* "Start up" refers to logging in to the gateway and waiting for all the guilds to be returned. By default, events will be suppressed during start up. */
 
-/** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
+/** A client that manages multiple Gateway clients. */
 export default class Paracord extends EventEmitter {
   public compressShards?: undefined | number[];
 
@@ -423,6 +423,13 @@ export default class Paracord extends EventEmitter {
   ************ SETUP *************
   ********************************
   */
+
+  public setToken(token: string): void {
+    this.#token = coerceTokenToBotLike(token);
+    for (const gw of this.#gateways.values()) {
+      gw.setToken(this.#token);
+    }
+  }
 
   /**
    * Creates the handler used when connecting to Discord's gateway.

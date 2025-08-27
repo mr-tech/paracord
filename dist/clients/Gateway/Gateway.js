@@ -98,6 +98,10 @@ class Gateway {
      ************ PUBLIC ************
      ********************************
      */
+    setToken(token) {
+        const botToken = (0, utils_1.coerceTokenToBotLike)(token);
+        this.#identity = new structures_1.GatewayIdentify(botToken, this.#identity);
+    }
     /**
      * Sends a `Request Guild Members` websocket message.
      * @param guildId Id of the guild to request members from.

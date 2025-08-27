@@ -3,8 +3,13 @@ import axios, { Method } from 'axios';
 import { EventEmitter } from 'events';
 
 import {
-  ApiDebugCodeName, API_DEBUG_CODES, API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS, DISCORD_API_DEFAULT_VERSION,
-  DISCORD_API_URL, LogSource, LOG_LEVELS, LOG_SOURCES, PARACORD_URL, PARACORD_VERSION_NUMBER, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
+  API_DEBUG_CODES, API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
+  ApiDebugCodeName,
+  DISCORD_API_DEFAULT_VERSION,
+  DISCORD_API_URL,
+  LOG_LEVELS, LOG_SOURCES,
+  LogSource,
+  PARACORD_URL, PARACORD_VERSION_NUMBER, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 import {
   createRateLimitService, createRequestService, RateLimitService, RemoteApiResponse, RequestService,
@@ -403,6 +408,11 @@ export default class Api {
    *********** REQUEST ************
    ********************************
    */
+
+  public setToken(token: string): void {
+    const botToken = coerceTokenToBotLike(token);
+    this.#makeRequest = Api.createWrappedRequestMethod(this.#rateLimitCache, botToken, this.#defaultRequestOptions);
+  }
 
   /**
    * Makes a request to Discord, handling any rate limits and returning when a non-429 response is received.

@@ -327,6 +327,10 @@ class Api {
      *********** REQUEST ************
      ********************************
      */
+    setToken(token) {
+        const botToken = (0, utils_1.coerceTokenToBotLike)(token);
+        this.#makeRequest = Api.createWrappedRequestMethod(this.#rateLimitCache, botToken, this.#defaultRequestOptions);
+    }
     /**
      * Makes a request to Discord, handling any rate limits and returning when a non-429 response is received.
      * @param method HTTP method of the request.
