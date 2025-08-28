@@ -90,6 +90,7 @@ export declare class Api {
     private checkRpcServiceConnection;
     private recreateRpcService;
     private reattemptConnectInFuture;
+    setToken(token: string): void;
     /**
      * Makes a request to Discord, handling any rate limits and returning when a non-429 response is received.
      * @param method HTTP method of the request.
@@ -415,6 +416,7 @@ export declare class Gateway {
      * @param data Data to send with the event.
      */
     private emit;
+    setToken(token: string): void;
     /**
      * Sends a `Request Guild Members` websocket message.
      * @param guildId Id of the guild to request members from.
@@ -667,7 +669,7 @@ export declare const MINUTE_IN_MILLISECONDS: number;
 
 export declare const OVERWRITE_ROLE_VALUE = 0;
 
-/** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
+/** A client that manages multiple Gateway clients. */
 declare class Paracord extends EventEmitter {
     #private;
     compressShards?: undefined | number[];
@@ -727,6 +729,7 @@ declare class Paracord extends EventEmitter {
      */
     private addNewGateway;
     private createGatewayOptions;
+    setToken(token: string): void;
     /**
      * Creates the handler used when connecting to Discord's gateway.
      * @param token Discord token. Will be coerced to bot token.

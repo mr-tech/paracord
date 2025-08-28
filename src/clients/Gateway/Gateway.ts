@@ -134,6 +134,11 @@ export default class Gateway {
    ********************************
    */
 
+  public setToken(token: string): void {
+    const botToken = coerceTokenToBotLike(token);
+    this.#identity = new GatewayIdentify(botToken, this.#identity);
+  }
+
   /**
    * Sends a `Request Guild Members` websocket message.
    * @param guildId Id of the guild to request members from.

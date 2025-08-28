@@ -22,7 +22,7 @@ function computeShards(shards, shardCount) {
     return { shards, shardCount };
 }
 /* "Start up" refers to logging in to the gateway and waiting for all the guilds to be returned. By default, events will be suppressed during start up. */
-/** A client that provides caching and limited helper functions. Integrates the Api and Gateway clients into a seamless experience. */
+/** A client that manages multiple Gateway clients. */
 class Paracord extends events_1.EventEmitter {
     compressShards;
     gatewayLoginQueue;
@@ -347,6 +347,12 @@ class Paracord extends events_1.EventEmitter {
     ************ SETUP *************
     ********************************
     */
+    setToken(token) {
+        this.#token = (0, utils_1.coerceTokenToBotLike)(token);
+        for (const gw of this.#gateways.values()) {
+            gw.setToken(this.#token);
+        }
+    }
     /**
      * Creates the handler used when connecting to Discord's gateway.
      * @param token Discord token. Will be coerced to bot token.
