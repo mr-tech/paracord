@@ -37,7 +37,7 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
 
       const dest = `${host}:${port}`;
 
-      super(dest, channel);
+      super(dest, channel, { 'grpc.enable_channelz': 0 });
 
       this.target = dest;
       this.allowFallback = allowFallback || false;

@@ -18,7 +18,7 @@ const createRateLimitService = (options) => {
         constructor(opts) {
             const { host, port, channel, allowFallback, } = (0, common_1.mergeOptionsWithDefaults)(opts ?? {});
             const dest = `${host}:${port}`;
-            super(dest, channel);
+            super(dest, channel, { 'grpc.enable_channelz': 0 });
             this.target = dest;
             this.allowFallback = allowFallback || false;
         }
