@@ -161,7 +161,7 @@ export default class Gateway {
     return sent;
   }
 
-  public login = async () => {
+  public login = () => {
     if (!this.#session) {
       this.#session = new Session({
         gateway: this,
@@ -175,7 +175,7 @@ export default class Gateway {
       });
     }
 
-    await this.#session?.login();
+    this.#session?.login();
   };
 
   public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWait = 0) {

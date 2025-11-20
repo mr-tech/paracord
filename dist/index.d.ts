@@ -424,7 +424,7 @@ export declare class Gateway {
      */
     requestGuildMembers(options: GatewayRequestGuildMembersData): boolean;
     updatePresence(presence: GatewayPresenceUpdateData): boolean;
-    login: () => Promise<void>;
+    login: () => void;
     close(code?: GatewayCloseCode, flushWait?: number): void;
     checkIfShouldHeartbeat(): void;
     /**
@@ -1173,7 +1173,7 @@ export declare class Session {
      * Connects to Discord's event gateway.
      * @param _websocket Ignore. For unittest dependency injection only.
      */
-    login: () => Promise<void>;
+    login: () => void;
     close(code: GatewayCloseCode, flushWaitTime?: number): void;
     send: Websocket['send'];
     destroy(): void;

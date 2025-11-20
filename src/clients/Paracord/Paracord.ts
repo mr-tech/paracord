@@ -232,6 +232,7 @@ export default class Paracord extends EventEmitter {
   }
 
   public end() {
+    this.log('INFO', 'Client ended. Terminating all gateways and stopping login interval.');
     clearInterval(this.#gatewayLoginInterval);
     this.#gateways.forEach((gateway) => {
       gateway.close(GATEWAY_CLOSE_CODES.USER_TERMINATE);
@@ -336,7 +337,7 @@ export default class Paracord extends EventEmitter {
       const gateway = this.#startingGateway;
 
       try {
-        await gateway.login();
+        gateway.login();
 
         if (this.#shardStartupTimeout) {
           const timeout = this.#shardStartupTimeout;
@@ -556,9 +557,11 @@ export default class Paracord extends EventEmitter {
       } else {
         this.gatewayLoginQueue.push(gateway);
       }
-    }
 
-    this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`, { shard: gateway });
+      this.log('INFO', `Upserting shard ${gateway.id} at ${front ? 'start' : 'end'} of login queue. Queue size: ${this.gatewayLoginQueue.length}`, { shard: gateway });
+    } else {
+      this.log('DEBUG', `Shard ${gateway.id} already in login queue.`, { shard: gateway });
+    }
   }
 
   private isStartingGateway(gateway: Gateway): boolean {

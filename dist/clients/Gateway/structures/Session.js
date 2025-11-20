@@ -96,7 +96,7 @@ class Session {
      * Connects to Discord's event gateway.
      * @param _websocket Ignore. For unittest dependency injection only.
      */
-    login = async () => {
+    login = () => {
         if (this.#websocket !== undefined) {
             throw Error('Client is already initialized.');
         }

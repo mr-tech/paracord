@@ -37,7 +37,11 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
 
       const dest = `${host}:${port}`;
 
-      super(dest, channel, { 'grpc.enable_channelz': 0 });
+      super(dest, channel, {
+        'grpc.enable_channelz': 0,
+        'grpc.max_connection_idle_ms': 10000, // Close idle connections after 10s
+        'grpc.max_connection_age_ms': 30000, // Force connection close after 30s
+      });
 
       this.target = dest;
       this.allowFallback = allowFallback || false;

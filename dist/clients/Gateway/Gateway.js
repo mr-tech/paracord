@@ -121,7 +121,7 @@ class Gateway {
             this.#identity.updatePresence(presence);
         return sent;
     }
-    login = async () => {
+    login = () => {
         if (!this.#session) {
             this.#session = new structures_1.Session({
                 gateway: this,
@@ -134,7 +134,7 @@ class Gateway {
                 onClose: this.handleClose.bind(this),
             });
         }
-        await this.#session?.login();
+        this.#session?.login();
     };
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWait = 0) {
         this.#session?.close(code, flushWait);
