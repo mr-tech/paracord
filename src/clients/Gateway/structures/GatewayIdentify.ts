@@ -14,26 +14,26 @@ export default class GatewayIdentify {
   readonly token: string;
 
   /** information about the client and how it's connecting */
-  #properties: GatewayIdentifyProperties;
+  readonly properties: GatewayIdentifyProperties;
 
   /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
-  #largeThreshold: number | undefined; // 50
+  readonly largeThreshold: number | undefined; // 50
 
   /** presence structure for initial presence information */
   #presence: GatewayPresenceUpdateData | undefined;
 
   /** enables dispatching of guild subscription events (presence and typing events) */
-  #guildSubscriptions: boolean | undefined; // true
+  readonly guildSubscriptions: boolean | undefined; // true
 
   /** the Gateway Intents you wish to receive */
-  #intents: number | undefined;
+  readonly intents: number;
 
   /**
    * Creates a new Identity object for use with the gateway.
    * @param identity Properties to add to this identity.
    */
-  public constructor(token: string, identity: Partial<IdentityOptions>) {
-    this.#properties = {
+  public constructor(token: string, identity: Partial<Omit<IdentityOptions, 'intents'>> & { intents: number }) {
+    this.properties = {
       os: process.platform,
       browser: 'Paracord',
       device: 'Paracord',
@@ -47,10 +47,10 @@ export default class GatewayIdentify {
     };
 
     this.compress = identity.compress;
-    this.#largeThreshold = identity.largeThreshold;
+    this.largeThreshold = identity.largeThreshold;
     this.#presence = identity.presence;
-    this.#intents = identity.intents;
-    this.#guildSubscriptions = identity.guildSubscriptions;
+    this.intents = identity.intents;
+    this.guildSubscriptions = identity.guildSubscriptions;
 
     if (identity.shard !== undefined) {
       const [shard, shardCount] = identity.shard;
@@ -58,6 +58,10 @@ export default class GatewayIdentify {
     }
 
     this.token = token;
+  }
+
+  get presence(): GatewayPresenceUpdateData | undefined {
+    return this.#presence;
   }
 
   updatePresence(presence: GatewayPresenceUpdateData) {
@@ -76,13 +80,13 @@ export default class GatewayIdentify {
         shard?: [number, number]
       } = {
         token: this.token,
-        properties: this.#properties,
+        properties: this.properties,
       };
 
     if (this.compress !== undefined) data.compress = this.compress;
-    if (this.#guildSubscriptions !== undefined) data.guild_subscription = this.#guildSubscriptions;
-    if (this.#intents !== undefined) data.intents = this.#intents;
-    if (this.#largeThreshold !== undefined) data.large_threshold = this.#largeThreshold;
+    if (this.guildSubscriptions !== undefined) data.guild_subscription = this.guildSubscriptions;
+    if (this.intents !== undefined) data.intents = this.intents;
+    if (this.largeThreshold !== undefined) data.large_threshold = this.largeThreshold;
     if (this.#presence !== undefined) data.presence = this.#presence;
     if (this.shard !== undefined) data.shard = this.shard;
 

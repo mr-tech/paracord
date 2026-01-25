@@ -524,11 +524,22 @@ export declare class GatewayIdentify {
     readonly shard?: [number, number];
     /** authentication token */
     readonly token: string;
+    /** information about the client and how it's connecting */
+    readonly properties: GatewayIdentifyProperties;
+    /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
+    readonly largeThreshold: number | undefined;
+    /** enables dispatching of guild subscription events (presence and typing events) */
+    readonly guildSubscriptions: boolean | undefined;
+    /** the Gateway Intents you wish to receive */
+    readonly intents: number;
     /**
      * Creates a new Identity object for use with the gateway.
      * @param identity Properties to add to this identity.
      */
-    constructor(token: string, identity: Partial<IdentityOptions>);
+    constructor(token: string, identity: Partial<Omit<IdentityOptions, 'intents'>> & {
+        intents: number;
+    });
+    get presence(): GatewayPresenceUpdateData | undefined;
     updatePresence(presence: GatewayPresenceUpdateData): void;
     toJSON(): Partial<GatewayIdentify>;
 }
