@@ -82,6 +82,13 @@ class Api {
                 ...(requestOptions?.headers ?? {}),
             },
         });
+        instance.interceptors.request.use((config) => {
+            if (config.method?.toLowerCase() === 'delete' && config.headers.get('Content-Type') === 'application/json') {
+                config.headers.delete('Content-Type');
+                delete config.data;
+            }
+            return config;
+        });
         instance.interceptors.response.use((response) => response, (error) => ({
             status: 500, headers: {}, data: { message: error.message },
         }));
