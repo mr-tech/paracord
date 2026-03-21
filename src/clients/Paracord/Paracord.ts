@@ -94,6 +94,18 @@ export default class Paracord extends EventEmitter {
    *
    * @param token Discord bot token. Will be coerced into a bot token.
    * @param options Settings for this Paracord instance.
+   *
+   * @example
+   * ```ts
+   * const bot = new Paracord('myBotToken', {
+   *   gatewayOptions: {
+   *     wsUrl: 'wss://gateway.discord.gg',
+   *     wsParams: { v: '10', encoding: 'json' },
+   *   },
+   * });
+   * bot.on('MESSAGE_CREATE', (data, shard) => console.log(data));
+   * await bot.login({ identity: { intents: 32767 }, shards: [0, 1], shardCount: 2 });
+   * ```
    */
   public constructor(token: string, options: ParacordOptions) {
     super();

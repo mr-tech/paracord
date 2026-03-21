@@ -79,6 +79,16 @@ export default class ShardLauncher {
    * Creates a new shard launcher.
    * @param main Relative location of the app's entry file.
    * @param options Optional parameters for this handler.
+   *
+   * @example
+   * ```ts
+   * const launcher = new ShardLauncher('./bot.js', {
+   *   token: 'myBotToken',
+   *   shardIds: [0, 1, 2],
+   *   shardCount: 3,
+   * });
+   * await launcher.launch();
+   * ```
    */
   public constructor(main: string, options: ShardLauncherOptions) {
     ShardLauncher.validateParams(main, options);

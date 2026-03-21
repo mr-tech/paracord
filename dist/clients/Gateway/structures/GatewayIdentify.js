@@ -1,7 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const v10_1 = require("discord-api-types/v10");
-/** A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure */
+/**
+ * A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
+ * @internal
+ */
 class GatewayIdentify {
     /** whether this connection supports compression of packets */
     compress; // false

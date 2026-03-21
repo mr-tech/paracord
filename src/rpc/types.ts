@@ -3,13 +3,21 @@ import type { Method } from 'axios';
 import type { ServerCredentials, ServiceError } from '@grpc/grpc-js';
 import type { Api } from '../clients';
 
+/** Configuration options for the gRPC server (RpcServer/Server). */
 export interface RpcServerOptions{
+  /** Host address to bind to. Default: `'127.0.0.1'`. */
   host?: string;
+  /** Port to listen on. Default: `'50051'`. */
   port?: string | number;
+  /** gRPC server credentials. Default: insecure. */
   channel?: ServerCredentials;
+  /** Event emitter for debug log events. */
   emitter?: EventEmitter;
+  /** Pre-configured Api client for the request service to use. If not provided, one is created internally. */
   apiClient?: Api;
+  /** Maximum number of global rate limit requests per second. Default: `50`. */
   globalRateLimitMax?: number;
+  /** Extra milliseconds added to the global rate limit reset timer. Default: `50`. */
   globalRateLimitResetPadding?: number;
 }
 

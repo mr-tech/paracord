@@ -12,6 +12,7 @@ interface Params {
   log: Gateway['log'];
 }
 
+/** @internal */
 export default class Heart {
   #gateway: Gateway;
 

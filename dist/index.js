@@ -18,6 +18,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Server = void 0;
+/**
+ * Paracord — A TypeScript/Node.js toolkit for building scalable Discord bots.
+ *
+ * Provides REST (`Api`), Gateway (`Gateway`), multi-shard orchestration (`Paracord`),
+ * pm2-based shard launching (`ShardLauncher`), and optional gRPC services (`Server`)
+ * for centralized rate limits and remote REST requests.
+ *
+ * All Discord payload types come from `discord-api-types/v10`.
+ *
+ * @packageDocumentation
+ */
 const clients_1 = require("./clients");
 exports.default = clients_1.Paracord;
 var RpcServer_1 = require("./rpc/server/RpcServer");

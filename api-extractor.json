@@ -1,7 +1,9 @@
 {
   "projectFolder": ".",
   "mainEntryPointFilePath": "./build/index.d.ts",
-  "bundledPackages": ["pm2"],
+  "bundledPackages": [
+    "pm2"
+  ],
   "compiler": {
     "tsconfigFilePath": "./tsconfig.json",
     "overrideTsconfig": {
@@ -12,10 +14,11 @@
   },
   "dtsRollup": {
     "enabled": true,
-    "untrimmedFilePath": "./dist/index.d.ts"
+    "publicTrimmedFilePath": "./dist/index.d.ts"
   },
   "apiReport": {
-    "enabled": false
+    "enabled": true,
+    "reportFolder": "./api-report/"
   },
   "docModel": {
     "enabled": false

@@ -1,7 +1,7 @@
 'use strict';
 
 const { EventEmitter } = require('events');
-const { Server } = require('../../index');
+const { Server } = require('paracord');
 
 const logEmitter = new EventEmitter();
 logEmitter.on('DEBUG', (event) => console.log(event));
@@ -15,16 +15,13 @@ const serverOptions = { emitter: logEmitter };
     };
 */
 
-/* Provides logging output for a resultant api client. */
-const apiOptions = { emitter: logEmitter };
 const token = 'myBotToken';
 
 const server = new Server(serverOptions);
 
 /* Add whichever services this server should handle. */
-server.addRequestService(token, apiOptions); // Sends requests on behalf of the client.
-server.addRateLimitService(token, apiOptions); // Caches rate limits and authorizes requests.
-server.addLockService(); // Provides mutexes for gateway clients sending `identify` payloads.
+server.addRequestService(token); // Sends requests on behalf of the client.
+server.addRateLimitService(); // Caches rate limits and authorizes requests.
 
 /* Begin serving the request. */
 server.serve();

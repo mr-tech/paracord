@@ -157,10 +157,17 @@ class Api {
         return [topLevelResource, topLevelID, key.join('-')];
     }
     /**
-     * Creates a new Api client.
-     * @param token Discord token. Will be coerced into a bot token.
-     * @param options Optional parameters for this handler.
-     */
+       * Creates a new Api client.
+       * @param token Discord token. Will be coerced into a bot token.
+       * @param options Optional parameters for this handler.
+       *
+       * @example
+       * ```ts
+       * const api = new Api('myBotToken');
+       * const res = await api.request('GET', '/channels/123456789');
+       * console.log(res.data);
+       * ```
+       */
     constructor(token, options = {}) {
         Api.validateParams(token);
         const requestQueue = new structures_1.RequestQueue(this);
@@ -344,6 +351,16 @@ class Api {
      * @param url Discord endpoint url. (e.g. "/channels/abc123")
      * @param options Optional parameters for a Discord REST request.
      * @returns Response to the request made.
+     *
+     * @example
+     * ```ts
+     * // GET a channel
+     * const res = await api.request('GET', '/channels/123456789');
+     * // POST a message
+     * const msg = await api.request('POST', '/channels/123/messages', {
+     *   data: { content: 'Hello!' },
+     * });
+     * ```
      */
     request = async (method, url, options = {}) => {
         const merged = { ...this.#defaultRequestOptions, ...options };

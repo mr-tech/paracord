@@ -2,17 +2,19 @@
 
 ## Table of Contents
 
-- [About](#about)
-- [Features](#features)
-- [Getting Started](#getting-started)
-  - [Requirements](#requirements)
-  - [Installing](#installing)
-  - [Optional Dependencies](#optional-dependencies)
-- [Examples](#examples)
-- [Missing Features](#missing-features)
-- [Contributing](#contributing)
-- [Licensing](#licensing)
-- [Links](#links)
+- [Paracord](#paracord)
+  - [Table of Contents](#table-of-contents)
+  - [About](#about)
+  - [Features](#features)
+  - [Getting started](#getting-started)
+    - [Requirements](#requirements)
+    - [Installing](#installing)
+    - [Optional Dependencies](#optional-dependencies)
+  - [Examples](#examples)
+  - [Missing Features](#missing-features)
+  - [Contributing](#contributing)
+  - [Licensing](#licensing)
+  - [Links](#links)
 
 ---
 
@@ -42,7 +44,7 @@ NOT YET READY FOR PRODUCTION. If you choose to use the modules in this library, 
 
 ### Requirements
 
-Paracord requires NodeJS 10.17+.
+Paracord requires NodeJS 16+.
 
 If you plan to use the Shard Launcher, a global installation of [pm2](https://pm2.keymetrics.io/) is required. This is not true for internal sharding. To install pm2 globally, run the following command:
 
@@ -69,11 +71,7 @@ For sharding, the pm2 npm package will need to be installed to your project:
 npm install pm2
 ```
 
-If you plan to use the rpc services, you will need to install the grpc packages in the command below:
-
-```shell
-npm install grpc@1.24.2 @grpc/grpc-js@0.6.15 @grpc/proto-loader@0.5.3
-```
+If you plan to use the rpc services, they are bundled with paracord (uses `@grpc/grpc-js` and `@grpc/proto-loader`). No additional installation is needed.
 
 ---
 
@@ -89,6 +87,8 @@ const { Paracord } = require("paracord");
 The available clients are `Paracord`, `Api`, `Gateway`, `ShardLauncher`, and `Server`. In a generalized bot scenario, you will be using the `Paracord` client.
 
 Examples with each client can be found in [docs/examples](examples/examples.md).
+
+For AI agents and language models, see [llms.txt](llms.txt) for a quick API reference or [llms-full.txt](llms-full.txt) for complete type documentation.
 
 ---
 

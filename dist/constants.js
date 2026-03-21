@@ -1,17 +1,25 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.API_DEBUG_CODES = exports.OVERWRITE_ROLE_VALUE = exports.RPC_CLOSE_CODES = exports.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = exports.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS = exports.API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS = exports.API_GLOBAL_RATE_LIMIT = exports.LOG_LEVELS = exports.LOG_SOURCES = exports.DISCORD_CDN_URL = exports.DISCORD_EPOCH = exports.DISCORD_API_DEFAULT_VERSION = exports.DISCORD_API_URL = exports.GATEWAY_CLOSE_CODES = exports.GATEWAY_OP_CODES = exports.DEFAULT_GATEWAY_BOT_WAIT = exports.GATEWAY_REQUEST_BUFFER = exports.GATEWAY_MAX_REQUESTS_PER_MINUTE = exports.DISCORD_WS_VERSION = exports.GIGABYTE_IN_BYTES = exports.HOUR_IN_MILLISECONDS = exports.MINUTE_IN_MILLISECONDS = exports.SECOND_IN_MILLISECONDS = exports.PARACORD_URL = exports.PARACORD_VERSION_NUMBER = void 0;
+/** Library version number. */
 exports.PARACORD_VERSION_NUMBER = '0.5';
+/** Library homepage URL. */
 exports.PARACORD_URL = 'https://paracordjs.com/';
+/** One second in milliseconds (1000). */
 exports.SECOND_IN_MILLISECONDS = 1e3;
+/** One minute in milliseconds (60000). */
 exports.MINUTE_IN_MILLISECONDS = 60 * exports.SECOND_IN_MILLISECONDS;
+/** One hour in milliseconds (3600000). */
 exports.HOUR_IN_MILLISECONDS = 60 * exports.MINUTE_IN_MILLISECONDS;
+/** One gigabyte in bytes (1073741824). */
 exports.GIGABYTE_IN_BYTES = 1073741824;
+/** Discord gateway WebSocket protocol version. */
 exports.DISCORD_WS_VERSION = 10;
-/** Gateway websocket connection rate limit. */
+/** Gateway WebSocket connection rate limit: max requests per minute. */
 exports.GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
-/** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
+/** Number of gateway requests reserved per minute for critical tasks (heartbeats, identifies). */
 exports.GATEWAY_REQUEST_BUFFER = 4;
+/** Default wait time in ms before connecting to the gateway bot endpoint (5 seconds). */
 exports.DEFAULT_GATEWAY_BOT_WAIT = 5 * exports.SECOND_IN_MILLISECONDS;
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes */
 exports.GATEWAY_OP_CODES = {
@@ -59,18 +67,22 @@ exports.GATEWAY_CLOSE_CODES = {
     USER_TERMINATE: 4998,
     UNKNOWN: 4999, // Something odd happened. Refer to other ERROR level logging events.
 };
+/** Base URL for the Discord REST API. */
 exports.DISCORD_API_URL = 'https://discord.com/api';
+/** Default Discord REST API version. */
 exports.DISCORD_API_DEFAULT_VERSION = 10;
-/** Discord epoch (2015-01-01T00:00:00.000Z) */
+/** Discord epoch in Unix ms (2015-01-01T00:00:00.000Z). Used for snowflake timestamp extraction. */
 exports.DISCORD_EPOCH = 1420070400000;
+/** Base URL for the Discord CDN (avatars, icons, etc.). */
 exports.DISCORD_CDN_URL = 'https://cdn.discordapp.com';
-/** For internal logging. */
+/** Numeric identifiers for log event sources. Used in debug event `source` field. */
 exports.LOG_SOURCES = {
     GATEWAY: 0,
     API: 1,
     PARACORD: 2,
     RPC: 3,
 };
+/** Numeric log severity levels. Higher values = more verbose. */
 exports.LOG_LEVELS = {
     FATAL: 0,
     ERROR: 1,
@@ -78,14 +90,21 @@ exports.LOG_LEVELS = {
     INFO: 4,
     DEBUG: 5,
 };
+/** Maximum number of global rate limit requests per second. Default: 50. */
 exports.API_GLOBAL_RATE_LIMIT = 50;
+/** Duration in ms of the global rate limit reset window (1 second). */
 exports.API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS = 1000;
+/** Extra padding in ms added to the global rate limit reset timer to avoid edge-case 429s. */
 exports.API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS = 50;
+/** Time in ms after which cached rate limit buckets expire and are cleaned up (5 minutes). */
 exports.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = 5 * exports.MINUTE_IN_MILLISECONDS;
+/** Close codes used when the gRPC connection to an RPC service is lost. */
 exports.RPC_CLOSE_CODES = {
     LOST_CONNECTION: 14,
 };
+/** Constant used to identify role-type permission overwrites (vs member-type). */
 exports.OVERWRITE_ROLE_VALUE = 0;
+/** Numeric codes identifying the type of API debug event. Used in `ApiDebugEvent.code`. */
 exports.API_DEBUG_CODES = {
     GENERAL: 1,
     ERROR: 2,

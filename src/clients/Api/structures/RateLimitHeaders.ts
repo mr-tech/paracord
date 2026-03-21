@@ -3,7 +3,10 @@ import { SECOND_IN_MILLISECONDS } from '../../../constants';
 import type { RpcArguments } from '../../../@types';
 import type { ApiResponse } from '../types';
 
-/** Representation of rate limit values from the header of a response from Discord. */
+/**
+ * Representation of rate limit values from the header of a response from Discord.
+ * @internal
+ */
 export default class RateLimitHeaders {
   /** From Discord - If the request was globally rate limited. */
   public global: boolean;

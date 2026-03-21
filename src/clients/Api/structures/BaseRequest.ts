@@ -4,7 +4,10 @@ import { stripLeadingSlash } from '../../../utils';
 
 import type { Method } from 'axios';
 
-/** Basic information in a request to Discord. */
+/**
+ * Basic information in a request to Discord.
+ * @internal
+ */
 export default class BaseRequest {
   /** HTTP method of the request. */
   public method: Method;

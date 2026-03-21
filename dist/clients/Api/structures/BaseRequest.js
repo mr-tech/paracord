@@ -2,7 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const crypto_1 = require("crypto");
 const utils_1 = require("../../../utils");
-/** Basic information in a request to Discord. */
+/**
+ * Basic information in a request to Discord.
+ * @internal
+ */
 class BaseRequest {
     /** HTTP method of the request. */
     method;

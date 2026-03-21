@@ -15,7 +15,10 @@ import type RateLimitHeaders from './RateLimitHeaders';
 /** From Discord - A uid that identifies a group of requests that share a rate limit. */
 type RateLimitBucketHash = string;
 
-/** Stores the state of all known rate limits this client has encountered. */
+/**
+ * Stores the state of all known rate limits this client has encountered.
+ * @internal
+ */
 export default class RateLimitCache {
   #apiClient: undefined | Api;
 

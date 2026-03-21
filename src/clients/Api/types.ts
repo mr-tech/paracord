@@ -15,7 +15,9 @@ export interface ApiOptions {
   /** Event emitter through which to emit debug and warning events. */
   emitter?: EventEmitter;
   requestOptions?: RequestOptions;
+  /** Interval in milliseconds between queue processing cycles. Controls how often rate-limited requests are retried. */
   queueLoopInterval?: number;
+  /** Maximum number of concurrent in-flight requests. Requests exceeding this limit are queued. */
   maxConcurrency?: number;
 }
 
@@ -71,11 +73,15 @@ export type IncomingRateLimit = {
   resetAfter: number;
 }
 
-// RPC
+/** Options for connecting to an RPC service (rate limit or request). */
 export interface ServiceOptions {
+  /** RPC server host. Default: `'127.0.0.1'`. */
   host?: string;
+  /** RPC server port. Default: `'50051'`. */
   port?: string | number;
+  /** gRPC channel credentials. Default: insecure channel. */
   channel?: ChannelCredentials;
+  /** Whether to fall back to local handling when the RPC server is unreachable. Default: `true`. */
   allowFallback?: boolean;
 }
 

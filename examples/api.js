@@ -4,11 +4,11 @@
 
 const { Api } = require('paracord');
 
-const token = 'myBotToken'; // https://discordapp.com/developers/applications/
+const token = 'myBotToken'; // https://discord.com/developers/applications/
 const api = new Api(token);
 
 const method = 'GET';
-const endpoint = '/channels/123456789'; // https://discordapp.com/developers/docs/resources/channel
+const endpoint = '/channels/123456789'; // https://discord.com/developers/docs/resources/channel
 
 /* With promise chain. */
 api.request(method, endpoint).then((res) => {

@@ -5,7 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 const RateLimit_1 = __importDefault(require("./RateLimit"));
-/** Rate limit keys to their associated state. */
+/**
+ * Rate limit keys to their associated state.
+ * @internal
+ */
 class RateLimitMap extends Map {
     #logger;
     #expiredInterval;

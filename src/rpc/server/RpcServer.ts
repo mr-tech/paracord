@@ -36,7 +36,15 @@ export default class RpcServer extends grpc.Server {
 
   /**
    * Creates a new rpc Server.
-   * @param options
+   * @param options Server configuration options.
+   *
+   * @example
+   * ```ts
+   * const server = new RpcServer({ host: '127.0.0.1', port: '50051' });
+   * server.addRateLimitService();
+   * server.addRequestService('myBotToken');
+   * server.serve();
+   * ```
    */
   public constructor(options: RpcServerOptions = {}) {
     super();

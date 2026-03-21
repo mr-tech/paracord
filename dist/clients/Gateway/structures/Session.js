@@ -7,6 +7,7 @@ const ws_1 = __importDefault(require("ws"));
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
 const Websocket_1 = __importDefault(require("./Websocket"));
+/** @internal */
 class Session {
     #gateway;
     #identity;

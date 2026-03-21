@@ -5,7 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const RateLimit_1 = __importDefault(require("./RateLimit"));
 const RateLimitTemplate_1 = __importDefault(require("./RateLimitTemplate"));
-/** Buckets to observed rate limit defaults. */
+/**
+ * Buckets to observed rate limit defaults.
+ * @internal
+ */
 class RateLimitTemplateMap extends Map {
     /**
      * Insert or updates rate limit template using state.

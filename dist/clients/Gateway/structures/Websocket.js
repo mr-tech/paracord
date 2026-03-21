@@ -10,6 +10,7 @@ const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
 const Heartbeat_1 = __importDefault(require("./Heartbeat"));
 const CONNECT_TIMEOUT = 10 * constants_1.SECOND_IN_MILLISECONDS;
+/** @internal */
 class Websocket {
     #session;
     #connection;

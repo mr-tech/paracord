@@ -2,40 +2,21 @@
 
 /*
     All Discord events can be found in the docs. They will be in all caps and spaces will be replaced with underlines.
-    https://discordapp.com/developers/docs/topics/gateway#commands-and-events-gateway-events
+    https://discord.com/developers/docs/topics/gateway#commands-and-events-gateway-events
 */
 
-/* No emitter in options. */
-{
-  const { Gateway } = require('paracord');
-
-  const token = 'myBotToken'; // https://discordapp.com/developers/applications/
-
-  const gateway = new Gateway(token);
-
-  async function main() {
-    /* If you do not provide an emitter through the GatewayOptions, one will be created and returned by `login()`. */
-    const emitter = await gateway.login();
-
-    emitter.on('READY', (data) => {
-      console.log('Ready packet received.');
-      console.log(data);
-    });
-    emitter.on('GUILD_CREATE', (data) => {
-      console.log('Guild create packet received.');
-      console.log(data);
-    });
-  }
-
-  main();
-}
-
-/* Emitter in options. */
+/* Gateway requires an emitter and identity in options. */
 {
   const { EventEmitter } = require('events');
   const { Gateway } = require('paracord');
 
+  const token = 'myBotToken'; // https://discord.com/developers/applications/
+
   const emitter = new EventEmitter();
+  emitter.handleEvent = (type, data, gateway) => {
+    emitter.emit(type, data, gateway);
+  };
+
   emitter.on('READY', (data) => {
     console.log('Ready packet received.');
     console.log(data);
@@ -45,10 +26,12 @@
     console.log(data);
   });
 
-  const token = 'myBotToken'; // https://discordapp.com/developers/applications/
-  const options = { emitter };
-  const gateway = new Gateway(token, options);
+  const gateway = new Gateway(token, {
+    identity: { intents: 32767 },
+    emitter,
+    wsUrl: 'wss://gateway.discord.gg',
+    wsParams: { v: '10', encoding: 'json' },
+  });
 
-  /* If you do not provide an emitter through the GatewayOptions, one will be created and returned by `login()`. */
   gateway.login();
 }

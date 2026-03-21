@@ -2,7 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const utils_1 = require("../../../utils");
 const constants_1 = require("../../../constants");
-/** State of a Discord rate limit. */
+/**
+ * State of a Discord rate limit.
+ * @internal
+ */
 class RateLimit {
     /** Timestamp of when this rate limit will expire if not accessed again before then. */
     expires;

@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-/** A frozen instance of a rate limit that is used as a reference for requests with the same bucket but without an existing cached state. */
+/**
+ * A frozen instance of a rate limit that is used as a reference for requests with the same bucket but without an existing cached state.
+ * @internal
+ */
 class RateLimitTemplate {
     /** From Discord - Rate limit request cap. */
     limit;

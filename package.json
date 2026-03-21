@@ -4,9 +4,18 @@
   "description": "Scalable Discord gateway and API handlers alongside a pre-built client.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "engines": {
+    "node": ">=16"
+  },
   "scripts": {
     "build": "rimraf dist && tsc -b && cp -r src/rpc/protobufs dist/rpc/protobufs && npm run build:types",
-    "build:types": "rimraf build && tsc -p ./tsconfig.json --declaration true --outDir build && api-extractor run",
+    "build:types": "rimraf build && tsc -p ./tsconfig.json --declaration true --declarationMap true --outDir build && api-extractor run",
     "rebuild": "npm run build"
   },
   "repository": {

@@ -30,6 +30,17 @@ export default class Gateway {
    * Creates a new Discord gateway handler.
    * @param token Discord token. Will be coerced into a bot token.
    * @param options Optional parameters for this handler.
+   *
+   * @example
+   * ```ts
+   * const gateway = new Gateway('myBotToken', {
+   *   identity: { intents: 32767, shard: [0, 1] },
+   *   emitter: myEmitter,
+   *   wsUrl: 'wss://gateway.discord.gg',
+   *   wsParams: { v: '10', encoding: 'json' },
+   * });
+   * gateway.login();
+   * ```
    */
   public constructor(token: string, options: GatewayOptions) {
     const {

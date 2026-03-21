@@ -4,7 +4,10 @@ import { API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS } from '../../../constants';
 import type { IncomingRateLimit } from '../types';
 import type RateLimitTemplate from './RateLimitTemplate';
 
-/** State of a Discord rate limit. */
+/**
+ * State of a Discord rate limit.
+ * @internal
+ */
 export default class RateLimit {
   /** Timestamp of when this rate limit will expire if not accessed again before then. */
   public expires!: number;

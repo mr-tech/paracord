@@ -1,0 +1,148 @@
+# Paracord
+
+> A TypeScript/Node.js toolkit for building scalable Discord bots with REST, Gateway, and optional gRPC-based remote services for rate limits and requests.
+
+## Primary Exports
+
+```
+import Paracord from 'paracord';
+import { Paracord, Api, Gateway, ShardLauncher, Server } from 'paracord';
+```
+
+- `Paracord` — Multi-shard gateway orchestrator (default export). Extends `EventEmitter`.
+- `Api` — REST client with built-in rate limit handling.
+- `Gateway` — Single Discord WebSocket session manager.
+- `ShardLauncher` — pm2-based process spawner for shards.
+- `Server` — gRPC server for centralized rate limits and remote REST requests.
+
+## Quick Start
+
+### Basic Bot (Paracord)
+
+```js
+const { Paracord } = require('paracord');
+const bot = new Paracord(token, {
+  gatewayOptions: { wsUrl, wsParams }
+});
+bot.on('GUILD_CREATE', (data, shard) => { /* handle */ });
+bot.on('PARACORD_STARTUP_COMPLETE', () => { /* all shards ready */ });
+await bot.login({
+  identity: { intents: 32767 },
+  shards: [0, 1],
+  shardCount: 2,
+});
+```
+
+### REST Requests (Api)
+
+```js
+const { Api } = require('paracord');
+const api = new Api(token);
+const res = await api.request('GET', '/channels/123456789');
+// res: { status, statusText, data, headers }
+```
+
+### RPC Setup
+
+```js
+const { Server } = require('paracord');
+const server = new Server({ host: '127.0.0.1', port: '50051' });
+server.addRateLimitService();
+server.addRequestService(token);
+server.serve();
+
+// Client side:
+await api.addRateLimitService({ host: '127.0.0.1', port: '50051', allowFallback: true });
+```
+
+### Shard Launcher (pm2)
+
+```js
+const { ShardLauncher } = require('paracord');
+const launcher = new ShardLauncher('./bot.js', {
+  token,
+  shardIds: [0, 1, 2],
+  shardCount: 3,
+});
+await launcher.launch();
+```
+
+## Key Signatures
+
+```
+Api(token: string, options?: ApiOptions)
+Api.request<T>(method: Method, url: string, options?: RequestOptions): Promise<ApiResponse<T>>
+Api.addRateLimitService(options?: ServiceOptions): Promise<boolean>
+Api.addRequestService(options?: ServiceOptions): Promise<boolean>
+
+Gateway(token: string, options: GatewayOptions)
+Gateway.login(): void
+Gateway.close(code?: GatewayCloseCode): void
+Gateway.requestGuildMembers(options: GatewayRequestGuildMembersData): boolean
+
+Paracord(token: string, options: ParacordOptions)  extends EventEmitter
+Paracord.login(options?: Partial<ParacordLoginOptions>): Promise<void>
+Paracord.end(): void
+
+ShardLauncher(main: string, options: ShardLauncherOptions)
+ShardLauncher.launch(pm2Options?: StartOptions): Promise<void>
+
+Server(options?: RpcServerOptions)  extends grpc.Server
+Server.addRateLimitService(): void
+Server.addRequestService(token: string, apiOptions?: ApiOptions): void
+Server.serve(): void
+```
+
+## Events
+
+Paracord/Gateway emit these event types:
+
+- Discord dispatch events: `READY`, `GUILD_CREATE`, `MESSAGE_CREATE`, etc. (all `GatewayDispatchEvents`)
+- Gateway lifecycle: `GATEWAY_OPEN`, `GATEWAY_CLOSE`, `GATEWAY_RESUME`, `GATEWAY_IDENTIFY`
+- Heartbeat: `HEARTBEAT_SENT`, `HEARTBEAT_ACK`
+- Startup: `SHARD_STARTUP_COMPLETE`, `PARACORD_STARTUP_COMPLETE`
+- Debug: `DEBUG`
+
+Event handler signature: `(data: unknown, shard: Gateway) => void`
+
+## Key Types
+
+- `discord-api-types/v10` — All Discord payload types come from this package.
+- `ApiOptions` — `{ emitter?, requestOptions?, queueLoopInterval?, maxConcurrency? }`
+- `RequestOptions` — `{ data?, headers?, params?, local?, returnOnRateLimit?, globalRateLimitMax?, version? }`
+- `GatewayOptions` — `{ identity, emitter, wsUrl, wsParams, heartbeatIntervalOffset?, version? }`
+- `IdentityOptions` — `{ intents, shard?, compress?, largeThreshold?, presence? }`
+- `ParacordOptions` — `{ gatewayOptions, unavailableGuildTolerance?, unavailableGuildWait?, shardStartupTimeout?, compressShards? }`
+- `ParacordLoginOptions` — `{ identity, shards?, shardCount?, allowConnection? }`
+- `ShardLauncherOptions` — `{ token?, shardIds?, shardChunks?, shardCount?, appName?, env? }`
+- `ServiceOptions` — `{ host?, port?, channel?, allowFallback? }`
+- `RpcServerOptions` — `{ host?, port?, channel?, emitter?, apiClient?, globalRateLimitMax?, globalRateLimitResetPadding? }`
+- `ApiResponse<T>` — `{ status, statusText, data: T, headers, retry_after? }`
+
+## Defaults
+
+- Discord API version: `10`
+- Global rate limit: `50` requests per second
+- Global rate limit reset padding: `50ms`
+- RPC host: `127.0.0.1`, port: `50051`
+- Tokens are auto-prefixed with `Bot ` if missing.
+- `allowFallback` on RPC services: falls back to local handling when RPC server is unreachable.
+
+## Utilities
+
+```
+coerceTokenToBotLike(token: string): string
+timestampFromSnowflake(snowflake: Snowflake): number
+computeChannelPerms({ member, guild, channel }): bigint
+computeGuildPerms({ member, guild }): bigint
+constructUserAvatarUrl(user, options?): string
+constructGuildIcon(guild, fileType?): string | undefined
+clone<T>(object: T): T
+isApiError(val: unknown): val is ApiError
+```
+
+## Documentation
+
+- Examples: examples/ directory in repo
+- Full API reference: llms-full.txt
+- Source: https://github.com/paracordjs/paracord

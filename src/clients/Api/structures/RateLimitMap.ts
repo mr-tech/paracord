@@ -6,7 +6,10 @@ import type Api from '../Api';
 import type { IncomingRateLimit } from '../types';
 import type RateLimitTemplate from './RateLimitTemplate';
 
-/** Rate limit keys to their associated state. */
+/**
+ * Rate limit keys to their associated state.
+ * @internal
+ */
 export default class RateLimitMap extends Map<string, RateLimit> {
   #logger?: undefined | Api;
 

@@ -1,14 +1,22 @@
+/** Library version number. */
 export const PARACORD_VERSION_NUMBER = '0.5';
+/** Library homepage URL. */
 export const PARACORD_URL = 'https://paracordjs.com/';
+/** One second in milliseconds (1000). */
 export const SECOND_IN_MILLISECONDS = 1e3;
+/** One minute in milliseconds (60000). */
 export const MINUTE_IN_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
+/** One hour in milliseconds (3600000). */
 export const HOUR_IN_MILLISECONDS = 60 * MINUTE_IN_MILLISECONDS;
+/** One gigabyte in bytes (1073741824). */
 export const GIGABYTE_IN_BYTES = 1073741824;
+/** Discord gateway WebSocket protocol version. */
 export const DISCORD_WS_VERSION = 10;
-/** Gateway websocket connection rate limit. */
+/** Gateway WebSocket connection rate limit: max requests per minute. */
 export const GATEWAY_MAX_REQUESTS_PER_MINUTE = 120;
-/** A buffer the reserves this amount of gateway requests every minute for critical tasks. */
+/** Number of gateway requests reserved per minute for critical tasks (heartbeats, identifies). */
 export const GATEWAY_REQUEST_BUFFER = 4;
+/** Default wait time in ms before connecting to the gateway bot endpoint (5 seconds). */
 export const DEFAULT_GATEWAY_BOT_WAIT = 5 * SECOND_IN_MILLISECONDS;
 /** https://discord.com/developers/docs/topics/opcodes-and-status-codes */
 export const GATEWAY_OP_CODES = {
@@ -59,12 +67,15 @@ export const GATEWAY_CLOSE_CODES = {
   UNKNOWN: 4999, // Something odd happened. Refer to other ERROR level logging events.
 } as const;
 
+/** Base URL for the Discord REST API. */
 export const DISCORD_API_URL = 'https://discord.com/api';
+/** Default Discord REST API version. */
 export const DISCORD_API_DEFAULT_VERSION = 10;
-/** Discord epoch (2015-01-01T00:00:00.000Z) */
+/** Discord epoch in Unix ms (2015-01-01T00:00:00.000Z). Used for snowflake timestamp extraction. */
 export const DISCORD_EPOCH = 1420070400000;
+/** Base URL for the Discord CDN (avatars, icons, etc.). */
 export const DISCORD_CDN_URL = 'https://cdn.discordapp.com';
-/** For internal logging. */
+/** Numeric identifiers for log event sources. Used in debug event `source` field. */
 export const LOG_SOURCES = {
   GATEWAY: 0,
   API: 1,
@@ -72,6 +83,7 @@ export const LOG_SOURCES = {
   RPC: 3,
 } as const;
 export type LogSource = typeof LOG_SOURCES[keyof typeof LOG_SOURCES]
+/** Numeric log severity levels. Higher values = more verbose. */
 export const LOG_LEVELS = {
   FATAL: 0,
   ERROR: 1,
@@ -80,16 +92,23 @@ export const LOG_LEVELS = {
   DEBUG: 5,
 } as const;
 export type LogLevel = typeof LOG_LEVELS[keyof typeof LOG_LEVELS]
+/** Maximum number of global rate limit requests per second. Default: 50. */
 export const API_GLOBAL_RATE_LIMIT = 50;
+/** Duration in ms of the global rate limit reset window (1 second). */
 export const API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS = 1000;
+/** Extra padding in ms added to the global rate limit reset timer to avoid edge-case 429s. */
 export const API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS = 50;
+/** Time in ms after which cached rate limit buckets expire and are cleaned up (5 minutes). */
 export const API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = 5 * MINUTE_IN_MILLISECONDS;
+/** Close codes used when the gRPC connection to an RPC service is lost. */
 export const RPC_CLOSE_CODES = {
   LOST_CONNECTION: 14,
 } as const;
 
+/** Constant used to identify role-type permission overwrites (vs member-type). */
 export const OVERWRITE_ROLE_VALUE = 0;
 
+/** Numeric codes identifying the type of API debug event. Used in `ApiDebugEvent.code`. */
 export const API_DEBUG_CODES = {
   GENERAL: 1,
   ERROR: 2,

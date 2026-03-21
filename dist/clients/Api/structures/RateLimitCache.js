@@ -7,7 +7,10 @@ const utils_1 = require("../../../utils");
 const constants_1 = require("../../../constants");
 const RateLimitMap_1 = __importDefault(require("./RateLimitMap"));
 const RateLimitTemplateMap_1 = __importDefault(require("./RateLimitTemplateMap"));
-/** Stores the state of all known rate limits this client has encountered. */
+/**
+ * Stores the state of all known rate limits this client has encountered.
+ * @internal
+ */
 class RateLimitCache {
     #apiClient;
     /** Request meta values to their associated rate limit bucket, if one exists. */

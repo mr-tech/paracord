@@ -26,6 +26,7 @@ interface SessionParams extends Pick<GatewayOptions, 'wsUrl' | 'wsParams'> {
   onClose: Gateway['handleClose'];
 }
 
+/** @internal */
 export default class Session {
   #gateway: Gateway;
 

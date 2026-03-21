@@ -1,0 +1,490 @@
+# Paracord — Full API Reference
+
+> A TypeScript/Node.js toolkit for building scalable Discord bots with REST, Gateway, and optional gRPC-based remote services for rate limits and requests.
+
+Version: 0.0.5 | License: Apache-2.0 | Node: >=16 | Module: CommonJS
+
+---
+
+## Installation
+
+```
+npm install paracord
+```
+
+Optional dependencies:
+- `pm2` — required for ShardLauncher
+- `bufferutil`, `utf-8-validate` — WebSocket performance
+- `@grpc/grpc-js`, `@grpc/proto-loader` — required for RPC services (bundled)
+
+---
+
+## Exports
+
+```js
+const Paracord = require('paracord');          // default export
+const { Paracord, Api, Gateway, ShardLauncher, Server } = require('paracord');
+```
+
+All types are available from `paracord` as named exports:
+```ts
+import type { ApiOptions, RequestOptions, ApiResponse, GatewayOptions, IdentityOptions,
+  ParacordOptions, ParacordLoginOptions, ShardLauncherOptions, ServiceOptions,
+  RpcServerOptions, GatewayCloseEvent, ParacordStartupEvent } from 'paracord';
+```
+
+Discord payload types come from: `discord-api-types/v10`
+
+---
+
+## Class: Api
+
+REST client with built-in rate limit handling, bucket tracking, and optional gRPC delegation.
+
+### Constructor
+
+```ts
+new Api(token: string, options?: ApiOptions)
+```
+
+- `token` — Discord bot token. Automatically prefixed with `Bot ` if missing.
+- `options.emitter` — EventEmitter for debug events.
+- `options.requestOptions` — Default RequestOptions applied to all requests.
+- `options.queueLoopInterval` — Interval in ms between queue processing cycles. Controls how often rate-limited requests are retried.
+- `options.maxConcurrency` — Max number of concurrent in-flight requests. Requests exceeding this are queued.
+
+### Methods
+
+#### `api.request<T>(method: Method, url: string, options?: RequestOptions): Promise<ApiResponse<T> | RemoteApiResponse<T>>`
+
+Makes a request to Discord, handling rate limits and returning when a non-429 response is received.
+
+- `method` — HTTP method: `'GET'`, `'POST'`, `'PUT'`, `'PATCH'`, `'DELETE'`
+- `url` — Discord endpoint path (e.g. `'/channels/123456789'`). Leading slash optional.
+- `options` — Per-request overrides (merged with default `requestOptions`).
+
+Returns `ApiResponse<T>` with `{ status, statusText, data: T, headers }`.
+
+#### `api.addRateLimitService(options?: ServiceOptions): Promise<boolean>`
+
+Connects to a remote gRPC rate limit server. The server authorizes each request before it's made.
+
+#### `api.addRequestService(options?: ServiceOptions): Promise<boolean>`
+
+Connects to a remote gRPC request server. The server makes Discord requests on behalf of this client.
+
+Only one RPC service (rate limit OR request) may be added per Api instance.
+
+#### `api.setToken(token: string): void`
+
+Updates the token and recreates the internal HTTP client.
+
+#### `api.end(): void`
+
+Shuts down the request queue and rate limit cache.
+
+#### `Api.extractBucketHashKey(method: string, url: string): string[]`
+
+Static. Derives rate limit bucket key from method + URL path.
+
+#### `Api.isApiDebugEvent(event: unknown): event is ApiDebugEvent`
+
+Static. Type guard for ApiDebugEvent discriminated by source.
+
+### Events
+
+Listen via `api.on(codeName, handler)`:
+- `'GENERAL'` — General info log
+- `'ERROR'` — Error occurred
+- `'REQUEST_SENT'` — Request dispatched (data: `{ request }`)
+- `'REQUEST_QUEUED'` — Request queued for rate limit (data: `{ request, reason }`)
+- `'REQUEST_REQUEUED'` — Queued request re-sent (data: `{ request, reason }`)
+- `'RESPONSE_RECEIVED'` — Response received (data: `{ request, response }`)
+- `'RATE_LIMITED'` — Rate limited (data: `{ request, headers, queued }`)
+- `'SERVER_ERROR'` — Server error received
+
+---
+
+## Interface: RequestOptions
+
+Per-request configuration for `api.request()`.
+
+```ts
+interface RequestOptions {
+  data?: unknown;                        // Body payload
+  headers?: Record<string, unknown>;     // Additional headers
+  params?: Record<string, unknown>;      // URL query parameters
+  createForm?: RequestFormDataFunction;   // Form data generator (overrides data/headers)
+  local?: boolean;                       // Force local execution, bypass RPC
+  returnOnRateLimit?: boolean;           // Don't retry on bucket 429
+  returnOnGlobalRateLimit?: boolean;     // Don't retry on global 429
+  globalRateLimitMax?: number;           // Known global rate limit cap (default: 50)
+  globalRateLimitResetPadding?: number;  // Extra ms on global reset timer (default: 50)
+  version?: number;                      // Discord API version (default: 10)
+  maxRateLimitRetry?: number;            // Max retries before returning 429 locally
+  validateStatus?: null | ((status: number) => boolean);  // Custom status validation
+}
+```
+
+---
+
+## Interface: ApiResponse\<T\>
+
+```ts
+interface ApiResponse<T = any> {
+  status: number;                    // HTTP status code
+  statusText: string;                // Status message (e.g. "OK")
+  data: T;                          // Response body from Discord
+  headers: Record<string, unknown>;  // Response headers
+  retry_after?: number;              // Rate limit retry delay in ms
+}
+```
+
+---
+
+## Class: Gateway
+
+Manages a single Discord WebSocket gateway connection with heartbeat, identify, and resume logic.
+
+### Constructor
+
+```ts
+new Gateway(token: string, options: GatewayOptions)
+```
+
+- `token` — Discord bot token. Automatically prefixed with `Bot ` if missing.
+- `options` — Required gateway configuration including identity and emitter.
+
+### Properties
+
+- `gateway.id: number` — Shard ID (0 if not sharding).
+- `gateway.shard: [number, number] | undefined` — `[shardId, shardCount]` or undefined.
+- `gateway.connected: boolean` — Whether the WebSocket is open.
+- `gateway.resumable: boolean` — Whether the session can be resumed.
+- `gateway.resuming: boolean` — Whether currently resuming a session.
+- `gateway.compression: boolean` — Whether compression is enabled.
+
+### Methods
+
+#### `gateway.login(): void`
+
+Opens a WebSocket connection to Discord and begins the identify/resume flow.
+
+#### `gateway.close(code?: GatewayCloseCode, flushWait?: number): void`
+
+Closes the WebSocket connection. Default code: `USER_TERMINATE_RECONNECT` (4997).
+
+#### `gateway.requestGuildMembers(options: GatewayRequestGuildMembersData): boolean`
+
+Sends a Request Guild Members payload. Returns `true` if sent successfully.
+
+#### `gateway.updatePresence(presence: GatewayPresenceUpdateData): boolean`
+
+Updates the bot's presence. Returns `true` if sent successfully.
+
+#### `gateway.setToken(token: string): void`
+
+Updates the token for future identify payloads.
+
+#### `gateway.setCompression(compress: boolean): void`
+
+Enables or disables payload compression.
+
+---
+
+## Interface: GatewayOptions
+
+```ts
+interface GatewayOptions {
+  identity: IdentityOptions;               // Identify payload structure
+  emitter: EventHandler;                   // Event emitter with handleEvent method
+  wsUrl: string;                           // WebSocket URL to connect to
+  wsParams: GatewayURLQuery;               // WebSocket URL query parameters
+  heartbeatIntervalOffset?: number;        // Seconds subtracted from heartbeat interval
+  heartbeatTimeoutSeconds?: number;        // Seconds before heartbeat ack timeout
+  checkSiblingHeartbeats?: Function[];     // Cross-shard heartbeat checks (internal sharding)
+  version?: number;                        // Gateway version (default: 10)
+}
+```
+
+---
+
+## Interface: IdentityOptions
+
+```ts
+interface IdentityOptions {
+  intents: number;                                 // Required. Gateway Intents bitfield
+  token?: string;                                  // Auth token (set automatically)
+  shard?: [number, number];                        // [shardId, shardCount]
+  properties?: GatewayIdentifyProperties;          // Client properties
+  compress?: boolean;                              // Payload compression (default: false)
+  largeThreshold?: number;                         // Large guild threshold (50-250, default: 50)
+  presence?: GatewayPresenceUpdateData;            // Initial presence
+  guildSubscriptions?: boolean;                    // Typing/presence events (default: true)
+}
+```
+
+---
+
+## Class: Paracord (extends EventEmitter)
+
+Orchestrates multiple Gateway clients with serialized login queue, startup tracking, and automatic reconnection.
+
+### Constructor
+
+```ts
+new Paracord(token: string, options: ParacordOptions)
+```
+
+- `token` — Discord bot token. Automatically prefixed with `Bot ` if missing.
+- `options` — Required configuration including gateway options.
+
+### Properties
+
+- `paracord.shards: Map<number, Gateway>` — Active gateway clients keyed by shard ID.
+- `paracord.connecting: boolean` — Whether gateways are currently starting up.
+- `paracord.gatewayLoginQueue: Gateway[]` — Gateways waiting to log in.
+
+### Methods
+
+#### `paracord.login(options?: Partial<ParacordLoginOptions>): Promise<void>`
+
+Connects to Discord's gateway. Spawns gateways for each shard and begins the login queue.
+
+When launched via `ShardLauncher`, shard info is injected via `PARACORD_SHARD_IDS` and `PARACORD_SHARD_COUNT` env vars.
+
+#### `paracord.end(): void`
+
+Terminates all gateways and stops the login interval.
+
+#### `paracord.setToken(token: string): void`
+
+Updates the token on all gateways.
+
+### Events
+
+```ts
+paracord.on('READY', (data, shard) => { });
+paracord.on('GUILD_CREATE', (data, shard) => { });
+paracord.on('MESSAGE_CREATE', (data, shard) => { });
+// ... all GatewayDispatchEvents from discord-api-types/v10
+
+paracord.on('GATEWAY_CLOSE', (event: GatewayCloseEvent) => { });
+paracord.on('SHARD_STARTUP_COMPLETE', (event: ParacordStartupEvent) => { });
+paracord.on('PARACORD_STARTUP_COMPLETE', () => { });
+paracord.on('DEBUG', (event) => { });
+```
+
+---
+
+## Interface: ParacordOptions
+
+```ts
+interface ParacordOptions {
+  gatewayOptions: ParacordGatewayOptions;  // Gateway config (without emitter/identity)
+  unavailableGuildTolerance?: number;      // Max unavailable guilds before forcing ready
+  unavailableGuildWait?: number;           // Seconds since last GUILD_CREATE before forcing ready
+  shardStartupTimeout?: number;            // Seconds before timing out a shard's startup
+  compressShards?: number[];               // Shard IDs to enable compression on
+}
+```
+
+---
+
+## Interface: ParacordLoginOptions
+
+```ts
+interface ParacordLoginOptions {
+  identity: IdentityOptions;                                  // Identify payload
+  shards?: number[];                                          // Shard IDs to spawn
+  shardCount?: number;                                        // Total shard count
+  allowConnection?: (gw: Gateway) => boolean | Promise<boolean>;  // Gate shard connections
+}
+```
+
+---
+
+## Event Types
+
+```ts
+type GatewayCloseEvent = {
+  shouldReconnect: boolean;  // Whether the client will attempt reconnection
+  code: number;              // WebSocket close code
+  gateway: Gateway;          // The gateway that closed
+}
+
+type ParacordStartupEvent = {
+  shard: Gateway;    // The gateway that completed startup
+  forced?: boolean;  // Whether startup was forced due to unavailable guild tolerance
+  resumed?: boolean; // Whether the shard resumed rather than fresh-identifying
+}
+
+type GatewayHeartbeatSentEvent = {
+  scheduleDiff: number;  // Difference between scheduled and actual heartbeat time
+  gateway: Gateway;
+}
+
+type GatewayHeartbeatAckEvent = {
+  latency: number;   // Round-trip latency in ms
+  gateway: Gateway;
+}
+```
+
+---
+
+## Class: ShardLauncher
+
+Spawns shards into pm2 processes, injecting shard information via environment variables.
+
+### Constructor
+
+```ts
+new ShardLauncher(main: string, options: ShardLauncherOptions)
+```
+
+- `main` — Relative path to the app's entry file.
+- `options` — Shard configuration.
+
+### Methods
+
+#### `launcher.launch(pm2Options?: pm2.StartOptions): Promise<void>`
+
+Connects to pm2 and spawns processes. Each chunk of shards gets its own pm2 process.
+
+### Interface: ShardLauncherOptions
+
+```ts
+interface ShardLauncherOptions {
+  token?: string;                      // Discord token (used to get recommended shard count)
+  shardIds?: number[];                 // Shard IDs to spawn (ignored if shardChunks defined)
+  shardChunks?: number[][];            // Groups of shard IDs — each group gets its own process
+  shardCount?: number;                 // Total number of shards across all instances
+  appName?: string;                    // Name shown in pm2 (default: "Discord Bot")
+  env?: Record<string, unknown>;       // Additional environment variables
+}
+```
+
+Environment variables injected by ShardLauncher:
+- `PARACORD_TOKEN` — Bot token
+- `PARACORD_SHARD_COUNT` — Total shard count
+- `PARACORD_SHARD_IDS` — Comma-separated shard IDs for that process
+
+---
+
+## Class: Server (RpcServer, extends grpc.Server)
+
+gRPC server for centralizing rate limit tracking and/or proxying Discord REST requests.
+
+### Constructor
+
+```ts
+new Server(options?: RpcServerOptions)
+```
+
+### Interface: RpcServerOptions
+
+```ts
+interface RpcServerOptions {
+  host?: string;                         // Bind host (default: '127.0.0.1')
+  port?: string | number;               // Bind port (default: '50051')
+  channel?: ServerCredentials;           // gRPC server credentials (default: insecure)
+  emitter?: EventEmitter;               // Event emitter for debug logging
+  apiClient?: Api;                       // Pre-configured Api client (for request service)
+  globalRateLimitMax?: number;           // Global rate limit cap (default: 50)
+  globalRateLimitResetPadding?: number;  // Extra ms on global reset timer (default: 50)
+}
+```
+
+### Methods
+
+#### `server.addRateLimitService(): void`
+
+Adds the rate limit authorization service. Clients check with this server before making Discord requests.
+
+#### `server.addRequestService(token: string, apiOptions?: ApiOptions): void`
+
+Adds the request proxy service. The server makes Discord API requests on behalf of clients.
+
+#### `server.serve(): void`
+
+Starts listening for gRPC connections.
+
+---
+
+## Interface: ServiceOptions (Client-side RPC)
+
+```ts
+interface ServiceOptions {
+  host?: string;               // RPC server host (default: '127.0.0.1')
+  port?: string | number;      // RPC server port (default: '50051')
+  channel?: ChannelCredentials; // gRPC channel credentials
+  allowFallback?: boolean;     // Fall back to local handling if RPC unavailable (default: true)
+}
+```
+
+---
+
+## Utility Functions
+
+### `coerceTokenToBotLike(token: string): string`
+Prefixes token with `Bot ` if not already present.
+
+### `timestampFromSnowflake(snowflake: Snowflake): number`
+Extracts a Unix timestamp from a Discord snowflake ID.
+
+### `computeChannelPerms({ member, guild, channel, stopOnOwnerAdmin? }): bigint`
+Computes a member's effective permissions for a specific channel, including role and member overwrites.
+
+### `computeGuildPerms({ member, guild, stopOnOwnerAdmin? }): bigint`
+Computes a member's guild-level permissions from their roles.
+
+### `constructUserAvatarUrl(user, options?): string`
+Generates the Discord CDN URL for a user's avatar.
+
+### `constructGuildIcon(guild, fileType?): string | undefined`
+Generates the Discord CDN URL for a guild's icon. Returns undefined if no icon.
+
+### `clone<T>(object: T): T`
+Deep clones an object via JSON serialization.
+
+### `isApiError(val: unknown): val is ApiError`
+Type guard for error objects produced by failed API requests.
+
+---
+
+## Constants
+
+```ts
+DISCORD_API_URL = 'https://discord.com/api'
+DISCORD_API_DEFAULT_VERSION = 10
+DISCORD_CDN_URL = 'https://cdn.discordapp.com'
+DISCORD_EPOCH = 1420070400000   // 2015-01-01T00:00:00.000Z
+
+GATEWAY_MAX_REQUESTS_PER_MINUTE = 120
+GATEWAY_REQUEST_BUFFER = 4
+DEFAULT_GATEWAY_BOT_WAIT = 5000  // ms
+DISCORD_WS_VERSION = 10
+
+API_GLOBAL_RATE_LIMIT = 50
+API_GLOBAL_RATE_LIMIT_RESET_MILLISECONDS = 1000
+API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS = 50
+API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS = 300000  // 5 minutes
+
+GATEWAY_OP_CODES   // { DISPATCH: 0, HEARTBEAT: 1, IDENTIFY: 2, ... }
+GATEWAY_CLOSE_CODES // { CLEAN: 1000, AUTHENTICATION_FAILED: 4004, ... }
+LOG_SOURCES         // { GATEWAY: 0, API: 1, PARACORD: 2, RPC: 3 }
+LOG_LEVELS          // { FATAL: 0, ERROR: 1, WARNING: 2, INFO: 4, DEBUG: 5 }
+API_DEBUG_CODES     // { GENERAL: 1, ERROR: 2, REQUEST_SENT: 3, ... }
+```
+
+---
+
+## Architecture Notes
+
+- Gateway → emits Discord events to a provided emitter's `handleEvent(type, data, gateway)` method.
+- Paracord → orchestrates many Gateways, serializes logins via a queue, tracks startup progress.
+- Api → wraps axios with `RateLimitCache`; queues requests when bucket/global limits hit; retries 5xx up to 3 times.
+- Server (RpcServer) → centralizes rate limit state for multi-process deployments; can also proxy REST requests.
+- ShardLauncher → spawns pm2 processes; injects `PARACORD_TOKEN`, `PARACORD_SHARD_COUNT`, `PARACORD_SHARD_IDS` env vars.
+- Tokens are always coerced to `Bot <token>` format via `coerceTokenToBotLike()`.
+- All clients emit `DEBUG` events tagged with `LOG_SOURCES` for structured observability.

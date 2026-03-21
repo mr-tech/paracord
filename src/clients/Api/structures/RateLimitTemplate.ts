@@ -1,6 +1,9 @@
 import type RateLimitHeaders from './RateLimitHeaders';
 
-/** A frozen instance of a rate limit that is used as a reference for requests with the same bucket but without an existing cached state. */
+/**
+ * A frozen instance of a rate limit that is used as a reference for requests with the same bucket but without an existing cached state.
+ * @internal
+ */
 export default class RateLimitTemplate {
   /** From Discord - Rate limit request cap. */
   public limit: number;

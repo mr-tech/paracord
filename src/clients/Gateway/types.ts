@@ -61,19 +61,29 @@ export type IdentityOptions = {
   intents: number;
 }
 
+/** Emitted when a gateway WebSocket connection closes. */
 export type GatewayCloseEvent = {
+  /** Whether the client will attempt to reconnect automatically. */
   shouldReconnect: boolean,
+  /** The WebSocket close code. See `GATEWAY_CLOSE_CODES` for known values. */
   code: number,
+  /** The gateway instance that closed. */
   gateway: Gateway
 }
 
+/** Emitted when a heartbeat is sent to Discord. */
 export type GatewayHeartbeatSentEvent = {
+  /** Difference in ms between the scheduled heartbeat time and the actual send time. */
   scheduleDiff: number;
+  /** The gateway instance that sent the heartbeat. */
   gateway: Gateway;
 }
 
+/** Emitted when a heartbeat acknowledgement is received from Discord. */
 export type GatewayHeartbeatAckEvent = {
+  /** Round-trip latency in milliseconds. */
   latency: number;
+  /** The gateway instance that received the ack. */
   gateway: Gateway;
 }
 

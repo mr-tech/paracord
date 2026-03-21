@@ -2,6 +2,7 @@ import { ApiResponse } from '../types';
 
 import ApiRequest from './ApiRequest';
 
+/** @internal */
 export default class QueuedRequest {
   #request: ApiRequest;
 

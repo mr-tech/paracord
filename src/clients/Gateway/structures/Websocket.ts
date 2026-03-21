@@ -35,6 +35,7 @@ type WebsocketRateLimitState = {
 
 const CONNECT_TIMEOUT = 10 * SECOND_IN_MILLISECONDS;
 
+/** @internal */
 export default class Websocket {
   #session: Session;
 

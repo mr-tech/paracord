@@ -1,7 +1,10 @@
 import type Api from '../Api';
 import type QueuedRequest from './QueuedRequest';
 
-/** A queue for rate limited requests waiting to be sent. */
+/**
+ * A queue for rate limited requests waiting to be sent.
+ * @internal
+ */
 export default class RequestQueue {
   /** The queue. */
   #queue: QueuedRequest[];
