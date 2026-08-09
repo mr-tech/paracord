@@ -987,6 +987,8 @@ export declare class RateLimitCache {
     /** How long until the rate limit resets in ms. */
     private get globalRateLimitResetAfter();
     end(): void;
+    /** Removes bucket hash mappings that haven't been written to within the expiry window. */
+    private sweepExpiredBucketHashes;
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest;
     private decrementGlobalRemaining;

@@ -144,9 +144,15 @@ export default class Session {
 
     this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: [] });
 
-    void this.#gatewayHandleEvent('REQUEST_GUILD_MEMBERS', { gateway: this, options });
+    void this.#gatewayHandleEvent('REQUEST_GUILD_MEMBERS', { gateway: this.#gateway, options });
 
-    return this.#websocket.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
+    const sent = this.#websocket.send(GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
+
+    // The payload never left the process, so no chunks will arrive to clear this nonce. Leaving it
+    // would pin `isFetchingMembers` true, which indefinitely vetoes the missed-heartbeat close.
+    if (!sent) this.#requestingMembersStateMap.delete(options.nonce);
+
+    return sent;
   }
 
   /**

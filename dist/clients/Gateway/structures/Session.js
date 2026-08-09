@@ -90,8 +90,13 @@ class Session {
             options.nonce = `${options.guild_id}-${++this.#membersRequestNonceCounter}`;
         }
         this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: [] });
-        void this.#gatewayHandleEvent('REQUEST_GUILD_MEMBERS', { gateway: this, options });
-        return this.#websocket.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
+        void this.#gatewayHandleEvent('REQUEST_GUILD_MEMBERS', { gateway: this.#gateway, options });
+        const sent = this.#websocket.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
+        // The payload never left the process, so no chunks will arrive to clear this nonce. Leaving it
+        // would pin `isFetchingMembers` true, which indefinitely vetoes the missed-heartbeat close.
+        if (!sent)
+            this.#requestingMembersStateMap.delete(options.nonce);
+        return sent;
     }
     /**
      * Connects to Discord's event gateway.

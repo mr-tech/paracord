@@ -470,23 +470,20 @@ export default class Websocket {
       return false;
     }
 
-    if (this.#rateLimitState.count <= GATEWAY_REQUEST_BUFFER) {
-      return false;
-    }
-
-    return true;
+    // Reserve the buffer for heartbeats and resumes, which are exempt above.
+    return this.#rateLimitState.count >= GATEWAY_MAX_REQUESTS_PER_MINUTE - GATEWAY_REQUEST_BUFFER;
   }
 
   /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
   private updateWsRateLimit(): void {
-    if (
-      this.#rateLimitState.count === GATEWAY_MAX_REQUESTS_PER_MINUTE
-    ) {
-      const now = new Date().getTime();
+    const now = new Date().getTime();
+
+    if (now > this.#rateLimitState.resetTimestamp) {
       this.#rateLimitState.resetTimestamp = now + MINUTE_IN_MILLISECONDS;
+      this.#rateLimitState.count = 0;
     }
 
-    --this.#rateLimitState.count;
+    ++this.#rateLimitState.count;
   }
 
   private startCloseTimeout(websocket: ws): NodeJS.Timeout {

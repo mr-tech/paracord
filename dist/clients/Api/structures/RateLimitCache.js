@@ -15,6 +15,13 @@ class RateLimitCache {
     #apiClient;
     /** Request meta values to their associated rate limit bucket, if one exists. */
     bucketHashes;
+    /**
+     * Expiry timestamps for entries in `bucketHashes`. Kept separate so that `bucketHashes` retains its
+     * public shape. Bucket hash keys can carry unbounded segments (webhook/interaction tokens, custom
+     * emoji names), so without expiry the map grows for the lifetime of the process.
+     */
+    #bucketHashExpiry;
+    #bucketHashExpiryInterval;
     /** Rate limit keys to their associate rate limit */
     #rateLimitMap;
     /** Bucket Ids to saved rate limits state to create new rate limits from known constraints. */
@@ -26,6 +33,8 @@ class RateLimitCache {
     constructor(globalRateLimitMax, globalRateLimitResetPadding, api) {
         this.#apiClient = api;
         this.bucketHashes = new Map();
+        this.#bucketHashExpiry = new Map();
+        this.#bucketHashExpiryInterval = setInterval(this.sweepExpiredBucketHashes, constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
         this.#rateLimitMap = new RateLimitMap_1.default(api);
         this.#rateLimitTemplateMap = new RateLimitTemplateMap_1.default();
         this.#globalRateLimitState = {
@@ -63,8 +72,24 @@ class RateLimitCache {
         return waitFor > 0 ? waitFor : 0;
     }
     end() {
+        clearInterval(this.#bucketHashExpiryInterval);
         this.#rateLimitMap.end();
     }
+    /** Removes bucket hash mappings that haven't been written to within the expiry window. */
+    sweepExpiredBucketHashes = () => {
+        const now = new Date().getTime();
+        let count = 0;
+        for (const [key, expires] of this.#bucketHashExpiry.entries()) {
+            if (expires < now) {
+                this.#bucketHashExpiry.delete(key);
+                this.bucketHashes.delete(key);
+                ++count;
+            }
+        }
+        if (this.#apiClient) {
+            this.#apiClient.log('DEBUG', 'GENERAL', `Swept ${count} old bucket hashes from cache. (${new Date().getTime() - now}ms)`);
+        }
+    };
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc) {
         const wrappedRequest = (request) => {
@@ -120,6 +145,7 @@ class RateLimitCache {
         const { bucketHash } = rateLimitHeaders;
         if (bucketHash !== undefined) {
             this.bucketHashes.set(bucketHashKey, bucketHash);
+            this.#bucketHashExpiry.set(bucketHashKey, new Date().getTime() + constants_1.API_RATE_LIMIT_EXPIRE_AFTER_MILLISECONDS);
             const template = this.#rateLimitTemplateMap.upsert(bucketHash, rateLimitHeaders);
             this.#rateLimitMap.upsert(rateLimitKey, rateLimitHeaders, template);
         }

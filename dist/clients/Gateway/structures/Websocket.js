@@ -345,18 +345,17 @@ class Websocket {
         if (new Date().getTime() > this.#rateLimitState.resetTimestamp) {
             return false;
         }
-        if (this.#rateLimitState.count <= constants_1.GATEWAY_REQUEST_BUFFER) {
-            return false;
-        }
-        return true;
+        // Reserve the buffer for heartbeats and resumes, which are exempt above.
+        return this.#rateLimitState.count >= constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE - constants_1.GATEWAY_REQUEST_BUFFER;
     }
     /** Updates the rate limit cache upon sending a websocket message, resetting it if enough time has passed */
     updateWsRateLimit() {
-        if (this.#rateLimitState.count === constants_1.GATEWAY_MAX_REQUESTS_PER_MINUTE) {
-            const now = new Date().getTime();
+        const now = new Date().getTime();
+        if (now > this.#rateLimitState.resetTimestamp) {
             this.#rateLimitState.resetTimestamp = now + constants_1.MINUTE_IN_MILLISECONDS;
+            this.#rateLimitState.count = 0;
         }
-        --this.#rateLimitState.count;
+        ++this.#rateLimitState.count;
     }
     startCloseTimeout(websocket) {
         return setTimeout(() => {
