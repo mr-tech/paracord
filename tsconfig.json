@@ -14,5 +14,8 @@
   "exclude": [
     "dist",
     "build"
+  ],
+  "include": [
+    "src"
   ]
 }
