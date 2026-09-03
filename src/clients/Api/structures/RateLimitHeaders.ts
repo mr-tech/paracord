@@ -4,6 +4,30 @@ import type { RpcArguments } from '../../../@types';
 import type { ApiResponse } from '../types';
 
 /**
+ * Coerces a header value to a non-negative number of milliseconds.
+ *
+ * Rate limit headers are absent on 429s that carry no bucket state — Cloudflare bans and
+ * `x-ratelimit-scope: shared` responses among them — and `Number(undefined)` is `NaN`. NaN
+ * propagates through `Math.max` and poisons every timestamp derived from it, so it is stopped here.
+ */
+function headerToMilliseconds(value: unknown): number {
+  const seconds = Number(value);
+  if (!Number.isFinite(seconds) || seconds < 0) return 0;
+  return seconds * SECOND_IN_MILLISECONDS;
+}
+
+/** Coerces a header value to a finite count. */
+function headerToCount(value: unknown): number {
+  const count = Number(value);
+  return Number.isFinite(count) ? count : 0;
+}
+
+/** Header values arrive as strings, so the string `'false'` must not read as `true`. */
+function headerToBoolean(value: unknown): boolean {
+  return value === true || value === 'true';
+}
+
+/**
  * Representation of rate limit values from the header of a response from Discord.
  * @internal
  */
@@ -44,12 +68,12 @@ export default class RateLimitHeaders {
     } = headers;
 
     return new RateLimitHeaders(
-      <boolean | undefined> global ?? false,
+      headerToBoolean(global),
       <string | undefined> bucketHash,
-      Number(limit),
-      Number(remaining),
-      Number(resetAfter) * SECOND_IN_MILLISECONDS,
-      retryAfter && retryAfter * SECOND_IN_MILLISECONDS,
+      headerToCount(limit),
+      headerToCount(remaining),
+      headerToMilliseconds(resetAfter),
+      headerToMilliseconds(retryAfter),
     );
   }
 
@@ -64,13 +88,17 @@ export default class RateLimitHeaders {
    * @param retryAfter From Discord - The retry value from a 429 body. Sub-limits may make this value larger than resetAfter.
    */
   public constructor(global: boolean, bucketHash: string | undefined, limit: number, remaining: number, resetAfter: number, retryAfter: undefined | number) {
-    this.global = global || false;
-    this.bucketHash = bucketHash;
-    this.limit = limit;
-    this.remaining = remaining;
-    this.resetAfter = resetAfter;
+    // Values can also arrive over rpc, so they are re-checked here rather than only at the header boundary.
+    const safeResetAfter = Number.isFinite(resetAfter) ? Math.max(resetAfter, 0) : 0;
+    const safeRetryAfter = Number.isFinite(retryAfter) ? Math.max(Number(retryAfter), 0) : 0;
 
-    const maxWait = Math.max(retryAfter ?? 0, resetAfter);
+    this.global = global === true || <unknown>global === 'true';
+    this.bucketHash = bucketHash;
+    this.limit = Number.isFinite(limit) ? limit : 0;
+    this.remaining = Number.isFinite(remaining) ? remaining : 0;
+    this.resetAfter = safeResetAfter;
+
+    const maxWait = Math.max(safeRetryAfter, safeResetAfter);
     this.retryAfter = maxWait;
     this.resetTimestamp = new Date().getTime() + maxWait;
   }

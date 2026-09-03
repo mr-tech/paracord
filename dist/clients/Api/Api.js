@@ -11,6 +11,11 @@ const rpc_1 = require("../../rpc");
 const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 const MAX_SERVER_ERROR_RETRIES = 3;
+/**
+ * How long to hold a request that was rate limited but told nothing about when to retry. Without
+ * this the request goes back to the queue already eligible and is re-sent on the next tick.
+ */
+const UNKNOWN_RETRY_AFTER_MILLISECONDS = constants_1.SECOND_IN_MILLISECONDS;
 function validateStatusDefault(status) {
     return status >= 200 && status <= 299;
 }
@@ -19,6 +24,21 @@ function isRateLimitResponse(response) {
 }
 function isServerErrorResponse(response) {
     return response.status >= 500 && response.status <= 599;
+}
+/**
+ * Seconds to wait before retrying a rate limited request. Discord puts this in the response body,
+ * but 429s that carry no bucket state fall back to the standard `retry-after` header: Cloudflare
+ * bans answer with html and no `x-ratelimit-*` at all, and `x-ratelimit-scope: shared` responses
+ * (which webhook routes hit routinely) omit the bucket headers.
+ */
+function extractRetryAfter(response) {
+    const fromBody = Number(response.data?.retry_after);
+    if (Number.isFinite(fromBody))
+        return fromBody;
+    const fromHeader = Number(response.headers?.['retry-after']);
+    if (Number.isFinite(fromHeader))
+        return fromHeader;
+    return undefined;
 }
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
 class Api {
@@ -426,7 +446,7 @@ class Api {
                     const response = await this.#makeRequest(request);
                     this.log('DEBUG', 'RESPONSE_RECEIVED', 'Response received.', { request, response });
                     request.completeTime = new Date().getTime();
-                    const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? response.data.retry_after : undefined);
+                    const rateLimitHeaders = structures_1.RateLimitHeaders.extractRateLimitFromHeaders(response.headers, isRateLimitResponse(response) ? extractRetryAfter(response) : undefined);
                     this.updateRateLimitCache(request, rateLimitHeaders);
                     if (isRateLimitResponse(response)) {
                         return this.handleRateLimitResponse(request, response, rateLimitHeaders, !!fromQueue);
@@ -504,10 +524,12 @@ class Api {
     handleRateLimitResponse(request, response, headers, fromQueue) {
         const { resetTimestamp } = headers;
         const { waitUntil } = request;
-        const oldestTimestamp = Math.max(resetTimestamp ?? (waitUntil ?? 0));
-        if (oldestTimestamp > 0) {
-            request.assignIfStricter(oldestTimestamp);
-        }
+        const now = new Date().getTime();
+        // Both values are absolute timestamps, so the later of the two is the one to honour. A 429 that
+        // told us nothing still has to back off: leaving `waitUntil` at or behind now hands the request
+        // straight back to the queue, which re-sends it on the next tick and loops on the rate limit.
+        const target = Math.max(Number.isFinite(resetTimestamp) ? resetTimestamp : 0, waitUntil ?? 0);
+        request.assignIfStricter(target > now ? target : now + UNKNOWN_RETRY_AFTER_MILLISECONDS);
         let message;
         if (headers.global) {
             message = `Request global rate limited: ${request.method} ${request.url}`;
