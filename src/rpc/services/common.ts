@@ -1,17 +1,23 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
+import path from 'path';
 
 import type { IServerOptions } from '../../@types';
 
 /**
  * Load in a protobuf from a file.
+ *
+ * Resolves by directory, not by filename surgery: `protobufs/` is always the sibling of
+ * this module's own directory (`services/`), under both `dist/rpc/services/common.js`
+ * (the build copies `src/rpc/protobufs` to `dist/rpc/protobufs` alongside it) and
+ * `src/rpc/services/common.ts` (vitest runs the source directly). A filename-based
+ * rewrite of the compiled name is a no-op against the `.ts` filename vitest presents,
+ * which hands protobufjs the module's own source file instead of a `.proto` (WP-9b
+ * step 0a, AC-9.11; qa-P001 `9f94ee2`).
  * @param proto Name of the proto file.
  */
 export function loadProto<T extends protoLoader.PackageDefinition>(proto: string): T {
-  const protoPath = __filename.replace(
-    'services/common.js',
-    `protobufs/${proto}.proto`,
-  );
+  const protoPath = path.join(__dirname, '..', 'protobufs', `${proto}.proto`);
 
   return protoLoader.loadSync(protoPath, { keepCase: true }) as T;
 }

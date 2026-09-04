@@ -22,16 +22,28 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.mergeOptionsWithDefaults = exports.loadProtoDefinition = exports.loadProto = void 0;
 const grpc = __importStar(require("@grpc/grpc-js"));
 const protoLoader = __importStar(require("@grpc/proto-loader"));
+const path_1 = __importDefault(require("path"));
 /**
  * Load in a protobuf from a file.
+ *
+ * Resolves by directory, not by filename surgery: `protobufs/` is always the sibling of
+ * this module's own directory (`services/`), under both `dist/rpc/services/common.js`
+ * (the build copies `src/rpc/protobufs` to `dist/rpc/protobufs` alongside it) and
+ * `src/rpc/services/common.ts` (vitest runs the source directly). A filename-based
+ * rewrite of the compiled name is a no-op against the `.ts` filename vitest presents,
+ * which hands protobufjs the module's own source file instead of a `.proto` (WP-9b
+ * step 0a, AC-9.11; qa-P001 `9f94ee2`).
  * @param proto Name of the proto file.
  */
 function loadProto(proto) {
-    const protoPath = __filename.replace('services/common.js', `protobufs/${proto}.proto`);
+    const protoPath = path_1.default.join(__dirname, '..', 'protobufs', `${proto}.proto`);
     return protoLoader.loadSync(protoPath, { keepCase: true });
 }
 exports.loadProto = loadProto;
