@@ -29,7 +29,9 @@ function sMs(n: number): number {
   return Math.min(60000, 1000 * 2 ** (n - 1));
 }
 
-const ATTEMPTS = [1, 2, 3, 4, 5, 6, 7];
+// n = 8 (revision 32, critique F-59): n = 8's uncapped value (128s) is what makes a
+// cap *raise* visible, where n = 7's uncapped value (64s) is not enough to.
+const ATTEMPTS = [1, 2, 3, 4, 5, 6, 7, 8];
 
 describe('AC-9.12: computeBackoffMs consumers stay within [0.8*s_n, 1.2*s_n] together', () => {
   describe.each(ATTEMPTS)('attempt n = %i', (n) => {
