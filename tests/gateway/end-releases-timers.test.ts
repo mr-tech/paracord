@@ -113,11 +113,6 @@ describe('AC-1.6: end() releases every timer', () => {
     expect(after).toBe(before);
   }, 50000);
 
-  // AC-1.6's own domain is "every state in S at the moment `end()` is called (each
-  // gateway placed in a different state in the fixture)" — multi-gateway on its face.
-  // A single gateway can never be `#startingGateway`'s own predecessor at the moment
-  // the re-eligibility branch reads it, so a one-shard fixture cannot exercise that
-  // branch at all and passes vacuously whether or not it releases what it owns.
   it('a second shard queued behind one still cycling through backoff leaves nothing armed', async () => {
     await settle();
     const before = countActiveTimers();
