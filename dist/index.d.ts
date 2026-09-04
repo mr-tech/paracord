@@ -276,6 +276,8 @@ declare type AvatarParams = {
  */
 export declare function clone<T>(object: T): T;
 
+/* Excluded from this release type: CloseOrigin */
+
 /**
  * This is a bot library. Coerced non-compliant tokens to be bot-like.
  * @param token Discord token.

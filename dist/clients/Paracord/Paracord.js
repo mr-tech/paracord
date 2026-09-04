@@ -304,6 +304,7 @@ class Paracord extends events_1.EventEmitter {
                 gateway.login();
                 if (this.#shardStartupTimeout) {
                     const timeout = this.#shardStartupTimeout;
+                    clearTimeout(this.#shardTimeout);
                     this.#shardTimeout = setTimeout(() => {
                         this.timeoutShard(gateway, timeout);
                     }, timeout * constants_1.SECOND_IN_MILLISECONDS);
@@ -346,7 +347,7 @@ class Paracord extends events_1.EventEmitter {
     timeoutShard(gateway, waitTime) {
         if (this.isStartingGateway(gateway)) {
             this.log('WARNING', `Shard timed out after ${waitTime} seconds during startup. Reconnecting.`, { shard: gateway });
-            (0, closeOrigin_1.setPendingOrigin)(gateway, 'transport');
+            (0, closeOrigin_1.setPendingCloseIntent)(gateway, 'transport');
             gateway.close(constants_1.GATEWAY_CLOSE_CODES.INTERNAL_TERMINATE_RECONNECT);
         }
     }

@@ -8,7 +8,6 @@ const ws_1 = __importDefault(require("ws"));
 const zlib_1 = __importDefault(require("zlib"));
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
-const closeOrigin_1 = require("./closeOrigin");
 const Heartbeat_1 = __importDefault(require("./Heartbeat"));
 const wireCloseCode_1 = __importDefault(require("./wireCloseCode"));
 const CONNECT_TIMEOUT = 10 * constants_1.SECOND_IN_MILLISECONDS;
@@ -97,8 +96,7 @@ class Websocket {
                 // A zlib error leaves the stream unusable for every message after it — tear the
                 // connection down through the normal close path rather than log-and-continue on
                 // a socket that can no longer be read.
-                (0, closeOrigin_1.setPendingOrigin)(this.#session.gateway, 'transport');
-                this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+                this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
             });
             this.#zlibInflate = inflate;
         }
@@ -115,12 +113,11 @@ class Websocket {
     get connected() {
         return this.#connection.readyState === ws_1.default.OPEN;
     }
-    close(code, flushWaitTime = 0) {
+    close(code, flushWaitTime, origin) {
         if (this.#closing) {
             this.#session.log('DEBUG', `Websocket is already closing. Discarding code: ${code}.`);
             return;
         }
-        const origin = (0, closeOrigin_1.takePendingOrigin)(this.#session.gateway) ?? 'consumer';
         this.#closing = true;
         this.#pendingCloseCode = code;
         this.#pendingCloseOrigin = origin;
@@ -219,8 +216,7 @@ class Websocket {
             this.clearConnectTimeout();
             if (this.connection.readyState === ws_1.default.OPEN || this.connection.readyState === ws_1.default.CONNECTING) {
                 this.#session.log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
-                (0, closeOrigin_1.setPendingOrigin)(this.#session.gateway, 'transport');
-                this.close(constants_1.GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
+                this.close(constants_1.GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT, 0, 'transport');
             }
             else {
                 this.#session.log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
@@ -288,8 +284,7 @@ class Websocket {
         }
         catch (e) {
             this.#session.log('ERROR', `Failed to parse message. Message: ${data}`);
-            (0, closeOrigin_1.setPendingOrigin)(this.#session.gateway, 'transport');
-            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
             return;
         }
         this.handleMessage(parsed);
@@ -325,8 +320,7 @@ class Websocket {
         }
         catch (e) {
             this.#session.log('ERROR', `Failed to parse decompressed message. Message: ${result}`);
-            (0, closeOrigin_1.setPendingOrigin)(this.#session.gateway, 'transport');
-            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
             return;
         }
         this.handleMessage(parsed);

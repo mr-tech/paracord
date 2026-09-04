@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = __importDefault(require("ws"));
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
-const closeOrigin_1 = require("./closeOrigin");
 const Websocket_1 = __importDefault(require("./Websocket"));
 /** Idle time since a nonce's last chunk before its entry is dropped. */
 const CHUNK_STATE_TTL_MILLISECONDS = 60 * constants_1.SECOND_IN_MILLISECONDS;
@@ -156,16 +155,15 @@ class Session {
             this.#websocket = undefined;
         }
     };
-    close(code, flushWaitTime = 0) {
+    close(code, flushWaitTime, origin) {
         if (this.#websocket === undefined) {
             // No socket, but the gateway is still tracked — a session that survived a prior
             // close stays queued rather than connected. Runs the close path directly — the
             // arm for `code`, one `GATEWAY_CLOSE` — without a socket to touch.
-            const origin = (0, closeOrigin_1.takePendingOrigin)(this.#gateway) ?? 'consumer';
             this.handleClose(code, origin);
             return;
         }
-        this.#websocket.close(code, flushWaitTime);
+        this.#websocket.close(code, flushWaitTime, origin);
     }
     send = (op, data) => {
         if (!this.#websocket) {
@@ -232,8 +230,7 @@ class Session {
                 this.handleInvalidSession(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.RECONNECT:
-                (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'discord');
-                this.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
+                this.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT, 0, 'discord');
                 break;
             default:
         }
@@ -263,12 +260,11 @@ class Session {
      */
     handleInvalidSession(resumable) {
         this.#log('WARNING', `Received Invalid Session packet. Resumable: ${resumable}`);
-        (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'discord');
         if (!resumable) {
-            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED, 0, 'discord');
         }
         else {
-            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE, 0, 'discord');
         }
         void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
     }
@@ -309,8 +305,7 @@ class Session {
         }
         else {
             this.#log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-            (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
-            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
         }
     }
     /** Sends an "Identify" payload. */

@@ -83,6 +83,36 @@ describe('AC-1.6: end() releases every timer', () => {
     expect(after).toBe(before);
   }, 20000);
 
+  // A gateway re-armed for a fresh startup attempt overwrites `#shardTimeout` without
+  // releasing the handle it held from the previous attempt — reachable on a single
+  // gateway with enough retries, independent of shard count: each rejected reconnect
+  // still re-enters `processGatewayQueue`'s login branch and arms a fresh timer.
+  it('a single shard cycling through repeated rejected reconnects leaves nothing armed', async () => {
+    await settle();
+    const before = countActiveTimers();
+
+    server = await LoopbackGatewayServer.start();
+    bot = createTestBot(server.url, {
+      unavailableGuildTolerance: 50,
+      unavailableGuildWait: 30,
+      shardStartupTimeout: 120,
+    });
+
+    await bot.login({ identity: { intents: 1 }, shards: [0], shardCount: 1 });
+    const gw = bot.shards.get(0)!;
+    await waitForResumable(gw);
+
+    server.setMode('reject503');
+    server.dropLiveSocket();
+    await server.waitForAttempt(6, 30000);
+
+    bot.end();
+    await settle();
+    const after = countActiveTimers();
+
+    expect(after).toBe(before);
+  }, 50000);
+
   // AC-1.6's own domain is "every state in S at the moment `end()` is called (each
   // gateway placed in a different state in the fixture)" — multi-gateway on its face.
   // A single gateway can never be `#startingGateway`'s own predecessor at the moment

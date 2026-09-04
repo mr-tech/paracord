@@ -1,7 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
-const closeOrigin_1 = require("./closeOrigin");
 /** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for. */
 const VETO_CAP = 3;
 /** @internal */
@@ -135,8 +134,7 @@ class Heart {
         }
         else {
             this.#log('ERROR', 'heartbeatIntervalTime undefined.');
-            (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
-            this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            this.#websocket.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
         }
     }
     sendHeartbeat = () => {
@@ -152,8 +150,7 @@ class Heart {
                 }
                 else {
                     this.#log('ERROR', 'Heartbeat not acknowledged. Closing connection.');
-                    (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
-                    this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 3 * constants_1.SECOND_IN_MILLISECONDS);
+                    this.#websocket.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 3 * constants_1.SECOND_IN_MILLISECONDS, 'transport');
                     return;
                 }
             }
@@ -186,8 +183,7 @@ class Heart {
         if (!this.#isAcknowledged) {
             if (this.#gateway.connected) {
                 this.#log('ERROR', 'Heartbeat not acknowledged in time.');
-                (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
-                this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
+                this.#websocket.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 0, 'transport');
             }
             else {
                 this.#log('INFO', 'Heartbeat not acknowledged in time but connection is already closed.');

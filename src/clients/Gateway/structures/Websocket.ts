@@ -12,7 +12,6 @@ import {
 } from '../../../constants';
 import { isApiError } from '../../../utils';
 
-import { setPendingOrigin, takePendingOrigin } from './closeOrigin';
 import GatewayIdentify from './GatewayIdentify';
 import Heartbeat from './Heartbeat';
 import isValidWireCloseCode from './wireCloseCode';
@@ -150,8 +149,7 @@ export default class Websocket {
         // A zlib error leaves the stream unusable for every message after it — tear the
         // connection down through the normal close path rather than log-and-continue on
         // a socket that can no longer be read.
-        setPendingOrigin(this.#session.gateway, 'transport');
-        this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+        this.close(GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
       });
 
       this.#zlibInflate = inflate;
@@ -174,13 +172,11 @@ export default class Websocket {
     return this.#connection.readyState === ws.OPEN;
   }
 
-  public close(code: GatewayCloseCode, flushWaitTime = 0) {
+  public close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin) {
     if (this.#closing) {
       this.#session.log('DEBUG', `Websocket is already closing. Discarding code: ${code}.`);
       return;
     }
-
-    const origin = takePendingOrigin(this.#session.gateway) ?? 'consumer';
 
     this.#closing = true;
     this.#pendingCloseCode = code;
@@ -296,8 +292,7 @@ export default class Websocket {
 
       if (this.connection.readyState === ws.OPEN || this.connection.readyState === ws.CONNECTING) {
         this.#session.log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
-        setPendingOrigin(this.#session.gateway, 'transport');
-        this.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
+        this.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT, 0, 'transport');
       } else {
         this.#session.log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
       }
@@ -377,8 +372,7 @@ export default class Websocket {
       } = parsed;
     } catch (e) {
       this.#session.log('ERROR', `Failed to parse message. Message: ${data}`);
-      setPendingOrigin(this.#session.gateway, 'transport');
-      this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.close(GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
       return;
     }
 
@@ -422,8 +416,7 @@ export default class Websocket {
       parsed = JSON.parse(this.#textDecoder.decode(result)) as GatewayReceivePayload;
     } catch (e) {
       this.#session.log('ERROR', `Failed to parse decompressed message. Message: ${result}`);
-      setPendingOrigin(this.#session.gateway, 'transport');
-      this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.close(GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
       return;
     }
 

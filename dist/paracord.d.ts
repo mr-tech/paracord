@@ -350,6 +350,15 @@ export declare class BaseRequest {
 export declare function clone<T>(object: T): T;
 
 /**
+ * What decided to close a gateway connection: `consumer` = `Gateway.close()`/
+ * `Paracord.end()` called from outside the library; `transport` = a socket error/1006,
+ * `CONNECT_TIMEOUT`, `HEARTBEAT_TIMEOUT`, the zlib path; `discord` = a close frame from
+ * the server, or Discord's own RECONNECT/INVALID_SESSION message.
+ * @internal
+ */
+declare type CloseOrigin = 'consumer' | 'transport' | 'discord';
+
+/**
  * This is a bot library. Coerced non-compliant tokens to be bot-like.
  * @param token Discord token.
  */
@@ -1348,7 +1357,7 @@ export declare class Session {
      * @param _websocket Ignore. For unittest dependency injection only.
      */
     login: () => void;
-    close(code: GatewayCloseCode, flushWaitTime?: number): void;
+    close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void;
     send: Websocket['send'];
     destroy(): void;
     private constructWsUrl;
@@ -1619,7 +1628,7 @@ declare class Websocket {
     get connection(): ws;
     /** Whether or not the websocket is open. */
     get connected(): boolean;
-    close(code: GatewayCloseCode, flushWaitTime?: number): void;
+    close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void;
     destroy(): void;
     /** Assigned to websocket `onopen`. */
     private handleWsOpen;

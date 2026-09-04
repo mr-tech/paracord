@@ -771,8 +771,10 @@ export interface ServiceOptions {
 export class Session {
     // Warning: (ae-forgotten-export) The symbol "SessionParams" needs to be exported by the entry point index.d.ts
     constructor(params: SessionParams);
+    // Warning: (ae-forgotten-export) The symbol "CloseOrigin" needs to be exported by the entry point index.d.ts
+    //
     // (undocumented)
-    close(code: GatewayCloseCode, flushWaitTime?: number): void;
+    close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void;
     get connected(): boolean;
     // (undocumented)
     get connection(): undefined | ws;

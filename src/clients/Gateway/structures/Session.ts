@@ -10,7 +10,6 @@ import {
 import { isApiError } from '../../../utils';
 import Gateway from '../Gateway';
 
-import { setPendingOrigin, takePendingOrigin } from './closeOrigin';
 import GatewayIdentify from './GatewayIdentify';
 import Websocket from './Websocket';
 
@@ -223,17 +222,16 @@ export default class Session {
     }
   };
 
-  public close(code: GatewayCloseCode, flushWaitTime = 0) {
+  public close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin) {
     if (this.#websocket === undefined) {
       // No socket, but the gateway is still tracked — a session that survived a prior
       // close stays queued rather than connected. Runs the close path directly — the
       // arm for `code`, one `GATEWAY_CLOSE` — without a socket to touch.
-      const origin = takePendingOrigin(this.#gateway) ?? 'consumer';
       this.handleClose(code, origin);
       return;
     }
 
-    this.#websocket.close(code, flushWaitTime);
+    this.#websocket.close(code, flushWaitTime, origin);
   }
 
   public send: Websocket['send'] = (op, data) => {
@@ -313,8 +311,7 @@ export default class Session {
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
-        setPendingOrigin(this.#gateway, 'discord');
-        this.close(GATEWAY_CLOSE_CODES.RECONNECT);
+        this.close(GATEWAY_CLOSE_CODES.RECONNECT, 0, 'discord');
         break;
 
       default:
@@ -355,11 +352,10 @@ export default class Session {
       `Received Invalid Session packet. Resumable: ${resumable}`,
     );
 
-    setPendingOrigin(this.#gateway, 'discord');
     if (!resumable) {
-      this.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
+      this.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED, 0, 'discord');
     } else {
-      this.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE);
+      this.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED_RESUMABLE, 0, 'discord');
     }
 
     void this.handleEvent('INVALID_SESSION', { gateway: this, resumable });
@@ -407,8 +403,7 @@ export default class Session {
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
       this.#log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
-      setPendingOrigin(this.#gateway, 'transport');
-      this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      this.close(GATEWAY_CLOSE_CODES.UNKNOWN, 0, 'transport');
     }
   }
 

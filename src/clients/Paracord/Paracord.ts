@@ -10,7 +10,7 @@ import Gateway, {
   GatewayCloseEvent, GatewayEvent, GatewayOptions, Heartbeat,
   IdentityOptions, ParacordEvent, ParacordGatewayEvent,
 } from '../Gateway';
-import { setPendingOrigin, takePendingOrigin } from '../Gateway/structures/closeOrigin';
+import { setPendingCloseIntent, takePendingOrigin } from '../Gateway/structures/closeOrigin';
 
 import { isEligible, markReady, recordClose } from './failureCounter';
 
@@ -373,6 +373,7 @@ export default class Paracord extends EventEmitter {
 
         if (this.#shardStartupTimeout) {
           const timeout = this.#shardStartupTimeout;
+          clearTimeout(this.#shardTimeout);
           this.#shardTimeout = setTimeout(() => {
             this.timeoutShard(gateway, timeout);
           }, timeout * SECOND_IN_MILLISECONDS);
@@ -418,7 +419,7 @@ export default class Paracord extends EventEmitter {
   private timeoutShard(gateway: Gateway, waitTime: number) {
     if (this.isStartingGateway(gateway)) {
       this.log('WARNING', `Shard timed out after ${waitTime} seconds during startup. Reconnecting.`, { shard: gateway });
-      setPendingOrigin(gateway, 'transport');
+      setPendingCloseIntent(gateway, 'transport');
       gateway.close(GATEWAY_CLOSE_CODES.INTERNAL_TERMINATE_RECONNECT);
     }
   }
