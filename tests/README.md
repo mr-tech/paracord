@@ -28,7 +28,14 @@ rather than by widening `skipLibCheck`:
 - `tests/harness/` — reusable fixtures against real loopback sockets (no fake `ws`; see
   `loopbackGatewayServer.ts`'s doc comment) and the named-condition waits (`waitFor.ts`, WP-1 step
   0) every test in this chain uses instead of a fixed sleep. Shared across test files, not itself
-  a test.
+  a test. Two WP-9b additions on the same contract (real sockets, a port/count read as data, a
+  named `waitFor*`, `close()`): `loopbackApiOrigin.ts` (a real `http` origin answering a scripted
+  status/headers/body sequence, driven through `Api` — `createApiAgainstOrigin` redirects
+  `Api`'s hardcoded REST base to it via `vi.doMock` + a dynamic `import()`, never by constructing
+  `RateLimitHeaders` by hand, which cannot see `Api#updateRateLimitCache`) and
+  `loopbackRpcServer.ts` (a real rate-limit `RpcServer` on `127.0.0.1:0`, with its `authorize`
+  count exposed as data — counted by wrapping `rateLimitCache.authorizeRequestFromClient`,
+  never by parsing its DEBUG log line).
 - `tests/fixtures/` — standalone scripts a test forks as a child process, for a case that would
   otherwise crash its host (`.cjs`, run by `node` directly — not part of the TypeScript program a
   vitest worker transforms).
@@ -46,6 +53,10 @@ rather than by widening `skipLibCheck`:
   cross-class close-origin handoff.
 - `tests/gateway/` — integration tests against the *fixed* gateway state machine (WP-1 on), over
   real loopback sockets, on the real clock (time-seam rule, forms (b)/(c)).
+- `tests/api/` — integration tests against `Api`'s 429 handling (WP-9b on), over both request
+  paths (local, and RPC through a loopback rate-limit `RpcServer`, D-20), on the real clock
+  (time-seam rule, forms (b)/(c)) and against the pure schedule/predicate functions where the
+  criterion's own instrument is form (a) (`AC-9.1`'s membership predicate, `AC-9.8`'s reset rule).
 
 ## Naming and test-form conventions
 
@@ -60,14 +71,15 @@ rather than by widening `skipLibCheck`:
   1 Hz through the normal login queue and passes vacuously at unfixed HEAD (A-1 §A-1.6; plan
   Assumption 4).
 - **No fixed sleep for a condition the harness can observe** (WP-1 step 0): wait on
-  `waitForResumable`/`waitForCondition`/`LoopbackGatewayServer#waitForAttempt`, not `setTimeout`.
+  `waitForResumable`/`waitForCondition`/`LoopbackGatewayServer#waitForAttempt`, not `setTimeout` —
+  and, as of WP-9b, `LoopbackApiOrigin#waitForAccept`/`LoopbackRpcServer#waitForAuthorize`.
 
 ## The audit's four named harnesses (`TODO.md`, discharged by D-12)
 
 | # | Harness | Status in this chain | Where |
 | --- | --- | --- | --- |
 | (i) | fake-`ws` harness: never-opened sockets, stuck-CONNECTING, late-handshake, session-preserving close | **Built** — real loopback sockets (`LoopbackGatewayServer`'s `reject503`/`hang`/`accept`+`acceptDelayMs` modes and `closeLiveSocket`/`dropLiveSocket`), not a fake `ws`. Two later additions to the same class: `sendDispatch(type, data, seq?)` (an arbitrary op-0 dispatch — chunk replay, AC-1.4/AC-1.12) and `sendRawBinary(bytes)` (a raw frame bypassing JSON encoding — a corrupt `zlib-stream` frame, AC-1.7; no server-side negotiation needed, since `identity.compress` is the client's own decision). | `tests/harness/loopbackGatewayServer.ts`; exercised by `tests/smoke/*.test.ts` and `tests/gateway/*.test.ts` |
-| (ii) | 429 header table | **Built in WP-9b** (not this package) | `AC-9.3`'s fixture, plan WP-9 |
+| (ii) | 429 header table | **Built in WP-9b** — the 5-shape × 2-path fixture (`tests/api/rateLimit429.test.ts`) | `AC-9.1`/`AC-9.2`/`AC-9.3`/`AC-9.8`'s fixture, plan WP-9 |
 | (iii) | authorize-path global-decrement test | **Not built** — M3 dropped (D-5); no remaining criterion reads it (plan §Scope) | — |
 | (iv) | send-limiter test | **Not built** — M4 closed; no criterion consumes it (plan §Scope) | — |
 
