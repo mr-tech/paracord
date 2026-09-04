@@ -1,15 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
- * The rate-limit observation boundary contract (architect F-6; WP-9b step 3, AC-9.9):
- * the one place both `Api#updateRateLimitCache` (local path) and
- * `addService.ts#update` (RPC path, D-20) invoke, so a third caller (the request-proxy
- * path) inherits the policy rather than re-deciding it. Performs the bucket update only
- * when `headers.hasState`, and the global update unconditionally — the one permitted
- * bucket-presence conditional in this class. Before this, the two callers disagreed:
- * `addService.ts#update` nested its global update inside the same bucket-presence
- * guard, so a global 429 with no bucket header silently updated the local cache and was
- * discarded on the shared-budget RPC path (research `54f02df` §5.2; code review F-3).
+ * The rate-limit observation boundary: the one place both `Api#updateRateLimitCache`
+ * (local path) and `addService.ts#update` (RPC path) invoke, so a third caller (the
+ * request-proxy path) inherits the policy rather than re-deciding it. Performs the
+ * bucket update only when `headers.hasState`, and the global update unconditionally —
+ * the one permitted bucket-presence conditional in this class. Without it, the two
+ * callers could disagree on the pairing: a global 429 with no bucket header would
+ * update the local cache while being discarded on the shared-budget RPC path, or vice
+ * versa, depending on which caller's own guard happened to be stricter.
  *
  * `computeRateLimitKey` is deferred to the caller (rather than this function computing
  * it) because the two callers derive it differently — `ApiRequest#getRateLimitKey`
@@ -17,8 +16,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * and it is only ever needed, and only ever safe to compute, when `headers.hasState`.
  *
  * Exported from its own module, not re-exported through any barrel the package entry
- * reaches, so it does not move `api-report/paracord.api.md` (AC-9.6) — the same shape
- * as `backoffSchedule.ts`, `closeOrigin.ts` and `failureCounter.ts` (WP-1).
+ * reaches, so it does not move `api-report/paracord.api.md` — the same shape as
+ * `backoffSchedule.ts`, `closeOrigin.ts` and `failureCounter.ts`.
  */
 function applyRateLimitObservation(cache, headers, bucketHashKey, computeRateLimitKey) {
     if (headers.hasState) {

@@ -38,8 +38,7 @@ const path_1 = __importDefault(require("path"));
  * (the build copies `src/rpc/protobufs` to `dist/rpc/protobufs` alongside it) and
  * `src/rpc/services/common.ts` (vitest runs the source directly). A filename-based
  * rewrite of the compiled name is a no-op against the `.ts` filename vitest presents,
- * which hands protobufjs the module's own source file instead of a `.proto` (WP-9b
- * step 0a, AC-9.11; qa-P001 `9f94ee2`).
+ * which hands protobufjs the module's own source file instead of a `.proto`.
  * @param proto Name of the proto file.
  */
 function loadProto(proto) {

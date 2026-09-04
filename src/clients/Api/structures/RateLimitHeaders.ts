@@ -101,9 +101,8 @@ export default class RateLimitHeaders {
    */
   public constructor(global: boolean, bucketHash: string | undefined, limit: number, remaining: number, resetAfter: number, retryAfter: undefined | number) {
     // Values can also arrive over rpc, so they are re-checked here rather than only at the header
-    // boundary — through the same coercion helpers the header boundary uses (CR-3), not a second,
-    // weaker restatement of the same rules: the two had diverged (a numeric string `limit` coerced
-    // at the header boundary but rejected outright here).
+    // boundary — through the same coercion helpers the header boundary uses, not a second, weaker
+    // restatement of the same rules that could silently diverge from them.
     const safeResetAfter = clampMilliseconds(resetAfter);
     const safeRetryAfter = clampMilliseconds(retryAfter);
 

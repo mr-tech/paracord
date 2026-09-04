@@ -5,11 +5,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
  * but 429s that carry no bucket state fall back to the standard `retry-after` header: Cloudflare
  * bans answer with html and no `x-ratelimit-*` at all, and `x-ratelimit-scope: shared` responses
  * (which webhook routes hit routinely) omit the bucket headers.
- *
- * Presence is tested before coercion (CR-4): `Number.isFinite(Number(x))` used as a
- * presence test accepts `null`, `''`, `[]` and `false` as `0`, so an empty-but-present
- * body value silently won over a populated header and the fallback this chain exists to
- * provide was never consulted.
  */
 function extractRetryAfter(response) {
     const bodyValue = response.data?.retry_after;
