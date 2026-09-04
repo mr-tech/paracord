@@ -4,6 +4,11 @@
   "description": "Scalable Discord gateway and API handlers alongside a pre-built client.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "llms.txt",
+    "llms-full.txt"
+  ],
   "exports": {
     ".": {
       "require": "./dist/index.js",
