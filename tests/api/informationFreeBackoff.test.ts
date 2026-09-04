@@ -80,4 +80,24 @@ describe('information-free 429 backoff (AC-9.8)', () => {
     // "reset to s_1" and "continued to s_3".
     expect(gapAfterReset).toBeLessThan(3200);
   }, 20000);
+
+  it('maxRateLimitRetry bounds the attempt count regardless of the schedule (AC-9.8)', async () => {
+    origin = await LoopbackApiOrigin.start();
+    // A single scripted response repeats forever (LoopbackApiOrigin's peek semantics
+    // once the queue is down to one item) — the server never stops being
+    // information-free, so only the retry cap, not the schedule, can end this.
+    origin.setScript([INFORMATION_FREE]);
+    api = await createApiAgainstOrigin(origin);
+
+    await expect(
+      api.request('GET', '/channels/1', { local: true, maxRateLimitRetry: 2 }),
+    ).rejects.toThrow();
+
+    // Give the queue a moment in case of a stray requeue, then confirm exactly the
+    // capped number of sends happened — allowQueue's own decrement, untouched by this
+    // package, composes with the new schedule exactly as it did with the old flat
+    // floor (neither reads or writes retriesLeft).
+    await new Promise((resolve) => { setTimeout(resolve, 300); });
+    expect(origin.acceptCount).toBe(2);
+  }, 15000);
 });
