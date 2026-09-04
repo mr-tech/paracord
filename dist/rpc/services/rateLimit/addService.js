@@ -1,6 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const clients_1 = require("../../../clients");
+const applyRateLimitObservation_1 = __importDefault(require("../../../clients/Api/structures/applyRateLimitObservation"));
 const constants_1 = require("../../../constants");
 const structures_1 = require("../../structures");
 const common_1 = require("../common");
@@ -55,13 +59,9 @@ function authorize(call, callback) {
 function update(call, callback) {
     try {
         const { requestMeta: { method, url }, global, bucketHash, limit, remaining, resetAfter, retryAfter, } = structures_1.RateLimitStateMessage.fromProto(call.request);
-        if (bucketHash !== undefined) {
-            const rateLimitHeaders = new clients_1.RateLimitHeaders(global, bucketHash, limit, remaining, resetAfter, retryAfter);
-            const [tlr, tlrID, bucketHashKey] = clients_1.Api.extractBucketHashKey(method, url);
-            const rateLimitKey = clients_1.BaseRequest.formatRateLimitKey(tlr, tlrID, bucketHash);
-            this.rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
-            this.rateLimitCache.updateGlobal(rateLimitHeaders);
-        }
+        const rateLimitHeaders = new clients_1.RateLimitHeaders(global, bucketHash, limit, remaining, resetAfter, retryAfter);
+        const [tlr, tlrID, bucketHashKey] = clients_1.Api.extractBucketHashKey(method, url);
+        (0, applyRateLimitObservation_1.default)(this.rateLimitCache, rateLimitHeaders, bucketHashKey, (bh) => clients_1.BaseRequest.formatRateLimitKey(tlr, tlrID, bh));
         const message = `Rate limit cache updated: ${method} ${url} | Remaining: ${remaining}`;
         this.log('DEBUG', message);
         callback(null);

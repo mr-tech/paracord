@@ -1,4 +1,5 @@
 import { Api, BaseRequest, RateLimitHeaders } from '../../../clients';
+import applyRateLimitObservation from '../../../clients/Api/structures/applyRateLimitObservation';
 import { LOG_LEVELS, LOG_SOURCES } from '../../../constants';
 import { AuthorizationMessage, RateLimitStateMessage, RequestMetaMessage } from '../../structures';
 import { loadProto } from '../common';
@@ -91,20 +92,21 @@ function update(
       retryAfter,
     } = RateLimitStateMessage.fromProto(call.request);
 
-    if (bucketHash !== undefined) {
-      const rateLimitHeaders = new RateLimitHeaders(
-        global,
-        bucketHash,
-        limit,
-        remaining,
-        resetAfter,
-        retryAfter,
-      );
-      const [tlr, tlrID, bucketHashKey] = Api.extractBucketHashKey(method, url);
-      const rateLimitKey = BaseRequest.formatRateLimitKey(tlr, tlrID, bucketHash);
-      this.rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
-      this.rateLimitCache.updateGlobal(rateLimitHeaders);
-    }
+    const rateLimitHeaders = new RateLimitHeaders(
+      global,
+      bucketHash,
+      limit,
+      remaining,
+      resetAfter,
+      retryAfter,
+    );
+    const [tlr, tlrID, bucketHashKey] = Api.extractBucketHashKey(method, url);
+    applyRateLimitObservation(
+      this.rateLimitCache,
+      rateLimitHeaders,
+      bucketHashKey,
+      (bh) => BaseRequest.formatRateLimitKey(tlr, tlrID, bh),
+    );
 
     const message = `Rate limit cache updated: ${method} ${url} | Remaining: ${remaining}`;
     this.log('DEBUG', message);

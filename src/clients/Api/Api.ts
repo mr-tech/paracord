@@ -19,6 +19,8 @@ import { coerceTokenToBotLike, shortMethod, stripLeadingSlash } from '../../util
 import {
   ApiRequest, QueuedRequest, RateLimitCache, RateLimitHeaders, RequestQueue,
 } from './structures';
+import applyRateLimitObservation from './structures/applyRateLimitObservation';
+import extractRetryAfter from './structures/extractRetryAfter';
 
 import type { DebugLevel } from '../../@types';
 import type {
@@ -43,22 +45,6 @@ function isRateLimitResponse(response: ApiResponse | RateLimitedResponse): respo
 
 function isServerErrorResponse(response: ApiResponse | RateLimitedResponse) {
   return response.status >= 500 && response.status <= 599;
-}
-
-/**
- * Seconds to wait before retrying a rate limited request. Discord puts this in the response body,
- * but 429s that carry no bucket state fall back to the standard `retry-after` header: Cloudflare
- * bans answer with html and no `x-ratelimit-*` at all, and `x-ratelimit-scope: shared` responses
- * (which webhook routes hit routinely) omit the bucket headers.
- */
-function extractRetryAfter(response: RateLimitedResponse): undefined | number {
-  const fromBody = Number(response.data?.retry_after);
-  if (Number.isFinite(fromBody)) return fromBody;
-
-  const fromHeader = Number(response.headers?.['retry-after']);
-  if (Number.isFinite(fromHeader)) return fromHeader;
-
-  return undefined;
 }
 
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
@@ -726,13 +712,12 @@ export default class Api {
    * @param rateLimitHeaders Headers from the response.
    */
   private updateRateLimitCache(request: ApiRequest, rateLimitHeaders: RateLimitHeaders) {
-    const { bucketHash } = rateLimitHeaders;
-    if (bucketHash) {
-      const rateLimitKey = request.getRateLimitKey(bucketHash);
-      const { bucketHashKey } = request;
-      this.#rateLimitCache.update(rateLimitKey, bucketHashKey, rateLimitHeaders);
-    }
-    this.#rateLimitCache.updateGlobal(rateLimitHeaders);
+    applyRateLimitObservation(
+      this.#rateLimitCache,
+      rateLimitHeaders,
+      request.bucketHashKey,
+      (bucketHash) => request.getRateLimitKey(bucketHash),
+    );
     void this.updateRpcCache(request, rateLimitHeaders);
   }
 

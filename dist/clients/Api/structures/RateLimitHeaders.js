@@ -24,6 +24,18 @@ function headerToBoolean(value) {
     return value === true || value === 'true';
 }
 /**
+ * Coerces an already-in-milliseconds value (the constructor's `resetAfter`/`retryAfter`
+ * parameters, converted by `headerToMilliseconds` at the header boundary or already
+ * milliseconds over rpc) to a non-negative finite number — the same NaN/negative guard
+ * as `headerToMilliseconds`, without its seconds-to-milliseconds multiplication.
+ */
+function clampMilliseconds(value) {
+    const ms = Number(value);
+    if (!Number.isFinite(ms) || ms < 0)
+        return 0;
+    return ms;
+}
+/**
  * Representation of rate limit values from the header of a response from Discord.
  * @internal
  */
@@ -62,13 +74,16 @@ class RateLimitHeaders {
      * @param retryAfter From Discord - The retry value from a 429 body. Sub-limits may make this value larger than resetAfter.
      */
     constructor(global, bucketHash, limit, remaining, resetAfter, retryAfter) {
-        // Values can also arrive over rpc, so they are re-checked here rather than only at the header boundary.
-        const safeResetAfter = Number.isFinite(resetAfter) ? Math.max(resetAfter, 0) : 0;
-        const safeRetryAfter = Number.isFinite(retryAfter) ? Math.max(Number(retryAfter), 0) : 0;
-        this.global = global === true || global === 'true';
+        // Values can also arrive over rpc, so they are re-checked here rather than only at the header
+        // boundary — through the same coercion helpers the header boundary uses (CR-3), not a second,
+        // weaker restatement of the same rules: the two had diverged (a numeric string `limit` coerced
+        // at the header boundary but rejected outright here).
+        const safeResetAfter = clampMilliseconds(resetAfter);
+        const safeRetryAfter = clampMilliseconds(retryAfter);
+        this.global = headerToBoolean(global);
         this.bucketHash = bucketHash;
-        this.limit = Number.isFinite(limit) ? limit : 0;
-        this.remaining = Number.isFinite(remaining) ? remaining : 0;
+        this.limit = headerToCount(limit);
+        this.remaining = headerToCount(remaining);
         this.resetAfter = safeResetAfter;
         const maxWait = Math.max(safeRetryAfter, safeResetAfter);
         this.retryAfter = maxWait;
