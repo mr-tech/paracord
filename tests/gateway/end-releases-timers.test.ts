@@ -132,14 +132,23 @@ describe('AC-1.6: end() releases every timer', () => {
     // close, and every retry after this point is refused at the handshake — each retry
     // arms this shard's startup timers afresh before the next queue tick re-evaluates
     // whether it is still eligible to keep them.
+    //
+    // Bound for the wait below, derived rather than guessed (AC-1.10's own cell states
+    // the same form): reaching attempt 6 needs 4 more attempts against the dropped
+    // shard beyond the 2 already observed, each gated by that attempt's own backoff —
+    // sum of 1.2*s_n for n = 1..4 (1.2*(1+2+4+8) = 18s) plus one 1 Hz queue tick per
+    // attempt (4s) = 22s worst case. `waitForAttempt`'s own budget is set well above
+    // that rather than at it — this bound is for a *lone* gateway's own schedule, and
+    // two gateways sharing one 1 Hz queue can, at the worst interleaving, cost more
+    // than their sum of individual queue-tick waits.
     server.setMode('reject503');
     server.dropLiveSocket();
-    await server.waitForAttempt(6, 20000);
+    await server.waitForAttempt(6, 40000);
 
     bot.end();
     await settle();
     const after = countActiveTimers();
 
     expect(after).toBe(before);
-  }, 40000);
+  }, 60000);
 });
