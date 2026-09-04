@@ -66,7 +66,7 @@ rather than by widening `skipLibCheck`:
 
 | # | Harness | Status in this chain | Where |
 | --- | --- | --- | --- |
-| (i) | fake-`ws` harness: never-opened sockets, stuck-CONNECTING, late-handshake, session-preserving close | **Built** — real loopback sockets (`LoopbackGatewayServer`'s `reject503`/`hang`/`accept`+`acceptDelayMs` modes and `closeLiveSocket`/`dropLiveSocket`), not a fake `ws` | `tests/harness/loopbackGatewayServer.ts`; exercised by `tests/smoke/*.test.ts` and `tests/gateway/*.test.ts` |
+| (i) | fake-`ws` harness: never-opened sockets, stuck-CONNECTING, late-handshake, session-preserving close | **Built** — real loopback sockets (`LoopbackGatewayServer`'s `reject503`/`hang`/`accept`+`acceptDelayMs` modes and `closeLiveSocket`/`dropLiveSocket`), not a fake `ws`. Two later additions to the same class: `sendDispatch(type, data, seq?)` (an arbitrary op-0 dispatch — chunk replay, AC-1.4/AC-1.12) and `sendRawBinary(bytes)` (a raw frame bypassing JSON encoding — a corrupt `zlib-stream` frame, AC-1.7; no server-side negotiation needed, since `identity.compress` is the client's own decision). | `tests/harness/loopbackGatewayServer.ts`; exercised by `tests/smoke/*.test.ts` and `tests/gateway/*.test.ts` |
 | (ii) | 429 header table | **Built in WP-9b** (not this package) | `AC-9.3`'s fixture, plan WP-9 |
 | (iii) | authorize-path global-decrement test | **Not built** — M3 dropped (D-5); no remaining criterion reads it (plan §Scope) | — |
 | (iv) | send-limiter test | **Not built** — M4 closed; no criterion consumes it (plan §Scope) | — |
