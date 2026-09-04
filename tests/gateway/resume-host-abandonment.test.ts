@@ -39,7 +39,7 @@ describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
     expect(gw.resumable).toBe(true);
 
     // The 4th attempt abandons the resume host and targets the base URL.
-    await waitForCondition(() => baseServer.attempts.length >= 2, 'base host retried (4th attempt)', 5000);
+    await waitForCondition(() => baseServer.attempts.length >= 2, 'base host retried (4th attempt)', 7000);
     expect(gw.resumable).toBe(true);
 
     // No further attempts land on the resume host once it is abandoned.

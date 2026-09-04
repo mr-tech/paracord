@@ -10,6 +10,7 @@ const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
 const closeOrigin_1 = require("./closeOrigin");
 const Heartbeat_1 = __importDefault(require("./Heartbeat"));
+const wireCloseCode_1 = __importDefault(require("./wireCloseCode"));
 const CONNECT_TIMEOUT = 10 * constants_1.SECOND_IN_MILLISECONDS;
 /** @internal */
 class Websocket {
@@ -126,7 +127,17 @@ class Websocket {
         if (this.connected) {
             this.#session.log('DEBUG', `Closing websocket with code: ${code}.`);
             this.#heartbeat.destroy();
-            this.#connection.close(code);
+            // A caller's code that isn't legal on an actual close frame (1006 above all,
+            // never sent on the wire) can never reach `ws`'s own validator, which throws
+            // synchronously and would otherwise leave the connection half-closed with
+            // nothing able to recover it. `#pendingCloseCode` already carries the caller's
+            // code to `handleCloseCode` independently of what goes on the wire.
+            if ((0, wireCloseCode_1.default)(code)) {
+                this.#connection.close(code);
+            }
+            else {
+                this.#connection.terminate();
+            }
             if (flushWaitTime > 0) {
                 this.#session.log('DEBUG', `Waiting ${flushWaitTime}ms for events to flush before closing.`);
                 this.#flushInterval = setTimeout(() => {

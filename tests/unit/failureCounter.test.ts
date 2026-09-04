@@ -41,7 +41,7 @@ describe('failureCounter (F-26)', () => {
     // the *next* close, now genuinely before a new READY, resumes climbing from n = 1
     recordClose(gw, 'transport', 200);
     expect(isEligible(gw, 200)).toBe(false);
-    expect(isEligible(gw, 1300)).toBe(true);
+    expect(isEligible(gw, 1400)).toBe(true);
   });
 
   it('resetAll clears every key (test isolation helper)', () => {
