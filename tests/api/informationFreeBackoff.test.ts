@@ -39,25 +39,42 @@ describe('information-free 429 backoff (AC-9.8)', () => {
     api = undefined;
   });
 
-  it('gaps between sends grow: gap 2 is no earlier than 0.8s, gap 3 is no earlier than 1.6s (0.8 * s_n)', async () => {
+  it('gap_n lies in [0.8*s_n, 1.2*s_n + tick] for n = 1..3, and cannot be a flat schedule', async () => {
+    // Four information-free responses, not three: gap1 and gap2 alone do not
+    // discriminate this schedule from a flat one, because the pre-fix flat 2s floor
+    // and the fixed schedule's first two gaps overlap once a 1s queue tick and jitter
+    // are allowed for — measured against an isolated pre-fix clone (qa-P001,
+    // verification/001/wp9b-ac98-strengthened.spec.ts: pre-fix gaps [1995, 2000, 2004,
+    // 2002] vs fixed [1994, 3004, 4008, 7004] — gap2 > gap1 resolves 2000 > 1995 on
+    // the flat tree, 5ms of jitter deciding it). The schedules separate at gap3: flat
+    // gives ~2000, the schedule's floor is 0.8 * 4000 = 3200 — so this needs the
+    // fourth send, and a gap3-vs-gap1 ratio bound that no flat schedule of any value
+    // can satisfy.
     origin = await LoopbackApiOrigin.start();
-    origin.setScript([INFORMATION_FREE, INFORMATION_FREE, INFORMATION_FREE, OK]);
+    origin.setScript([INFORMATION_FREE, INFORMATION_FREE, INFORMATION_FREE, INFORMATION_FREE, OK]);
     api = await createApiAgainstOrigin(origin);
 
     void api.request('GET', '/channels/1', { local: true }).catch(() => undefined);
 
-    await origin.waitForAccept(3, 10000);
-    const [t0, t1, t2] = origin.requestCount;
+    await origin.waitForAccept(4, 30000);
+    const t = origin.requestCount;
+    const gaps = [t[1]! - t[0]!, t[2]! - t[1]!, t[3]! - t[2]!];
+    // Bounds are stated per gap as [0.8*s_n, 1.2*s_n + tick] (AC-1.1's own form), with
+    // s_n = computeBackoffMs's base (1000, 2000, 4000ms) and one 1000ms queue tick per
+    // gap. Restated here from the plan, not imported from src (AC-9.5).
+    const TICK = 1000;
+    const S = [1000, 2000, 4000];
 
-    const gap1 = t1 - t0;
-    const gap2 = t2 - t1;
+    gaps.forEach((gap, i) => {
+      expect(gap, `gap${i + 1} (observed ${gaps.join(', ')})`).toBeGreaterThanOrEqual(0.8 * S[i]!);
+      expect(gap, `gap${i + 1} (observed ${gaps.join(', ')})`).toBeLessThanOrEqual(1.2 * S[i]! + TICK);
+    });
 
-    // s_1 = 1s (d_1), s_2 = 2s (d_2); the tick is the floor, so a gap can run a little
-    // over its ceiling but never meaningfully under 0.8 * s_n.
-    expect(gap1).toBeGreaterThanOrEqual(0.8 * 1000);
-    expect(gap2).toBeGreaterThanOrEqual(0.8 * 2000);
-    expect(gap2).toBeGreaterThan(gap1);
-  }, 15000);
+    // The flat-schedule discriminator, stated separately so its failure is legible: a
+    // flat schedule of any value cannot satisfy both gap1's ceiling and gap3's floor.
+    expect(gaps[2]!, 'gap3 must be at least twice gap1 — a flat schedule cannot be')
+      .toBeGreaterThanOrEqual(2 * gaps[0]!);
+  }, 40000);
 
   it('resets to s_1 after a non-information-free response, rather than continuing to grow', async () => {
     origin = await LoopbackApiOrigin.start();
