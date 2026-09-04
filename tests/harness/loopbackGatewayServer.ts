@@ -22,6 +22,8 @@ export interface LoopbackGatewayServerOptions {
   resumeGatewayUrl?: string;
   /** How a RESUME (op 6) is answered: a RESUMED dispatch, or INVALID_SESSION. Default 'resumed'. */
   resumeResponse?: 'resumed' | 'invalidSession';
+  /** `heartbeat_interval` (ms) sent in HELLO. Default 45000. */
+  heartbeatIntervalMs?: number;
 }
 
 /**
@@ -50,6 +52,11 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   private readonly resumeResponse: 'resumed' | 'invalidSession';
 
+  private readonly heartbeatIntervalMs: number;
+
+  /** Op codes received from the live client, in arrival order — `heartbeatsReceived` etc. read this. */
+  readonly receivedOps: number[] = [];
+
   private nextDispatchSeq = 1;
 
   private constructor(server: http.Server, wss: WebSocketServer, opts: LoopbackGatewayServerOptions) {
@@ -60,6 +67,7 @@ export class LoopbackGatewayServer extends EventEmitter {
     this.acceptDelayMs = opts.acceptDelayMs ?? 0;
     this.explicitResumeGatewayUrl = opts.resumeGatewayUrl;
     this.resumeResponse = opts.resumeResponse ?? 'resumed';
+    this.heartbeatIntervalMs = opts.heartbeatIntervalMs ?? 45000;
   }
 
   static start(opts: LoopbackGatewayServerOptions = {}): Promise<LoopbackGatewayServer> {
@@ -126,6 +134,34 @@ export class LoopbackGatewayServer extends EventEmitter {
     this.liveSocket?.close(code, reason);
   }
 
+  /** Count of HEARTBEAT (op 1) messages received from the live client so far. */
+  get heartbeatsReceived(): number {
+    return this.receivedOps.filter((op) => op === 1).length;
+  }
+
+  /**
+   * Sends an arbitrary dispatch (op 0) on the live socket — `t`/`d` as given, `s` the
+   * next sequence number unless overridden. For payloads the fixed READY/RESUMED
+   * handling above does not cover, e.g. `GUILD_MEMBERS_CHUNK` replay (AC-1.4/AC-1.12).
+   */
+  sendDispatch(type: string, data: unknown, seq?: number): void {
+    this.liveSocket?.send(JSON.stringify({
+      op: 0, t: type, d: data, s: seq ?? this.nextDispatchSeq++,
+    }));
+  }
+
+  /**
+   * Sends raw bytes as a binary WebSocket frame on the live socket, bypassing JSON
+   * encoding entirely — for a deliberately corrupt compressed frame (AC-1.7), which a
+   * `zlib-stream` client (`identity.compress: true`) routes through its inflate stream
+   * regardless of what this harness actually sent, since compression is the client's own
+   * decision (`Websocket.ts` checks `this.#session.identity.compress`, not any
+   * server-negotiated parameter).
+   */
+  sendRawBinary(bytes: Buffer): void {
+    this.liveSocket?.send(bytes);
+  }
+
   async close(): Promise<void> {
     this.heldSockets.forEach((s) => s.destroy());
     this.liveSocket?.terminate();
@@ -160,10 +196,11 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   private onClientOpen(client: WebSocket): void {
     this.liveSocket = client;
-    client.send(JSON.stringify({ op: 10, d: { heartbeat_interval: 45000 }, s: null, t: null }));
+    client.send(JSON.stringify({ op: 10, d: { heartbeat_interval: this.heartbeatIntervalMs }, s: null, t: null }));
 
     client.on('message', (buf: Buffer) => {
       const payload = JSON.parse(buf.toString());
+      this.receivedOps.push(payload.op);
       if (payload.op === 2) {
         client.send(JSON.stringify({
           op: 0,
