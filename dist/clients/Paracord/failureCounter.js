@@ -3,9 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resetAll = exports.isEligible = exports.recordClose = exports.markReady = void 0;
+exports.isEligible = exports.recordClose = exports.markReady = void 0;
 const backoffSchedule_1 = __importDefault(require("../Gateway/structures/backoffSchedule"));
-let state = new WeakMap();
+const state = new WeakMap();
 function stateFor(key) {
     let s = state.get(key);
     if (!s) {
@@ -26,11 +26,11 @@ function markReady(key) {
 }
 exports.markReady = markReady;
 /**
- * Records a close for `key` per the failure-counter table (F-26): "after" phase
- * (READY/RESUMED reached since the last close) resets n to 0 and sets the next
- * not-before to `closedAt` regardless of origin; "before" phase leaves n (and the
- * existing not-before) for `consumer` origin, or increments n and sets
- * `notBefore = closedAt + computeBackoffMs(n)` for `transport`/`discord` origin.
+ * Records a close for `key`. If READY/RESUMED was reached since the last close, the
+ * failure count resets to 0 and the next not-before becomes `closedAt` regardless of
+ * origin. Otherwise a `consumer`-originated close leaves the count and the existing
+ * not-before untouched; a `transport`/`discord`-originated close increments the count
+ * and sets `notBefore = closedAt + computeBackoffMs(n)`.
  * @internal
  */
 function recordClose(key, origin, closedAt) {
@@ -53,8 +53,3 @@ function isEligible(key, now) {
     return now >= stateFor(key).notBefore;
 }
 exports.isEligible = isEligible;
-/** Test-only: clears every key's state. @internal */
-function resetAll() {
-    state = new WeakMap();
-}
-exports.resetAll = resetAll;

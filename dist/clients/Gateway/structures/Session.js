@@ -8,7 +8,7 @@ const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
 const closeOrigin_1 = require("./closeOrigin");
 const Websocket_1 = __importDefault(require("./Websocket"));
-/** Idle time since a nonce's last chunk before its entry is dropped (WP-1 step 4c, F-4). */
+/** Idle time since a nonce's last chunk before its entry is dropped. */
 const CHUNK_STATE_TTL_MILLISECONDS = 60 * constants_1.SECOND_IN_MILLISECONDS;
 /** @internal */
 class Session {
@@ -22,7 +22,7 @@ class Session {
     #wsUrl;
     /** From Discord - Url to reconnect to. */
     #resumeUrl;
-    /** Consecutive ABNORMAL (1006) closes against `#resumeUrl`; abandons the host at 3 (WP-1 step 2, F-19). */
+    /** Consecutive ABNORMAL (1006) closes against `#resumeUrl`; abandons the host at 3. */
     #consecutiveAbnormalOnResumeHost = 0;
     /** Whether the connection attempt that just closed was made against `#resumeUrl` — set at login, read at close, since `#resumeUrl` itself may already reflect a later READY by the time a close is handled. */
     #lastAttemptTargetedResumeHost = false;
@@ -61,8 +61,8 @@ class Session {
     /**
      * Whether or not the client has the conditions necessary to attempt to resume a
      * gateway connection — session identity alone (a held `session_id` and a sequence
-     * seen), decoupled from `#resumeUrl` (WP-1 step 2, critique F-19): after the resume
-     * host is abandoned, the session survives and resumes against the base URL.
+     * seen), decoupled from `#resumeUrl`: after the resume host is abandoned, the session
+     * survives and resumes against the base URL.
      */
     get resumable() {
         return this.#sessionId !== undefined && this.#sequence !== null;
@@ -83,6 +83,7 @@ class Session {
     get identity() {
         return this.#identity;
     }
+    /** Reading this also sweeps stale chunk-request state — see {@link sweepStaleChunkState}. */
     get isFetchingMembers() {
         this.sweepStaleChunkState();
         return this.#requestingMembersStateMap.size > 0;
@@ -157,9 +158,9 @@ class Session {
     };
     close(code, flushWaitTime = 0) {
         if (this.#websocket === undefined) {
-            // QUEUED (F-2): no socket, but the gateway is still tracked (Session survives a
-            // P-keep close). Runs the close path directly — the arm for `code`, one
-            // `GATEWAY_CLOSE` — without a socket to touch.
+            // No socket, but the gateway is still tracked — a session that survived a prior
+            // close stays queued rather than connected. Runs the close path directly — the
+            // arm for `code`, one `GATEWAY_CLOSE` — without a socket to touch.
             const origin = (0, closeOrigin_1.takePendingOrigin)(this.#gateway) ?? 'consumer';
             this.handleClose(code, origin);
             return;
@@ -347,6 +348,10 @@ class Session {
     }
     handleClose(code, origin) {
         const isResumeHostAbnormalFailure = code === constants_1.GATEWAY_CLOSE_CODES.ABNORMAL && this.#lastAttemptTargetedResumeHost;
+        // Describes only the attempt that is still current — cleared the moment it is
+        // read, so a close reached with no connection attempt in flight (the queued,
+        // no-socket route below) never inherits an earlier attempt's target.
+        this.#lastAttemptTargetedResumeHost = false;
         if (isResumeHostAbnormalFailure) {
             this.#consecutiveAbnormalOnResumeHost += 1;
             if (this.#consecutiveAbnormalOnResumeHost >= 3) {
@@ -360,9 +365,10 @@ class Session {
         }
         this.websocket?.destroy();
         this.#websocket = undefined;
-        // H5(a): a cut member-chunk stream cannot outlive the close it was cut by, on any
-        // close code — P-keep included, so a reconnect starts with no stale nonce pinning
-        // `isFetchingMembers` true and vetoing the next heartbeat's missed-ack close.
+        // A cut member-chunk stream cannot outlive the close it was cut by, on any close
+        // code — including one that leaves the session resumable, so a reconnect starts
+        // with no stale nonce pinning `isFetchingMembers` true and vetoing the next
+        // heartbeat's missed-ack close.
         this.#requestingMembersStateMap = new Map();
         this.#onClose(code, origin);
     }
@@ -380,7 +386,7 @@ class Session {
     updateRequestMembersState(nonce, chunkCount, chunkIndex) {
         const guildChunkState = this.#requestingMembersStateMap.get(nonce);
         if (guildChunkState) {
-            // Set semantics (H5(b)): a duplicate index is already received, not a new slot —
+            // Set semantics: a duplicate index is already received, not a new slot —
             // completion is every index in 0..chunkCount-1 having been seen, not a count of
             // deliveries, which a duplicate or an out-of-order replay would otherwise skew.
             guildChunkState.receivedIndexes.add(chunkIndex);

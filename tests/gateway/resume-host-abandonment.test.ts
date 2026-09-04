@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import Paracord from '../../src/clients/Paracord/Paracord';
+import { GATEWAY_CLOSE_CODES } from '../../src/constants';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
 import { createTestBot } from '../harness/testBot';
 import { waitForResumable, waitForCondition } from '../harness/waitFor';
@@ -67,4 +68,44 @@ describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
 
     expect(resumePayload).toMatchObject({ session_id: 'HARNESS_SESSION' });
   });
+
+  it('a consumer close issued while queued does not count against the resume-host abandonment threshold', async () => {
+    resumeServer = await LoopbackGatewayServer.start({ mode: 'reject503' });
+    baseServer = await LoopbackGatewayServer.start({ resumeGatewayUrl: resumeServer.url });
+    bot = createTestBot(baseServer.url);
+
+    const closeEvents: unknown[] = [];
+    bot.on('GATEWAY_CLOSE', (e: unknown) => { closeEvents.push(e); });
+
+    await bot.login({ identity: { intents: 1 }, shards: [0], shardCount: 1 });
+    const gw = bot.shards.get(0)!;
+    await waitForResumable(gw);
+
+    baseServer.dropLiveSocket();
+    await waitForCondition(() => closeEvents.length >= 1, 'base host close processed', 8000);
+    // One real resume-host failure processed (close 2 overall) before the consumer
+    // close below. Waiting on the close event itself, not merely on the server having
+    // recorded the upgrade, is what guarantees the gateway has actually returned to the
+    // queue with no socket assigned by the time the consumer close below is issued —
+    // the next real attempt cannot begin until a fresh backoff wait elapses.
+    await waitForCondition(() => closeEvents.length >= 2, 'first resume-host close processed', 8000);
+
+    // Issued from outside the library while the gateway sits in the queue with no
+    // socket — no connection attempt against the resume host is in flight for this
+    // call to describe. A close not attributable to the resume host also breaks its
+    // own consecutive streak, by design, so this costs the real streak one more attempt
+    // to rebuild rather than leaving it untouched — the fixed count below is a real
+    // attempt count, not the criterion's bare k=3.
+    gw.close(GATEWAY_CLOSE_CODES.ABNORMAL);
+
+    await waitForCondition(() => resumeServer.attempts.length >= 4, 'resume host tried 4 times', 20000);
+    await waitForCondition(() => baseServer.attempts.length >= 2, 'base host retried (abandonment)', 15000);
+
+    // A stale flag would let the consumer close above count as a resume-host failure
+    // too, reaching the abandonment threshold after only 2 real attempts. Correctly
+    // attributed, it counts as neither a resume-host failure nor as continuing one — it
+    // breaks the 1-long streak built so far, so a fresh streak of 3 has to be rebuilt
+    // from there: 1 real attempt before the consumer close, 3 more after.
+    expect(resumeServer.attempts.length).toBe(4);
+  }, 45000);
 });

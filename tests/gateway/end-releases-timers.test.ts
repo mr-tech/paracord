@@ -11,11 +11,20 @@ function countActiveTimers(): number {
   return info.filter((r) => r === 'Timeout' || r === 'Immediate').length;
 }
 
+// One runner-owned `Timeout` expires early in a vitest worker's life (measured,
+// `verification/001/timer-census-probe.result.json`), so a baseline read at the very
+// start of a worker's first test can be one high; settling first makes the two reads —
+// before `login()`, after `end()` — comparable regardless of run order.
+function settle(ms = 300): Promise<void> {
+  return new Promise((r) => { setTimeout(r, ms); });
+}
+
 /**
- * WP-1 step 3 (L1). `Paracord.end()` releases every timer or not-before state it or
- * its gateways own — the backoff schedule reads a `WeakMap` on the existing 1 s queue
- * interval rather than arming a timer per gateway, so once that interval itself is
- * cleared there is nothing left running to distinguish (time-seam rule).
+ * AC-1.6. The instrument is the criterion's own words: the `Timeout`/`Immediate` count
+ * read before `login()` and after `end()` is equal. Both reads sit outside the span
+ * they bound — the baseline is taken before any gateway exists, the final read after
+ * `end()` has had time to settle — so a timer armed during startup and never released is
+ * inside the measured window rather than invisible to it.
  */
 describe('AC-1.6: end() releases every timer', () => {
   let server: LoopbackGatewayServer;
@@ -26,7 +35,10 @@ describe('AC-1.6: end() releases every timer', () => {
     await server?.close();
   });
 
-  it('no further connect attempt occurs, and the process holds no Timeout/Immediate this session armed', async () => {
+  it('no further connect attempt occurs, and no timer armed since login() survives end()', async () => {
+    await settle();
+    const before = countActiveTimers();
+
     server = await LoopbackGatewayServer.start();
     bot = createTestBot(server.url);
 
@@ -39,20 +51,21 @@ describe('AC-1.6: end() releases every timer', () => {
     server.dropLiveSocket();
     await server.waitForAttempt(2, 5000);
 
-    const before = countActiveTimers();
     bot.end();
+    await settle();
     const after = countActiveTimers();
 
-    // At minimum the 1 Hz login-queue interval is released; nothing this test armed
-    // remains (the backoff itself owns no timer — a WeakMap read on that interval).
-    expect(after).toBeLessThan(before);
+    expect(after).toBe(before);
 
     const attemptsAtEnd = server.attempts.length;
     await new Promise((r) => { setTimeout(r, 3000); });
     expect(server.attempts.length).toBe(attemptsAtEnd);
-  });
+  }, 20000);
 
   it('a shard mid-startup (shardTimeout, unavailableGuildsInterval armed) has both cleared', async () => {
+    await settle();
+    const before = countActiveTimers();
+
     server = await LoopbackGatewayServer.start({ mode: 'hang' });
     bot = createTestBot(server.url, {
       unavailableGuildTolerance: 0,
@@ -63,10 +76,45 @@ describe('AC-1.6: end() releases every timer', () => {
     await bot.login({ identity: { intents: 1 }, shards: [0], shardCount: 1 });
     await waitForCondition(() => server.attempts.length >= 1, 'startup attempt made', 3000);
 
-    const before = countActiveTimers();
     bot.end();
+    await settle();
     const after = countActiveTimers();
 
-    expect(after).toBeLessThan(before);
-  });
+    expect(after).toBe(before);
+  }, 20000);
+
+  // AC-1.6's own domain is "every state in S at the moment `end()` is called (each
+  // gateway placed in a different state in the fixture)" — multi-gateway on its face.
+  // A single gateway can never be `#startingGateway`'s own predecessor at the moment
+  // the re-eligibility branch reads it, so a one-shard fixture cannot exercise that
+  // branch at all and passes vacuously whether or not it releases what it owns.
+  it('a second shard queued behind one still cycling through backoff leaves nothing armed', async () => {
+    await settle();
+    const before = countActiveTimers();
+
+    server = await LoopbackGatewayServer.start();
+    bot = createTestBot(server.url, {
+      unavailableGuildTolerance: 50,
+      unavailableGuildWait: 30,
+      shardStartupTimeout: 120,
+    });
+
+    await bot.login({ identity: { intents: 1 }, shards: [0, 1], shardCount: 2 });
+    await waitForCondition(() => server.attempts.length >= 2, 'both shards connected', 8000);
+
+    // The harness holds one live socket at a time; dropping it abruptly closes
+    // whichever shard is currently connected with an abnormal, resumable, reconnecting
+    // close, and every retry after this point is refused at the handshake — each retry
+    // arms this shard's startup timers afresh before the next queue tick re-evaluates
+    // whether it is still eligible to keep them.
+    server.setMode('reject503');
+    server.dropLiveSocket();
+    await server.waitForAttempt(6, 20000);
+
+    bot.end();
+    await settle();
+    const after = countActiveTimers();
+
+    expect(after).toBe(before);
+  }, 40000);
 });

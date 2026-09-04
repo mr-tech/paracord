@@ -787,7 +787,6 @@ export class Session {
     handleMessage(p: GatewayReceivePayload): void;
     // (undocumented)
     get identity(): GatewayIdentify;
-    // (undocumented)
     get isFetchingMembers(): boolean;
     // (undocumented)
     log: Gateway['log'];

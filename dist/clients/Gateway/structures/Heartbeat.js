@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 const closeOrigin_1 = require("./closeOrigin");
-/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for (WP-1 step 4d). */
+/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for. */
 const VETO_CAP = 3;
 /** @internal */
 class Heart {

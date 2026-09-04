@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  recordClose, markReady, isEligible, resetAll,
+  recordClose, markReady, isEligible,
 } from '../../src/clients/Paracord/failureCounter';
 
 /**
@@ -42,12 +42,5 @@ describe('failureCounter (F-26)', () => {
     recordClose(gw, 'transport', 200);
     expect(isEligible(gw, 200)).toBe(false);
     expect(isEligible(gw, 1400)).toBe(true);
-  });
-
-  it('resetAll clears every key (test isolation helper)', () => {
-    const gw = {};
-    recordClose(gw, 'transport', 0);
-    resetAll();
-    expect(isEligible(gw, 0)).toBe(true);
   });
 });

@@ -21,7 +21,7 @@ class Websocket {
     #connectTimeout;
     #destroyed = false;
     #closing = false;
-    /** The code the first `close()` call was given — what a delayed or forced delivery uses, never the wire's own code (WP-1 step 1, H3). */
+    /** The code the first `close()` call was given — what a delayed or forced delivery uses, never the wire's own code. */
     #pendingCloseCode;
     /** The origin resolved for the first `close()` call, carried alongside `#pendingCloseCode`. */
     #pendingCloseOrigin;
@@ -94,9 +94,9 @@ class Websocket {
                 if (!this.connected)
                     return;
                 this.#session.log('ERROR', error.stack ?? error.message);
-                // H4: a zlib error leaves the stream unusable for every message after it —
-                // tear the connection down through the normal close path rather than log-and-
-                // continue on a socket that can no longer be read.
+                // A zlib error leaves the stream unusable for every message after it — tear the
+                // connection down through the normal close path rather than log-and-continue on
+                // a socket that can no longer be read.
                 (0, closeOrigin_1.setPendingOrigin)(this.#session.gateway, 'transport');
                 this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
             });
@@ -151,10 +151,11 @@ class Websocket {
             }
         }
         else if (this.#connection?.readyState === ws_1.default.CONNECTING) {
-            // H3: abort the handshake in flight immediately rather than waiting on a close a
+            // Abort the handshake in flight immediately rather than waiting on a close a
             // CONNECTING socket will never send. `#onClose` runs `Session.handleClose`, which
-            // calls this instance's own `destroy()` — the A-1.7 guard lives there, the one
-            // place that unconditionally terminates the connection.
+            // calls this instance's own `destroy()` — the guard against a synthetic error from
+            // terminating a still-connecting socket lives there, the one place that
+            // unconditionally terminates the connection.
             this.#session.log('DEBUG', `Aborting connecting websocket with code: ${code}.`);
             this.clearConnectTimeout();
             this.#onClose(code, origin);
@@ -185,11 +186,11 @@ class Websocket {
         this.#connection.onopen = null;
         this.#connection?.removeAllListeners();
         if (this.#connection?.readyState === ws_1.default.CONNECTING) {
-            // A-1.7: `terminate()`ing a socket still CONNECTING raises a synthetic 'error'
-            // (deferred to `process.nextTick` by `ws` itself) that would otherwise go
-            // unhandled. Guarded here — the one place that unconditionally terminates the
-            // connection — rather than at each caller, so every path that can reach a
-            // CONNECTING socket (a close(), or a construction failure) is covered alike.
+            // `terminate()`ing a socket still CONNECTING raises a synthetic 'error' (deferred
+            // to `process.nextTick` by `ws` itself) that would otherwise go unhandled. Guarded
+            // here — the one place that unconditionally terminates the connection — rather
+            // than at each caller, so every path that can reach a CONNECTING socket (a
+            // close(), or a construction failure) is covered alike.
             this.#connection.once('error', () => {
                 this.#session.log('DEBUG', 'Swallowed the synthetic error from destroying a connecting websocket.');
             });
@@ -252,10 +253,10 @@ class Websocket {
             return;
         this.#session.log('DEBUG', `Websocket closed. Code: ${code}.`);
         // A close already in flight (#pendingCloseCode/#pendingCloseOrigin set) delivers the
-        // caller's own code and origin, never the wire's — WP-1 step 1: the caller's code
-        // wins, whether the terminal event arrives naturally or via the 60 s force-close.
-        // Otherwise this is unsolicited: ABNORMAL (1006, `ws`'s own synthesis) is
-        // transport/library origin; any other code arriving on the wire is Discord's own.
+        // caller's own code and origin, never the wire's — the caller's code wins, whether
+        // the terminal event arrives naturally or via the 60 s force-close. Otherwise this
+        // is unsolicited: ABNORMAL (1006, `ws`'s own synthesis) is transport/library origin;
+        // any other code arriving on the wire is Discord's own.
         const deliveredCode = this.#pendingCloseCode ?? code;
         const origin = this.#pendingCloseOrigin
             ?? (code === constants_1.GATEWAY_CLOSE_CODES.ABNORMAL ? 'transport' : 'discord');
@@ -289,6 +290,7 @@ class Websocket {
             this.#session.log('ERROR', `Failed to parse message. Message: ${data}`);
             (0, closeOrigin_1.setPendingOrigin)(this.#session.gateway, 'transport');
             this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
+            return;
         }
         this.handleMessage(parsed);
     };
@@ -427,8 +429,8 @@ class Websocket {
             }
             else if (websocket === this.#connection) {
                 this.#session.log('ERROR', 'Websocket did not close in time. Forcing close.');
-                // WP-1 step 1: the force-close delivers the caller's own code — never UNKNOWN,
-                // which would substitute a P-clear arm for whatever the caller's P-keep code was.
+                // The force-close delivers the caller's own code — never UNKNOWN, which would
+                // substitute a session-clearing arm for whatever the caller's own code was.
                 this.handleWsClose({ code: this.#pendingCloseCode ?? constants_1.GATEWAY_CLOSE_CODES.UNKNOWN });
             }
         }, constants_1.MINUTE_IN_MILLISECONDS);

@@ -9,7 +9,7 @@ interface FailureCounterState {
   reachedReady: boolean;
 }
 
-let state = new WeakMap<object, FailureCounterState>();
+const state = new WeakMap<object, FailureCounterState>();
 
 function stateFor(key: object): FailureCounterState {
   let s = state.get(key);
@@ -32,11 +32,11 @@ export function markReady(key: object): void {
 }
 
 /**
- * Records a close for `key` per the failure-counter table (F-26): "after" phase
- * (READY/RESUMED reached since the last close) resets n to 0 and sets the next
- * not-before to `closedAt` regardless of origin; "before" phase leaves n (and the
- * existing not-before) for `consumer` origin, or increments n and sets
- * `notBefore = closedAt + computeBackoffMs(n)` for `transport`/`discord` origin.
+ * Records a close for `key`. If READY/RESUMED was reached since the last close, the
+ * failure count resets to 0 and the next not-before becomes `closedAt` regardless of
+ * origin. Otherwise a `consumer`-originated close leaves the count and the existing
+ * not-before untouched; a `transport`/`discord`-originated close increments the count
+ * and sets `notBefore = closedAt + computeBackoffMs(n)`.
  * @internal
  */
 export function recordClose(key: object, origin: CloseOrigin, closedAt: number): void {
@@ -60,9 +60,4 @@ export function recordClose(key: object, origin: CloseOrigin, closedAt: number):
 /** Whether `key`'s not-before has passed as of `now`. @internal */
 export function isEligible(key: object, now: number): boolean {
   return now >= stateFor(key).notBefore;
-}
-
-/** Test-only: clears every key's state. @internal */
-export function resetAll(): void {
-  state = new WeakMap();
 }

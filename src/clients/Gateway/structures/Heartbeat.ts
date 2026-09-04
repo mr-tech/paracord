@@ -13,7 +13,7 @@ interface Params {
   log: Gateway['log'];
 }
 
-/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for (WP-1 step 4d). */
+/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for. */
 const VETO_CAP = 3;
 
 /** @internal */

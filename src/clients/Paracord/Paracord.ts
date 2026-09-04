@@ -310,18 +310,19 @@ export default class Paracord extends EventEmitter {
 
     this.#processingQueue = true;
     try {
-      // WP-1 step 2: a gateway whose backoff not-before has not passed is skipped —
-      // never picked as the starting gateway — so it neither jumps the queue early nor
-      // holds up a gateway behind it that is eligible now (F-6, AC-1.13). A resumable
-      // gateway can still be `#startingGateway` from before its own connection just
-      // dropped (L1 leaves that state alone across a resumable close) — re-validated
-      // here so a fresh not-before is honoured rather than skipped by the `if
-      // (!this.#startingGateway)` guards below, which would otherwise re-login it
-      // unconditionally on every tick.
+      // A gateway whose backoff not-before has not passed is skipped — never picked as
+      // the starting gateway — so it neither jumps the queue early nor holds up a
+      // gateway behind it that is eligible now. A resumable gateway can still be
+      // `#startingGateway` from before its own connection just dropped, so it is
+      // re-validated here rather than only when first picked, which would otherwise
+      // re-login it unconditionally on every tick regardless of its wait. The clear
+      // goes through `clearStartingShardState` so the startup timers it owns
+      // (`#shardTimeout`, `#unavailableGuildsInterval`) are released with it rather
+      // than orphaned when the next starting gateway overwrites those fields.
       const now = Date.now();
 
       if (this.#startingGateway && !this.#startingGateway.connected && !isEligible(this.#startingGateway, now)) {
-        this.#startingGateway = undefined;
+        this.clearStartingShardState(this.#startingGateway);
       }
 
       if (!this.#startingGateway) {
@@ -569,15 +570,15 @@ export default class Paracord extends EventEmitter {
   private handleGatewayClose(data: GatewayCloseEvent): void {
     const { gateway, shouldReconnect } = data;
 
-    // L1: starting-shard state is torn down whenever the session won't survive the
-    // close, or won't be retried at all — never left armed for a gateway that is done.
+    // Starting-shard state is torn down whenever the session won't survive the close,
+    // or won't be retried at all — never left armed for a gateway that is done.
     if (!gateway.resumable || !shouldReconnect) {
       this.clearStartingShardState(gateway);
     }
 
-    // H2 + incident (WP-1 step 2): every reconnect, resumable or not, goes through the
-    // existing 1 s login queue instead of a synchronous `gateway.login()` — that
-    // synchronous call, with no wait between attempts, is the loop the owner reported.
+    // Every reconnect, resumable or not, goes through the existing 1 s login queue
+    // instead of a synchronous `gateway.login()` — an immediate synchronous relogin,
+    // with no wait between attempts, is what turns a persistent close into a tight loop.
     const origin = takePendingOrigin(gateway) ?? 'consumer';
     recordClose(gateway, origin, Date.now());
 

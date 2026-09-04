@@ -1317,8 +1317,8 @@ export declare class Session {
     /**
      * Whether or not the client has the conditions necessary to attempt to resume a
      * gateway connection — session identity alone (a held `session_id` and a sequence
-     * seen), decoupled from `#resumeUrl` (WP-1 step 2, critique F-19): after the resume
-     * host is abandoned, the session survives and resumes against the base URL.
+     * seen), decoupled from `#resumeUrl`: after the resume host is abandoned, the session
+     * survives and resumes against the base URL.
      */
     get resumable(): boolean;
     /** Whether or not the client is currently resuming a session. */
@@ -1327,6 +1327,7 @@ export declare class Session {
     get websocket(): undefined | Websocket;
     get gateway(): Gateway;
     get identity(): GatewayIdentify;
+    /** Reading this also sweeps stale chunk-request state — see {@link sweepStaleChunkState}. */
     get isFetchingMembers(): boolean;
     /**
      * Drops any nonce whose last chunk is older than the TTL — a pure predicate over

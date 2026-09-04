@@ -218,8 +218,9 @@ export default class Gateway {
   private handleClose(code: number, origin: CloseOrigin) {
     const shouldReconnect = this.handleCloseCode(code);
 
-    // Handed to Paracord's failure counter (F-26) via the gateway instance itself —
-    // GatewayCloseEvent is public and stays exactly {shouldReconnect, code, gateway}.
+    // Handed off keyed on the gateway instance itself rather than on the public event,
+    // which stays exactly {shouldReconnect, code, gateway} — a consumer reading it never
+    // sees where the close came from.
     setPendingOrigin(this, origin);
 
     const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code, gateway: this };
