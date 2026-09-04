@@ -1314,7 +1314,12 @@ export declare class Session {
     get connection(): undefined | ws;
     /** Whether or not the websocket is open. */
     get connected(): boolean;
-    /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
+    /**
+     * Whether or not the client has the conditions necessary to attempt to resume a
+     * gateway connection — session identity alone (a held `session_id` and a sequence
+     * seen), decoupled from `#resumeUrl` (WP-1 step 2, critique F-19): after the resume
+     * host is abandoned, the session survives and resumes against the base URL.
+     */
     get resumable(): boolean;
     /** Whether or not the client is currently resuming a session. */
     get resuming(): boolean;
@@ -1323,6 +1328,12 @@ export declare class Session {
     get gateway(): Gateway;
     get identity(): GatewayIdentify;
     get isFetchingMembers(): boolean;
+    /**
+     * Drops any nonce whose last chunk is older than the TTL — a pure predicate over
+     * elapsed time (time-seam rule), evaluated here (read) and by the heartbeat's inline
+     * check (`Gateway.isFetchingMembers` on every dispatch), never a timer per entry.
+     */
+    private sweepStaleChunkState;
     log: Gateway['log'];
     emit: Gateway['emit'];
     /**

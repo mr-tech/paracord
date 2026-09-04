@@ -1,12 +1,17 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
+const closeOrigin_1 = require("./closeOrigin");
+/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for (WP-1 step 4d). */
+const VETO_CAP = 3;
 /** @internal */
 class Heart {
     #gateway;
     #websocket;
     /** If the last heartbeat packet sent to Discord received an ACK. */
     #isAcknowledged = true;
+    /** Consecutive heartbeats the `isFetchingMembers` veto has held off a close for; reset on ack. */
+    #consecutiveVetoes = 0;
     /** Time when last heartbeat packet was sent in ms. */
     #previousTimestamp;
     /** Time when the next heartbeat packet should be sent in ms. */
@@ -80,6 +85,7 @@ class Heart {
         this.clearAckTimeout();
         if (!this.#isAcknowledged) {
             this.#isAcknowledged = true;
+            this.#consecutiveVetoes = 0;
             if (this.#previousTimestamp !== undefined) {
                 const now = new Date().getTime();
                 const latency = now - this.#previousTimestamp;
@@ -129,6 +135,7 @@ class Heart {
         }
         else {
             this.#log('ERROR', 'heartbeatIntervalTime undefined.');
+            (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
             this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
     }
@@ -139,11 +146,13 @@ class Heart {
             return;
         if (!this.#isAcknowledged) {
             if (this.#gateway.connected) {
-                if (this.#gateway.isFetchingMembers) {
-                    this.#log('WARNING', 'Heartbeat not acknowledged but fetching members. Will retry later.');
+                if (this.#gateway.isFetchingMembers && this.#consecutiveVetoes < VETO_CAP) {
+                    this.#consecutiveVetoes += 1;
+                    this.#log('WARNING', `Heartbeat not acknowledged but fetching members (veto ${this.#consecutiveVetoes}/${VETO_CAP}). Will retry later.`);
                 }
                 else {
                     this.#log('ERROR', 'Heartbeat not acknowledged. Closing connection.');
+                    (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
                     this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 3 * constants_1.SECOND_IN_MILLISECONDS);
                     return;
                 }
@@ -177,6 +186,7 @@ class Heart {
         if (!this.#isAcknowledged) {
             if (this.#gateway.connected) {
                 this.#log('ERROR', 'Heartbeat not acknowledged in time.');
+                (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
                 this.#gateway.close(constants_1.GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
             }
             else {

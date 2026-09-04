@@ -7,8 +7,10 @@ import {
 import { coerceTokenToBotLike } from '../../utils';
 
 import { GatewayIdentify, Session } from './structures';
+import { setPendingOrigin } from './structures/closeOrigin';
 import Heart from './structures/Heartbeat';
 
+import type { CloseOrigin } from './structures/closeOrigin';
 import type { DebugLevel, EventHandler } from '../../@types';
 import type {
   GatewayCloseEvent, GatewayEvent, GatewayOptions, ParacordGatewayEvent,
@@ -190,7 +192,14 @@ export default class Gateway {
   };
 
   public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWait = 0) {
-    this.#session?.close(code, flushWait);
+    if (!this.#session) {
+      // IDLE (residue R): never logged in, or terminal after a P-terminal close — a
+      // no-op, logged with the discarded code; no event is emitted (analysis I-4).
+      this.log('WARNING', `Websocket is undefined when closing. Discarding code: ${code}.`);
+      return;
+    }
+
+    this.#session.close(code, flushWait);
   }
 
   public checkIfShouldHeartbeat(): void {
@@ -206,8 +215,12 @@ export default class Gateway {
     void this.#emitter.handleEvent(type, data, this);
   }
 
-  private handleClose(code: number) {
+  private handleClose(code: number, origin: CloseOrigin) {
     const shouldReconnect = this.handleCloseCode(code);
+
+    // Handed to Paracord's failure counter (F-26) via the gateway instance itself —
+    // GatewayCloseEvent is public and stays exactly {shouldReconnect, code, gateway}.
+    setPendingOrigin(this, origin);
 
     const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code, gateway: this };
     this.emit('GATEWAY_CLOSE', gatewayCloseEvent);

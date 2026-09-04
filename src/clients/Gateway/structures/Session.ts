@@ -4,18 +4,26 @@ import {
 } from 'discord-api-types/v10';
 import ws from 'ws';
 
-import { GATEWAY_CLOSE_CODES, GATEWAY_OP_CODES, GatewayCloseCode } from '../../../constants';
+import {
+  GATEWAY_CLOSE_CODES, GATEWAY_OP_CODES, GatewayCloseCode, SECOND_IN_MILLISECONDS,
+} from '../../../constants';
 import { isApiError } from '../../../utils';
 import Gateway from '../Gateway';
 
+import { setPendingOrigin, takePendingOrigin } from './closeOrigin';
 import GatewayIdentify from './GatewayIdentify';
 import Websocket from './Websocket';
 
+import type { CloseOrigin } from './closeOrigin';
 import type { GatewayEvent, GatewayOptions, ParacordGatewayEvent } from '../types';
 
 interface GuildChunkState {
-  receivedIndexes: number[];
+  receivedIndexes: Set<number>;
+  lastChunkAt: number;
 }
+
+/** Idle time since a nonce's last chunk before its entry is dropped (WP-1 step 4c, F-4). */
+const CHUNK_STATE_TTL_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
 
 interface SessionParams extends Pick<GatewayOptions, 'wsUrl' | 'wsParams'> {
   gateway: Gateway;
@@ -43,6 +51,12 @@ export default class Session {
 
   /** From Discord - Url to reconnect to. */
   #resumeUrl?: undefined | string;
+
+  /** Consecutive ABNORMAL (1006) closes against `#resumeUrl`; abandons the host at 3 (WP-1 step 2, F-19). */
+  #consecutiveAbnormalOnResumeHost = 0;
+
+  /** Whether the connection attempt that just closed was made against `#resumeUrl` — set at login, read at close, since `#resumeUrl` itself may already reflect a later READY by the time a close is handled. */
+  #lastAttemptTargetedResumeHost = false;
 
   /** Whether or not the client is currently resuming a session. */
   #resuming = false;
@@ -93,9 +107,14 @@ export default class Session {
     return this.connection?.readyState === ws.OPEN;
   }
 
-  /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
+  /**
+   * Whether or not the client has the conditions necessary to attempt to resume a
+   * gateway connection — session identity alone (a held `session_id` and a sequence
+   * seen), decoupled from `#resumeUrl` (WP-1 step 2, critique F-19): after the resume
+   * host is abandoned, the session survives and resumes against the base URL.
+   */
   public get resumable(): boolean {
-    return this.#sessionId !== undefined && this.#resumeUrl !== undefined;
+    return this.#sessionId !== undefined && this.#sequence !== null;
   }
 
   /** Whether or not the client is currently resuming a session. */
@@ -120,7 +139,22 @@ export default class Session {
   }
 
   public get isFetchingMembers(): boolean {
+    this.sweepStaleChunkState();
     return this.#requestingMembersStateMap.size > 0;
+  }
+
+  /**
+   * Drops any nonce whose last chunk is older than the TTL — a pure predicate over
+   * elapsed time (time-seam rule), evaluated here (read) and by the heartbeat's inline
+   * check (`Gateway.isFetchingMembers` on every dispatch), never a timer per entry.
+   */
+  private sweepStaleChunkState(): void {
+    const now = new Date().getTime();
+    for (const [nonce, state] of this.#requestingMembersStateMap) {
+      if (now - state.lastChunkAt >= CHUNK_STATE_TTL_MILLISECONDS) {
+        this.#requestingMembersStateMap.delete(nonce);
+      }
+    }
   }
 
   public log: Gateway['log'] = (...args: Parameters<Gateway['log']>) => this.#log(...args);
@@ -142,7 +176,7 @@ export default class Session {
       options.nonce = `${options.guild_id}-${++this.#membersRequestNonceCounter}`;
     }
 
-    this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: [] });
+    this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: new Set(), lastChunkAt: new Date().getTime() });
 
     void this.#gatewayHandleEvent('REQUEST_GUILD_MEMBERS', { gateway: this.#gateway, options });
 
@@ -190,7 +224,11 @@ export default class Session {
 
   public close(code: GatewayCloseCode, flushWaitTime = 0) {
     if (this.#websocket === undefined) {
-      this.#log('WARNING', 'Failed to close websocket. Session websocket is undefined.');
+      // QUEUED (F-2): no socket, but the gateway is still tracked (Session survives a
+      // P-keep close). Runs the close path directly — the arm for `code`, one
+      // `GATEWAY_CLOSE` — without a socket to touch.
+      const origin = takePendingOrigin(this.#gateway) ?? 'consumer';
+      this.handleClose(code, origin);
       return;
     }
 
@@ -223,6 +261,7 @@ export default class Session {
   private constructWsUrl() {
     if (!this.resumable) this.#resumeUrl = undefined;
     const endpoint = this.#resumeUrl ?? this.#wsUrl;
+    this.#lastAttemptTargetedResumeHost = this.#resumeUrl !== undefined;
 
     const params = { ...this.#wsParams };
     if (this.#identity.compress) {
@@ -273,6 +312,7 @@ export default class Session {
         break;
 
       case GATEWAY_OP_CODES.RECONNECT:
+        setPendingOrigin(this.#gateway, 'discord');
         this.close(GATEWAY_CLOSE_CODES.RECONNECT);
         break;
 
@@ -289,6 +329,7 @@ export default class Session {
 
     this.#resumeUrl = data.resume_gateway_url;
     this.#sessionId = data.session_id;
+    this.#consecutiveAbnormalOnResumeHost = 0;
 
     void this.handleEvent('READY', data);
   }
@@ -297,6 +338,7 @@ export default class Session {
   private handleResumed(): void {
     this.#log('INFO', `Replay finished after ${this.#eventsDuringResume} events. Resuming events.`);
     this.#resuming = false;
+    this.#consecutiveAbnormalOnResumeHost = 0;
 
     void this.handleEvent('RESUMED', null);
   }
@@ -312,6 +354,7 @@ export default class Session {
       `Received Invalid Session packet. Resumable: ${resumable}`,
     );
 
+    setPendingOrigin(this.#gateway, 'discord');
     if (!resumable) {
       this.close(GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
     } else {
@@ -363,6 +406,7 @@ export default class Session {
       this.send(GATEWAY_OP_CODES.RESUME, payload);
     } else {
       this.#log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
+      setPendingOrigin(this.#gateway, 'transport');
       this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
@@ -406,11 +450,28 @@ export default class Session {
     }
   }
 
-  private handleClose(code: GatewayCloseCode): void {
+  private handleClose(code: GatewayCloseCode, origin: CloseOrigin): void {
+    const isResumeHostAbnormalFailure = code === GATEWAY_CLOSE_CODES.ABNORMAL && this.#lastAttemptTargetedResumeHost;
+    if (isResumeHostAbnormalFailure) {
+      this.#consecutiveAbnormalOnResumeHost += 1;
+      if (this.#consecutiveAbnormalOnResumeHost >= 3) {
+        this.#log('WARNING', `Resume host failed ${this.#consecutiveAbnormalOnResumeHost} consecutive times. Abandoning it — the session continues on the base host.`);
+        this.#resumeUrl = undefined;
+        this.#consecutiveAbnormalOnResumeHost = 0;
+      }
+    } else {
+      this.#consecutiveAbnormalOnResumeHost = 0;
+    }
+
     this.websocket?.destroy();
     this.#websocket = undefined;
 
-    this.#onClose(code);
+    // H5(a): a cut member-chunk stream cannot outlive the close it was cut by, on any
+    // close code — P-keep included, so a reconnect starts with no stale nonce pinning
+    // `isFetchingMembers` true and vetoing the next heartbeat's missed-ack close.
+    this.#requestingMembersStateMap = new Map();
+
+    this.#onClose(code, origin);
   }
 
   private handleGuildMemberChunk(data: GatewayGuildMembersChunkDispatchData): void {
@@ -429,9 +490,12 @@ export default class Session {
   private updateRequestMembersState(nonce: string, chunkCount: number, chunkIndex: number) {
     const guildChunkState = this.#requestingMembersStateMap.get(nonce);
     if (guildChunkState) {
-      const { receivedIndexes } = guildChunkState;
-      receivedIndexes.push(chunkIndex);
-      if (receivedIndexes.length === chunkCount) {
+      // Set semantics (H5(b)): a duplicate index is already received, not a new slot —
+      // completion is every index in 0..chunkCount-1 having been seen, not a count of
+      // deliveries, which a duplicate or an out-of-order replay would otherwise skew.
+      guildChunkState.receivedIndexes.add(chunkIndex);
+      guildChunkState.lastChunkAt = new Date().getTime();
+      if (guildChunkState.receivedIndexes.size === chunkCount) {
         this.#requestingMembersStateMap.delete(nonce);
       }
     }

@@ -6,7 +6,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const ws_1 = __importDefault(require("ws"));
 const constants_1 = require("../../../constants");
 const utils_1 = require("../../../utils");
+const closeOrigin_1 = require("./closeOrigin");
 const Websocket_1 = __importDefault(require("./Websocket"));
+/** Idle time since a nonce's last chunk before its entry is dropped (WP-1 step 4c, F-4). */
+const CHUNK_STATE_TTL_MILLISECONDS = 60 * constants_1.SECOND_IN_MILLISECONDS;
 /** @internal */
 class Session {
     #gateway;
@@ -19,6 +22,10 @@ class Session {
     #wsUrl;
     /** From Discord - Url to reconnect to. */
     #resumeUrl;
+    /** Consecutive ABNORMAL (1006) closes against `#resumeUrl`; abandons the host at 3 (WP-1 step 2, F-19). */
+    #consecutiveAbnormalOnResumeHost = 0;
+    /** Whether the connection attempt that just closed was made against `#resumeUrl` — set at login, read at close, since `#resumeUrl` itself may already reflect a later READY by the time a close is handled. */
+    #lastAttemptTargetedResumeHost = false;
     /** Whether or not the client is currently resuming a session. */
     #resuming = false;
     #wsParams;
@@ -51,9 +58,14 @@ class Session {
     get connected() {
         return this.connection?.readyState === ws_1.default.OPEN;
     }
-    /** Whether or not the client has the conditions necessary to attempt to resume a gateway connection. */
+    /**
+     * Whether or not the client has the conditions necessary to attempt to resume a
+     * gateway connection — session identity alone (a held `session_id` and a sequence
+     * seen), decoupled from `#resumeUrl` (WP-1 step 2, critique F-19): after the resume
+     * host is abandoned, the session survives and resumes against the base URL.
+     */
     get resumable() {
-        return this.#sessionId !== undefined && this.#resumeUrl !== undefined;
+        return this.#sessionId !== undefined && this.#sequence !== null;
     }
     /** Whether or not the client is currently resuming a session. */
     get resuming() {
@@ -72,7 +84,21 @@ class Session {
         return this.#identity;
     }
     get isFetchingMembers() {
+        this.sweepStaleChunkState();
         return this.#requestingMembersStateMap.size > 0;
+    }
+    /**
+     * Drops any nonce whose last chunk is older than the TTL — a pure predicate over
+     * elapsed time (time-seam rule), evaluated here (read) and by the heartbeat's inline
+     * check (`Gateway.isFetchingMembers` on every dispatch), never a timer per entry.
+     */
+    sweepStaleChunkState() {
+        const now = new Date().getTime();
+        for (const [nonce, state] of this.#requestingMembersStateMap) {
+            if (now - state.lastChunkAt >= CHUNK_STATE_TTL_MILLISECONDS) {
+                this.#requestingMembersStateMap.delete(nonce);
+            }
+        }
     }
     log = (...args) => this.#log(...args);
     emit = (...args) => this.#emit(...args);
@@ -89,7 +115,7 @@ class Session {
         if (options.nonce === undefined) {
             options.nonce = `${options.guild_id}-${++this.#membersRequestNonceCounter}`;
         }
-        this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: [] });
+        this.#requestingMembersStateMap.set(options.nonce, { receivedIndexes: new Set(), lastChunkAt: new Date().getTime() });
         void this.#gatewayHandleEvent('REQUEST_GUILD_MEMBERS', { gateway: this.#gateway, options });
         const sent = this.#websocket.send(constants_1.GATEWAY_OP_CODES.REQUEST_GUILD_MEMBERS, options);
         // The payload never left the process, so no chunks will arrive to clear this nonce. Leaving it
@@ -131,7 +157,11 @@ class Session {
     };
     close(code, flushWaitTime = 0) {
         if (this.#websocket === undefined) {
-            this.#log('WARNING', 'Failed to close websocket. Session websocket is undefined.');
+            // QUEUED (F-2): no socket, but the gateway is still tracked (Session survives a
+            // P-keep close). Runs the close path directly — the arm for `code`, one
+            // `GATEWAY_CLOSE` — without a socket to touch.
+            const origin = (0, closeOrigin_1.takePendingOrigin)(this.#gateway) ?? 'consumer';
+            this.handleClose(code, origin);
             return;
         }
         this.#websocket.close(code, flushWaitTime);
@@ -157,6 +187,7 @@ class Session {
         if (!this.resumable)
             this.#resumeUrl = undefined;
         const endpoint = this.#resumeUrl ?? this.#wsUrl;
+        this.#lastAttemptTargetedResumeHost = this.#resumeUrl !== undefined;
         const params = { ...this.#wsParams };
         if (this.#identity.compress) {
             this.#log('DEBUG', 'Compressing websocket connection.');
@@ -200,6 +231,7 @@ class Session {
                 this.handleInvalidSession(data);
                 break;
             case constants_1.GATEWAY_OP_CODES.RECONNECT:
+                (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'discord');
                 this.close(constants_1.GATEWAY_CLOSE_CODES.RECONNECT);
                 break;
             default:
@@ -213,12 +245,14 @@ class Session {
         this.#log('DEBUG', `Received Ready. Session ID: ${data.session_id}.`);
         this.#resumeUrl = data.resume_gateway_url;
         this.#sessionId = data.session_id;
+        this.#consecutiveAbnormalOnResumeHost = 0;
         void this.handleEvent('READY', data);
     }
     /** Handles "Resumed" packet from Discord. https://discord.com/developers/docs/topics/gateway#resumed */
     handleResumed() {
         this.#log('INFO', `Replay finished after ${this.#eventsDuringResume} events. Resuming events.`);
         this.#resuming = false;
+        this.#consecutiveAbnormalOnResumeHost = 0;
         void this.handleEvent('RESUMED', null);
     }
     /**
@@ -228,6 +262,7 @@ class Session {
      */
     handleInvalidSession(resumable) {
         this.#log('WARNING', `Received Invalid Session packet. Resumable: ${resumable}`);
+        (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'discord');
         if (!resumable) {
             this.close(constants_1.GATEWAY_CLOSE_CODES.SESSION_INVALIDATED);
         }
@@ -273,6 +308,7 @@ class Session {
         }
         else {
             this.#log('ERROR', `Attempted to resume with undefined sessionId or sequence. Values - SessionId: ${sessionId}, sequence: ${sequence}`);
+            (0, closeOrigin_1.setPendingOrigin)(this.#gateway, 'transport');
             this.close(constants_1.GATEWAY_CLOSE_CODES.UNKNOWN);
         }
     }
@@ -309,10 +345,26 @@ class Session {
             }
         }
     }
-    handleClose(code) {
+    handleClose(code, origin) {
+        const isResumeHostAbnormalFailure = code === constants_1.GATEWAY_CLOSE_CODES.ABNORMAL && this.#lastAttemptTargetedResumeHost;
+        if (isResumeHostAbnormalFailure) {
+            this.#consecutiveAbnormalOnResumeHost += 1;
+            if (this.#consecutiveAbnormalOnResumeHost >= 3) {
+                this.#log('WARNING', `Resume host failed ${this.#consecutiveAbnormalOnResumeHost} consecutive times. Abandoning it — the session continues on the base host.`);
+                this.#resumeUrl = undefined;
+                this.#consecutiveAbnormalOnResumeHost = 0;
+            }
+        }
+        else {
+            this.#consecutiveAbnormalOnResumeHost = 0;
+        }
         this.websocket?.destroy();
         this.#websocket = undefined;
-        this.#onClose(code);
+        // H5(a): a cut member-chunk stream cannot outlive the close it was cut by, on any
+        // close code — P-keep included, so a reconnect starts with no stale nonce pinning
+        // `isFetchingMembers` true and vetoing the next heartbeat's missed-ack close.
+        this.#requestingMembersStateMap = new Map();
+        this.#onClose(code, origin);
     }
     handleGuildMemberChunk(data) {
         const { nonce, not_found, chunk_count, chunk_index, } = data;
@@ -328,9 +380,12 @@ class Session {
     updateRequestMembersState(nonce, chunkCount, chunkIndex) {
         const guildChunkState = this.#requestingMembersStateMap.get(nonce);
         if (guildChunkState) {
-            const { receivedIndexes } = guildChunkState;
-            receivedIndexes.push(chunkIndex);
-            if (receivedIndexes.length === chunkCount) {
+            // Set semantics (H5(b)): a duplicate index is already received, not a new slot —
+            // completion is every index in 0..chunkCount-1 having been seen, not a count of
+            // deliveries, which a duplicate or an out-of-order replay would otherwise skew.
+            guildChunkState.receivedIndexes.add(chunkIndex);
+            guildChunkState.lastChunkAt = new Date().getTime();
+            if (guildChunkState.receivedIndexes.size === chunkCount) {
                 this.#requestingMembersStateMap.delete(nonce);
             }
         }

@@ -10,6 +10,9 @@ import Gateway, {
   GatewayCloseEvent, GatewayEvent, GatewayOptions, Heartbeat,
   IdentityOptions, ParacordEvent, ParacordGatewayEvent,
 } from '../Gateway';
+import { setPendingOrigin, takePendingOrigin } from '../Gateway/structures/closeOrigin';
+
+import { isEligible, markReady, recordClose } from './failureCounter';
 
 import type { DebugLevel } from '../../@types';
 import type {
@@ -161,9 +164,11 @@ export default class Paracord extends EventEmitter {
   public handleEvent(eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, gateway: Gateway): void {
     switch (eventType) {
       case 'READY':
+        markReady(gateway);
         this.handleGatewayReady(<GatewayReadyDispatchData>data);
         break;
       case 'RESUMED':
+        markReady(gateway);
         if (!this.isStartingGateway(gateway)) {
           this.completeShardStartup({ shard: gateway, resumed: true });
         }
@@ -305,9 +310,23 @@ export default class Paracord extends EventEmitter {
 
     this.#processingQueue = true;
     try {
+      // WP-1 step 2: a gateway whose backoff not-before has not passed is skipped —
+      // never picked as the starting gateway — so it neither jumps the queue early nor
+      // holds up a gateway behind it that is eligible now (F-6, AC-1.13). A resumable
+      // gateway can still be `#startingGateway` from before its own connection just
+      // dropped (L1 leaves that state alone across a resumable close) — re-validated
+      // here so a fresh not-before is honoured rather than skipped by the `if
+      // (!this.#startingGateway)` guards below, which would otherwise re-login it
+      // unconditionally on every tick.
+      const now = Date.now();
+
+      if (this.#startingGateway && !this.#startingGateway.connected && !isEligible(this.#startingGateway, now)) {
+        this.#startingGateway = undefined;
+      }
+
       if (!this.#startingGateway) {
         // get resumable shard
-        this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable);
+        this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable && isEligible(g, now));
       }
 
       // if no resumable shard, get first shard in queue that is allowed to connect
@@ -315,7 +334,7 @@ export default class Paracord extends EventEmitter {
         this.log('INFO', 'Checking if a shard is allowed to connect.');
         const queue = [...this.gatewayLoginQueue];
         for (const gateway of queue) {
-          if (await this.#allowConnection(gateway)) {
+          if (isEligible(gateway, now) && await this.#allowConnection(gateway)) {
             this.#startingGateway = gateway;
             this.log('INFO', 'Shard is allowed to connect.', { shard: gateway });
             break;
@@ -329,9 +348,9 @@ export default class Paracord extends EventEmitter {
         }
       }
 
-      // if no resumable shard, get first shard in queue
+      // if no resumable shard, get first eligible shard in queue
       if (!this.#startingGateway) {
-        [this.#startingGateway] = this.gatewayLoginQueue;
+        this.#startingGateway = this.gatewayLoginQueue.find((g) => isEligible(g, now));
       }
 
       if (!this.#startingGateway) {
@@ -398,6 +417,7 @@ export default class Paracord extends EventEmitter {
   private timeoutShard(gateway: Gateway, waitTime: number) {
     if (this.isStartingGateway(gateway)) {
       this.log('WARNING', `Shard timed out after ${waitTime} seconds during startup. Reconnecting.`, { shard: gateway });
+      setPendingOrigin(gateway, 'transport');
       gateway.close(GATEWAY_CLOSE_CODES.INTERNAL_TERMINATE_RECONNECT);
     }
   }
@@ -549,16 +569,20 @@ export default class Paracord extends EventEmitter {
   private handleGatewayClose(data: GatewayCloseEvent): void {
     const { gateway, shouldReconnect } = data;
 
-    if (!gateway.resumable) {
+    // L1: starting-shard state is torn down whenever the session won't survive the
+    // close, or won't be retried at all — never left armed for a gateway that is done.
+    if (!gateway.resumable || !shouldReconnect) {
       this.clearStartingShardState(gateway);
     }
 
+    // H2 + incident (WP-1 step 2): every reconnect, resumable or not, goes through the
+    // existing 1 s login queue instead of a synchronous `gateway.login()` — that
+    // synchronous call, with no wait between attempts, is the loop the owner reported.
+    const origin = takePendingOrigin(gateway) ?? 'consumer';
+    recordClose(gateway, origin, Date.now());
+
     if (shouldReconnect) {
-      if (gateway.resumable) {
-        void gateway.login();
-      } else {
-        this.upsertGatewayQueue(gateway);
-      }
+      this.upsertGatewayQueue(gateway);
     }
   }
 

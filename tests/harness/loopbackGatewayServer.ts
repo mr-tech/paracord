@@ -18,6 +18,10 @@ export interface LoopbackGatewayServerOptions {
   mode?: LoopbackMode;
   /** Delay, in ms, before an 'accept' mode upgrade completes the handshake ("late-handshake"). */
   acceptDelayMs?: number;
+  /** `resume_gateway_url` sent in READY. Defaults to this server's own URL. */
+  resumeGatewayUrl?: string;
+  /** How a RESUME (op 6) is answered: a RESUMED dispatch, or INVALID_SESSION. Default 'resumed'. */
+  resumeResponse?: 'resumed' | 'invalidSession';
 }
 
 /**
@@ -42,12 +46,20 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   private liveSocket: WebSocket | null = null;
 
+  private readonly explicitResumeGatewayUrl: string | undefined;
+
+  private readonly resumeResponse: 'resumed' | 'invalidSession';
+
+  private nextDispatchSeq = 1;
+
   private constructor(server: http.Server, wss: WebSocketServer, opts: LoopbackGatewayServerOptions) {
     super();
     this.server = server;
     this.wss = wss;
     this.mode = opts.mode ?? 'accept';
     this.acceptDelayMs = opts.acceptDelayMs ?? 0;
+    this.explicitResumeGatewayUrl = opts.resumeGatewayUrl;
+    this.resumeResponse = opts.resumeResponse ?? 'resumed';
   }
 
   static start(opts: LoopbackGatewayServerOptions = {}): Promise<LoopbackGatewayServer> {
@@ -77,6 +89,30 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   attemptsSince(t: number): number {
     return this.attempts.filter((a) => a >= t).length;
+  }
+
+  /**
+   * Resolves once the server has recorded at least `n` upgrade attempts. The named-
+   * condition wait step 0 requires in place of a fixed sleep when a test needs the
+   * loop to have reached steady state.
+   */
+  waitForAttempt(n: number, timeoutMs = 5000): Promise<void> {
+    if (this.attempts.length >= n) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off('upgrade', check);
+        reject(new Error(`waitForAttempt timed out after ${timeoutMs}ms waiting for attempt ${n} (have ${this.attempts.length})`));
+      }, timeoutMs);
+      const check = () => {
+        if (this.attempts.length >= n) {
+          clearTimeout(timer);
+          this.off('upgrade', check);
+          resolve();
+        }
+      };
+      this.on('upgrade', check);
+    });
   }
 
   /** Abnormally drops the currently open session's socket (mirrors the analysis harness's mid-session failure). */
@@ -131,20 +167,25 @@ export class LoopbackGatewayServer extends EventEmitter {
       if (payload.op === 2) {
         client.send(JSON.stringify({
           op: 0,
-          s: 1,
+          s: this.nextDispatchSeq++,
           t: 'READY',
           d: {
             v: 10,
             user: { id: '1', username: 'harness', discriminator: '0001' },
             guilds: [],
             session_id: 'HARNESS_SESSION',
-            resume_gateway_url: `ws://127.0.0.1:${this.port}`,
+            resume_gateway_url: this.explicitResumeGatewayUrl ?? `ws://127.0.0.1:${this.port}`,
             application: { id: '1', flags: 0 },
           },
         }));
         this.emit('ready');
       } else if (payload.op === 6) {
-        this.emit('resume');
+        this.emit('resume', payload.d);
+        if (this.resumeResponse === 'resumed') {
+          client.send(JSON.stringify({ op: 0, s: this.nextDispatchSeq++, t: 'RESUMED', d: {} }));
+        } else {
+          client.send(JSON.stringify({ op: 9, d: false }));
+        }
       }
     });
   }

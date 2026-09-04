@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../constants");
 const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
+const closeOrigin_1 = require("./structures/closeOrigin");
 /** A client to handle a Discord gateway connection. */
 class Gateway {
     #options;
@@ -148,7 +149,13 @@ class Gateway {
         this.#session?.login();
     };
     close(code = constants_1.GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWait = 0) {
-        this.#session?.close(code, flushWait);
+        if (!this.#session) {
+            // IDLE (residue R): never logged in, or terminal after a P-terminal close — a
+            // no-op, logged with the discarded code; no event is emitted (analysis I-4).
+            this.log('WARNING', `Websocket is undefined when closing. Discarding code: ${code}.`);
+            return;
+        }
+        this.#session.close(code, flushWait);
     }
     checkIfShouldHeartbeat() {
         return this.#session?.websocket?.heartbeat.checkIfShouldHeartbeat();
@@ -161,8 +168,11 @@ class Gateway {
     handleEvent(type, data) {
         void this.#emitter.handleEvent(type, data, this);
     }
-    handleClose(code) {
+    handleClose(code, origin) {
         const shouldReconnect = this.handleCloseCode(code);
+        // Handed to Paracord's failure counter (F-26) via the gateway instance itself —
+        // GatewayCloseEvent is public and stays exactly {shouldReconnect, code, gateway}.
+        (0, closeOrigin_1.setPendingOrigin)(this, origin);
         const gatewayCloseEvent = { shouldReconnect, code, gateway: this };
         this.emit('GATEWAY_CLOSE', gatewayCloseEvent);
     }

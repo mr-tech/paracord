@@ -12,9 +12,11 @@ import {
 } from '../../../constants';
 import { isApiError } from '../../../utils';
 
+import { setPendingOrigin, takePendingOrigin } from './closeOrigin';
 import GatewayIdentify from './GatewayIdentify';
 import Heartbeat from './Heartbeat';
 
+import type { CloseOrigin } from './closeOrigin';
 import type { GatewayEvent, ParacordGatewayEvent } from '../types';
 import type Session from './Session';
 
@@ -50,6 +52,12 @@ export default class Websocket {
   #destroyed = false;
 
   #closing = false;
+
+  /** The code the first `close()` call was given — what a delayed or forced delivery uses, never the wire's own code (WP-1 step 1, H3). */
+  #pendingCloseCode: undefined | GatewayCloseCode;
+
+  /** The origin resolved for the first `close()` call, carried alongside `#pendingCloseCode`. */
+  #pendingCloseOrigin: undefined | CloseOrigin;
 
   #closeTimeout: undefined | NodeJS.Timeout = undefined;
 
@@ -138,6 +146,11 @@ export default class Websocket {
       inflate.on('error', (error) => {
         if (!this.connected) return;
         this.#session.log('ERROR', error.stack ?? error.message);
+        // H4: a zlib error leaves the stream unusable for every message after it —
+        // tear the connection down through the normal close path rather than log-and-
+        // continue on a socket that can no longer be read.
+        setPendingOrigin(this.#session.gateway, 'transport');
+        this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
       });
 
       this.#zlibInflate = inflate;
@@ -162,11 +175,15 @@ export default class Websocket {
 
   public close(code: GatewayCloseCode, flushWaitTime = 0) {
     if (this.#closing) {
-      this.#session.log('DEBUG', 'Websocket is already closing.');
+      this.#session.log('DEBUG', `Websocket is already closing. Discarding code: ${code}.`);
       return;
     }
 
+    const origin = takePendingOrigin(this.#session.gateway) ?? 'consumer';
+
     this.#closing = true;
+    this.#pendingCloseCode = code;
+    this.#pendingCloseOrigin = origin;
 
     if (this.connected) {
       this.#session.log('DEBUG', `Closing websocket with code: ${code}.`);
@@ -181,11 +198,19 @@ export default class Websocket {
         this.#flushInterval = setTimeout(() => {
           this.#session.log('DEBUG', `Flush interval timed out. Flushed ${this.#eventsDuringFlush} events during close.`);
           this.#flushInterval = undefined;
-          this.#onClose(code);
+          this.#onClose(code, origin);
         }, flushWaitTime);
       } else {
-        this.#onClose(code);
+        this.#onClose(code, origin);
       }
+    } else if (this.#connection?.readyState === ws.CONNECTING) {
+      // H3: abort the handshake in flight immediately rather than waiting on a close a
+      // CONNECTING socket will never send. `#onClose` runs `Session.handleClose`, which
+      // calls this instance's own `destroy()` — the A-1.7 guard lives there, the one
+      // place that unconditionally terminates the connection.
+      this.#session.log('DEBUG', `Aborting connecting websocket with code: ${code}.`);
+      this.clearConnectTimeout();
+      this.#onClose(code, origin);
     } else if (this.#connection) {
       this.#session.log('INFO', `Websocket is already ${this.#connection.readyState === ws.CLOSED ? 'closed' : 'closing'}.`);
 
@@ -217,6 +242,17 @@ export default class Websocket {
     this.#connection.onmessage = null;
     this.#connection.onopen = null;
     this.#connection?.removeAllListeners();
+
+    if (this.#connection?.readyState === ws.CONNECTING) {
+      // A-1.7: `terminate()`ing a socket still CONNECTING raises a synthetic 'error'
+      // (deferred to `process.nextTick` by `ws` itself) that would otherwise go
+      // unhandled. Guarded here — the one place that unconditionally terminates the
+      // connection — rather than at each caller, so every path that can reach a
+      // CONNECTING socket (a close(), or a construction failure) is covered alike.
+      this.#connection.once('error', () => {
+        this.#session.log('DEBUG', 'Swallowed the synthetic error from destroying a connecting websocket.');
+      });
+    }
     this.#connection?.terminate();
 
     this.#zlibInflate?.end();
@@ -249,6 +285,7 @@ export default class Websocket {
 
       if (this.connection.readyState === ws.OPEN || this.connection.readyState === ws.CONNECTING) {
         this.#session.log('WARNING', 'Websocket open but didn\'t receive HELLO event in time.');
+        setPendingOrigin(this.#session.gateway, 'transport');
         this.close(GATEWAY_CLOSE_CODES.CONNECT_TIMEOUT);
       } else {
         this.#session.log('WARNING', 'Unexpected timeout while websocket is in CLOSING / CLOSED state.');
@@ -286,7 +323,16 @@ export default class Websocket {
 
     this.#session.log('DEBUG', `Websocket closed. Code: ${code}.`);
 
-    this.#onClose(code as GatewayCloseCode);
+    // A close already in flight (#pendingCloseCode/#pendingCloseOrigin set) delivers the
+    // caller's own code and origin, never the wire's — WP-1 step 1: the caller's code
+    // wins, whether the terminal event arrives naturally or via the 60 s force-close.
+    // Otherwise this is unsolicited: ABNORMAL (1006, `ws`'s own synthesis) is
+    // transport/library origin; any other code arriving on the wire is Discord's own.
+    const deliveredCode = this.#pendingCloseCode ?? (code as GatewayCloseCode);
+    const origin = this.#pendingCloseOrigin
+      ?? (code === GATEWAY_CLOSE_CODES.ABNORMAL ? 'transport' : 'discord');
+
+    this.#onClose(deliveredCode, origin);
   };
 
   /*
@@ -320,6 +366,7 @@ export default class Websocket {
       } = parsed;
     } catch (e) {
       this.#session.log('ERROR', `Failed to parse message. Message: ${data}`);
+      setPendingOrigin(this.#session.gateway, 'transport');
       this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
 
@@ -357,7 +404,18 @@ export default class Websocket {
 
     const result = Buffer.concat(this.#inflateBuffer);
     this.#inflateBuffer = [];
-    this.handleMessage(JSON.parse(this.#textDecoder.decode(result)) as GatewayReceivePayload);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(this.#textDecoder.decode(result)) as GatewayReceivePayload;
+    } catch (e) {
+      this.#session.log('ERROR', `Failed to parse decompressed message. Message: ${result}`);
+      setPendingOrigin(this.#session.gateway, 'transport');
+      this.close(GATEWAY_CLOSE_CODES.UNKNOWN);
+      return;
+    }
+
+    this.handleMessage(parsed);
   }
 
   /** Processes incoming messages from Discord's gateway.
@@ -492,7 +550,9 @@ export default class Websocket {
         this.#session.log('ERROR', 'Websocket undefined during close timeout. This shouldn\'t ever happen.');
       } else if (websocket === this.#connection) {
         this.#session.log('ERROR', 'Websocket did not close in time. Forcing close.');
-        this.handleWsClose({ code: GATEWAY_CLOSE_CODES.UNKNOWN });
+        // WP-1 step 1: the force-close delivers the caller's own code — never UNKNOWN,
+        // which would substitute a P-clear arm for whatever the caller's P-keep code was.
+        this.handleWsClose({ code: this.#pendingCloseCode ?? GATEWAY_CLOSE_CODES.UNKNOWN });
       }
     }, MINUTE_IN_MILLISECONDS);
   }

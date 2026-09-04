@@ -1,5 +1,6 @@
 import { GATEWAY_CLOSE_CODES, SECOND_IN_MILLISECONDS } from '../../../constants';
 
+import { setPendingOrigin } from './closeOrigin';
 import Websocket from './Websocket';
 
 import type Gateway from '../Gateway';
@@ -12,6 +13,9 @@ interface Params {
   log: Gateway['log'];
 }
 
+/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for (WP-1 step 4d). */
+const VETO_CAP = 3;
+
 /** @internal */
 export default class Heart {
   #gateway: Gateway;
@@ -20,6 +24,9 @@ export default class Heart {
 
   /** If the last heartbeat packet sent to Discord received an ACK. */
   #isAcknowledged = true;
+
+  /** Consecutive heartbeats the `isFetchingMembers` veto has held off a close for; reset on ack. */
+  #consecutiveVetoes = 0;
 
   /** Time when last heartbeat packet was sent in ms. */
   #previousTimestamp?: undefined | number;
@@ -116,6 +123,7 @@ export default class Heart {
 
     if (!this.#isAcknowledged) {
       this.#isAcknowledged = true;
+      this.#consecutiveVetoes = 0;
 
       if (this.#previousTimestamp !== undefined) {
         const now = new Date().getTime();
@@ -173,6 +181,7 @@ export default class Heart {
       this.#log('DEBUG', `Next heartbeat scheduled in ${nextSendTime}ms. Jitter: ${randomOffset}ms.`);
     } else {
       this.#log('ERROR', 'heartbeatIntervalTime undefined.');
+      setPendingOrigin(this.#gateway, 'transport');
       this.#gateway.close(GATEWAY_CLOSE_CODES.UNKNOWN);
     }
   }
@@ -184,10 +193,12 @@ export default class Heart {
 
     if (!this.#isAcknowledged) {
       if (this.#gateway.connected) {
-        if (this.#gateway.isFetchingMembers) {
-          this.#log('WARNING', 'Heartbeat not acknowledged but fetching members. Will retry later.');
+        if (this.#gateway.isFetchingMembers && this.#consecutiveVetoes < VETO_CAP) {
+          this.#consecutiveVetoes += 1;
+          this.#log('WARNING', `Heartbeat not acknowledged but fetching members (veto ${this.#consecutiveVetoes}/${VETO_CAP}). Will retry later.`);
         } else {
           this.#log('ERROR', 'Heartbeat not acknowledged. Closing connection.');
+          setPendingOrigin(this.#gateway, 'transport');
           this.#gateway.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT, 3 * SECOND_IN_MILLISECONDS);
           return;
         }
@@ -224,6 +235,7 @@ export default class Heart {
     if (!this.#isAcknowledged) {
       if (this.#gateway.connected) {
         this.#log('ERROR', 'Heartbeat not acknowledged in time.');
+        setPendingOrigin(this.#gateway, 'transport');
         this.#gateway.close(GATEWAY_CLOSE_CODES.HEARTBEAT_TIMEOUT);
       } else {
         this.#log('INFO', 'Heartbeat not acknowledged in time but connection is already closed.');
