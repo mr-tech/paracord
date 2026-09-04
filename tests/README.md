@@ -50,7 +50,9 @@ rather than by widening `skipLibCheck`:
   `session-preserving-close`) are unaffected by WP-1 and remain as regression guards.
 - `tests/unit/` — arithmetic on a pure schedule or predicate, no sockets and no timers real or
   fake (time-seam rule, form (a)): the backoff schedule function, the failure counter, the
-  cross-class close-origin handoff.
+  cross-class close-origin handoff. `sharedScheduleGuard.test.ts` (AC-9.12) drives both
+  `computeBackoffMs` consumers (`failureCounter.ts`, `rateLimitRetryTarget.ts`) against one
+  literal bound per attempt, so the two curves cannot drift apart unnoticed.
 - `tests/gateway/` — integration tests against the *fixed* gateway state machine (WP-1 on), over
   real loopback sockets, on the real clock (time-seam rule, forms (b)/(c)).
 - `tests/api/` — integration tests against `Api`'s 429 handling (WP-9b on), over both request
