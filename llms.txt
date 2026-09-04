@@ -77,8 +77,13 @@ Api.addRequestService(options?: ServiceOptions): Promise<boolean>
 
 Gateway(token: string, options: GatewayOptions)
 Gateway.login(): void
-Gateway.close(code?: GatewayCloseCode): void
+Gateway.close(code?: GatewayCloseCode, flushWait?: number): void
 Gateway.requestGuildMembers(options: GatewayRequestGuildMembersData): boolean
+
+// Session (internal, Gateway's own delegate — not exported from dist/index.d.ts, the
+// package's own `types` entry point; listed here only because its signature is a named
+// breaking change). Not a supported entry point — use Gateway.close() above.
+Session.close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void
 
 Paracord(token: string, options: ParacordOptions)  extends EventEmitter
 Paracord.login(options?: Partial<ParacordLoginOptions>): Promise<void>

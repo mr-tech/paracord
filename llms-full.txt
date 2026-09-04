@@ -192,6 +192,24 @@ Enables or disables payload compression.
 
 ---
 
+## Class: Session (internal — `Gateway`'s own delegate, not part of the published type surface)
+
+`@internal`. Not exported from `dist/index.d.ts` (the package's own `types` entry point), so a
+TypeScript consumer importing `paracord` never sees this class — only `api-report/paracord.api.md`
+and the untrimmed `dist/paracord.d.ts` list it, and only because `Gateway` re-exports it internally.
+Reachable at the JS value level regardless (`require('paracord').Session`), with no type-checking
+for a caller who reaches it that way. Documented here only because its `close()` signature changed
+as a named breaking change; nothing else about this class is a supported entry point.
+
+#### `session.close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void`
+
+All three parameters are required (`flushWaitTime` and `origin` were added; `origin`'s type,
+`CloseOrigin`, is declared but not itself exported — its shape is
+`'consumer' | 'transport' | 'discord'`). Real consumers close a connection through
+`gateway.close(code?, flushWait?)` above, which is unchanged and remains the supported entry point.
+
+---
+
 ## Interface: GatewayOptions
 
 ```ts
