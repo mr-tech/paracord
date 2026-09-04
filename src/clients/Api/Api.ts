@@ -21,6 +21,7 @@ import {
 } from './structures';
 import applyRateLimitObservation from './structures/applyRateLimitObservation';
 import extractRetryAfter from './structures/extractRetryAfter';
+import computeRateLimitRetryTarget from './structures/rateLimitRetryTarget';
 
 import type { DebugLevel } from '../../@types';
 import type {
@@ -28,12 +29,6 @@ import type {
 } from './types';
 
 const MAX_SERVER_ERROR_RETRIES = 3;
-
-/**
- * How long to hold a request that was rate limited but told nothing about when to retry. Without
- * this the request goes back to the queue already eligible and is re-sent on the next tick.
- */
-const UNKNOWN_RETRY_AFTER_MILLISECONDS = SECOND_IN_MILLISECONDS;
 
 function validateStatusDefault(status: number) {
   return status >= 200 && status <= 299;
@@ -82,6 +77,16 @@ export default class Api {
 
   /** Number of requests sent that have not received a response. */
   #inFlight = 0;
+
+  /**
+   * Each request's running count of consecutive information-free 429s (WP-9b step 6,
+   * D-17, AC-9.8) — request state, not cache or global state; survives re-queue
+   * because the same `ApiRequest` instance is reused across queue cycles
+   * (`RequestQueue`), and never leaks because a `WeakMap` drops the entry once the
+   * request itself is collected. Kept off `ApiRequest`'s own shape: a new public field
+   * there would move `api-report/paracord.api.md` (AC-9.6).
+   */
+  #informationFreeRetryCounts = new WeakMap<ApiRequest, number>();
 
   public static isApiDebugEvent(event: unknown): event is ApiDebugEvent {
     function hasSource(evt = event): evt is { source: LogSource } {
@@ -650,11 +655,17 @@ export default class Api {
     // Both values are absolute timestamps, so the later of the two is the one to honour. A 429 that
     // told us nothing still has to back off: leaving `waitUntil` at or behind now hands the request
     // straight back to the queue, which re-sends it on the next tick and loops on the rate limit.
-    const target = Math.max(
-      Number.isFinite(resetTimestamp) ? resetTimestamp : 0,
-      waitUntil ?? 0,
+    // D-17: an information-free 429 (directed <= now) grows this wait on a per-request schedule
+    // instead of the flat floor, and resets to the schedule's start once the response tells us
+    // something real again (WP-9b step 6, AC-9.8).
+    const { target, nextInformationFreeRetryCount } = computeRateLimitRetryTarget(
+      now,
+      resetTimestamp,
+      waitUntil,
+      this.#informationFreeRetryCounts.get(request) ?? 0,
     );
-    request.assignIfStricter(target > now ? target : now + UNKNOWN_RETRY_AFTER_MILLISECONDS);
+    this.#informationFreeRetryCounts.set(request, nextInformationFreeRetryCount);
+    request.assignIfStricter(target);
 
     let message: string;
     if (headers.global) {
@@ -681,6 +692,10 @@ export default class Api {
     }
 
     this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
+
+    // A 5xx re-queues the request but is not an information-free 429 — it resets the
+    // schedule so the request's next one starts over at n = 1 (WP-9b step 6, AC-9.8).
+    this.#informationFreeRetryCounts.delete(request);
 
     await new Promise((resolve) => { setTimeout(resolve, SECOND_IN_MILLISECONDS); });
 
