@@ -46,10 +46,11 @@ describe('information-free 429 backoff (AC-9.8)', () => {
     // are allowed for — measured against an isolated pre-fix clone (qa-P001,
     // verification/001/wp9b-ac98-strengthened.spec.ts: pre-fix gaps [1995, 2000, 2004,
     // 2002] vs fixed [1994, 3004, 4008, 7004] — gap2 > gap1 resolves 2000 > 1995 on
-    // the flat tree, 5ms of jitter deciding it). The schedules separate at gap3: flat
-    // gives ~2000, the schedule's floor is 0.8 * 4000 = 3200 — so this needs the
-    // fourth send, and a gap3-vs-gap1 ratio bound that no flat schedule of any value
-    // can satisfy.
+    // the flat tree, 5ms of jitter deciding it). The fourth send's gap3 is what
+    // separates them: gap1's own bound caps it at 2200, gap3's own bound floors it at
+    // 3200, and gap1 <= 2200 < 3200 <= gap3 means no constant schedule can satisfy
+    // both bounds at once — the per-gap bounds below are the whole discriminator, with
+    // no separate ratio assertion needed on top of them.
     origin = await LoopbackApiOrigin.start();
     origin.setScript([INFORMATION_FREE, INFORMATION_FREE, INFORMATION_FREE, INFORMATION_FREE, OK]);
     api = await createApiAgainstOrigin(origin);
@@ -69,11 +70,6 @@ describe('information-free 429 backoff (AC-9.8)', () => {
       expect(gap, `gap${i + 1} (observed ${gaps.join(', ')})`).toBeGreaterThanOrEqual(0.8 * S[i]!);
       expect(gap, `gap${i + 1} (observed ${gaps.join(', ')})`).toBeLessThanOrEqual(1.2 * S[i]! + TICK);
     });
-
-    // The flat-schedule discriminator, stated separately so its failure is legible: a
-    // flat schedule of any value cannot satisfy both gap1's ceiling and gap3's floor.
-    expect(gaps[2]!, 'gap3 must be at least twice gap1 — a flat schedule cannot be')
-      .toBeGreaterThanOrEqual(2 * gaps[0]!);
   }, 40000);
 
   it('resets to s_1 after a non-information-free response, rather than continuing to grow', async () => {
