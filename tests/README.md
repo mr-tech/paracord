@@ -3,8 +3,25 @@
 TypeScript under `tests/`, type-checked separately from the production build
 (`tsconfig.tests.json`, `npm run test:types`) and executed by vitest (`npm test`). Never swept
 into `tsc -b`/`dist/` — `tsconfig.json`'s `include: ["src"]` keeps the production build scoped to
-`src/`, and `.npmignore` excludes `tests/`, `tsconfig.tests.json` and `vitest.config.mts` from the
-published package.
+`src/`. `tests/`, `tsconfig.tests.json` and `vitest.config.mts` never reach the published package:
+`package.json`'s `files` allowlist names only `dist`, `llms.txt` and `llms-full.txt`, so anything
+outside that set is excluded regardless of `.npmignore` or `.gitignore`.
+
+`tsconfig.tests.json`'s `include` is exactly `["tests"]` — `src/`'s files are still type-checked as
+the dependencies tests import, but `src/`'s one compilation authority stays `tsconfig.json`/
+`tsc -b`; `test:types` is not a second, weaker recompilation of it. `skipLibCheck` is not set.
+Two dependency declaration-file failures surface under this program and are handled narrowly
+rather than by widening `skipLibCheck`:
+
+- `@grpc/proto-loader`'s `import Long = require('long')` resolves, under this project's
+  `moduleResolution: "bundler"`, to a `long` declaration incompatible with how the generated
+  `@grpc/grpc-js` types use it (32 `TS2709` errors, all in `node_modules`). Fixed by a `paths`
+  override in `tsconfig.tests.json` redirecting `long` to its UMD declaration file — the same one
+  classic module resolution already picks, so this restores that behaviour rather than adding one.
+- `@vitest/utils/dist/diff.d.ts` references the `WeakKey` type unconditionally; TypeScript added
+  `WeakKey` to its bundled libs in 5.4, and this project pins `typescript@^5.1.6`. Fixed by
+  `tests/types/weakkey-shim.d.ts`, declaring `type WeakKey = object` to match the upstream
+  definition — one file, one dependency, one reason.
 
 ## Placement
 
@@ -42,5 +59,5 @@ published package.
 ## Running
 
 - `npm test` — `vitest run`, all files under `tests/**/*.test.ts`.
-- `npm run test:types` — type-checks `src/` and `tests/` together (`tsconfig.tests.json`), without
-  emitting.
+- `npm run test:types` — type-checks `tests/` (`tsconfig.tests.json`), and the `src/` files it
+  imports as dependencies, without emitting.
