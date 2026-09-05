@@ -59,6 +59,9 @@ rather than by widening `skipLibCheck`:
   paths (local, and RPC through a loopback rate-limit `RpcServer`, D-20), on the real clock
   (time-seam rule, forms (b)/(c)) and against the pure schedule/predicate functions where the
   criterion's own instrument is form (a) (`AC-9.1`'s membership predicate, `AC-9.8`'s reset rule).
+  Also, as of WP-2: `Api`'s response to the RPC rate-limit service becoming unreachable
+  (`rpcServiceLoss.test.ts`), over the fixed transport-failure set `isRpcTransportFailure`
+  (`src/clients/Api/structures/`) closes over.
 
 ## Naming and test-form conventions
 
@@ -74,7 +77,9 @@ rather than by widening `skipLibCheck`:
   Assumption 4).
 - **No fixed sleep for a condition the harness can observe** (WP-1 step 0): wait on
   `waitForResumable`/`waitForCondition`/`LoopbackGatewayServer#waitForAttempt`, not `setTimeout` —
-  and, as of WP-9b, `LoopbackApiOrigin#waitForAccept`/`LoopbackRpcServer#waitForAuthorize`.
+  and, as of WP-9b, `LoopbackApiOrigin#waitForAccept`/`LoopbackRpcServer#waitForAuthorize`, and as
+  of WP-2, `LoopbackRpcServer#waitForUpdate`. A fixed sleep stays the correct shape only for an
+  *absence* assertion (nothing to wait on by event) — code review CR-31(a).
 
 ## The audit's four named harnesses (`TODO.md`, discharged by D-12)
 

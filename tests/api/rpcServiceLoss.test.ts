@@ -48,6 +48,36 @@ afterEach(() => {
 
 const OK_RESPONSE = { status: 200, body: { ok: true }, headers: { 'content-type': 'application/json' } };
 
+/**
+ * Resolves once `events` holds an entry matching `predicate` — the condition this
+ * suite's cells can observe via the `Api` instance's own `'DEBUG'` stream
+ * (`tests/README.md`: no fixed sleep for a condition the harness can observe). Checks
+ * the already-captured array first so an event that fired before this call was made is
+ * not missed (code review CR-31(a)).
+ */
+function waitForDebugEvent(events: ApiDebugEvent[], emitter: EventEmitter, predicate: (e: ApiDebugEvent) => boolean, timeoutMs = 5000): Promise<void> {
+  if (events.some(predicate)) return Promise.resolve();
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      emitter.off('DEBUG', check);
+      reject(new Error(`waitForDebugEvent timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+    const check = (e: ApiDebugEvent) => {
+      if (predicate(e)) {
+        clearTimeout(timer);
+        emitter.off('DEBUG', check);
+        resolve();
+      }
+    };
+    emitter.on('DEBUG', check);
+  });
+}
+
+const isErrorEvent = (e: ApiDebugEvent) => e.level === LOG_LEVELS.ERROR;
+const isUnexpectedErrorEvent = (e: ApiDebugEvent) => e.level === LOG_LEVELS.ERROR
+  && typeof e.message === 'string' && /unexpected error/i.test(e.message);
+
 async function driveUpdateCell(code: number, allowFallback: boolean) {
   const origin = await LoopbackApiOrigin.start();
   origin.setScript([OK_RESPONSE]);
@@ -68,13 +98,18 @@ async function driveUpdateCell(code: number, allowFallback: boolean) {
 
   await api.request('GET', '/channels/1');
   await rpc.waitForUpdate(1);
-  // Bounded real-clock window for the fire-and-forget `updateRpcCache` catch (and, for
-  // a transport-set code, its own nested `recreateRpcService` -> `hello()` round trip)
-  // to settle — the same fire-and-forget rationale as rateLimit429.test.ts's AC-9.2
-  // server-state read.
-  await new Promise((resolve) => { setTimeout(resolve, 300); });
+  if (TRANSPORT_SET.has(code)) {
+    // Absence assertion (the recreate succeeds, nothing is ever logged) — cannot be
+    // waited on by event, so a bounded window is the correct shape here (code review
+    // CR-31(a)). Sized well above qa-P001-2's own measured settle time for this exact
+    // path (p90 2.29ms, max 3.98ms across 96 cells, `wp2-settle-window.check.js`).
+    await new Promise((resolve) => { setTimeout(resolve, 50); });
+  } else {
+    // The condition the harness can observe: step 1's handler emits an ERROR event.
+    await waitForDebugEvent(events, emitter, isErrorEvent);
+  }
 
-  const errorEvents = events.filter((e) => e.level === LOG_LEVELS.ERROR);
+  const errorEvents = events.filter(isErrorEvent);
   const updateCalls = rpc.updateCalls;
 
   api.end();
@@ -104,7 +139,7 @@ describe('Api RPC cache-update resilience (AC-2.1, H1) — 16 codes x 2 arms', (
           expect(errorCount).toBe(0); // regression cell — recreate's hello() succeeds against the still-alive server
         } else {
           expect(errorCount).toBe(1); // the fix's own line, exactly once
-          expect(errorMessages[0]).toMatch(/could not reach rpc server to update the shared rate limit cache/i);
+          expect(errorMessages[0]).toMatch(/the rpc rate limit cache update did not succeed/i);
         }
       }, 10000);
     }
@@ -170,6 +205,64 @@ describe('Api RPC request fallback (AC-2.2) — 16 codes x 2 arms', () => {
   }
 });
 
+/**
+ * qa-P001-2 Phase 2, finding QA-2: `handleRequestRemote`'s `&& this.#allowFallback`
+ * conjunct (the guard on the request-SERVICE path, `addRequestService` — distinct from
+ * the rate-limit service every other cell in this file drives) had no cell reaching it at
+ * all; mutant M7 (dropping that conjunct) survived the whole suite. Mirrors
+ * `driveAuthorizeCell` exactly, against `LoopbackRpcServer.startRequestService()` instead.
+ */
+async function driveRequestFallbackCell(code: number, allowFallback: boolean) {
+  const origin = await LoopbackApiOrigin.start();
+  origin.setScript([OK_RESPONSE]);
+  const rpc = await LoopbackRpcServer.startRequestService();
+  rpc.injectFault('request', { code });
+
+  const api = await createApiAgainstOrigin(origin);
+  await api.addRequestService({ host: '127.0.0.1', port: rpc.port, allowFallback });
+
+  let status: number | undefined;
+  let errCode: unknown;
+  try {
+    const res = await api.request('GET', '/channels/1');
+    status = res.status;
+  } catch (err: any) {
+    errCode = err.code;
+  }
+
+  const accepted = origin.acceptCount; // 1 iff the request reached Discord (fell back locally); 0 iff it rejected first
+
+  api.end();
+  await origin.close();
+  await rpc.close();
+
+  return { status, errCode, accepted };
+}
+
+describe('Api RPC request-SERVICE fallback (AC-2.2, handleRequestRemote) — 16 codes x 2 arms', () => {
+  for (const { name, code } of NON_OK_CODES) {
+    const inSet = TRANSPORT_SET.has(code);
+
+    it(`allowFallback=true, request faults ${name} (${code}) — ${inSet ? 'falls back locally' : 'rejects with the ServiceError'}`, async () => {
+      const { status, errCode, accepted } = await driveRequestFallbackCell(code, true);
+      if (inSet) {
+        expect(accepted).toBe(1);
+        expect(status).toBe(200);
+        expect(errCode).toBeUndefined();
+      } else {
+        expect(accepted).toBe(0);
+        expect(errCode).toBe(code);
+      }
+    }, 10000);
+
+    it(`allowFallback=false, request faults ${name} (${code}) — always rejects, never sends locally (E-1)`, async () => {
+      const { errCode, accepted } = await driveRequestFallbackCell(code, false);
+      expect(accepted).toBe(0);
+      expect(errCode).toBe(code);
+    }, 10000);
+  }
+});
+
 describe('checkRpcServiceConnection widened predicate (step 2, the hello site)', () => {
   it('a transport-set hello() rejection is treated as lost-connection: no "unexpected error" line, request falls back', async () => {
     const origin = await LoopbackApiOrigin.start();
@@ -187,8 +280,7 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
     const res = await api.request('GET', '/channels/1');
     expect(res.status).toBe(200); // hello() never connected, so authorize/request never reach the RPC path -> local
 
-    const unexpectedErrorLines = events.filter((e) => e.level === LOG_LEVELS.ERROR
-      && typeof e.message === 'string' && /unexpected error/i.test(e.message));
+    const unexpectedErrorLines = events.filter(isUnexpectedErrorEvent);
     expect(unexpectedErrorLines).toHaveLength(0);
 
     api.end();
@@ -207,11 +299,13 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
     emitter.on('DEBUG', (e: ApiDebugEvent) => events.push(e));
 
     const api = await createApiAgainstOrigin(origin, 'test-token', { emitter });
+    // `addRateLimitService` awaits `checkRpcServiceConnection`, whose catch logs the
+    // "unexpected error" line synchronously before returning — by the time this resolves
+    // the event is already in `events`, so there is nothing to sleep for at all.
     await api.addRateLimitService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
-    await new Promise((resolve) => { setTimeout(resolve, 200); }); // addRateLimitService's own hello() settles
+    await waitForDebugEvent(events, emitter, isUnexpectedErrorEvent, 2000);
 
-    const unexpectedErrorLines = events.filter((e) => e.level === LOG_LEVELS.ERROR
-      && typeof e.message === 'string' && /unexpected error/i.test(e.message));
+    const unexpectedErrorLines = events.filter(isUnexpectedErrorEvent);
     expect(unexpectedErrorLines).toHaveLength(1);
 
     api.end();
@@ -221,27 +315,46 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
 });
 
 describe('a real stopped-mid-session server (step 3\'s recording obligation)', () => {
-  it('graceful stop before the call: the rejection code lands in the transport set and the process survives', async () => {
+  // qa-P001-2's Phase 2 (QA-3): both titles below used to promise a code neither body
+  // asserted. A real "before the call" stop (graceful or abrupt) only ever produces
+  // UNAVAILABLE(14) — a code the OLD literal `=== 14` comparison already handled, so this
+  // shape is a regression guard, not evidence of the widened predicate (qa's own
+  // measurement: NO-MOVEMENT, green at the parent tree too). The mid-flight kill below
+  // does discriminate (DEFECT-RED at the parent). Both now capture and assert the code,
+  // via the ERROR-level DEBUG event `authorizeRequestWithServer` emits on this fallback
+  // path (qa's own guidance: assert only set-membership, never a specific code — two
+  // independent instruments disagree on the exact shape-to-code mapping).
+  it('graceful stop before the call (regression guard — pre-existing UNAVAILABLE(14) behaviour, unchanged by the widening)', async () => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE, OK_RESPONSE]);
     const rpc = await LoopbackRpcServer.start();
+
+    const events: ApiDebugEvent[] = [];
+    const emitter = new EventEmitter();
+    emitter.on('DEBUG', (e: ApiDebugEvent) => events.push(e));
 
     const unhandled: unknown[] = [];
     const onUnhandled = (err: unknown) => unhandled.push(err);
     process.on('unhandledRejection', onUnhandled);
     unhandledListeners.push(onUnhandled);
 
-    const api = await createApiAgainstOrigin(origin);
+    const api = await createApiAgainstOrigin(origin, 'test-token', { emitter });
     await api.addRateLimitService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
 
     await api.request('GET', '/channels/1');
     await rpc.waitForUpdate(1);
     await rpc.close(); // tryShutdown — graceful
 
+    // `authorizeRequestWithServer`'s catch logs its ERROR line synchronously before
+    // `sendRequest` falls through to the local send, so the event is already in
+    // `events` by the time `request()` resolves — nothing left to sleep for.
     await api.request('GET', '/channels/2'); // authorize now hits the stopped server
-    await new Promise((resolve) => { setTimeout(resolve, 300); });
+    await waitForDebugEvent(events, emitter, isErrorEvent, 2000);
 
     expect(unhandled).toHaveLength(0);
+    const fallbackEvents = events.filter(isErrorEvent);
+    expect(fallbackEvents).toHaveLength(1);
+    expect(TRANSPORT_SET.has((fallbackEvents[0].data as { code?: number })?.code as number)).toBe(true);
 
     api.end();
     await origin.close();
@@ -253,22 +366,35 @@ describe('a real stopped-mid-session server (step 3\'s recording obligation)', (
     origin.setScript([OK_RESPONSE, OK_RESPONSE]);
     const rpc = await LoopbackRpcServer.start();
 
+    const events: ApiDebugEvent[] = [];
+    const emitter = new EventEmitter();
+    emitter.on('DEBUG', (e: ApiDebugEvent) => events.push(e));
+
     const unhandled: unknown[] = [];
     const onUnhandled = (err: unknown) => unhandled.push(err);
     process.on('unhandledRejection', onUnhandled);
     unhandledListeners.push(onUnhandled);
 
-    const api = await createApiAgainstOrigin(origin);
+    const api = await createApiAgainstOrigin(origin, 'test-token', { emitter });
     await api.addRateLimitService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
 
     await api.request('GET', '/channels/1');
     await rpc.waitForUpdate(1);
+    // waitForUpdate resolves once the server has COUNTED the call, not once the client
+    // has received its reply — request 1's own fire-and-forget update round trip can
+    // still be in flight. A graceful close (above) drains it; an abrupt one would not,
+    // and could kill it mid-flight, producing a second, unrelated ERROR event from step
+    // 1's own handler rather than the single one this test means to isolate.
+    await new Promise((resolve) => { setTimeout(resolve, 50); });
     rpc.forceClose(); // abrupt — no graceful drain (qa probe P-2's "killed before call" shape)
 
     await api.request('GET', '/channels/2');
-    await new Promise((resolve) => { setTimeout(resolve, 300); });
+    await waitForDebugEvent(events, emitter, isErrorEvent, 2000);
 
     expect(unhandled).toHaveLength(0);
+    const fallbackEvents = events.filter(isErrorEvent);
+    expect(fallbackEvents).toHaveLength(1);
+    expect(TRANSPORT_SET.has((fallbackEvents[0].data as { code?: number })?.code as number)).toBe(true);
 
     api.end();
     await origin.close();

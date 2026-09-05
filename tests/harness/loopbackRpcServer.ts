@@ -9,7 +9,7 @@ import type RateLimitCache from '../../src/clients/Api/structures/RateLimitCache
 import type BaseRequest from '../../src/clients/Api/structures/BaseRequest';
 import type { RateLimitState } from '../../src/clients/Api/types';
 
-export type RpcMethodName = 'hello' | 'authorize' | 'update';
+export type RpcMethodName = 'hello' | 'authorize' | 'update' | 'request';
 
 /** A gRPC status code (and optional message) to hand back instead of running the real handler. */
 export interface RpcFault {
@@ -23,24 +23,28 @@ interface HarnessState {
 }
 
 /**
- * A loopback rate-limit `RpcServer` on `127.0.0.1:0`, running the real
- * `addRateLimitService` (`src/rpc/services/rateLimit/addService.ts`) — the production
- * path (D-20) — with an `authorize` count exposed as data rather than parsed from its
- * DEBUG log line (qa-P001 WP-9b Phase 1, "Telemetry Validation"). The count is taken by
- * wrapping `rateLimitCache.authorizeRequestFromClient` at the harness layer, the exact
- * call `addService.ts#authorize` makes once per RPC `authorize` — never by matching log
- * text, which the same Phase 1 pass calls out as brittle.
+ * A loopback `RpcServer` on `127.0.0.1:0`, running the real production service handlers
+ * (`src/rpc/services/rateLimit/addService.ts` via `start()`, or
+ * `src/rpc/services/request/addService.ts` via `startRequestService()` — D-20) — with an
+ * `authorize` count exposed as data rather than parsed from its DEBUG log line (qa-P001
+ * WP-9b Phase 1, "Telemetry Validation"). The count is taken by wrapping
+ * `rateLimitCache.authorizeRequestFromClient` at the harness layer, the exact call
+ * `addService.ts#authorize` makes once per RPC `authorize` — never by matching log text,
+ * which the same Phase 1 pass calls out as brittle.
  *
  * WP-2 (qa-P001-2 Phase 1, "TESTING INFRASTRUCTURE NEEDED") adds per-method fault
- * injection: `injectFault` swaps the real `hello`/`authorize`/`update` handler for an
- * immediate `callback(Object.assign(new Error(...), { code }))` — the exact shape qa's
- * probe P-1 used — by wrapping `RpcServer#addService` before the real service is
+ * injection: `injectFault` swaps the real `hello`/`authorize`/`update`/`request` handler
+ * for an immediate `callback(Object.assign(new Error(...), { code }))` — the exact shape
+ * qa's probe P-1 used — by wrapping `RpcServer#addService` before the real service is
  * registered, so an unfaulted call still runs the genuine production handler untouched.
  * `update` gets its own count and named wait (`updateCalls`/`waitForUpdate`), counted at
  * the same wrapper layer so a faulted call still counts as "reached the server" — the
  * positive-completion check qa's Phase 1 register (E-1..E-4) says every cell needs
  * before it reads its rejection count, so a cell that never ran isn't mistaken for one
- * that ran and found nothing wrong.
+ * that ran and found nothing wrong. `startRequestService()` (qa Phase 2, QA-2) stands up
+ * the request service instead of the rate-limit one, for cells that must reach
+ * `Api#handleRequestRemote` rather than `authorizeRequestWithServer` — the two guarded
+ * request-path sites read the same predicate but are two different server registrations.
  *
  * On `loopbackGatewayServer.ts`'s contract: `port`, `url` (n/a for grpc, omitted),
  * `close()`, and a named wait (`waitForAuthorize`) in place of a fixed sleep (WP-1 step
@@ -68,38 +72,69 @@ export default class LoopbackRpcServer extends EventEmitter {
     };
   }
 
+  /**
+   * Wraps `server.addService` so any subsequently-registered method can be faulted via
+   * `state.faults`, before `register` calls the real `add*Service` (which is what
+   * actually invokes `addService`). Shared by `start()` and `startRequestService()` so
+   * the two service registrations fault-inject identically.
+   */
+  private static withFaultInjection(server: RpcServer, state: HarnessState, getInstance: () => LoopbackRpcServer | undefined, register: () => void): void {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const originalAddService = server.addService.bind(server) as (service: any, implementation: UntypedServiceImplementation) => void;
+    server.addService = ((service: ServiceDefinition, implementation: UntypedServiceImplementation) => {
+      const wrapped: UntypedServiceImplementation = {};
+      (Object.keys(implementation) as RpcMethodName[]).forEach((name) => {
+        const original = implementation[name];
+        wrapped[name] = (call: any, callback: any) => {
+          if (name === 'update') {
+            state.updateCount += 1;
+            getInstance()?.emit('update');
+          }
+          const fault = state.faults[name];
+          if (fault) {
+            callback(Object.assign(new Error(fault.message ?? `injected ${name} fault`), {
+              code: fault.code,
+              details: fault.message ?? `injected ${name} fault`,
+            }));
+            return;
+          }
+          original(call, callback);
+        };
+      });
+      originalAddService(service, wrapped);
+    }) as typeof server.addService;
+
+    register();
+  }
+
   static start(): Promise<LoopbackRpcServer> {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = { faults: {}, updateCount: 0 };
       let instance: LoopbackRpcServer | undefined;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const originalAddService = server.addService.bind(server) as (service: any, implementation: UntypedServiceImplementation) => void;
-      server.addService = ((service: ServiceDefinition, implementation: UntypedServiceImplementation) => {
-        const wrapped: UntypedServiceImplementation = {};
-        (Object.keys(implementation) as RpcMethodName[]).forEach((name) => {
-          const original = implementation[name];
-          wrapped[name] = (call: any, callback: any) => {
-            if (name === 'update') {
-              state.updateCount += 1;
-              instance?.emit('update');
-            }
-            const fault = state.faults[name];
-            if (fault) {
-              callback(Object.assign(new Error(fault.message ?? `injected ${name} fault`), {
-                code: fault.code,
-                details: fault.message ?? `injected ${name} fault`,
-              }));
-              return;
-            }
-            original(call, callback);
-          };
-        });
-        originalAddService(service, wrapped);
-      }) as typeof server.addService;
+      LoopbackRpcServer.withFaultInjection(server, state, () => instance, () => server.addRateLimitService());
 
-      server.addRateLimitService();
+      server.bindAsync('127.0.0.1:0', grpc.ServerCredentials.createInsecure(), (err, port) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        instance = new LoopbackRpcServer(server, port, state);
+        resolve(instance);
+      });
+    });
+  }
+
+  /** The request-service twin of `start()` — stands up `addRequestService` instead. */
+  static startRequestService(token = 'test-token'): Promise<LoopbackRpcServer> {
+    return new Promise((resolve, reject) => {
+      const server = new RpcServer({ host: '127.0.0.1', port: 0 });
+      const state: HarnessState = { faults: {}, updateCount: 0 };
+      let instance: LoopbackRpcServer | undefined;
+
+      LoopbackRpcServer.withFaultInjection(server, state, () => instance, () => server.addRequestService(token));
+
       server.bindAsync('127.0.0.1:0', grpc.ServerCredentials.createInsecure(), (err, port) => {
         if (err) {
           reject(err);
