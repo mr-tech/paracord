@@ -108,7 +108,7 @@ export declare class Api {
      */
     private checkRpcServiceConnection;
     /**
-     * WP-6 step 1: single-flight — every concurrent caller shares one in-flight recreation,
+     * Single-flight — every concurrent caller shares one in-flight recreation,
      * reading `#recreateInFlight` and closing the predecessor before its replacement is
      * assigned. The kind (`usesRateLimitService`) is captured before anything is cleared,
      * and the clear-then-assign sequence inside `recreate` carries no `await`, so no
@@ -1236,7 +1236,7 @@ declare interface RequestService {
     request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
     allowFallback: boolean;
     target: string;
-    /** Closes the underlying channel. Synchronous — never awaited (WP-6 step 1). */
+    /** Closes the underlying channel. Synchronous — never awaited. */
     close(): void;
 }
 

@@ -55,7 +55,7 @@ function loadProtoDefinition(proto) {
 }
 exports.loadProtoDefinition = loadProtoDefinition;
 /**
- * Every RPC call's deadline (D-7): 10 seconds. Computed fresh at call time by
+ * Every RPC call's deadline: 10 seconds. Computed fresh at call time by
  * `withCallDeadline`, never once per client or per request, so a chained recreate's
  * second call gets its own full window rather than inheriting an already-expiring one.
  */

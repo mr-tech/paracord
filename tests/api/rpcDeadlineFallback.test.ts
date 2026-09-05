@@ -193,6 +193,35 @@ describe('AC-6.2 + AC-6.3 — deadline sites, allowFallback: true', () => {
     rpc.forceClose();
   }, 20000);
 
+  it('initial hello hangs (request service) — the connect promise settles within its deadline instead of pending forever (WP6-F10)', async () => {
+    const origin = await LoopbackApiOrigin.start();
+    origin.setScript([OK_RESPONSE]);
+    const rpc = await LoopbackRpcServer.startRequestService();
+    rpc.withhold('hello');
+
+    const events: ApiDebugEvent[] = [];
+    const emitter = new EventEmitter();
+    emitter.on('DEBUG', (e: ApiDebugEvent) => events.push(e));
+
+    const api = await createApiAgainstOrigin(origin, 'test-token', { emitter });
+
+    const t0 = Date.now();
+    const connected = await api.addRequestService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
+    const elapsed = Date.now() - t0;
+
+    expect(connected).toBe(false);
+    expect(elapsed).toBeGreaterThanOrEqual(DEADLINE_MS - 1000);
+    expect(elapsed).toBeLessThan(DEADLINE_MS + 5000);
+
+    const warnings = events.filter(isWarningEvent).map((e) => e.message as string);
+    expect(warnings.some((m) => /failed to connect to rpc server/i.test(m))).toBe(true);
+
+    api.end();
+    await origin.close();
+    rpc.release('hello');
+    rpc.forceClose();
+  }, 20000);
+
   it('update hangs (per-method) — the connection recreates within the deadline and the fix\'s ERROR line never fires (SL-1 substitute)', async () => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE]);

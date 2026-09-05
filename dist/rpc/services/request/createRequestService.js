@@ -19,7 +19,7 @@ const createRequestService = (options) => {
             const { host, port, channel, allowFallback, } = (0, common_1.mergeOptionsWithDefaults)(opts ?? {});
             const dest = `${host}:${port}`;
             // Same channel args as the rate-limit service's, once its two inert
-            // `max_connection_*` args are gone (WP-6 step 2) — this service passed none before.
+            // `max_connection_*` args are gone — this service passed none before.
             super(dest, channel, {
                 'grpc.enable_channelz': 0,
             });

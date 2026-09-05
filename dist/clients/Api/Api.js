@@ -42,8 +42,8 @@ class Api {
     #rpcServiceOptions;
     #connectingToRpcService;
     /**
-     * WP-6 step 1: the in-flight recreation, shared by every concurrent caller so exactly
-     * one new client is constructed and exactly one `close()` is issued on the predecessor.
+     * The in-flight recreation, shared by every concurrent caller so exactly one new
+     * client is constructed and exactly one `close()` is issued on the predecessor.
      * Cleared once the recreation settles, success or failure.
      */
     #recreateInFlight;
@@ -317,7 +317,7 @@ class Api {
      * @returns `true` is connection was successful.
      */
     checkRpcServiceConnection = async (service) => {
-        // WP-6 step 1: `service` may be superseded by a later recreate before this settles —
+        // `service` may be superseded by a later recreate before this settles —
         // a concurrent recreate's own `hello()` call is not gated by this one's. Only the
         // service `Api` currently holds may clear or set `#connectingToRpcService`; a stale
         // callback still reports its own outcome to whoever is awaiting it.
@@ -345,7 +345,7 @@ class Api {
     };
     // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
     /**
-     * WP-6 step 1: single-flight — every concurrent caller shares one in-flight recreation,
+     * Single-flight — every concurrent caller shares one in-flight recreation,
      * reading `#recreateInFlight` and closing the predecessor before its replacement is
      * assigned. The kind (`usesRateLimitService`) is captured before anything is cleared,
      * and the clear-then-assign sequence inside `recreate` carries no `await`, so no
