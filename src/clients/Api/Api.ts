@@ -689,14 +689,20 @@ export default class Api {
     headers: ApiResponse<T>,
     fromQueue: boolean,
   ): Promise<string | ApiResponse<T>> {
+    // The event fires for every response that is not the one on which the count is
+    // exhausted, regardless of method — the count alone decides this, before anything
+    // reads the method, so a non-idempotent request's one response still gets it even
+    // though that same response is about to throw for a different reason below.
+    if (request.attempts < MAX_SERVER_ERROR_RETRIES) {
+      this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
+    }
+
     // Only a method safe to resend without risking a duplicate write gets the retry at
     // all; every other method surfaces the failure on its first attempt, with the same
     // thrown shape the exhausted-retries branch uses.
     if (!isIdempotentMethod(request.method) || request.attempts >= MAX_SERVER_ERROR_RETRIES) {
       throw createError(new Error(headers.statusText), request.config, headers.status, request, headers);
     }
-
-    this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
 
     // A 5xx re-queues the request but is not an information-free 429 — it resets the
     // schedule so the request's next one starts over at n = 1.
