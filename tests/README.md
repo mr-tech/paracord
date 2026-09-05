@@ -35,7 +35,14 @@ rather than by widening `skipLibCheck`:
   `RateLimitHeaders` by hand, which cannot see `Api#updateRateLimitCache`) and
   `loopbackRpcServer.ts` (a real rate-limit `RpcServer` on `127.0.0.1:0`, with its `authorize`
   count exposed as data — counted by wrapping `rateLimitCache.authorizeRequestFromClient`,
-  never by parsing its DEBUG log line).
+  never by parsing its DEBUG log line). WP-5 step 3 adds to `loopbackApiOrigin.ts`: a
+  destroy-on-accept mode (`setDestroyOnAccept`) that kills the TCP connection before any byte
+  is written, and a `connectionCount` fed on the TCP-level `connection` event — distinct from
+  `acceptCount`/`requestCount`, fed on the HTTP-level `request` event, which the destroy mode
+  never reaches — plus per-request `requestReceipts` (method, path, whether a body was
+  received, the body itself, arrival order); the origin now consumes every request body to
+  populate them (measured safe: the receipt count, connection count and client-visible status
+  are unchanged either way, qa P-3).
 - `tests/fixtures/` — standalone scripts a test forks as a child process, for a case that would
   otherwise crash its host (`.cjs`, run by `node` directly — not part of the TypeScript program a
   vitest worker transforms).
@@ -52,7 +59,10 @@ rather than by widening `skipLibCheck`:
   fake (time-seam rule, form (a)): the backoff schedule function, the failure counter, the
   cross-class close-origin handoff. `sharedScheduleGuard.test.ts` (AC-9.12) drives both
   `computeBackoffMs` consumers (`failureCounter.ts`, `rateLimitRetryTarget.ts`) against one
-  literal bound per attempt, so the two curves cannot drift apart unnoticed.
+  literal bound per attempt, so the two curves cannot drift apart unnoticed. WP-5 step 2 adds
+  `isServerErrorResponse.test.ts` and `isIdempotentMethod.test.ts` — the compound retry
+  predicate's two conjuncts, each over its full domain (500..599 plus both boundaries; all 20
+  method spellings) with no socket needed.
 - `tests/gateway/` — integration tests against the *fixed* gateway state machine (WP-1 on), over
   real loopback sockets, on the real clock (time-seam rule, forms (b)/(c)).
 - `tests/api/` — integration tests against `Api`'s 429 handling (WP-9b on), over both request
@@ -61,7 +71,14 @@ rather than by widening `skipLibCheck`:
   criterion's own instrument is form (a) (`AC-9.1`'s membership predicate, `AC-9.8`'s reset rule).
   Also, as of WP-2: `Api`'s response to the RPC rate-limit service becoming unreachable
   (`rpcServiceLoss.test.ts`), over the fixed transport-failure set `isRpcTransportFailure`
-  (`src/clients/Api/structures/`) closes over.
+  (`src/clients/Api/structures/`) closes over. As of WP-5: the 5xx/transport retry's method
+  gate — `serverErrorTransport.test.ts` (AC-5.1, the transport class, instrument
+  `connectionCount`) and `serverErrorRetry.test.ts` (AC-5.2, the method class and the
+  conjunct/429-control checks, instrument `requestReceipts`; DELETE's body is stripped
+  client-side, so the body-agreement clause has six spellings in its domain, not eight) — and
+  the information-free-schedule reset regression re-landed as a real, asserting spec
+  (`serverErrorResetRegression.test.ts`, AC-5.2 (i)), replacing the recorder-only predecessor
+  instrument qa found could not fail (WP5-F3).
 
 ## Naming and test-form conventions
 

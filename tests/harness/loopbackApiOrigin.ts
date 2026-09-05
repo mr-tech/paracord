@@ -18,6 +18,19 @@ export interface ScriptedResponse {
 }
 
 /**
+ * One HTTP request the origin finished parsing, in arrival order — plan 001 WP-5 step 3.
+ * Fed on the `request` event; the existing `acceptCount` is already this count
+ * (`requestCount.length`), so this adds the record, not a new count.
+ */
+export interface RequestReceipt {
+  method: string;
+  path: string;
+  /** Whether any request body bytes were received (DELETE's is always stripped client-side). */
+  bodyReceived: boolean;
+  body: string;
+}
+
+/**
  * A loopback Discord-REST-API stand-in: a real `http` origin answering a **scripted
  * sequence** of status/headers/body, driven through `Api` — never by constructing
  * `RateLimitHeaders` by hand, which cannot see `Api#updateRateLimitCache` (WP-9b step 0,
@@ -34,6 +47,18 @@ export interface ScriptedResponse {
  * parameterised by a port only known after this origin has started. Production source is
  * untouched; only the test's own module registry is redirected, and the exchange over the
  * wire is a real HTTP request/response, not a stub.
+ *
+ * **Destroy-on-accept mode** (plan 001 WP-5 step 3, `setDestroyOnAccept`): the TCP
+ * connection is destroyed the instant it is accepted, before any byte is written —
+ * ECONNRESET / `socket hang up` at the client. `requestCount`/`acceptCount` are fed on
+ * the HTTP-level `request` event (one per parsed HTTP request; under keep-alive several
+ * retried sends can share one TCP connection); the destroy mode never reaches that event
+ * at all, so it can only be measured by `connectionCount` — fed on the TCP-level
+ * `connection` event, one per accepted socket — which is why AC-5.1's instrument is the
+ * connection count and AC-5.2's is the request-receipt count (qa WP5-F1/F6). The origin
+ * consumes every request body (needed for `requestReceipts`' body-agreement field); doing
+ * so is measured safe — the receipt count, connection count and client-visible status are
+ * identical whether the body is read or not (qa P-3).
  */
 export default class LoopbackApiOrigin extends EventEmitter {
   private readonly server: http.Server;
@@ -42,9 +67,17 @@ export default class LoopbackApiOrigin extends EventEmitter {
 
   private defaultResponse: ScriptedResponse = { status: 200, body: {} };
 
+  private destroyOnAccept = false;
+
   readonly requestCount: number[] = [];
 
   readonly receivedHeaders: http.IncomingHttpHeaders[] = [];
+
+  /** One entry per TCP `connection` event accepted, timestamped — AC-5.1's instrument. */
+  readonly connectionEvents: number[] = [];
+
+  /** One entry per HTTP `request` event parsed, in arrival order — AC-5.2's instrument. */
+  readonly requestReceipts: RequestReceipt[] = [];
 
   private constructor(server: http.Server) {
     super();
@@ -55,6 +88,7 @@ export default class LoopbackApiOrigin extends EventEmitter {
     return new Promise((resolve) => {
       const server = http.createServer();
       const instance = new LoopbackApiOrigin(server);
+      server.on('connection', (socket) => instance.handleConnection(socket));
       server.on('request', (req, res) => instance.handleRequest(req, res));
       server.listen(0, '127.0.0.1', () => resolve(instance));
     });
@@ -77,8 +111,22 @@ export default class LoopbackApiOrigin extends EventEmitter {
     this.defaultResponse = response;
   }
 
+  /**
+   * Enables/disables destroy-on-accept mode: every subsequent TCP connection is
+   * destroyed the instant it is accepted, before any byte is written — ECONNRESET /
+   * `socket hang up` at the client, and the request never reaches `handleRequest`.
+   */
+  setDestroyOnAccept(enabled: boolean): void {
+    this.destroyOnAccept = enabled;
+  }
+
   get acceptCount(): number {
     return this.requestCount.length;
+  }
+
+  /** Number of TCP connections accepted so far — the destroy mode's only feed. */
+  get connectionCount(): number {
+    return this.connectionEvents.length;
   }
 
   /** Resolves once the origin has answered at least `n` requests. */
@@ -101,24 +149,64 @@ export default class LoopbackApiOrigin extends EventEmitter {
     });
   }
 
+  /** Resolves once the origin has accepted at least `n` TCP connections. */
+  waitForConnection(n: number, timeoutMs = 5000): Promise<void> {
+    if (this.connectionEvents.length >= n) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off('connection', check);
+        reject(new Error(`waitForConnection timed out after ${timeoutMs}ms waiting for connection ${n} (have ${this.connectionEvents.length})`));
+      }, timeoutMs);
+      const check = () => {
+        if (this.connectionEvents.length >= n) {
+          clearTimeout(timer);
+          this.off('connection', check);
+          resolve();
+        }
+      };
+      this.on('connection', check);
+    });
+  }
+
   close(): Promise<void> {
     return new Promise((resolve) => this.server.close(() => resolve()));
   }
 
-  private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
-    this.requestCount.push(Date.now());
-    this.receivedHeaders.push(req.headers);
-    this.emit('accept');
-
-    const scripted = this.script.length > 1 ? this.script.shift() : this.script[0];
-    const answer = scripted ?? this.defaultResponse;
-
-    res.writeHead(answer.status, answer.headers ?? {});
-    if (answer.raw) {
-      res.end(String(answer.body ?? ''));
-    } else {
-      res.end(answer.body === undefined ? '' : JSON.stringify(answer.body));
+  private handleConnection(socket: net.Socket): void {
+    this.connectionEvents.push(Date.now());
+    this.emit('connection');
+    if (this.destroyOnAccept) {
+      socket.destroy();
     }
+  }
+
+  private handleRequest(req: http.IncomingMessage, res: http.ServerResponse): void {
+    const chunks: Buffer[] = [];
+    req.on('data', (chunk: Buffer) => chunks.push(chunk));
+    req.on('end', () => {
+      const body = Buffer.concat(chunks).toString('utf8');
+
+      this.requestCount.push(Date.now());
+      this.receivedHeaders.push(req.headers);
+      this.requestReceipts.push({
+        method: req.method ?? '',
+        path: req.url ?? '',
+        bodyReceived: body.length > 0,
+        body,
+      });
+      this.emit('accept');
+
+      const scripted = this.script.length > 1 ? this.script.shift() : this.script[0];
+      const answer = scripted ?? this.defaultResponse;
+
+      res.writeHead(answer.status, answer.headers ?? {});
+      if (answer.raw) {
+        res.end(String(answer.body ?? ''));
+      } else {
+        res.end(answer.body === undefined ? '' : JSON.stringify(answer.body));
+      }
+    });
   }
 }
 
