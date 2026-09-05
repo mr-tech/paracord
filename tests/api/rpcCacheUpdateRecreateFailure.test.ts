@@ -79,7 +79,11 @@ async function driveRecreateFailureCell(code: number, allowFallback: boolean) {
 
 describe('AC-2.1 — updateRpcCache rejects AND the recreate fails (the discriminating cells)', () => {
   for (const allowFallback of [true, false]) {
-    for (const code of [grpcStatus.UNAVAILABLE, grpcStatus.CANCELLED]) {
+    // The full transport-set census (isRpcTransportFailure.ts), matching the class
+    // `rpcServiceLoss.test.ts` drives elsewhere in this suite.
+    for (const code of [
+      grpcStatus.UNAVAILABLE, grpcStatus.DEADLINE_EXCEEDED, grpcStatus.CANCELLED, grpcStatus.INTERNAL,
+    ]) {
       it(`allowFallback=${allowFallback}, update and hello both fault ${code} — one handler line, process survives`, async () => {
         const { unhandledCount, handlerLineCount, updateCalls } = await driveRecreateFailureCell(code, allowFallback);
 

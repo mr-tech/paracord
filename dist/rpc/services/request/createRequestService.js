@@ -18,14 +18,18 @@ const createRequestService = (options) => {
         constructor(opts) {
             const { host, port, channel, allowFallback, } = (0, common_1.mergeOptionsWithDefaults)(opts ?? {});
             const dest = `${host}:${port}`;
-            super(dest, channel);
+            // Same channel args as the rate-limit service's, once its two inert
+            // `max_connection_*` args are gone (WP-6 step 2) — this service passed none before.
+            super(dest, channel, {
+                'grpc.enable_channelz': 0,
+            });
             this.target = dest;
             this.allowFallback = allowFallback || false;
         }
         /** Check for healthy connection. */
         hello() {
             return new Promise((resolve, reject) => {
-                super.hello(undefined, (err) => {
+                super.hello(undefined, (0, common_1.withCallDeadline)(), (err) => {
                     if (err !== null) {
                         reject(err);
                     }
@@ -39,7 +43,7 @@ const createRequestService = (options) => {
         request(apiRequest) {
             const message = new structures_1.RequestMessage(apiRequest).proto;
             return new Promise((resolve, reject) => {
-                super.request(message, (err, res) => {
+                super.request(message, (0, common_1.withCallDeadline)(), (err, res) => {
                     if (err !== null) {
                         reject(err);
                     }
@@ -51,6 +55,10 @@ const createRequestService = (options) => {
                     }
                 });
             });
+        }
+        /** Closes the underlying channel (`grpc.Client#close`, synchronous). */
+        close() {
+            super.close();
         }
     }
     return new RequestService(options);

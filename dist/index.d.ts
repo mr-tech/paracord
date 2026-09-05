@@ -107,6 +107,15 @@ export declare class Api {
      * @returns `true` is connection was successful.
      */
     private checkRpcServiceConnection;
+    /**
+     * WP-6 step 1: single-flight — every concurrent caller shares one in-flight recreation,
+     * reading `#recreateInFlight` and closing the predecessor before its replacement is
+     * assigned. The kind (`usesRateLimitService`) is captured before anything is cleared,
+     * and the clear-then-assign sequence inside `recreate` carries no `await`, so no
+     * concurrent caller can ever observe the service field `undefined` — the field the
+     * `add*Service` guard tests, and the only way a rate-limit client could otherwise
+     * silently acquire a request service (or vice versa).
+     */
     private recreateRpcService;
     private reattemptConnectInFuture;
     setToken(token: string): void;
@@ -870,6 +879,8 @@ declare interface RequestService {
     request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
     allowFallback: boolean;
     target: string;
+    /** Closes the underlying channel. Synchronous — never awaited (WP-6 step 1). */
+    close(): void;
 }
 
 /** Close codes used when the gRPC connection to an RPC service is lost. */

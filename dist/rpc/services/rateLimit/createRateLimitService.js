@@ -18,10 +18,11 @@ const createRateLimitService = (options) => {
         constructor(opts) {
             const { host, port, channel, allowFallback, } = (0, common_1.mergeOptionsWithDefaults)(opts ?? {});
             const dest = `${host}:${port}`;
+            // The two `max_connection_*` args are server-only at grpc-js 1.14.1 (read in
+            // `server.js`, in no client or channel path) and are dropped here so this channel's
+            // args match `createRequestService`'s (WP-6 step 2).
             super(dest, channel, {
                 'grpc.enable_channelz': 0,
-                'grpc.max_connection_idle_ms': 10000,
-                'grpc.max_connection_age_ms': 30000, // Force connection close after 30s
             });
             this.target = dest;
             this.allowFallback = allowFallback || false;
@@ -29,7 +30,7 @@ const createRateLimitService = (options) => {
         /** Check for healthy connection. */
         hello() {
             return new Promise((resolve, reject) => {
-                super.hello(undefined, (err) => {
+                super.hello(undefined, (0, common_1.withCallDeadline)(), (err) => {
                     if (err !== null) {
                         reject(err);
                     }
@@ -47,7 +48,7 @@ const createRateLimitService = (options) => {
             const { method, url } = request;
             const message = new structures_1.RequestMetaMessage(method, url).proto;
             return new Promise((resolve, reject) => {
-                super.authorize(message, (err, res) => {
+                super.authorize(message, (0, common_1.withCallDeadline)(), (err, res) => {
                     if (err !== null) {
                         reject(err);
                     }
@@ -69,7 +70,7 @@ const createRateLimitService = (options) => {
             const requestMeta = new structures_1.RequestMetaMessage(method, url);
             const message = new structures_1.RateLimitStateMessage(requestMeta, global, bucketHash, limit, remaining, resetAfter, retryAfter).proto;
             return new Promise((resolve, reject) => {
-                super.update(message, (err) => {
+                super.update(message, (0, common_1.withCallDeadline)(), (err) => {
                     if (err !== null) {
                         reject(err);
                     }
@@ -78,6 +79,10 @@ const createRateLimitService = (options) => {
                     }
                 });
             });
+        }
+        /** Closes the underlying channel (`grpc.Client#close`, synchronous). */
+        close() {
+            super.close();
         }
     }
     return new RateLimitService(options);

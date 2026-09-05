@@ -1,5 +1,5 @@
 import { RequestMessage, ResponseMessage } from '../../structures';
-import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
+import { loadProtoDefinition, mergeOptionsWithDefaults, withCallDeadline } from '../common';
 
 import type { GrpcObject, ServiceError } from '@grpc/grpc-js';
 import type { IServerOptions } from '../../../@types';
@@ -11,6 +11,8 @@ export interface RequestService {
   request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
   allowFallback: boolean;
   target: string;
+  /** Closes the underlying channel. Synchronous — never awaited (WP-6 step 1). */
+  close(): void;
 }
 
 const createRequestService = (options: Partial<IServerOptions>): RequestService => {
@@ -36,7 +38,11 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
 
       const dest = `${host}:${port}`;
 
-      super(dest, channel);
+      // Same channel args as the rate-limit service's, once its two inert
+      // `max_connection_*` args are gone (WP-6 step 2) — this service passed none before.
+      super(dest, channel, {
+        'grpc.enable_channelz': 0,
+      });
 
       this.target = dest;
       this.allowFallback = allowFallback || false;
@@ -45,7 +51,7 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
     /** Check for healthy connection. */
     public hello(): Promise<void> {
       return new Promise((resolve, reject) => {
-        super.hello(undefined, (err: ServiceError) => {
+        super.hello(undefined, withCallDeadline(), (err: ServiceError) => {
           if (err !== null) {
             reject(err);
           } else {
@@ -60,7 +66,7 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
       const message = new RequestMessage(apiRequest).proto;
 
       return new Promise((resolve, reject) => {
-        super.request(message, (err: ServiceError, res?: ResponseProto) => {
+        super.request(message, withCallDeadline(), (err: ServiceError, res?: ResponseProto) => {
           if (err !== null) {
             reject(err);
           } else if (res === undefined) {
@@ -70,6 +76,11 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
           }
         });
       });
+    }
+
+    /** Closes the underlying channel (`grpc.Client#close`, synchronous). */
+    public close(): void {
+      super.close();
     }
   }
   return new RequestService(options) as RequestService;

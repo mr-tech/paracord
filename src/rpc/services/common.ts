@@ -30,6 +30,22 @@ export function loadProtoDefinition(proto: string): grpc.GrpcObject {
 }
 
 /**
+ * Every RPC call's deadline (D-7): 10 seconds. Computed fresh at call time by
+ * `withCallDeadline`, never once per client or per request, so a chained recreate's
+ * second call gets its own full window rather than inheriting an already-expiring one.
+ */
+export const RPC_CALL_DEADLINE_MS = 10_000;
+
+/**
+ * `grpc.CallOptions` carrying a deadline `RPC_CALL_DEADLINE_MS` from now — call this at
+ * the moment of each RPC invocation, not once and reused, or every call after the first
+ * inherits a shorter and shorter window.
+ */
+export function withCallDeadline(): grpc.CallOptions {
+  return { deadline: new Date(Date.now() + RPC_CALL_DEADLINE_MS) };
+}
+
+/**
  * Create the parameters passed to a service definition constructor.
  * @param options
  */

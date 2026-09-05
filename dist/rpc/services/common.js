@@ -26,7 +26,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mergeOptionsWithDefaults = exports.loadProtoDefinition = exports.loadProto = void 0;
+exports.mergeOptionsWithDefaults = exports.withCallDeadline = exports.RPC_CALL_DEADLINE_MS = exports.loadProtoDefinition = exports.loadProto = void 0;
 const grpc = __importStar(require("@grpc/grpc-js"));
 const protoLoader = __importStar(require("@grpc/proto-loader"));
 const path_1 = __importDefault(require("path"));
@@ -54,6 +54,21 @@ function loadProtoDefinition(proto) {
     return grpc.loadPackageDefinition(loadProto(proto));
 }
 exports.loadProtoDefinition = loadProtoDefinition;
+/**
+ * Every RPC call's deadline (D-7): 10 seconds. Computed fresh at call time by
+ * `withCallDeadline`, never once per client or per request, so a chained recreate's
+ * second call gets its own full window rather than inheriting an already-expiring one.
+ */
+exports.RPC_CALL_DEADLINE_MS = 10000;
+/**
+ * `grpc.CallOptions` carrying a deadline `RPC_CALL_DEADLINE_MS` from now — call this at
+ * the moment of each RPC invocation, not once and reused, or every call after the first
+ * inherits a shorter and shorter window.
+ */
+function withCallDeadline() {
+    return { deadline: new Date(Date.now() + exports.RPC_CALL_DEADLINE_MS) };
+}
+exports.withCallDeadline = withCallDeadline;
 /**
  * Create the parameters passed to a service definition constructor.
  * @param options

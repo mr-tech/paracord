@@ -38,11 +38,27 @@ rather than by widening `skipLibCheck`:
   never by parsing its DEBUG log line). WP-5 step 3 adds to `loopbackApiOrigin.ts`: a
   destroy-on-accept mode (`setDestroyOnAccept`) that kills the TCP connection before any byte
   is written, and a `connectionCount` fed on the TCP-level `connection` event — distinct from
-  `acceptCount`/`requestCount`, fed on the HTTP-level `request` event, which the destroy mode
-  never reaches — plus per-request `requestReceipts` (method, path, whether a body was
-  received, the body itself, arrival order); the origin now consumes every request body to
-  populate them (measured safe: the receipt count, connection count and client-visible status
-  are unchanged either way, qa P-3).
+  `acceptCount`/`requestCount`, fed once a request's body has fully arrived (not on the
+  HTTP-level `request` event that only starts the handler waiting for it), which the destroy
+  mode never reaches at all — plus per-request `requestReceipts` (method, path, whether a body
+  was received, the body itself, arrival order), fed on the same body-end event; the origin now
+  consumes every request body to populate them (measured safe: the receipt count, connection
+  count and client-visible status are unchanged either way). One consequence of the body-end
+  feed: a send whose body is truncated mid-transfer is accepted at the TCP level but recorded by
+  neither `acceptCount` nor `requestReceipts`. WP-6 step 3 adds to `loopbackRpcServer.ts`: a
+  per-method withhold mode (`withhold`/`release`) — a withheld call reaches the handler, is
+  counted, and then never calls back, so the stream stays open until the client's own deadline
+  fires or the server is force-shut-down; it takes precedence over an injected fault and is
+  installed the same way (before `addService` registers the real handler), so a withhold
+  persists across the client's own recreate. **A withheld call must be torn down with
+  `forceClose()`, never `close()`** — `close()` (`tryShutdown`) waits for every open stream to
+  drain and does not resolve while one is held; using it on a withhold cell hangs the file, with
+  no failing assertion to read. Also added: `clearFault` (undoes `injectFault`), and
+  `helloCalls`/`waitForHello`, mirroring `updateCalls`/`waitForUpdate` at the same wrapper layer
+  (before the withhold or fault check, so a withheld or faulted `hello` still counts as "reached
+  the server" — distinct from `authorizeCalls`, which wraps the real rate-limit-cache call and
+  so reads 0 under a withhold or fault on `authorize` even though the call did reach the server;
+  the two counters feed on different events and neither reading is wrong for what it feeds on).
 - `tests/fixtures/` — standalone scripts a test forks as a child process, for a case that would
   otherwise crash its host (`.cjs`, run by `node` directly — not part of the TypeScript program a
   vitest worker transforms).
@@ -75,10 +91,16 @@ rather than by widening `skipLibCheck`:
   gate — `serverErrorTransport.test.ts` (AC-5.1, the transport class, instrument
   `connectionCount`) and `serverErrorRetry.test.ts` (AC-5.2, the method class and the
   conjunct/429-control checks, instrument `requestReceipts`; DELETE's body is stripped
-  client-side, so the body-agreement clause has six spellings in its domain, not eight) — and
-  the information-free-schedule reset regression re-landed as a real, asserting spec
-  (`serverErrorResetRegression.test.ts`, AC-5.2 (i)), replacing the recorder-only predecessor
-  instrument qa found could not fail (WP5-F3).
+  client-side, so the body-agreement clause has six spellings in its domain, not eight),
+  `serverErrorSignal.test.ts` (AC-5.5, the gate-order property — the emit must not read the
+  method before the count decides whether to fire) — and the information-free-schedule reset
+  regression re-landed as a real, asserting spec (`serverErrorResetRegression.test.ts`,
+  AC-5.2 (i)), replacing the recorder-only predecessor instrument qa found could not fail
+  (WP5-F3). As of WP-6: the gRPC channel lifecycle — `rpcRecreateSingleFlight.test.ts`
+  (AC-6.1, single-flight recreation and close-on-recreate, over the five reachable
+  (site, kind) pairs), `rpcDeadlineFallback.test.ts` (AC-6.2 + AC-6.3, every deadline site
+  with `allowFallback: true`, read from the same runs) and `rpcDeadlineNoFallback.test.ts`
+  (AC-6.6, the same sites with `allowFallback: false`).
 
 ## Naming and test-form conventions
 

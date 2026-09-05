@@ -41,6 +41,12 @@ class Api {
     #makeRequest;
     #rpcServiceOptions;
     #connectingToRpcService;
+    /**
+     * WP-6 step 1: the in-flight recreation, shared by every concurrent caller so exactly
+     * one new client is constructed and exactly one `close()` is issued on the predecessor.
+     * Cleared once the recreation settles, success or failure.
+     */
+    #recreateInFlight;
     #defaultRequestOptions;
     /** Number of requests that can be running simultaneously. */
     #maxConcurrency;
@@ -173,17 +179,17 @@ class Api {
         return [topLevelResource, topLevelID, key.join('-')];
     }
     /**
-       * Creates a new Api client.
-       * @param token Discord token. Will be coerced into a bot token.
-       * @param options Optional parameters for this handler.
-       *
-       * @example
-       * ```ts
-       * const api = new Api('myBotToken');
-       * const res = await api.request('GET', '/channels/123456789');
-       * console.log(res.data);
-       * ```
-       */
+     * Creates a new Api client.
+     * @param token Discord token. Will be coerced into a bot token.
+     * @param options Optional parameters for this handler.
+     *
+     * @example
+     * ```ts
+     * const api = new Api('myBotToken');
+     * const res = await api.request('GET', '/channels/123456789');
+     * console.log(res.data);
+     * ```
+     */
     constructor(token, options = {}) {
         Api.validateParams(token);
         const requestQueue = new structures_1.RequestQueue(this);
@@ -311,14 +317,21 @@ class Api {
      * @returns `true` is connection was successful.
      */
     checkRpcServiceConnection = async (service) => {
+        // WP-6 step 1: `service` may be superseded by a later recreate before this settles —
+        // a concurrent recreate's own `hello()` call is not gated by this one's. Only the
+        // service `Api` currently holds may clear or set `#connectingToRpcService`; a stale
+        // callback still reports its own outcome to whoever is awaiting it.
+        const isCurrentService = () => service === this.#rpcRateLimitService || service === this.rpcRequestService;
         try {
             await service.hello();
-            this.#connectingToRpcService = false;
-            this.log('DEBUG', 'GENERAL', 'Successfully established connection to Rpc server.');
+            if (isCurrentService()) {
+                this.#connectingToRpcService = false;
+                this.log('DEBUG', 'GENERAL', 'Successfully established connection to Rpc server.');
+            }
             return true;
         }
         catch (err) {
-            if (!this.#connectingToRpcService) {
+            if (isCurrentService() && !this.#connectingToRpcService) {
                 if ((0, isRpcTransportFailure_1.default)(err.code)) {
                     this.#connectingToRpcService = true;
                     this.reattemptConnectInFuture(1);
@@ -331,13 +344,35 @@ class Api {
         return false;
     };
     // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
+    /**
+     * WP-6 step 1: single-flight — every concurrent caller shares one in-flight recreation,
+     * reading `#recreateInFlight` and closing the predecessor before its replacement is
+     * assigned. The kind (`usesRateLimitService`) is captured before anything is cleared,
+     * and the clear-then-assign sequence inside `recreate` carries no `await`, so no
+     * concurrent caller can ever observe the service field `undefined` — the field the
+     * `add*Service` guard tests, and the only way a rate-limit client could otherwise
+     * silently acquire a request service (or vice versa).
+     */
     recreateRpcService() {
-        if (this.hasRateLimitService) {
-            this.#rpcRateLimitService = undefined;
-            return this.addRateLimitService(this.#rpcServiceOptions);
+        if (this.#recreateInFlight !== undefined) {
+            return this.#recreateInFlight;
         }
-        this.rpcRequestService = undefined;
-        return this.addRequestService(this.#rpcServiceOptions);
+        const usesRateLimitService = this.hasRateLimitService;
+        const previousService = usesRateLimitService ? this.#rpcRateLimitService : this.rpcRequestService;
+        const recreate = () => {
+            if (usesRateLimitService) {
+                this.#rpcRateLimitService = undefined;
+                previousService?.close();
+                return this.addRateLimitService(this.#rpcServiceOptions);
+            }
+            this.rpcRequestService = undefined;
+            previousService?.close();
+            return this.addRequestService(this.#rpcServiceOptions);
+        };
+        this.#recreateInFlight = recreate().finally(() => {
+            this.#recreateInFlight = undefined;
+        });
+        return this.#recreateInFlight;
     }
     reattemptConnectInFuture(delay) {
         this.log('WARNING', 'GENERAL', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);

@@ -1,5 +1,5 @@
 import { AuthorizationMessage, RateLimitStateMessage, RequestMetaMessage } from '../../structures';
-import { loadProtoDefinition, mergeOptionsWithDefaults } from '../common';
+import { loadProtoDefinition, mergeOptionsWithDefaults, withCallDeadline } from '../common';
 
 import type { GrpcObject, ServiceError } from '@grpc/grpc-js';
 import type { IServerOptions } from '../../../@types';
@@ -12,6 +12,8 @@ export interface RateLimitService {
   hello(): Promise<void>;
   authorize(request: ApiRequest): Promise<AuthorizationMessage>;
   update(request: ApiRequest, global: boolean, bucketHash: string | undefined, limit: number, remaining: number, resetAfter: number, retryAfter: number | undefined): Promise<void>;
+  /** Closes the underlying channel. Synchronous — never awaited (WP-6 step 1). */
+  close(): void;
 }
 
 const createRateLimitService = (options: Partial<IServerOptions>): RateLimitService => {
@@ -37,10 +39,11 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
 
       const dest = `${host}:${port}`;
 
+      // The two `max_connection_*` args are server-only at grpc-js 1.14.1 (read in
+      // `server.js`, in no client or channel path) and are dropped here so this channel's
+      // args match `createRequestService`'s (WP-6 step 2).
       super(dest, channel, {
         'grpc.enable_channelz': 0,
-        'grpc.max_connection_idle_ms': 10000, // Close idle connections after 10s
-        'grpc.max_connection_age_ms': 30000, // Force connection close after 30s
       });
 
       this.target = dest;
@@ -50,7 +53,7 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
     /** Check for healthy connection. */
     public hello(): Promise<void> {
       return new Promise((resolve, reject) => {
-        super.hello(undefined, (err: ServiceError) => {
+        super.hello(undefined, withCallDeadline(), (err: ServiceError) => {
           if (err !== null) {
             reject(err);
           } else {
@@ -69,7 +72,7 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
 
       const message = new RequestMetaMessage(method, url).proto;
       return new Promise((resolve, reject) => {
-        super.authorize(message, (err: ServiceError, res?: AuthorizationProto) => {
+        super.authorize(message, withCallDeadline(), (err: ServiceError, res?: AuthorizationProto) => {
           if (err !== null) {
             reject(err);
           } else if (res === undefined) {
@@ -99,7 +102,7 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
       ).proto;
 
       return new Promise((resolve, reject) => {
-        super.update(message, (err: ServiceError) => {
+        super.update(message, withCallDeadline(), (err: ServiceError) => {
           if (err !== null) {
             reject(err);
           } else {
@@ -107,6 +110,11 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
           }
         });
       });
+    }
+
+    /** Closes the underlying channel (`grpc.Client#close`, synchronous). */
+    public close(): void {
+      super.close();
     }
   }
 

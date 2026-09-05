@@ -315,15 +315,13 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
 });
 
 describe('a real stopped-mid-session server (step 3\'s recording obligation)', () => {
-  // qa-P001-2's Phase 2 (QA-3): both titles below used to promise a code neither body
-  // asserted. A real "before the call" stop (graceful or abrupt) only ever produces
-  // UNAVAILABLE(14) — a code the OLD literal `=== 14` comparison already handled, so this
-  // shape is a regression guard, not evidence of the widened predicate (qa's own
-  // measurement: NO-MOVEMENT, green at the parent tree too). The mid-flight kill below
-  // does discriminate (DEFECT-RED at the parent). Both now capture and assert the code,
-  // via the ERROR-level DEBUG event `authorizeRequestWithServer` emits on this fallback
-  // path (qa's own guidance: assert only set-membership, never a specific code — two
-  // independent instruments disagree on the exact shape-to-code mapping).
+  // A real "before the call" stop takes two shapes. A graceful stop always produces
+  // UNAVAILABLE(14) (verified below). An abrupt stop's code is disputed between two
+  // independent measurements — UNAVAILABLE(14) in one, CANCELLED(1) in the other — most
+  // likely a race between the client noticing the destroyed session and issuing on it.
+  // That disagreement is why the assertion below is set-membership, never a specific
+  // code, via the ERROR-level DEBUG event `authorizeRequestWithServer` emits on this
+  // fallback path.
   it('graceful stop before the call (regression guard — pre-existing UNAVAILABLE(14) behaviour, unchanged by the widening)', async () => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE, OK_RESPONSE]);

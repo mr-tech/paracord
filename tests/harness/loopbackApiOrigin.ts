@@ -18,8 +18,8 @@ export interface ScriptedResponse {
 }
 
 /**
- * One HTTP request the origin finished parsing, in arrival order — plan 001 WP-5 step 3.
- * Fed on the `request` event; the existing `acceptCount` is already this count
+ * One HTTP request the origin finished receiving, in arrival order — plan 001 WP-5 step 3.
+ * Fed once the request body ends; the existing `acceptCount` is already this count
  * (`requestCount.length`), so this adds the record, not a new count.
  */
 export interface RequestReceipt {
@@ -50,15 +50,19 @@ export interface RequestReceipt {
  *
  * **Destroy-on-accept mode** (plan 001 WP-5 step 3, `setDestroyOnAccept`): the TCP
  * connection is destroyed the instant it is accepted, before any byte is written —
- * ECONNRESET / `socket hang up` at the client. `requestCount`/`acceptCount` are fed on
- * the HTTP-level `request` event (one per parsed HTTP request; under keep-alive several
- * retried sends can share one TCP connection); the destroy mode never reaches that event
- * at all, so it can only be measured by `connectionCount` — fed on the TCP-level
- * `connection` event, one per accepted socket — which is why AC-5.1's instrument is the
- * connection count and AC-5.2's is the request-receipt count (qa WP5-F1/F6). The origin
- * consumes every request body (needed for `requestReceipts`' body-agreement field); doing
- * so is measured safe — the receipt count, connection count and client-visible status are
- * identical whether the body is read or not (qa P-3).
+ * ECONNRESET / `socket hang up` at the client. `requestCount`/`acceptCount` and
+ * `requestReceipts` are fed once a request's body has fully arrived (the HTTP `request`
+ * event only starts the handler that waits for it) — one per request; under keep-alive
+ * several retried sends can share one TCP connection. A send whose body is truncated
+ * mid-transfer is accepted at the TCP level but never reaches this feed, so it is
+ * recorded by neither `acceptCount` nor `requestReceipts`; the destroy mode goes further
+ * still, never reaching even the `request` event, so it can only be measured by
+ * `connectionCount` — fed on the TCP-level `connection` event, one per accepted socket —
+ * which is why AC-5.1's instrument is the connection count and AC-5.2's is the
+ * request-receipt count. The origin consumes every request body (needed for
+ * `requestReceipts`' body-agreement field); doing so is measured safe — the receipt
+ * count, connection count and client-visible status are identical whether the body is
+ * read or not.
  */
 export default class LoopbackApiOrigin extends EventEmitter {
   private readonly server: http.Server;
@@ -76,7 +80,7 @@ export default class LoopbackApiOrigin extends EventEmitter {
   /** One entry per TCP `connection` event accepted, timestamped — AC-5.1's instrument. */
   readonly connectionEvents: number[] = [];
 
-  /** One entry per HTTP `request` event parsed, in arrival order — AC-5.2's instrument. */
+  /** One entry per request body fully received, in arrival order — AC-5.2's instrument. */
   readonly requestReceipts: RequestReceipt[] = [];
 
   private constructor(server: http.Server) {

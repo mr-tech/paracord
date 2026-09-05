@@ -19,7 +19,10 @@ export interface RpcFault {
 
 interface HarnessState {
   faults: Partial<Record<RpcMethodName, RpcFault>>;
+  /** WP-6 step 3: per method, standing until cleared. A withheld handler never calls back. */
+  withholds: Partial<Record<RpcMethodName, true>>;
   updateCount: number;
+  helloCount: number;
 }
 
 /**
@@ -50,6 +53,21 @@ interface HarnessState {
  * `close()`, and a named wait (`waitForAuthorize`) in place of a fixed sleep (WP-1 step
  * 0, `tests/README.md`). `forceClose()` is step 3's second shutdown shape — `tryShutdown`
  * and `forceShutdown` carry different gRPC codes to an in-flight client (qa probe P-2).
+ *
+ * WP-6 step 3 adds a per-method withhold mode (`withhold`/`release`): a withheld call
+ * reaches the handler, is counted, and then never calls back — the stream stays open
+ * until the client's own deadline fires or the server is force-shut-down. It takes
+ * precedence over an injected fault (both are checked in the same wrapper, withhold
+ * first) and is installed on `RpcServer#addService` before registration, exactly like
+ * fault injection, so a withhold persists across the client's own recreate — the server
+ * side never changes. **A withheld stream does not resolve `close()`** (`tryShutdown`
+ * waits for it to drain); tear one down with `forceClose()`. `helloCalls`/`waitForHello`
+ * mirror `updateCalls`/`waitForUpdate` and are counted at the same wrapper layer — before
+ * the withhold or fault check, so a withheld or faulted `hello` still counts as "reached
+ * the server". `authorizeCalls` is a different layer (wraps the real rate-limit-cache
+ * call, so it only increments once the real handler runs) and reads 0 under a withhold or
+ * fault on `authorize` even though the call did reach the server — the two counters feed
+ * on different events and neither reading is wrong for what it feeds on.
  */
 export default class LoopbackRpcServer extends EventEmitter {
   readonly server: RpcServer;
@@ -90,6 +108,13 @@ export default class LoopbackRpcServer extends EventEmitter {
             state.updateCount += 1;
             getInstance()?.emit('update');
           }
+          if (name === 'hello') {
+            state.helloCount += 1;
+            getInstance()?.emit('hello');
+          }
+          // Withhold takes precedence over fault; the counters above have already run,
+          // so a withheld call still reads as "reached the server".
+          if (state.withholds[name]) return;
           const fault = state.faults[name];
           if (fault) {
             callback(Object.assign(new Error(fault.message ?? `injected ${name} fault`), {
@@ -110,7 +135,9 @@ export default class LoopbackRpcServer extends EventEmitter {
   static start(): Promise<LoopbackRpcServer> {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
-      const state: HarnessState = { faults: {}, updateCount: 0 };
+      const state: HarnessState = {
+        faults: {}, withholds: {}, updateCount: 0, helloCount: 0,
+      };
       let instance: LoopbackRpcServer | undefined;
 
       LoopbackRpcServer.withFaultInjection(server, state, () => instance, () => server.addRateLimitService());
@@ -130,7 +157,9 @@ export default class LoopbackRpcServer extends EventEmitter {
   static startRequestService(token = 'test-token'): Promise<LoopbackRpcServer> {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
-      const state: HarnessState = { faults: {}, updateCount: 0 };
+      const state: HarnessState = {
+        faults: {}, withholds: {}, updateCount: 0, helloCount: 0,
+      };
       let instance: LoopbackRpcServer | undefined;
 
       LoopbackRpcServer.withFaultInjection(server, state, () => instance, () => server.addRequestService(token));
@@ -160,6 +189,11 @@ export default class LoopbackRpcServer extends EventEmitter {
     return this.state.updateCount;
   }
 
+  /** Number of times the `hello` handler has been invoked, withheld or faulted or not. */
+  get helloCalls(): number {
+    return this.state.helloCount;
+  }
+
   /** The server's own rate limit cache — public on `RpcServer`, read directly by AC-9.4. */
   get rateLimitCache(): RateLimitCache {
     return this.server.rateLimitCache;
@@ -172,6 +206,46 @@ export default class LoopbackRpcServer extends EventEmitter {
    */
   injectFault(method: RpcMethodName, fault: RpcFault): void {
     this.state.faults[method] = fault;
+  }
+
+  /** Clears a fault previously set by `injectFault`; the real handler runs again. */
+  clearFault(method: RpcMethodName): void {
+    delete this.state.faults[method];
+  }
+
+  /**
+   * Every subsequent call to `method` reaches the handler, is counted, and then never
+   * calls back — the stream stays open until the client's own deadline fires or the
+   * server is force-shut-down (`forceClose()`; `close()` does not resolve while a call is
+   * held). Per method, standing until `release`d.
+   */
+  withhold(method: RpcMethodName): void {
+    this.state.withholds[method] = true;
+  }
+
+  /** Clears a withhold. A call already held is not released — only `forceClose()` ends it. */
+  release(method: RpcMethodName): void {
+    delete this.state.withholds[method];
+  }
+
+  /** Resolves once the server has recorded at least `n` `hello` calls (withheld, faulted or not). */
+  waitForHello(n: number, timeoutMs = 5000): Promise<void> {
+    if (this.state.helloCount >= n) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off('hello', check);
+        reject(new Error(`waitForHello timed out after ${timeoutMs}ms waiting for call ${n} (have ${this.state.helloCount})`));
+      }, timeoutMs);
+      const check = () => {
+        if (this.state.helloCount >= n) {
+          clearTimeout(timer);
+          this.off('hello', check);
+          resolve();
+        }
+      };
+      this.on('hello', check);
+    });
   }
 
   /** Resolves once the server has recorded at least `n` `authorize` calls. */
