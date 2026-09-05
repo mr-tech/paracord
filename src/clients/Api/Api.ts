@@ -9,7 +9,7 @@ import {
   DISCORD_API_URL,
   LOG_LEVELS, LOG_SOURCES,
   LogSource,
-  PARACORD_URL, PARACORD_VERSION_NUMBER, RPC_CLOSE_CODES, SECOND_IN_MILLISECONDS,
+  PARACORD_URL, PARACORD_VERSION_NUMBER, SECOND_IN_MILLISECONDS,
 } from '../../constants';
 import {
   createRateLimitService, createRequestService, RateLimitService, RemoteApiResponse, RequestService,
@@ -21,6 +21,7 @@ import {
 } from './structures';
 import applyRateLimitObservation from './structures/applyRateLimitObservation';
 import extractRetryAfter from './structures/extractRetryAfter';
+import isRpcTransportFailure from './structures/isRpcTransportFailure';
 import computeRateLimitRetryTarget from './structures/rateLimitRetryTarget';
 
 import type { DebugLevel } from '../../@types';
@@ -395,7 +396,7 @@ export default class Api {
       return true;
     } catch (err: any) {
       if (!this.#connectingToRpcService) {
-        if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
+        if (isRpcTransportFailure(err.code)) {
           this.#connectingToRpcService = true;
           this.reattemptConnectInFuture(1);
         } else {
@@ -509,7 +510,7 @@ export default class Api {
     try {
       return await rpcRequestService.request(request);
     } catch (err: any) {
-      if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
+      if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
         const message = 'Could not reach RPC server. Falling back to handling request locally.';
         this.log('ERROR', 'ERROR', message, err);
@@ -627,7 +628,7 @@ export default class Api {
 
       return { waitFor, global };
     } catch (err: any) {
-      if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION && this.#allowFallback) {
+      if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
         const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
         this.log('ERROR', 'ERROR', message, err);
@@ -733,7 +734,13 @@ export default class Api {
       request.bucketHashKey,
       (bucketHash) => request.getRateLimitKey(bucketHash),
     );
-    void this.updateRpcCache(request, rateLimitHeaders);
+    // The local cache is already current (above), so a rejection here — the shared RPC
+    // budget could not be told about this response — never needs to be retried; it is
+    // logged once and the shard keeps running on its own cache.
+    this.updateRpcCache(request, rateLimitHeaders).catch((err: any) => {
+      const message = 'Could not reach RPC server to update the shared rate limit cache. Continuing with the local cache.';
+      this.log('ERROR', 'ERROR', message, err);
+    });
   }
 
   private async updateRpcCache(request: ApiRequest, rateLimitHeaders: RateLimitHeaders) {
@@ -742,7 +749,7 @@ export default class Api {
         const [global, bucketHash, limit, remaining, resetAfter, retryAfter] = rateLimitHeaders.rpcArgs;
         await this.#rpcRateLimitService.update(request, global, bucketHash, limit, remaining, resetAfter, retryAfter);
       } catch (err: any) {
-        if (err.code === RPC_CLOSE_CODES.LOST_CONNECTION) {
+        if (isRpcTransportFailure(err.code)) {
           const success = await this.recreateRpcService();
           if (!success) throw err;
         } else {
