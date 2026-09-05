@@ -512,7 +512,7 @@ export default class Api {
     } catch (err: any) {
       if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
-        const message = 'Could not reach RPC server. Falling back to handling request locally.';
+        const message = 'The RPC request did not succeed. Falling back to handling request locally.';
         this.log('ERROR', 'ERROR', message, err);
 
         return this.sendRequest<T>(request);
@@ -630,7 +630,7 @@ export default class Api {
     } catch (err: any) {
       if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
-        const message = 'Could not reach RPC server. Fallback is allowed. Allowing request to be made.';
+        const message = 'The RPC authorization request did not succeed. Fallback is allowed. Allowing request to be made.';
         this.log('ERROR', 'ERROR', message, err);
         return undefined;
       }
@@ -738,7 +738,7 @@ export default class Api {
     // budget could not be told about this response — never needs to be retried; it is
     // logged once and the shard keeps running on its own cache.
     this.updateRpcCache(request, rateLimitHeaders).catch((err: any) => {
-      const message = 'Could not reach RPC server to update the shared rate limit cache. Continuing with the local cache.';
+      const message = 'The RPC rate limit cache update did not succeed. Continuing with the local cache.';
       this.log('ERROR', 'ERROR', message, err);
     });
   }
