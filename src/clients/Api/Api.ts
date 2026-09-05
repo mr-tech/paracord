@@ -21,7 +21,9 @@ import {
 } from './structures';
 import applyRateLimitObservation from './structures/applyRateLimitObservation';
 import extractRetryAfter from './structures/extractRetryAfter';
+import isIdempotentMethod from './structures/isIdempotentMethod';
 import isRpcTransportFailure from './structures/isRpcTransportFailure';
+import isServerErrorResponse from './structures/isServerErrorResponse';
 import computeRateLimitRetryTarget from './structures/rateLimitRetryTarget';
 
 import type { DebugLevel } from '../../@types';
@@ -37,10 +39,6 @@ function validateStatusDefault(status: number) {
 
 function isRateLimitResponse(response: ApiResponse | RateLimitedResponse): response is RateLimitedResponse {
   return response.status === 429;
-}
-
-function isServerErrorResponse(response: ApiResponse | RateLimitedResponse) {
-  return response.status >= 500 && response.status <= 599;
 }
 
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
@@ -143,8 +141,11 @@ export default class Api {
 
     instance.interceptors.response.use(
       (response) => response,
+      // A transport failure carries no response at all; `statusText` is what
+      // `handleServerErrorResponse` throws with once attempts are exhausted, so it must
+      // carry the underlying transport error's own message.
       (error) => ({
-        status: 500, headers: {}, data: { message: error.message },
+        status: 500, statusText: error.message, headers: {}, data: { message: error.message },
       }),
     );
 
@@ -564,7 +565,7 @@ export default class Api {
           if (isRateLimitResponse(response)) {
             return this.handleRateLimitResponse<T>(request, response, rateLimitHeaders, !!fromQueue);
           }
-          if (isServerErrorResponse(response)) {
+          if (isServerErrorResponse(response.status)) {
             return this.handleServerErrorResponse<T>(request, response, !!fromQueue);
           }
 
@@ -688,7 +689,10 @@ export default class Api {
     headers: ApiResponse<T>,
     fromQueue: boolean,
   ): Promise<string | ApiResponse<T>> {
-    if (request.attempts >= MAX_SERVER_ERROR_RETRIES) {
+    // Only a method safe to resend without risking a duplicate write gets the retry at
+    // all; every other method surfaces the failure on its first attempt, with the same
+    // thrown shape the exhausted-retries branch uses.
+    if (!isIdempotentMethod(request.method) || request.attempts >= MAX_SERVER_ERROR_RETRIES) {
       throw createError(new Error(headers.statusText), request.config, headers.status, request, headers);
     }
 

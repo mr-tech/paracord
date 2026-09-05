@@ -12,7 +12,9 @@ const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 const applyRateLimitObservation_1 = __importDefault(require("./structures/applyRateLimitObservation"));
 const extractRetryAfter_1 = __importDefault(require("./structures/extractRetryAfter"));
+const isIdempotentMethod_1 = __importDefault(require("./structures/isIdempotentMethod"));
 const isRpcTransportFailure_1 = __importDefault(require("./structures/isRpcTransportFailure"));
+const isServerErrorResponse_1 = __importDefault(require("./structures/isServerErrorResponse"));
 const rateLimitRetryTarget_1 = __importDefault(require("./structures/rateLimitRetryTarget"));
 const MAX_SERVER_ERROR_RETRIES = 3;
 function validateStatusDefault(status) {
@@ -20,9 +22,6 @@ function validateStatusDefault(status) {
 }
 function isRateLimitResponse(response) {
     return response.status === 429;
-}
-function isServerErrorResponse(response) {
-    return response.status >= 500 && response.status <= 599;
 }
 /** A client used to interact with Discord's REST API and navigate its rate limits. */
 class Api {
@@ -102,8 +101,12 @@ class Api {
             }
             return config;
         });
-        instance.interceptors.response.use((response) => response, (error) => ({
-            status: 500, headers: {}, data: { message: error.message },
+        instance.interceptors.response.use((response) => response, 
+        // A transport failure carries no response at all; `statusText` is what
+        // `handleServerErrorResponse` throws with once attempts are exhausted, so it must
+        // carry the underlying transport error's own message.
+        (error) => ({
+            status: 500, statusText: error.message, headers: {}, data: { message: error.message },
         }));
         /** `axios.request()` decorated with rate limit handling. */
         return rateLimitCache.wrapRequest(instance.request);
@@ -444,7 +447,7 @@ class Api {
                     if (isRateLimitResponse(response)) {
                         return this.handleRateLimitResponse(request, response, rateLimitHeaders, !!fromQueue);
                     }
-                    if (isServerErrorResponse(response)) {
+                    if ((0, isServerErrorResponse_1.default)(response.status)) {
                         return this.handleServerErrorResponse(request, response, !!fromQueue);
                     }
                     return response;
@@ -541,7 +544,10 @@ class Api {
         throw createError(new Error(response.statusText), request.config, response.status, request, response);
     }
     async handleServerErrorResponse(request, headers, fromQueue) {
-        if (request.attempts >= MAX_SERVER_ERROR_RETRIES) {
+        // Only a method safe to resend without risking a duplicate write gets the retry at
+        // all; every other method surfaces the failure on its first attempt, with the same
+        // thrown shape the exhausted-retries branch uses.
+        if (!(0, isIdempotentMethod_1.default)(request.method) || request.attempts >= MAX_SERVER_ERROR_RETRIES) {
             throw createError(new Error(headers.statusText), request.config, headers.status, request, headers);
         }
         this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
