@@ -2,12 +2,14 @@
 import * as grpc from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
 import RpcServer from '../../src/rpc/server/RpcServer';
+import { createApiAgainstOrigin } from './loopbackApiOrigin';
 
 import type { UntypedServiceImplementation } from '@grpc/grpc-js';
 import type { ServiceDefinition } from '@grpc/proto-loader';
 import type RateLimitCache from '../../src/clients/Api/structures/RateLimitCache';
 import type BaseRequest from '../../src/clients/Api/structures/BaseRequest';
-import type { RateLimitState } from '../../src/clients/Api/types';
+import type { ApiOptions, RateLimitState } from '../../src/clients/Api/types';
+import type LoopbackApiOrigin from './loopbackApiOrigin';
 
 export type RpcMethodName = 'hello' | 'authorize' | 'update' | 'request';
 
@@ -21,6 +23,19 @@ interface HarnessState {
   faults: Partial<Record<RpcMethodName, RpcFault>>;
   /** WP-6 step 3: per method, standing until cleared. A withheld handler never calls back. */
   withholds: Partial<Record<RpcMethodName, true>>;
+  /**
+   * WP-7 step 6: per method, standing until cleared. The real handler runs to
+   * completion — a genuine forward reaches whatever `apiClient` is wired to — and its
+   * result is discarded; the client is answered with `fault.code` instead. Distinct from
+   * `faults`, which never runs the real handler at all.
+   */
+  forwardThenFail: Partial<Record<RpcMethodName, RpcFault>>;
+  /**
+   * WP-7 step 6: per method, standing until cleared. The real handler runs to
+   * completion (a genuine forward), and its result is discarded — the client is never
+   * answered, exactly like `withholds`, but only once the real handler has settled.
+   */
+  forwardThenWithhold: Partial<Record<RpcMethodName, true>>;
   updateCount: number;
   helloCount: number;
 }
@@ -123,6 +138,23 @@ export default class LoopbackRpcServer extends EventEmitter {
             }));
             return;
           }
+
+          // WP-7 step 6: unlike `withholds`/`faults` above, the real handler runs to
+          // completion — a genuine forward — and only its outcome is intercepted, at the
+          // callback the real handler would have used to answer the client.
+          const forwardThenFailFault = state.forwardThenFail[name];
+          const shouldForwardThenWithhold = state.forwardThenWithhold[name];
+          if (forwardThenFailFault !== undefined || shouldForwardThenWithhold) {
+            original(call, (..._realArgs: any[]) => {
+              if (shouldForwardThenWithhold) return; // the forward completed; the client is never answered.
+              callback(Object.assign(new Error(forwardThenFailFault!.message ?? `forward-then-fail ${name}`), {
+                code: forwardThenFailFault!.code,
+                details: forwardThenFailFault!.message ?? `forward-then-fail ${name}`,
+              }));
+            });
+            return;
+          }
+
           original(call, callback);
         };
       });
@@ -136,7 +168,7 @@ export default class LoopbackRpcServer extends EventEmitter {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = {
-        faults: {}, withholds: {}, updateCount: 0, helloCount: 0,
+        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0,
       };
       let instance: LoopbackRpcServer | undefined;
 
@@ -153,24 +185,43 @@ export default class LoopbackRpcServer extends EventEmitter {
     });
   }
 
-  /** The request-service twin of `start()` — stands up `addRequestService` instead. */
-  static startRequestService(token = 'test-token'): Promise<LoopbackRpcServer> {
+  /**
+   * The request-service twin of `start()` — stands up `addRequestService` instead.
+   *
+   * WP-7 step 6 (a), qa WP7-F4 (`491c1b9`, arm M2 — the only viable mechanism measured;
+   * N1, the pattern every current `startRequestService` consumer used before this,
+   * reaches `https://discord.com` live, and `requestOptions.baseURL` (E1) is not a
+   * route at all): when `origin` is given, the proxy's own `apiClient` — set by
+   * `addRequestService` to an `Api` pointed at Discord's real REST base — is
+   * **overwritten**, after registration, with one built the same way
+   * `createApiAgainstOrigin` builds any other test-only `Api`, pointed at `origin`
+   * instead. This is the *only* place a proxied forward is made loopback-safe; a test
+   * that wants a real forward to reach a controllable origin must pass `origin` here
+   * rather than reaching into `server.apiClient` itself, so the unsafe N1 pattern has
+   * nowhere to be written by accident.
+   */
+  static startRequestService(token = 'test-token', origin?: LoopbackApiOrigin, apiOptions: ApiOptions = {}): Promise<LoopbackRpcServer> {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = {
-        faults: {}, withholds: {}, updateCount: 0, helloCount: 0,
+        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0,
       };
       let instance: LoopbackRpcServer | undefined;
 
-      LoopbackRpcServer.withFaultInjection(server, state, () => instance, () => server.addRequestService(token));
+      LoopbackRpcServer.withFaultInjection(server, state, () => instance, () => server.addRequestService(token, apiOptions));
 
       server.bindAsync('127.0.0.1:0', grpc.ServerCredentials.createInsecure(), (err, port) => {
         if (err) {
           reject(err);
           return;
         }
-        instance = new LoopbackRpcServer(server, port, state);
-        resolve(instance);
+        (async () => {
+          if (origin !== undefined) {
+            server.apiClient = await createApiAgainstOrigin(origin, token, apiOptions);
+          }
+          instance = new LoopbackRpcServer(server, port, state);
+          resolve(instance);
+        })().catch(reject);
       });
     });
   }
@@ -226,6 +277,38 @@ export default class LoopbackRpcServer extends EventEmitter {
   /** Clears a withhold. A call already held is not released — only `forceClose()` ends it. */
   release(method: RpcMethodName): void {
     delete this.state.withholds[method];
+  }
+
+  /**
+   * WP-7 step 6, AC-7.6's trigger class (14, 1, 13): every subsequent call to `method`
+   * reaches the real handler and completes a genuine forward — the origin sees it,
+   * counted like any other request — and the client is then answered with `fault.code`
+   * instead of the real result. Requires `origin` to have been passed to
+   * `startRequestService`, or the "forward" reaches Discord's real API (WP7-F4).
+   */
+  forwardThenFail(method: RpcMethodName, fault: RpcFault): void {
+    this.state.forwardThenFail[method] = fault;
+  }
+
+  /** Clears a `forwardThenFail`; the real handler answers normally again. */
+  clearForwardThenFail(method: RpcMethodName): void {
+    delete this.state.forwardThenFail[method];
+  }
+
+  /**
+   * WP-7 step 6, AC-7.6's trigger class (4, the client's own deadline): every subsequent
+   * call to `method` reaches the real handler and completes a genuine forward, and the
+   * client is then never answered — the same shape as `withhold`, but only once the real
+   * forward has settled. Tear down with `forceClose()`, never `close()` (WP6-F4's
+   * precedent: `close()` waits for the held stream to drain).
+   */
+  forwardThenWithhold(method: RpcMethodName): void {
+    this.state.forwardThenWithhold[method] = true;
+  }
+
+  /** Clears a `forwardThenWithhold`. A call already held is not released. */
+  clearForwardThenWithhold(method: RpcMethodName): void {
+    delete this.state.forwardThenWithhold[method];
   }
 
   /** Resolves once the server has recorded at least `n` `hello` calls (withheld, faulted or not). */

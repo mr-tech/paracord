@@ -554,10 +554,18 @@ export default class Api {
     } catch (err: any) {
       if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
-        const message = 'The RPC request did not succeed. Falling back to handling request locally.';
-        this.log('ERROR', 'ERROR', message, err);
 
-        return this.sendRequest<T>(request);
+        // D-49: a body the client has already handed to the proxy is never re-sent by
+        // the client for a non-idempotent method — the proxy may have forwarded it
+        // before this failure, and repeating it here risks a duplicate write. The
+        // recreate above still runs regardless of method (WP-6's lifecycle, AC-6.1's
+        // count unchanged); only the local re-send is gated.
+        if (isIdempotentMethod(request.method)) {
+          const message = 'The RPC request did not succeed. Falling back to handling request locally.';
+          this.log('ERROR', 'ERROR', message, err);
+
+          return this.sendRequest<T>(request);
+        }
       }
       throw err;
     }

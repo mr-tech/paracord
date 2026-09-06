@@ -1,5 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const form_data_1 = __importDefault(require("form-data"));
 /** A class for the RequestMessage protobuf */
 class RequestMessage {
     /** HTTP method of the request. */
@@ -10,23 +14,35 @@ class RequestMessage {
     data;
     /** Headers to send with the request. */
     headers;
+    /** Url params to send with the request. */
+    params;
+    /** Set to true to not retry the request on a bucket 429 rate limit. */
+    returnOnRateLimit;
+    /** Set to true to not retry the request on a global rate limit. */
+    returnOnGlobalRateLimit;
+    /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. */
+    maxRateLimitRetry;
     /**
      * Validate incoming message and translate it into common state.
      * @param message Message received by server.
      */
     static fromProto(message) {
         RequestMessage.validateIncoming(message);
-        const { method, url, ...options } = message;
+        const { method, url, return_on_rate_limit: returnOnRateLimit, return_on_global_rate_limit: returnOnGlobalRateLimit, max_rate_limit_retry: retriesLeft, ...options } = message;
         let data;
         let headers;
+        let params;
         if (options.data !== undefined) {
             data = JSON.parse(options.data);
         }
         if (options.headers !== undefined) {
             headers = JSON.parse(options.headers);
         }
+        if (options.params !== undefined) {
+            params = JSON.parse(options.params);
+        }
         return new RequestMessage({
-            method, url, data, headers,
+            method, url, data, headers, params, returnOnRateLimit, returnOnGlobalRateLimit, retriesLeft,
         });
     }
     /**
@@ -60,12 +76,24 @@ class RequestMessage {
             throw Error("received invalid message. missing property 'url'");
         }
     }
-    /** Create a new RequestMessage sent from client to server. */
+    /**
+     * Create a new RequestMessage sent from client to server. `createForm`'s product is
+     * resolved here — before the message is built — since a function cannot cross the
+     * wire; its `data`, `headers` and `params` travel in those three fields instead. A
+     * product whose `data` is multipart form data is not JSON-representable and does not
+     * cross the wire (unfunded residue, plan 001 WP-7 step 3): it is dropped, bodiless,
+     * exactly as when `createForm` was never resolved at all.
+     */
     constructor(apiRequest) {
         this.method = apiRequest.method;
         this.url = apiRequest.url;
-        this.data = apiRequest.data;
-        this.headers = apiRequest.headers;
+        const { data, headers, params, } = apiRequest.createForm ? apiRequest.createForm() : apiRequest;
+        this.data = data instanceof form_data_1.default ? undefined : data;
+        this.headers = headers;
+        this.params = params;
+        this.returnOnRateLimit = apiRequest.returnOnRateLimit;
+        this.returnOnGlobalRateLimit = apiRequest.returnOnGlobalRateLimit;
+        this.maxRateLimitRetry = apiRequest.retriesLeft;
     }
     /** The properties of this message formatted for sending over rpc. */
     get proto() {
@@ -78,6 +106,18 @@ class RequestMessage {
         }
         if (this.headers !== undefined) {
             proto.headers = JSON.stringify(this.headers);
+        }
+        if (this.params !== undefined) {
+            proto.params = JSON.stringify(this.params);
+        }
+        if (this.returnOnRateLimit !== undefined) {
+            proto.return_on_rate_limit = this.returnOnRateLimit;
+        }
+        if (this.returnOnGlobalRateLimit !== undefined) {
+            proto.return_on_global_rate_limit = this.returnOnGlobalRateLimit;
+        }
+        if (this.maxRateLimitRetry !== undefined) {
+            proto.max_rate_limit_retry = this.maxRateLimitRetry;
         }
         RequestMessage.validateOutgoing(proto);
         return proto;

@@ -59,6 +59,25 @@ rather than by widening `skipLibCheck`:
   the server" — distinct from `authorizeCalls`, which wraps the real rate-limit-cache call and
   so reads 0 under a withhold or fault on `authorize` even though the call did reach the server;
   the two counters feed on different events and neither reading is wrong for what it feeds on).
+  WP-7 step 6 adds to `loopbackRpcServer.ts`: **`startRequestService`'s `origin` parameter**
+  (qa WP7-F4's arm M2, the only mechanism measured to reach a controllable origin at all — the
+  pattern every prior `startRequestService` consumer used, a static import of the harness before
+  `createApiAgainstOrigin`, reaches Discord's real API live) — when given, `server.apiClient` is
+  **overwritten after `addRequestService` registers**, with an `Api` built the same way
+  `createApiAgainstOrigin` builds any other test-only client, pointed at `origin` instead of
+  Discord. A cell that wants a real proxied forward to land somewhere controllable passes `origin`
+  here; there is deliberately no other way to reach it, so the unsafe pattern has nowhere to be
+  written by accident. Also added: a **forward-then-fail**/**forward-then-withhold** mode
+  (`forwardThenFail`/`clearForwardThenFail`, `forwardThenWithhold`/`clearForwardThenWithhold`) —
+  unlike `injectFault`/`withhold`, the real handler runs to completion (a genuine forward reaches
+  whatever `apiClient` is wired to, counted like any other request) before the client is answered
+  with the trigger code or left to its own deadline; a withheld forward is torn down with
+  `forceClose()`, same as a plain withhold. Per-party attribution at the origin (WP7-F2) needs no
+  new harness mechanism: `startRequestService`'s `apiOptions` already reaches
+  `Api.createWrappedRequestMethod`, which spreads `requestOptions.headers` into every outgoing
+  request, so a test tags the proxy's own `Api` (`{ requestOptions: { headers: { 'x-wp7-party':
+  'proxy' } } }`) and reads `LoopbackApiOrigin#receivedHeaders` directly — already fed in step
+  with `requestReceipts`, nothing added there either.
 - `tests/fixtures/` — standalone scripts a test forks as a child process, for a case that would
   otherwise crash its host (`.cjs`, run by `node` directly — not part of the TypeScript program a
   vitest worker transforms).
@@ -78,7 +97,11 @@ rather than by widening `skipLibCheck`:
   literal bound per attempt, so the two curves cannot drift apart unnoticed. WP-5 step 2 adds
   `isServerErrorResponse.test.ts` and `isIdempotentMethod.test.ts` — the compound retry
   predicate's two conjuncts, each over its full domain (500..599 plus both boundaries; all 20
-  method spellings) with no socket needed.
+  method spellings) with no socket needed. WP-7 step 2 adds `responseMessageTolerance.test.ts`
+  (AC-7.1/AC-7.2) — `ResponseMessage.fromProto`'s decode: every shape singly encoded (new server)
+  and, doubly encoded (old server, reproduced by formula), the `{object, array, null}` recovery
+  set and the permanent ambiguous residue (a genuine string whose text is valid JSON of a
+  non-string type mis-decodes on every pairing, named rather than left silent).
 - `tests/gateway/` — integration tests against the *fixed* gateway state machine (WP-1 on), over
   real loopback sockets, on the real clock (time-seam rule, forms (b)/(c)).
 - `tests/api/` — integration tests against `Api`'s 429 handling (WP-9b on), over both request
@@ -100,7 +123,17 @@ rather than by widening `skipLibCheck`:
   (AC-6.1, single-flight recreation and close-on-recreate, over the five reachable
   (site, kind) pairs), `rpcDeadlineFallback.test.ts` (AC-6.2 + AC-6.3, every deadline site
   with `allowFallback: true`, read from the same runs) and `rpcDeadlineNoFallback.test.ts`
-  (AC-6.6, the same sites with `allowFallback: false`).
+  (AC-6.6, the same sites with `allowFallback: false`). As of WP-7 (steps 1-6): the request-proxy
+  path — `rpcProxyResponseShape.test.ts` (AC-7.1, every JSON body shape including the falsy/empty
+  members the server-side presence check keys on, proxied vs. local); `rpcProxyRequestOptions.test.ts`
+  (AC-7.3, `params`/`returnOnRateLimit`/`returnOnGlobalRateLimit`/`maxRateLimitRetry`/`createForm`
+  crossing the wire); `rpcProxyResendGate.test.ts` (AC-7.6, D-49 — the fallback re-send's method
+  gate, forward-then-fail/forward-then-withhold, per-party origin attribution, and the compound
+  predicate's controls: C-A an out-of-set code, C-B the latched branch, C-C a clean call). The
+  (old server, new client) pairing (AC-7.2) is covered instead at `tests/unit/`, below — the old
+  server's double encoding is reproduced by formula (`JSON.stringify(JSON.stringify(value))`,
+  the exact transform its frozen code performs), not by running its archived code in-process;
+  qa's Phase 2 owns any further `git archive`-based pairing rig.
 
 ## Naming and test-form conventions
 

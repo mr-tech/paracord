@@ -15,6 +15,10 @@ message RequestMessage {
     string url = 2; // Discord endpoint url. (e.g. channels/123)
     string data = 3; // JSON encoded data to send wtih request.
     string headers = 4; // JSON encoded headers to send with request.
+    string params = 5; // JSON encoded url params to send with request.
+    bool return_on_rate_limit = 6; // Set to true to not retry the request on a bucket 429 rate limit.
+    bool return_on_global_rate_limit = 7; // Set to true to not retry the request on a global rate limit.
+    uint32 max_rate_limit_retry = 8; // The number of times to attempt to execute a rate limited request before returning with a local 429 response.
 }
 
 /* Response represents Discord's response to the client's request. */

@@ -27,6 +27,25 @@ export default class ResponseMessage {
       res = data;
     }
 
+    // Tolerates an old (pre-WP-7) server's double JSON encoding (plan 001 WP-7 step 2,
+    // AC-7.2): where the once-decoded value is itself a string that is further valid
+    // JSON of a *non-string* type (object, array, null, number, boolean), the second
+    // decoding is the one the local path would have yielded, and is used instead. A
+    // genuine string whose text is such JSON (a plain string, or one like `"42"`) is
+    // indistinguishable from this on every pairing and is not recovered — a permanent,
+    // named residue (AC-7.1's "Tolerance residue"; AC-7.2 attributes recovery under this
+    // rule to number and boolean only, not to string).
+    if (typeof res === 'string') {
+      try {
+        const doubleDecoded = JSON.parse(res);
+        if (typeof doubleDecoded !== 'string') {
+          res = doubleDecoded;
+        }
+      } catch (err) {
+        // Not further JSON — `res` is already the decoded value.
+      }
+    }
+
     return {
       status,
       statusText,

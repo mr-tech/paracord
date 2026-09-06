@@ -1,7 +1,7 @@
 import type { EventEmitter } from 'events';
 import type { Method } from 'axios';
 import type { ServerCredentials, ServiceError } from '@grpc/grpc-js';
-import type { Api } from '../clients';
+import type { Api, RequestFormDataFunction } from '../clients';
 
 /** Configuration options for the gRPC server (RpcServer/Server). */
 export interface RpcServerOptions{
@@ -38,6 +38,17 @@ export type RequestProto = {
   data?: string;
   /** JSON encoded headers to send with the request. */
   headers?: string;
+  /** JSON encoded url params to send with the request. */
+  params?: string;
+  /** Set to true to not retry the request on a bucket 429 rate limit. */
+  /* eslint-disable-next-line camelcase */
+  return_on_rate_limit?: boolean;
+  /** Set to true to not retry the request on a global rate limit. */
+  /* eslint-disable-next-line camelcase */
+  return_on_global_rate_limit?: boolean;
+  /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. */
+  /* eslint-disable-next-line camelcase */
+  max_rate_limit_retry?: number;
 }
 
 export type AuthorizationProto = {
@@ -85,6 +96,22 @@ export interface IRequestMessage {
   data?: undefined | unknown;
   /** JSON encoded headers to send with the request. */
   headers?: undefined | Record<string, unknown>;
+  /** Url params to send with the request. */
+  params?: undefined | Record<string, unknown>;
+  /** Function to generate form that will be used in place of data. Overwrites `data`, `headers` and `params`. Resolved client-side before the message is built — its product travels in those three fields where JSON-representable. */
+  createForm?: undefined | RequestFormDataFunction;
+  /** Set to true to not retry the request on a bucket 429 rate limit. */
+  returnOnRateLimit?: undefined | boolean;
+  /** Set to true to not retry the request on a global rate limit. */
+  returnOnGlobalRateLimit?: undefined | boolean;
+  /**
+   * The number of times left to attempt a rate limited request before returning with a
+   * local 429 response — `ApiRequest`'s own property name for what `RequestOptions`
+   * calls `maxRateLimitRetry`; `ApiRequest`'s constructor makes that conversion once and
+   * does not keep a `maxRateLimitRetry` property afterward, so this reads the name the
+   * real caller actually has.
+   */
+  retriesLeft?: undefined | number;
 }
 
 export type RequestMetaProto = {

@@ -10,8 +10,6 @@ const common_1 = require("../common");
  * @param server
  */
 exports.default = (server, token, apiOptions = {}) => {
-    apiOptions.requestOptions = apiOptions.requestOptions ?? {};
-    apiOptions.requestOptions.transformResponse = (data) => data;
     server.apiClient = new clients_1.Api(token, apiOptions);
     const requestProto = (0, common_1.loadProto)('request');
     server.addService(requestProto.RequestService, {
@@ -33,10 +31,20 @@ function request(call, callback) {
         return;
     }
     try {
-        const { method, url, data, headers, } = structures_1.RequestMessage.fromProto(call.request);
-        this.apiClient.request(method, url, { data, headers })
+        const { method, url, data, headers, params, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, } = structures_1.RequestMessage.fromProto(call.request);
+        // `exactOptionalPropertyTypes`: `RequestOptions`' three retry-policy members are
+        // declared `?: boolean`/`?: number`, not `?: boolean | undefined`, so an explicit
+        // `undefined` value is only ever spread in, never assigned as a present key.
+        this.apiClient.request(method, url, {
+            data,
+            headers,
+            params,
+            ...(returnOnRateLimit !== undefined ? { returnOnRateLimit } : {}),
+            ...(returnOnGlobalRateLimit !== undefined ? { returnOnGlobalRateLimit } : {}),
+            ...(maxRateLimitRetry !== undefined ? { maxRateLimitRetry } : {}),
+        })
             .then((res) => {
-            callback(null, new structures_1.ResponseMessage(res.status, res.statusText, res.data ? JSON.stringify(res.data) : undefined).proto);
+            callback(null, new structures_1.ResponseMessage(res.status, res.statusText, res.data !== undefined ? JSON.stringify(res.data) : undefined).proto);
         })
             .catch((err) => callback(err));
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

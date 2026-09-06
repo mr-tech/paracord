@@ -18,9 +18,6 @@ interface ServiceRequest extends PackageDefinition {
  * @param server
  */
 export default (server: RpcServer, token: string, apiOptions: ApiOptions = {}): void => {
-  apiOptions.requestOptions = apiOptions.requestOptions ?? {};
-  apiOptions.requestOptions.transformResponse = (data) => data;
-
   server.apiClient = new Api(token, apiOptions);
 
   const requestProto = loadProto<ServiceRequest>('request');
@@ -56,14 +53,24 @@ function request(
 
   try {
     const {
-      method, url, data, headers,
+      method, url, data, headers, params, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
     } = RequestMessage.fromProto(call.request);
 
-    this.apiClient.request(method, url, { data, headers })
+    // `exactOptionalPropertyTypes`: `RequestOptions`' three retry-policy members are
+    // declared `?: boolean`/`?: number`, not `?: boolean | undefined`, so an explicit
+    // `undefined` value is only ever spread in, never assigned as a present key.
+    this.apiClient.request(method, url, {
+      data,
+      headers,
+      params,
+      ...(returnOnRateLimit !== undefined ? { returnOnRateLimit } : {}),
+      ...(returnOnGlobalRateLimit !== undefined ? { returnOnGlobalRateLimit } : {}),
+      ...(maxRateLimitRetry !== undefined ? { maxRateLimitRetry } : {}),
+    })
       .then((res) => {
         callback(
           null,
-          new ResponseMessage(res.status, res.statusText, res.data ? JSON.stringify(res.data) : undefined).proto,
+          new ResponseMessage(res.status, res.statusText, res.data !== undefined ? JSON.stringify(res.data) : undefined).proto,
         );
       })
       .catch((err) => callback(err));
