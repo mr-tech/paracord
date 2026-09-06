@@ -60,7 +60,7 @@ describe('AC-7.6 — forward-then-fail (codes 14/4/1/13), allowFallback: true', 
     // form of the same member is the `tests/timing/` withhold cell.
     ['PATCH', false, grpcStatus.DEADLINE_EXCEEDED],
     ['put', true, grpcStatus.DEADLINE_EXCEEDED],
-  ])('%s resends locally from the client iff the method is idempotent', async (method, shouldResend, code) => {
+  ])('%s / idempotent=%s / code %i resends locally from the client iff the method is idempotent', async (method, shouldResend, code) => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE, OK_RESPONSE]);
     const rpc = await LoopbackRpcServer.startRequestService('test-token', origin, PROXY_OPTIONS);
