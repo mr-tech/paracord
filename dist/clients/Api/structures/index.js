@@ -4,22 +4,17 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RequestQueue = exports.RateLimitTemplateMap = exports.RateLimitTemplate = exports.RateLimitMap = exports.RateLimitHeaders = exports.RateLimitCache = exports.RateLimit = exports.QueuedRequest = exports.BaseRequest = exports.ApiRequest = void 0;
-/** @internal */
 var ApiRequest_1 = require("./ApiRequest");
 Object.defineProperty(exports, "ApiRequest", { enumerable: true, get: function () { return __importDefault(ApiRequest_1).default; } });
-/** @internal */
 var BaseRequest_1 = require("./BaseRequest");
 Object.defineProperty(exports, "BaseRequest", { enumerable: true, get: function () { return __importDefault(BaseRequest_1).default; } });
-/** @internal */
 var QueuedRequest_1 = require("./QueuedRequest");
 Object.defineProperty(exports, "QueuedRequest", { enumerable: true, get: function () { return __importDefault(QueuedRequest_1).default; } });
 /** @internal */
 var RateLimit_1 = require("./RateLimit");
 Object.defineProperty(exports, "RateLimit", { enumerable: true, get: function () { return __importDefault(RateLimit_1).default; } });
-/** @internal */
 var RateLimitCache_1 = require("./RateLimitCache");
 Object.defineProperty(exports, "RateLimitCache", { enumerable: true, get: function () { return __importDefault(RateLimitCache_1).default; } });
-/** @internal */
 var RateLimitHeaders_1 = require("./RateLimitHeaders");
 Object.defineProperty(exports, "RateLimitHeaders", { enumerable: true, get: function () { return __importDefault(RateLimitHeaders_1).default; } });
 /** @internal */
@@ -31,6 +26,5 @@ Object.defineProperty(exports, "RateLimitTemplate", { enumerable: true, get: fun
 /** @internal */
 var RateLimitTemplateMap_1 = require("./RateLimitTemplateMap");
 Object.defineProperty(exports, "RateLimitTemplateMap", { enumerable: true, get: function () { return __importDefault(RateLimitTemplateMap_1).default; } });
-/** @internal */
 var RequestQueue_1 = require("./RequestQueue");
 Object.defineProperty(exports, "RequestQueue", { enumerable: true, get: function () { return __importDefault(RequestQueue_1).default; } });

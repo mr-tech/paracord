@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
 /** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for. */
 const VETO_CAP = 3;
-/** @internal */
 class Heart {
     #gateway;
     #websocket;

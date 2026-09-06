@@ -37,7 +37,6 @@ function clampMilliseconds(value) {
 }
 /**
  * Representation of rate limit values from the header of a response from Discord.
- * @internal
  */
 class RateLimitHeaders {
     /** From Discord - If the request was globally rate limited. */

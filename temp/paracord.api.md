@@ -52,17 +52,12 @@ export class Api {
     get maxExceeded(): boolean;
     // (undocumented)
     on: <T extends "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "SERVER_ERROR" = "RATE_LIMITED" | "ERROR" | "GENERAL" | "REQUEST_SENT" | "REQUEST_QUEUED" | "REQUEST_REQUEUED" | "RESPONSE_RECEIVED" | "SERVER_ERROR">(name: T, listener: (event: ApiDebugEvent<T>) => void) => void;
-    // Warning: (ae-incompatible-release-tags) The symbol "queue" is marked as @public, but its signature references "RequestQueue" which is marked as @internal
-    //
     // (undocumented)
     get queue(): RequestQueue;
     request: <T = any>(method: Method, url: string, options?: RequestOptions) => Promise<ApiResponse<T> | RemoteApiResponse<T>>;
     // Warning: (ae-forgotten-export) The symbol "RequestService" needs to be exported by the entry point index.d.ts
     rpcRequestService?: undefined | RequestService;
-    // Warning: (ae-incompatible-release-tags) The symbol "sendRequest" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
     sendRequest<T>(request: ApiRequest): Promise<ApiResponse<T>>;
-    // Warning: (ae-incompatible-release-tags) The symbol "sendRequest" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-    //
     // (undocumented)
     sendRequest<T>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>;
     // (undocumented)
@@ -148,8 +143,6 @@ export type ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> = {
 export interface ApiError<T = any> extends Error {
     // (undocumented)
     code?: string;
-    // Warning: (ae-incompatible-release-tags) The symbol "config" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-    //
     // (undocumented)
     config: ApiRequest['config'];
     // (undocumented)
@@ -171,9 +164,7 @@ export interface ApiOptions {
     requestOptions?: RequestOptions;
 }
 
-// Warning: (ae-internal-missing-underscore) The name "ApiRequest" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal
+// @public
 export class ApiRequest extends BaseRequest {
     constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string, options?: Partial<RequestOptions>);
     assignIfStricter(waitUntil: number): void;
@@ -207,9 +198,7 @@ export interface ApiResponse<T = any> {
     statusText: string;
 }
 
-// Warning: (ae-internal-missing-underscore) The name "BaseRequest" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal
+// @public
 export class BaseRequest {
     constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string);
     bucketHashKey: string;
@@ -288,8 +277,6 @@ export class Gateway {
     // (undocumented)
     get compression(): boolean;
     get connected(): boolean;
-    // Warning: (ae-incompatible-release-tags) The symbol "heartbeat" is marked as @public, but its signature references "Heartbeat" which is marked as @internal
-    //
     // (undocumented)
     get heartbeat(): Heartbeat | undefined;
     get id(): number;
@@ -307,7 +294,6 @@ export class Gateway {
     setCompression(compress: boolean): void;
     // (undocumented)
     setToken(token: string): void;
-    // Warning: (ae-incompatible-release-tags) The symbol "shard" is marked as @public, but its signature references "GatewayIdentify" which is marked as @internal
     get shard(): GatewayIdentify['shard'];
     // (undocumented)
     updatePresence(presence: GatewayPresenceUpdateData): boolean;
@@ -392,9 +378,7 @@ export type GatewayHeartbeatSentEvent = {
     gateway: Gateway;
 };
 
-// Warning: (ae-internal-missing-underscore) The name "GatewayIdentify" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal
+// @public
 export class GatewayIdentify {
     constructor(token: string, identity: Partial<Omit<IdentityOptions, 'intents'>> & {
         intents: number;
@@ -419,7 +403,6 @@ export type GatewayMap = Map<number, Gateway>;
 
 // @public (undocumented)
 export interface GatewayOptions {
-    // Warning: (ae-incompatible-release-tags) The symbol "checkSiblingHeartbeats" is marked as @public, but its signature references "Heartbeat" which is marked as @internal
     checkSiblingHeartbeats?: undefined | Heartbeat['checkIfShouldHeartbeat'][];
     // Warning: (ae-forgotten-export) The symbol "EventHandler" needs to be exported by the entry point index.d.ts
     emitter: EventHandler;
@@ -444,9 +427,7 @@ export const GIGABYTE_IN_BYTES = 1073741824;
 // @public (undocumented)
 export type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) => void;
 
-// Warning: (ae-internal-missing-underscore) The name "Heartbeat" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal (undocumented)
+// @public (undocumented)
 export class Heartbeat {
     // Warning: (ae-forgotten-export) The symbol "Params" needs to be exported by the entry point index.d.ts
     constructor(params: Params);
@@ -586,9 +567,7 @@ export interface ParacordStartupEvent {
     shard: Gateway;
 }
 
-// Warning: (ae-internal-missing-underscore) The name "QueuedRequest" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal (undocumented)
+// @public (undocumented)
 export class QueuedRequest {
     constructor(request: ApiRequest, resolve: (response: ApiResponse) => void, reject: (reason?: unknown) => void);
     // (undocumented)
@@ -611,9 +590,7 @@ export class RateLimit {
     get waitFor(): number;
 }
 
-// Warning: (ae-internal-missing-underscore) The name "RateLimitCache" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal
+// @public
 export class RateLimitCache {
     constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, api: undefined | Api);
     authorizeRequestFromClient(request: BaseRequest): RateLimitState;
@@ -641,9 +618,7 @@ export interface RateLimitedResponse extends ApiResponse<{
     statusText: 'Too Many Requests';
 }
 
-// Warning: (ae-internal-missing-underscore) The name "RateLimitHeaders" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal
+// @public
 export class RateLimitHeaders {
     constructor(global: boolean, bucketHash: string | undefined, limit: number, remaining: number, resetAfter: number, retryAfter: undefined | number);
     bucketHash: string | undefined;
@@ -723,9 +698,7 @@ export interface RequestOptions {
     version?: number;
 }
 
-// Warning: (ae-internal-missing-underscore) The name "RequestQueue" should be prefixed with an underscore because the declaration is marked as @internal
-//
-// @internal
+// @public
 export class RequestQueue {
     constructor(apiClient: Api);
     // (undocumented)
@@ -752,7 +725,6 @@ export class Server extends grpc.Server {
     emit(type: string, event: IDebugEvent): void;
     emitter?: undefined | EventEmitter;
     log(level: DebugLevel, message: string): void;
-    // Warning: (ae-incompatible-release-tags) The symbol "rateLimitCache" is marked as @public, but its signature references "RateLimitCache" which is marked as @internal
     rateLimitCache: RateLimitCache;
     serve(): void;
 }
@@ -846,19 +818,11 @@ export function timestampNMillisecondsInFuture(milliseconds: number): number;
 // @public
 export function timestampNSecondsInFuture(seconds: number): number;
 
-// Warning: (ae-incompatible-release-tags) The symbol "WrappedRequest" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-//
 // @public
 export type WrappedRequest<T = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;
 
 // Warnings were encountered during analysis:
 //
-// src/clients/Api/types.ts:137:19 - (ae-incompatible-release-tags) The symbol "request" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-// src/clients/Api/types.ts:138:21 - (ae-incompatible-release-tags) The symbol "request" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-// src/clients/Api/types.ts:139:23 - (ae-incompatible-release-tags) The symbol "request" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-// src/clients/Api/types.ts:140:24 - (ae-incompatible-release-tags) The symbol "request" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-// src/clients/Api/types.ts:141:19 - (ae-incompatible-release-tags) The symbol "request" is marked as @public, but its signature references "ApiRequest" which is marked as @internal
-// src/clients/Api/types.ts:141:40 - (ae-incompatible-release-tags) The symbol "headers" is marked as @public, but its signature references "RateLimitHeaders" which is marked as @internal
 // src/utils.ts:77:6 - (ae-forgotten-export) The symbol "PermissibleMember" needs to be exported by the entry point index.d.ts
 // src/utils.ts:77:33 - (ae-forgotten-export) The symbol "PermissibleGuild" needs to be exported by the entry point index.d.ts
 // src/utils.ts:77:58 - (ae-forgotten-export) The symbol "PermissibleChannel" needs to be exported by the entry point index.d.ts

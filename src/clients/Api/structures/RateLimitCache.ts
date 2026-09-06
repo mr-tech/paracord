@@ -17,7 +17,6 @@ type RateLimitBucketHash = string;
 
 /**
  * Stores the state of all known rate limits this client has encountered.
- * @internal
  */
 export default class RateLimitCache {
   #apiClient: undefined | Api;

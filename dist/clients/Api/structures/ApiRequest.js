@@ -7,7 +7,6 @@ const BaseRequest_1 = __importDefault(require("./BaseRequest"));
 /**
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
- * @internal
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 class ApiRequest extends BaseRequest_1.default {

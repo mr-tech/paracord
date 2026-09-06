@@ -4,7 +4,6 @@ import type { IdentityOptions } from '../types';
 
 /**
  * A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
- * @internal
  */
 export default class GatewayIdentify {
   /** whether this connection supports compression of packets */

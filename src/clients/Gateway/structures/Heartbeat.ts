@@ -15,7 +15,6 @@ interface Params {
 /** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for. */
 const VETO_CAP = 3;
 
-/** @internal */
 export default class Heart {
   #gateway: Gateway;
 

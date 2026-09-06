@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
  * A queue for rate limited requests waiting to be sent.
- * @internal
  */
 class RequestQueue {
     /** The queue. */

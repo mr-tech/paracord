@@ -258,7 +258,49 @@ export declare interface ApiOptions {
     maxConcurrency?: number;
 }
 
-/* Excluded from this release type: ApiRequest */
+/**
+ * A request that will be made to Discord's REST API.
+ * @extends BaseRequest
+ */
+export declare class ApiRequest extends BaseRequest {
+    /** Data to send in the body of the request.  */
+    data: unknown | undefined;
+    /** Additional headers to send with the request. */
+    headers: Record<string, unknown> | undefined;
+    /** Additional params to send with the request. */
+    params: Record<string, unknown> | undefined;
+    /** Function to generate form that will be used in place of data. Overwrites `data` and `headers`. */
+    createForm: RequestFormDataFunction | undefined;
+    /** If queued when using the rate limit rpc service, a timestamp of when the request will first be available to try again. */
+    waitUntil: number | undefined;
+    /** Set to true not try request on a bucket 429 rate limit. */
+    returnOnRateLimit: boolean;
+    /** Set to true to not retry the request on a global rate limit. */
+    returnOnGlobalRateLimit: boolean;
+    attempts: number;
+    /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. Overrides either of the "returnOn" options. */
+    retriesLeft?: undefined | number;
+    /** Timestamp of when the request was created. */
+    createdAt: number;
+    startTime: undefined | number;
+    completeTime: undefined | number;
+    get duration(): undefined | number;
+    /**
+     * Creates a new request object.
+     *
+     * @param method HTTP method of the request.
+     * @param url Discord REST endpoint target of the request. (e.g. channels/123)
+     * @param options Optional parameters for this request.
+     */
+    constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string, options?: Partial<RequestOptions>);
+    /** Data relevant to sending this request via axios. */
+    get config(): AxiosRequestConfig;
+    /** Assigns a stricter value to `waitUntil`.
+     * Strictness is defined by the value that decreases the chance of getting rate limited.
+     * @param waitUntil A timestamp of when the request will first be available to try again when queued due to rate limits.
+     */
+    assignIfStricter(waitUntil: number): void;
+}
 
 export declare interface ApiResponse<T = any> {
     /** The HTTP status code of the response. */
@@ -277,7 +319,36 @@ declare type AvatarParams = {
     animate?: boolean;
 };
 
-/* Excluded from this release type: BaseRequest */
+/**
+ * Basic information in a request to Discord.
+ */
+export declare class BaseRequest {
+    #private;
+    /** HTTP method of the request. */
+    method: Method;
+    /** Discord REST endpoint target of the request. (e.g. channels/123) */
+    url: string;
+    /** Key generated from the method and minor parameters of a request used internally to get shared buckets. */
+    bucketHashKey: string;
+    /** "Major Parameter" used to differentiate rate limit states. */
+    topLevelResource: string;
+    /** "Major Parameter" ID used to differentiate rate limit states. */
+    private topLevelID;
+    /** Key for this specific requests rate limit state in the rate limit cache. (TLR + TLR ID + Bucket Hash) */
+    rateLimitKey: undefined | string;
+    static formatRateLimitKey(tlr: string, tlrID: string, bucketHash: string): string;
+    /**
+     * Creates a new base request object with its associated rate limit identifiers.
+     *
+     * @param method HTTP method of the request.
+     * @param url Discord REST endpoint target of the request. (e.g. channels/123)
+     */
+    constructor(method: Method, url: string, topLevelResource: string, topLevelID: string, bucketHash: undefined | string, bucketHashKey: string);
+    get logKey(): string;
+    get id(): string;
+    getRateLimitKey(bucketHash?: undefined): undefined | string;
+    getRateLimitKey(bucketHash: string): string;
+}
 
 /**
  * Returns a new object that is a clone of the original.
@@ -519,7 +590,36 @@ export declare type GatewayHeartbeatSentEvent = {
     gateway: Gateway;
 };
 
-/* Excluded from this release type: GatewayIdentify */
+/**
+ * A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
+ */
+export declare class GatewayIdentify {
+    #private;
+    /** whether this connection supports compression of packets */
+    compress: boolean | undefined;
+    /** used for Guild Sharding */
+    readonly shard?: [number, number];
+    /** authentication token */
+    readonly token: string;
+    /** information about the client and how it's connecting */
+    readonly properties: GatewayIdentifyProperties;
+    /** value between 50 and 250, total number of members where the gateway will stop sending offline members in the guild member list */
+    readonly largeThreshold: number | undefined;
+    /** enables dispatching of guild subscription events (presence and typing events) */
+    readonly guildSubscriptions: boolean | undefined;
+    /** the Gateway Intents you wish to receive */
+    readonly intents: number;
+    /**
+     * Creates a new Identity object for use with the gateway.
+     * @param identity Properties to add to this identity.
+     */
+    constructor(token: string, identity: Partial<Omit<IdentityOptions, 'intents'>> & {
+        intents: number;
+    });
+    get presence(): GatewayPresenceUpdateData | undefined;
+    updatePresence(presence: GatewayPresenceUpdateData): void;
+    toJSON(): Partial<GatewayIdentify>;
+}
 
 export declare type GatewayMap = Map<number, Gateway>;
 
@@ -551,7 +651,37 @@ export declare const GIGABYTE_IN_BYTES = 1073741824;
 
 export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) => void;
 
-/* Excluded from this release type: Heartbeat */
+export declare class Heartbeat {
+    #private;
+    constructor(params: Params);
+    get recentTimestamp(): number | undefined;
+    private checkDestroyed;
+    /** Clears heartbeat values and clears the heartbeatTimers. */
+    destroy(): void;
+    /**
+     * Set inline with the firehose of events to check if the heartbeat needs to be sent.
+     * Works in tandem with startTimeout() to ensure the heartbeats are sent on time regardless of event pressure.
+     * May be passed as array to other gateways so that no one gateway blocks the others from sending timely heartbeats.
+     * Now receiving the ACKs on the other hand...
+     */
+    checkIfShouldHeartbeat: () => void;
+    /** Handles "Heartbeat ACK" packet from Discord. https://discord.com/developers/docs/topics/gateway#heartbeating */
+    ack(): void;
+    /**
+     * Starts heartbeat. https://discord.com/developers/docs/topics/gateway#heartbeating
+     * @param heartbeatTimeout From Discord - Number of ms to wait between sending heartbeats.
+     */
+    start(heartbeatTimeout: number): void;
+    private clearHeartbeatTimeout;
+    private clearAckTimeout;
+    /**
+     * Clears old heartbeat timeout and starts a new one.
+     */
+    private scheduleNextHeartbeat;
+    sendHeartbeat: () => void;
+    /** Checks if heartbeat ack was received. */
+    private checkForAck;
+}
 
 /** One hour in milliseconds (3600000). */
 export declare const HOUR_IN_MILLISECONDS: number;
@@ -793,14 +923,89 @@ declare type PermissibleGuild = Pick<APIGuild, 'id' | 'owner_id' | 'roles'>;
 
 declare type PermissibleMember = Pick<Required<APIGuildMember>, 'user' | 'roles'>;
 
-/* Excluded from this release type: QueuedRequest */
+export declare class QueuedRequest {
+    #private;
+    constructor(request: ApiRequest, resolve: (response: ApiResponse) => void, reject: (reason?: unknown) => void);
+    get request(): ApiRequest;
+    resolve(response: ApiResponse): void;
+    reject(reason?: unknown): void;
+}
 
 /* Excluded from this release type: RateLimit */
 
 /** From Discord - A uid that identifies a group of requests that share a rate limit. */
 declare type RateLimitBucketHash = string;
 
-/* Excluded from this release type: RateLimitCache */
+/**
+ * Stores the state of all known rate limits this client has encountered.
+ */
+export declare class RateLimitCache {
+    #private;
+    /** Request meta values to their associated rate limit bucket, if one exists. */
+    bucketHashes: Map<string, RateLimitBucketHash>;
+    constructor(globalRateLimitMax: number, globalRateLimitResetPadding: number, api: undefined | Api);
+    /**
+     * If the request cannot be made without triggering a Discord rate limit.
+     * `true` if the rate limit exists and is active. Do no send a request.
+     */
+    private get isGloballyRateLimited();
+    /** If it is past the time Discord said the rate limit would reset. */
+    private get globalRateLimitHasReset();
+    /** If a request can be made without triggering a Discord rate limit. */
+    private get globalRateLimitHasRemainingUses();
+    /** How long until the rate limit resets in ms. */
+    private get globalRateLimitResetAfter();
+    end(): void;
+    /** Removes bucket hash mappings that haven't been written to within the expiry window. */
+    private sweepExpiredBucketHashes;
+    /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
+    wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest;
+    private decrementGlobalRemaining;
+    /**
+     * Authorizes a request being check via the rate limit rpc service.
+     *
+     * @param {BaseRequest} request Request's rate limit key formed in BaseRequest.
+     * @returns {number} Until when the client should wait before asking to authorize this request again.
+     */
+    authorizeRequestFromClient(request: BaseRequest): RateLimitState;
+    /**
+     * Updates this cache using the response headers after making a request.
+     *
+     * @param request Request that was made.
+     * @param rateLimitHeaders Rate limit values from the response.
+     */
+    update(rateLimitKey: string, bucketHashKey: string, rateLimitHeaders: RateLimitHeaders): void;
+    /**
+     * Sets the global rate limit state if the response headers indicate a global rate limit.
+     *
+     * @param rateLimitHeaders Rate limit values from the response.
+     */
+    updateGlobal(rateLimitHeaders: RateLimitHeaders): void;
+    /**
+     * Runs a request's rate limit meta against the cache to determine if it would trigger a rate limit.
+     *
+     * @param request The request to reference when checking the rate limit state.
+     * @returns `true` if rate limit would get triggered.
+     */
+    isRateLimited(request: BaseRequest | ApiRequest): RateLimitState;
+    /** Sets the remaining requests back to the known limit. */
+    private resetGlobalRateLimit;
+    /**
+     * Gets the rate limit, creating a new one from an existing template if the rate limit does not already exist.
+     *
+     * @param request Request that may have a rate limit.
+     * @return `undefined` when there is no cached rate limit or matching template for this request.
+     */
+    private getRateLimitFromCache;
+    getBucket(bucketHashKey: string): string | undefined;
+    /**
+     * Updates this cache using the response headers after making a request.
+     *
+     * @param request Request that was made.
+     * @param bucketHash uid of the rate limit's bucket.
+     */
+    private rateLimitFromTemplate;
+}
 
 export declare interface RateLimitedResponse extends ApiResponse<{
     retry_after: number;
@@ -811,7 +1016,46 @@ export declare interface RateLimitedResponse extends ApiResponse<{
     statusText: 'Too Many Requests';
 }
 
-/* Excluded from this release type: RateLimitHeaders */
+/**
+ * Representation of rate limit values from the header of a response from Discord.
+ */
+export declare class RateLimitHeaders {
+    /** From Discord - If the request was globally rate limited. */
+    global: boolean;
+    /** From Discord - Id of the rate limit bucket. */
+    bucketHash: string | undefined;
+    /** From Discord - Number of requests that can be made between rate limit triggers. */
+    limit: number;
+    /** From Discord - Number of requests available before hitting rate limit. */
+    remaining: number;
+    /** From Discord - How long in ms the rate limit resets. */
+    resetAfter: number;
+    /** From Discord - How long in ms the rate sub-limit resets. (Same as resetAfter if there is no sub-limit.) */
+    retryAfter: number;
+    /** A localized timestamp of when the rate limit resets. */
+    resetTimestamp: number;
+    /**
+     * Extracts the rate limit state information if they exist from a set of response headers.
+     * @param headers Headers from a response.
+     * @returns Rate limit state with the bucket hash; or `undefined` if there is no rate limit information.
+     */
+    static extractRateLimitFromHeaders(headers: ApiResponse['headers'], retryAfter: undefined | number): RateLimitHeaders;
+    /**
+     * Creates a new rate limit headers.
+     *
+     * @param global From Discord - If the request was globally rate limited.
+     * @param bucketHash From Discord - Id of the rate limit bucket.
+     * @param limit From Discord - Number of requests that can be made between rate limit triggers.
+     * @param remaining From Discord - Number of requests available before hitting rate limit.
+     * @param resetAfter From Discord - How long in ms the rate limit resets.
+     * @param retryAfter From Discord - The retry value from a 429 body. Sub-limits may make this value larger than resetAfter.
+     */
+    constructor(global: boolean, bucketHash: string | undefined, limit: number, remaining: number, resetAfter: number, retryAfter: undefined | number);
+    /** Whether or not the header values indicate the request has a rate limit. */
+    get hasState(): boolean;
+    /** Values to send over the rate limit service rpc. */
+    get rpcArgs(): RpcArguments;
+}
 
 /* Excluded from this release type: RateLimitMap */
 
@@ -872,7 +1116,25 @@ export declare interface RequestOptions {
     validateStatus?: null | ((status: number) => boolean);
 }
 
-/* Excluded from this release type: RequestQueue */
+/**
+ * A queue for rate limited requests waiting to be sent.
+ */
+export declare class RequestQueue {
+    #private;
+    /**
+     * Creates a new requests queue for rate limits requests.
+     * @param apiClient Api client through which to emit events.
+     */
+    constructor(apiClient: Api);
+    end(): void;
+    /**
+     * Adds any number of requests to the queue.
+     * @param items Request objects being queued.
+     */
+    push(...items: QueuedRequest[]): void;
+    private processQueue;
+    private sendRequest;
+}
 
 declare interface RequestService {
     hello(): Promise<void>;

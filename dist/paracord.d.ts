@@ -261,7 +261,6 @@ export declare interface ApiOptions {
 /**
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
- * @internal
  */
 export declare class ApiRequest extends BaseRequest {
     /** Data to send in the body of the request.  */
@@ -322,7 +321,6 @@ declare type AvatarParams = {
 
 /**
  * Basic information in a request to Discord.
- * @internal
  */
 export declare class BaseRequest {
     #private;
@@ -601,7 +599,6 @@ export declare type GatewayHeartbeatSentEvent = {
 
 /**
  * A container of information for identifying with the gateway. https://discord.com/developers/docs/topics/gateway#identify-identify-structure
- * @internal
  */
 export declare class GatewayIdentify {
     #private;
@@ -661,7 +658,6 @@ export declare const GIGABYTE_IN_BYTES = 1073741824;
 
 export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) => void;
 
-/** @internal */
 export declare class Heartbeat {
     #private;
     constructor(params: Params);
@@ -934,7 +930,6 @@ declare type PermissibleGuild = Pick<APIGuild, 'id' | 'owner_id' | 'roles'>;
 
 declare type PermissibleMember = Pick<Required<APIGuildMember>, 'user' | 'roles'>;
 
-/** @internal */
 export declare class QueuedRequest {
     #private;
     constructor(request: ApiRequest, resolve: (response: ApiResponse) => void, reject: (reason?: unknown) => void);
@@ -986,7 +981,6 @@ declare type RateLimitBucketHash = string;
 
 /**
  * Stores the state of all known rate limits this client has encountered.
- * @internal
  */
 export declare class RateLimitCache {
     #private;
@@ -1067,7 +1061,6 @@ export declare interface RateLimitedResponse extends ApiResponse<{
 
 /**
  * Representation of rate limit values from the header of a response from Discord.
- * @internal
  */
 export declare class RateLimitHeaders {
     /** From Discord - If the request was globally rate limited. */
@@ -1212,7 +1205,6 @@ export declare interface RequestOptions {
 
 /**
  * A queue for rate limited requests waiting to be sent.
- * @internal
  */
 export declare class RequestQueue {
     #private;

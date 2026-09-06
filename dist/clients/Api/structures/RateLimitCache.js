@@ -9,7 +9,6 @@ const RateLimitMap_1 = __importDefault(require("./RateLimitMap"));
 const RateLimitTemplateMap_1 = __importDefault(require("./RateLimitTemplateMap"));
 /**
  * Stores the state of all known rate limits this client has encountered.
- * @internal
  */
 class RateLimitCache {
     #apiClient;
