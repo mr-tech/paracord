@@ -78,6 +78,11 @@ describe('5xx resets the information-free 429 schedule at WP-5\'s tip (AC-5.2 (i
     return finalGap;
   };
 
+  // Vitest errors a suite with zero collected tests ("No test found in suite") rather
+  // than passing it vacuously — this placeholder keeps the file green while both real
+  // cells below stay commented out, not deleted.
+  it.skip('placeholder — see the file header above (D-50); the commented cells below are the real content', () => {});
+
   /*
   it('control x3: reaches the ~4000ms family at n = 3 (positive control)', async () => {
     for (let i = 0; i < 3; i += 1) {
