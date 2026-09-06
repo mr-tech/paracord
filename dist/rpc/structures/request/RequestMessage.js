@@ -80,9 +80,10 @@ class RequestMessage {
      * Create a new RequestMessage sent from client to server. `createForm`'s product is
      * resolved here — before the message is built — since a function cannot cross the
      * wire; its `data`, `headers` and `params` travel in those three fields instead. A
-     * product whose `data` is multipart form data is not JSON-representable and does not
-     * cross the wire (unfunded residue, plan 001 WP-7 step 3): it is dropped, bodiless,
-     * exactly as when `createForm` was never resolved at all.
+     * product whose `data` is multipart form data is not JSON-representable: its `data`
+     * does not cross the wire, but its `headers` and `params` still do (unfunded
+     * residue) — the message this constructs can announce a multipart `content-type`
+     * boundary for a body it does not carry.
      */
     constructor(apiRequest) {
         this.method = apiRequest.method;
