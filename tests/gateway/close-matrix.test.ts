@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
 import type { GatewayCloseCode } from '../../src/constants';
@@ -50,88 +50,89 @@ function classOf(code: number): 'P-keep' | 'P-clear' | 'P-terminal' {
 const STATES = ['CONNECTING', 'OPEN', 'QUEUED'] as const;
 type State = typeof STATES[number];
 
-describe('AC-1.2/1.3/1.11: close-code x socket-state matrix', () => {
-  let server: LoopbackGatewayServer;
-  let bot: Paracord;
-  let uncaught = 0;
-  let unhandled = 0;
-  const onUncaught = () => { uncaught += 1; };
-  const onUnhandled = () => { unhandled += 1; };
-
-  afterEach(async () => {
-    bot?.end();
-    await server?.close();
-    process.off('uncaughtException', onUncaught);
-    process.off('unhandledRejection', onUnhandled);
-  });
-
+describe.concurrent('AC-1.2/1.3/1.11: close-code x socket-state matrix', () => {
   async function cell(code: number, state: State): Promise<void> {
-    process.on('uncaughtException', onUncaught);
-    process.on('unhandledRejection', onUnhandled);
+    let server: LoopbackGatewayServer | undefined;
+    let bot: Paracord | undefined;
+    let uncaught = 0;
+    let unhandled = 0;
+    const onUncaught = () => { uncaught += 1; };
+    const onUnhandled = () => { unhandled += 1; };
 
-    server = await LoopbackGatewayServer.start({ mode: state === 'OPEN' ? 'accept' : 'hang' });
-    bot = createTestBot(server.url);
-    const events: GatewayCloseEvent[] = [];
-    bot.on('GATEWAY_CLOSE', (e: GatewayCloseEvent) => { events.push(e); });
-
-    await bot.login({ identity: { intents: 1 }, shards: [0], shardCount: 1 });
-    const gw = bot.shards.get(0)!;
-
-    if (state === 'OPEN') {
-      await waitForCondition(() => gw.resumable, 'READY handled', 5000);
-    } else if (state === 'CONNECTING') {
-      await waitForCondition(() => server.attempts.length >= 1, 'handshake in flight', 5000);
-    } else {
-      // QUEUED: reach READY, then drop the socket with the host answering 503, so the
-      // gateway returns to the login queue with no socket rather than reconnecting.
-      server.setMode('accept');
-      await waitForCondition(() => gw.resumable, 'READY handled', 5000);
-      server.setMode('reject503');
-      const before = events.length;
-      server.dropLiveSocket();
-      await waitForCondition(() => events.length > before, 'natural close observed', 5000);
-      await waitForCondition(() => server.attempts.length >= 2, 'requeued and retrying', 5000);
-      await new Promise((r) => { setTimeout(r, 150); });
-    }
-
-    const resumableBefore = gw.resumable;
-    const attemptsBefore = server.attempts.length;
-    const eventsBefore = events.length;
-
-    // The non-member representative (and any code a plain-JS caller might pass) is
-    // outside `GatewayCloseCode`'s enum by design — the cast stands in for that caller.
-    expect(() => gw.close(code as GatewayCloseCode)).not.toThrow();
-
-    let delivered: GatewayCloseEvent | null = null;
     try {
-      await waitForCondition(() => events.length > eventsBefore, 'GATEWAY_CLOSE delivered', 4000);
-      delivered = events[eventsBefore]!;
-    } catch {
-      // recorded as no delivery below
-    }
+      process.on('uncaughtException', onUncaught);
+      process.on('unhandledRejection', onUnhandled);
 
-    await new Promise((r) => { setTimeout(r, 400); }); // settle: catch a second delivery
+      server = await LoopbackGatewayServer.start({ mode: state === 'OPEN' ? 'accept' : 'hang' });
+      bot = createTestBot(server.url);
+      const events: GatewayCloseEvent[] = [];
+      bot.on('GATEWAY_CLOSE', (e: GatewayCloseEvent) => { events.push(e); });
 
-    const cls = classOf(code);
+      await bot.login({ identity: { intents: 1 }, shards: [0], shardCount: 1 });
+      const gw = bot.shards.get(0)!;
 
-    // D1: exactly one delivery, carrying the caller's code.
-    expect(events.length - eventsBefore).toBe(1);
-    expect(delivered?.code).toBe(code);
+      if (state === 'OPEN') {
+        await waitForCondition(() => gw.resumable, 'READY handled', 5000);
+      } else if (state === 'CONNECTING') {
+        await waitForCondition(() => server!.attempts.length >= 1, 'handshake in flight', 5000);
+      } else {
+        // QUEUED: reach READY, then drop the socket with the host answering 503, so the
+        // gateway returns to the login queue with no socket rather than reconnecting.
+        server.setMode('accept');
+        await waitForCondition(() => gw.resumable, 'READY handled', 5000);
+        server.setMode('reject503');
+        const before = events.length;
+        server.dropLiveSocket();
+        await waitForCondition(() => events.length > before, 'natural close observed', 5000);
+        await waitForCondition(() => server!.attempts.length >= 2, 'requeued and retrying', 5000);
+        await new Promise((r) => { setTimeout(r, 150); });
+      }
 
-    // D2: shouldReconnect false for P-terminal, true otherwise.
-    expect(delivered?.shouldReconnect).toBe(cls !== 'P-terminal');
+      const resumableBefore = gw.resumable;
+      const attemptsBefore = server.attempts.length;
+      const eventsBefore = events.length;
 
-    // D3: resumable unchanged for P-keep/P-terminal, false for P-clear.
-    const wantResumable = cls === 'P-clear' ? false : resumableBefore;
-    expect(gw.resumable).toBe(wantResumable);
+      // The non-member representative (and any code a plain-JS caller might pass) is
+      // outside `GatewayCloseCode`'s enum by design — the cast stands in for that caller.
+      expect(() => gw.close(code as GatewayCloseCode)).not.toThrow();
 
-    // D4: the process survives (checked in afterEach via the counters below).
-    expect(uncaught).toBe(0);
-    expect(unhandled).toBe(0);
+      let delivered: GatewayCloseEvent | null = null;
+      try {
+        await waitForCondition(() => events.length > eventsBefore, 'GATEWAY_CLOSE delivered', 4000);
+        delivered = events[eventsBefore]!;
+      } catch {
+        // recorded as no delivery below
+      }
 
-    // D5: a P-terminal close produces no further connect attempt.
-    if (cls === 'P-terminal') {
-      expect(server.attempts.length - attemptsBefore).toBe(0);
+      await new Promise((r) => { setTimeout(r, 400); }); // settle: catch a second delivery
+
+      const cls = classOf(code);
+
+      // D1: exactly one delivery, carrying the caller's code.
+      expect(events.length - eventsBefore).toBe(1);
+      expect(delivered?.code).toBe(code);
+
+      // D2: shouldReconnect false for P-terminal, true otherwise.
+      expect(delivered?.shouldReconnect).toBe(cls !== 'P-terminal');
+
+      // D3: resumable unchanged for P-keep/P-terminal, false for P-clear.
+      const wantResumable = cls === 'P-clear' ? false : resumableBefore;
+      expect(gw.resumable).toBe(wantResumable);
+
+      // D4: the process survives — this cell's own listeners, torn down below
+      // regardless of outcome (never shared with, or read by, another cell's hook).
+      expect(uncaught).toBe(0);
+      expect(unhandled).toBe(0);
+
+      // D5: a P-terminal close produces no further connect attempt.
+      if (cls === 'P-terminal') {
+        expect(server.attempts.length - attemptsBefore).toBe(0);
+      }
+    } finally {
+      bot?.end();
+      await server?.close();
+      process.off('uncaughtException', onUncaught);
+      process.off('unhandledRejection', onUnhandled);
     }
   }
 
