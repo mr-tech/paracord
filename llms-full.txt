@@ -2,7 +2,7 @@
 
 > A TypeScript/Node.js toolkit for building scalable Discord bots with REST, Gateway, and optional gRPC-based remote services for rate limits and requests.
 
-Version: 0.0.5 | License: Apache-2.0 | Node: >=16 | Module: CommonJS
+Version: 0.0.6 | License: Apache-2.0 | Node: >=16 | Module: CommonJS
 
 ---
 
@@ -50,7 +50,7 @@ new Api(token: string, options?: ApiOptions)
 - `token` — Discord bot token. Automatically prefixed with `Bot ` if missing.
 - `options.emitter` — EventEmitter for debug events.
 - `options.requestOptions` — Default RequestOptions applied to all requests.
-- `options.queueLoopInterval` — Interval in ms between queue processing cycles. Controls how often rate-limited requests are retried.
+- `options.queueLoopInterval` — Declared on `ApiOptions`; the request queue's processing cycle is fixed at 1 s and this option does not change it.
 - `options.maxConcurrency` — Max number of concurrent in-flight requests. Requests exceeding this are queued.
 
 ### Methods
@@ -58,6 +58,15 @@ new Api(token: string, options?: ApiOptions)
 #### `api.request<T>(method: Method, url: string, options?: RequestOptions): Promise<ApiResponse<T> | RemoteApiResponse<T>>`
 
 Makes a request to Discord, handling rate limits and returning when a non-429 response is received.
+
+Rate-limit handling: a 429 that carries no timing information at all (no body `retry_after`, no
+`retry-after` header, no `x-ratelimit-reset-after`) is retried with growing backoff — 1 s, 2 s,
+4 s … doubling, capped at 60 s — and the schedule resets on any other response; a Cloudflare 429
+(HTML body, `retry-after` header) waits out the header's full value, with no ceiling.
+
+Retry policy for a 5xx response or a transport error: up to 3 attempts for GET, HEAD, OPTIONS,
+PUT and DELETE; 1 attempt for every other method — POST and PATCH surface the failure at once and
+are never retried. Not configurable.
 
 - `method` — HTTP method: `'GET'`, `'POST'`, `'PUT'`, `'PATCH'`, `'DELETE'`
 - `url` — Discord endpoint path (e.g. `'/channels/123456789'`). Leading slash optional.
@@ -69,9 +78,27 @@ Returns `ApiResponse<T>` with `{ status, statusText, data: T, headers }`.
 
 Connects to a remote gRPC rate limit server. The server authorizes each request before it's made.
 
+Every call to either server carries a 10-second deadline. A call that expires fails as a lost
+connection; with `allowFallback` the client reconnects to the server and falls back to local
+handling. A client that recreates its connection closes the previous service first.
+
 #### `api.addRequestService(options?: ServiceOptions): Promise<boolean>`
 
 Connects to a remote gRPC request server. The server makes Discord requests on behalf of this client.
+
+A proxied response arrives with `data` already parsed — the same value a local request yields for
+the same body, for every JSON shape. The request options `params`, `returnOnRateLimit`,
+`returnOnGlobalRateLimit` and `maxRateLimitRetry` travel with the request and the server honours
+them as a local request would; `createForm` is resolved on the client and its JSON-representable
+`data`, `headers` and `params` travel in its place.
+
+Re-send policy on a transport failure (connection lost, cancelled, internal error, or the 10-second
+deadline) with `allowFallback`: the client reconnects and re-sends the request locally **only for
+GET, HEAD, OPTIONS, PUT and DELETE**. A POST or PATCH is never re-sent by the client — the server may
+already have forwarded it once — and the transport error is surfaced to the caller instead.
+
+Both client-side services expose `close(): void`. A consumer assigning its own object as the
+request service must provide it.
 
 Only one RPC service (rate limit OR request) may be added per Api instance.
 
@@ -146,6 +173,12 @@ interface ApiResponse<T = any> {
 
 Manages a single Discord WebSocket gateway connection with heartbeat, identify, and resume logic.
 
+Heartbeat veto cap: while a `requestGuildMembers` stream is still in flight, an unacknowledged
+heartbeat does not close the connection on its own, up to a cap of three. With
+`heartbeatTimeoutSeconds` unset (there is no library default), `HEARTBEAT_TIMEOUT` fires on the
+fourth consecutive unacknowledged heartbeat and not before; with it set, the cap never extends the
+bound that option already applies.
+
 ### Constructor
 
 ```ts
@@ -172,7 +205,9 @@ Opens a WebSocket connection to Discord and begins the identify/resume flow.
 
 #### `gateway.close(code?: GatewayCloseCode, flushWait?: number): void`
 
-Closes the WebSocket connection. Default code: `USER_TERMINATE_RECONNECT` (4997).
+Closes the WebSocket connection. Default code: `USER_TERMINATE_RECONNECT` (4997). Honoured on a
+socket that is still connecting as well as on an open one; the caller's code is delivered on
+`GATEWAY_CLOSE` exactly once either way.
 
 #### `gateway.requestGuildMembers(options: GatewayRequestGuildMembersData): boolean`
 
@@ -198,8 +233,9 @@ Enables or disables payload compression.
 TypeScript consumer importing `paracord` never sees this class — only `api-report/paracord.api.md`
 and the untrimmed `dist/paracord.d.ts` list it, and only because `Gateway` re-exports it internally.
 Reachable at the JS value level regardless (`require('paracord').Session`), with no type-checking
-for a caller who reaches it that way. Documented here only because its `close()` signature changed
-as a named breaking change; nothing else about this class is a supported entry point.
+for a caller who reaches it that way. Documented here only so the change to its `close()`
+signature is on record; nothing about this class is a supported entry point, and nothing on the
+published type surface moved with it.
 
 #### `session.close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void`
 
@@ -219,7 +255,7 @@ interface GatewayOptions {
   wsUrl: string;                           // WebSocket URL to connect to
   wsParams: GatewayURLQuery;               // WebSocket URL query parameters
   heartbeatIntervalOffset?: number;        // Seconds subtracted from heartbeat interval
-  heartbeatTimeoutSeconds?: number;        // Seconds before heartbeat ack timeout
+  heartbeatTimeoutSeconds?: number;        // Seconds before heartbeat ack timeout; no default (see the veto cap above)
   checkSiblingHeartbeats?: Function[];     // Cross-shard heartbeat checks (internal sharding)
   version?: number;                        // Gateway version (default: 10)
 }
@@ -247,6 +283,11 @@ interface IdentityOptions {
 ## Class: Paracord (extends EventEmitter)
 
 Orchestrates multiple Gateway clients with serialized login queue, startup tracking, and automatic reconnection.
+
+Reconnection backs off — 1 s base, doubling, ±20% jitter, capped at 60 s — and never gives up. After
+three consecutive abnormal-close (1006) failures against the resume host, the gateway abandons that
+host and sends a RESUME on the base `wsUrl` with its session kept; it then runs without a resume
+host until the next READY, a state Discord documents as prone to more frequent disconnects.
 
 ### Constructor
 
@@ -281,13 +322,27 @@ Updates the token on all gateways.
 
 ### Events
 
-```ts
-paracord.on('READY', (data, shard) => { });
-paracord.on('GUILD_CREATE', (data, shard) => { });
-paracord.on('MESSAGE_CREATE', (data, shard) => { });
-// ... all GatewayDispatchEvents from discord-api-types/v10
+Discord dispatch events (`READY`, `GUILD_CREATE`, `MESSAGE_CREATE`, … — every
+`GatewayDispatchEvents` name) are **not** emitted on the Paracord instance. Each `Gateway` passes
+every dispatch packet to its emitter's `handleEvent(type, data, gateway)`; for a `Paracord`-driven
+bot that emitter is the `Paracord` instance itself, whose own `handleEvent` does startup bookkeeping
+only. Subclass `Paracord` and override it, calling `super` so that bookkeeping still runs:
 
+```ts
+class Bot extends Paracord {
+  handleEvent(type, data, shard) {
+    super.handleEvent(type, data, shard);
+    if (type === 'GUILD_CREATE') { /* ... */ }
+  }
+}
+```
+
+The events the Paracord instance does emit, listened to with `paracord.on`:
+
+```ts
+paracord.on('GATEWAY_OPEN', (event) => { });
 paracord.on('GATEWAY_CLOSE', (event: GatewayCloseEvent) => { });
+paracord.on('GATEWAY_IDENTIFY', (event) => { });
 paracord.on('SHARD_STARTUP_COMPLETE', (event: ParacordStartupEvent) => { });
 paracord.on('PARACORD_STARTUP_COMPLETE', () => { });
 paracord.on('DEBUG', (event) => { });
@@ -436,7 +491,7 @@ interface ServiceOptions {
   host?: string;               // RPC server host (default: '127.0.0.1')
   port?: string | number;      // RPC server port (default: '50051')
   channel?: ChannelCredentials; // gRPC channel credentials
-  allowFallback?: boolean;     // Fall back to local handling if RPC unavailable (default: true)
+  allowFallback?: boolean;     // Fall back to local handling when the server is unreachable or a call exceeds its 10 s deadline (default: true)
 }
 ```
 
@@ -499,10 +554,10 @@ API_DEBUG_CODES     // { GENERAL: 1, ERROR: 2, REQUEST_SENT: 3, ... }
 
 ## Architecture Notes
 
-- Gateway → emits Discord events to a provided emitter's `handleEvent(type, data, gateway)` method.
-- Paracord → orchestrates many Gateways, serializes logins via a queue, tracks startup progress.
-- Api → wraps axios with `RateLimitCache`; queues requests when bucket/global limits hit; retries 5xx up to 3 times.
-- Server (RpcServer) → centralizes rate limit state for multi-process deployments; can also proxy REST requests.
+- Gateway → passes every Discord dispatch event to a provided emitter's `handleEvent(type, data, gateway)` method; dispatch events are never emitted on the bot instance.
+- Paracord → orchestrates many Gateways, serializes logins via a queue, tracks startup progress, reconnects with backoff.
+- Api → wraps axios with `RateLimitCache`; queues requests when bucket/global limits hit; retries a 5xx or transport error up to 3 attempts for GET, HEAD, OPTIONS, PUT and DELETE and 1 attempt for every other method.
+- Server (RpcServer) → centralizes rate limit state for multi-process deployments; can also proxy REST requests, answering with `data` parsed once, as a local request would.
 - ShardLauncher → spawns pm2 processes; injects `PARACORD_TOKEN`, `PARACORD_SHARD_COUNT`, `PARACORD_SHARD_IDS` env vars.
 - Tokens are always coerced to `Bot <token>` format via `coerceTokenToBotLike()`.
 - All clients emit `DEBUG` events tagged with `LOG_SOURCES` for structured observability.

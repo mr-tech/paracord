@@ -21,10 +21,20 @@ import { Paracord, Api, Gateway, ShardLauncher, Server } from 'paracord';
 
 ```js
 const { Paracord } = require('paracord');
-const bot = new Paracord(token, {
+
+// Discord dispatch events are not emitted on the bot instance. They reach you through
+// `handleEvent`: subclass Paracord and override it, calling super to keep Paracord's
+// own startup bookkeeping.
+class Bot extends Paracord {
+  handleEvent(type, data, shard) {
+    super.handleEvent(type, data, shard);
+    if (type === 'GUILD_CREATE') { /* handle */ }
+  }
+}
+
+const bot = new Bot(token, {
   gatewayOptions: { wsUrl, wsParams }
 });
-bot.on('GUILD_CREATE', (data, shard) => { /* handle */ });
 bot.on('PARACORD_STARTUP_COMPLETE', () => { /* all shards ready */ });
 await bot.login({
   identity: { intents: 32767 },
@@ -81,8 +91,8 @@ Gateway.close(code?: GatewayCloseCode, flushWait?: number): void
 Gateway.requestGuildMembers(options: GatewayRequestGuildMembersData): boolean
 
 // Session (internal, Gateway's own delegate — not exported from dist/index.d.ts, the
-// package's own `types` entry point; listed here only because its signature is a named
-// breaking change). Not a supported entry point — use Gateway.close() above.
+// package's own `types` entry point; listed only so its changed close() signature is on
+// record). Not a supported entry point — use Gateway.close() above.
 Session.close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void
 
 Paracord(token: string, options: ParacordOptions)  extends EventEmitter
@@ -100,15 +110,19 @@ Server.serve(): void
 
 ## Events
 
-Paracord/Gateway emit these event types:
+Events the Paracord instance emits (`bot.on(name, handler)`):
 
-- Discord dispatch events: `READY`, `GUILD_CREATE`, `MESSAGE_CREATE`, etc. (all `GatewayDispatchEvents`)
-- Gateway lifecycle: `GATEWAY_OPEN`, `GATEWAY_CLOSE`, `GATEWAY_RESUME`, `GATEWAY_IDENTIFY`
-- Heartbeat: `HEARTBEAT_SENT`, `HEARTBEAT_ACK`
+- Gateway lifecycle: `GATEWAY_OPEN`, `GATEWAY_CLOSE`, `GATEWAY_IDENTIFY`
 - Startup: `SHARD_STARTUP_COMPLETE`, `PARACORD_STARTUP_COMPLETE`
 - Debug: `DEBUG`
 
-Event handler signature: `(data: unknown, shard: Gateway) => void`
+Everything else reaches a consumer through `handleEvent(type, data, shard)`, never through `bot.on`:
+every Discord dispatch event (`READY`, `GUILD_CREATE`, `MESSAGE_CREATE`, … — all
+`GatewayDispatchEvents`) and the gateway's `GATEWAY_RESUME`, `HEARTBEAT_SENT`, `HEARTBEAT_ACK`,
+`GUILD_MEMBERS_CHUNK`, `REQUEST_GUILD_MEMBERS`. Each `Gateway` passes them to its emitter's
+`handleEvent`; for a `Paracord` bot that is `Paracord#handleEvent` (startup bookkeeping only) —
+subclass and override it, as in the quick start. A bare `Gateway` receives them on the `emitter`
+object's own `handleEvent`.
 
 ## Key Types
 
@@ -131,7 +145,12 @@ Event handler signature: `(data: unknown, shard: Gateway) => void`
 - Global rate limit reset padding: `50ms`
 - RPC host: `127.0.0.1`, port: `50051`
 - Tokens are auto-prefixed with `Bot ` if missing.
-- `allowFallback` on RPC services: falls back to local handling when RPC server is unreachable.
+- `allowFallback` on RPC services: falls back to local handling when the RPC server is unreachable or a call exceeds its 10 s deadline.
+- REST retry: a 5xx or transport error is retried up to 3 attempts for GET, HEAD, OPTIONS, PUT and DELETE; 1 attempt for every other method (POST and PATCH are never retried).
+- RPC: every call carries a 10 s deadline. After a transport failure with `allowFallback`, a request is re-sent locally only for GET, HEAD, OPTIONS, PUT and DELETE; a POST or PATCH is never re-sent by the client.
+- Proxied responses: `data` is parsed once, the same value a local request yields.
+- Gateway reconnect: backoff 1 s base, doubling, ±20% jitter, 60 s cap, never gives up; after 3 consecutive 1006 failures the resume host is abandoned and the session RESUMEs on the base URL, session kept.
+- Heartbeat: while a members request is in flight, up to 3 unacknowledged heartbeats are tolerated; `HEARTBEAT_TIMEOUT` fires on the 4th (no `heartbeatTimeoutSeconds` default).
 
 ## Utilities
 

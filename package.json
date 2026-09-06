@@ -1,6 +1,6 @@
 {
   "name": "paracord",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Scalable Discord gateway and API handlers alongside a pre-built client.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
