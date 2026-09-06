@@ -255,6 +255,41 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     await rpc.close();
   }, 15000);
 
+  it('handleRequestRemote × request, a non-idempotent method: still recreates on a transport failure even though the client does not resend it (WP7-F10, D-49)', async () => {
+    const origin = await LoopbackApiOrigin.start();
+    origin.setScript([OK_RESPONSE]);
+    const rpc = await LoopbackRpcServer.startRequestService();
+    const counts: Counts = { constructed: 0, closed: 0, services: [] };
+    const api = await createInstrumentedApi(origin, counts);
+    await api.addRequestService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
+    counts.constructed = 0;
+    counts.closed = 0;
+
+    rpc.injectFault('request', { code: grpcStatus.UNAVAILABLE });
+    const outcome = await api.request('POST', '/channels/1', { data: { content: 'hi' } }).then(
+      () => 'resolved',
+      (e: { code?: unknown }) => `rejected:${e?.code}`,
+    );
+
+    // D-49: the method gate stops the local re-send for a non-idempotent method — the
+    // request rejects with the transport error rather than resolving locally, and the
+    // origin never sees it (no duplicate write).
+    expect(outcome).toBe(`rejected:${grpcStatus.UNAVAILABLE}`);
+    expect(origin.acceptCount).toBe(0);
+
+    // Step 5's own text promises the recreate runs "for every other method" too — moving
+    // it inside the idempotent-method gate survives the whole suite with no cell to catch
+    // it (WP7-F10). This is that cell, reusing AC-6.1's own instrument (WP6-F11) rather
+    // than the resend gate's origin-receipt one, since what is under test here is the
+    // recreate, not the resend.
+    expect(counts.constructed).toBe(1);
+    expect(counts.closed).toBe(1);
+
+    api.end();
+    await origin.close();
+    await rpc.close();
+  }, 15000);
+
   it('reattemptConnectInFuture × rate-limit: recreates exactly once when the initial connect fails', async () => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE]);

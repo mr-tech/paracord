@@ -59,17 +59,25 @@ async function requestOutcome(
 
 describe('AC-7.6 — forward-then-fail (codes 14/1/13), allowFallback: true', () => {
   it.each([
-    ['POST', false],
-    ['post', false],
-    ['PATCH', false],
-    ['GET', true],
-    ['get', true],
-    ['PUT', true],
-  ])('%s resends locally from the client iff the method is idempotent', async (method, shouldResend) => {
+    ['POST', false, grpcStatus.UNAVAILABLE],
+    ['post', false, grpcStatus.UNAVAILABLE],
+    ['PATCH', false, grpcStatus.UNAVAILABLE],
+    ['GET', true, grpcStatus.UNAVAILABLE],
+    ['get', true, grpcStatus.UNAVAILABLE],
+    ['PUT', true, grpcStatus.UNAVAILABLE],
+    // WP7-F11: the describe title names three codes; only 14 (UNAVAILABLE) above was
+    // ever driven. One non-idempotent and one idempotent member per remaining code,
+    // both case spellings, closes the gap without the full 14-spelling x 4-code matrix
+    // qa's Phase 1 probe already drove exhaustively.
+    ['POST', false, grpcStatus.CANCELLED],
+    ['get', true, grpcStatus.CANCELLED],
+    ['post', false, grpcStatus.INTERNAL],
+    ['GET', true, grpcStatus.INTERNAL],
+  ])('%s resends locally from the client iff the method is idempotent', async (method, shouldResend, code) => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE, OK_RESPONSE]);
     const rpc = await LoopbackRpcServer.startRequestService('test-token', origin, PROXY_OPTIONS);
-    rpc.forwardThenFail('request', { code: grpcStatus.UNAVAILABLE });
+    rpc.forwardThenFail('request', { code });
 
     const api = await createApiAgainstOrigin(origin);
     await api.addRequestService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
@@ -77,11 +85,19 @@ describe('AC-7.6 — forward-then-fail (codes 14/1/13), allowFallback: true', ()
     const outcome = await requestOutcome(api, method);
 
     expect(proxyReceipts(origin)).toBe(1); // the proxy's own forward always happens exactly once
+    // The party label is checked against a fact independent of the header it reads:
+    // receipt order. The proxy's own forward always reaches the origin first — it
+    // happens before the RPC failure that could trigger any client-side action — so
+    // receipt 0 must itself carry the 'proxy' tag, and (where a client resend follows)
+    // receipt 1 must not. `clientReceipts` alone cannot see a swapped or duplicated tag,
+    // since it is defined as the complement of `proxyReceipts` over the same array.
+    expect(origin.receivedHeaders[0]![PARTY_HEADER]).toBe('proxy');
     if (shouldResend) {
       expect(outcome).toEqual({ resolved: true, status: 200 });
       expect(clientReceipts(origin)).toBe(1);
+      expect(origin.receivedHeaders[1]![PARTY_HEADER]).not.toBe('proxy');
     } else {
-      expect(outcome).toEqual({ resolved: false, code: grpcStatus.UNAVAILABLE });
+      expect(outcome).toEqual({ resolved: false, code });
       expect(clientReceipts(origin)).toBe(0);
     }
 
