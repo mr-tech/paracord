@@ -9,6 +9,10 @@ import { waitForResumable, waitForCondition } from '../harness/waitFor';
  * WP-1 step 2 (critique F-19). Three consecutive ABNORMAL (1006) failures against the
  * resume host abandon it — the session survives (`resumable` stays true throughout)
  * and the fourth attempt targets the base URL, sending RESUME rather than IDENTIFY.
+ *
+ * WP-7 step 7 (D-50, AC-7.7): all three cells below are commented out, not deleted —
+ * see `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words (the
+ * ruling and its re-enable condition) and the D-50 register row; not restated per file.
  */
 describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
   let baseServer: LoopbackGatewayServer;
@@ -21,6 +25,7 @@ describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
     await resumeServer?.close();
   });
 
+  /*
   it('abandons the resume host at k=3, resumable stays true, the 4th attempt RESUMEs on the base URL', async () => {
     resumeServer = await LoopbackGatewayServer.start({ mode: 'reject503' });
     baseServer = await LoopbackGatewayServer.start({ resumeGatewayUrl: resumeServer.url });
@@ -108,4 +113,5 @@ describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
     // from there: 1 real attempt before the consumer close, 3 more after.
     expect(resumeServer.attempts.length).toBe(4);
   }, 45000);
+  */
 });

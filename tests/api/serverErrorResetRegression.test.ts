@@ -21,6 +21,10 @@ import type Api from '../../src/clients/Api/Api';
  * if it does not reach the ~4000ms family at n = 3, the instrument is not
  * discriminating on this machine and the run is void rather than a data point — the
  * same reason an arm short of its own scripted accept count is a failed run, not one.
+ *
+ * WP-7 step 7 (D-50, AC-7.7): both cells below are commented out, not deleted — see
+ * `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words (the
+ * ruling and its re-enable condition) and the D-50 register row; not restated per file.
  */
 const IF: ScriptedResponse = { status: 429, headers: { 'content-type': 'application/json' }, body: { message: 'You are being rate limited.' } };
 const E5: ScriptedResponse = { status: 500, headers: { 'content-type': 'application/json' }, body: { message: 'Internal Server Error' } };
@@ -74,6 +78,7 @@ describe('5xx resets the information-free 429 schedule at WP-5\'s tip (AC-5.2 (i
     return finalGap;
   };
 
+  /*
   it('control x3: reaches the ~4000ms family at n = 3 (positive control)', async () => {
     for (let i = 0; i < 3; i += 1) {
       // eslint-disable-next-line no-await-in-loop
@@ -90,4 +95,5 @@ describe('5xx resets the information-free 429 schedule at WP-5\'s tip (AC-5.2 (i
       expect(finalGap, `treatment run ${i + 1}`).toBeLessThan(D3_FLOOR);
     }
   }, 120000);
+  */
 });

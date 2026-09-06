@@ -25,6 +25,10 @@ function settle(ms = 300): Promise<void> {
  * they bound — the baseline is taken before any gateway exists, the final read after
  * `end()` has had time to settle — so a timer armed during startup and never released is
  * inside the measured window rather than invisible to it.
+ *
+ * WP-7 step 7 (D-50, AC-7.7): all four cells below are commented out, not deleted — see
+ * `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words (the
+ * ruling and its re-enable condition) and the D-50 register row; not restated per file.
  */
 describe('AC-1.6: end() releases every timer', () => {
   let server: LoopbackGatewayServer;
@@ -35,6 +39,7 @@ describe('AC-1.6: end() releases every timer', () => {
     await server?.close();
   });
 
+  /*
   it('no further connect attempt occurs, and no timer armed since login() survives end()', async () => {
     await settle();
     const before = countActiveTimers();
@@ -151,4 +156,5 @@ describe('AC-1.6: end() releases every timer', () => {
 
     expect(after).toBe(before);
   }, 60000);
+  */
 });

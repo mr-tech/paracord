@@ -135,6 +135,40 @@ rather than by widening `skipLibCheck`:
   the exact transform its frozen code performs), not by running its archived code in-process;
   qa's Phase 2 owns any further `git archive`-based pairing rig.
 
+## Suite guard withdrawn (D-50, WP-7 step 7, AC-7.7)
+
+As of WP-7 step 7, the following cells are **commented out, never deleted**, in the five files
+named — no other cell moves. Each file's header carries this ruling in the owner's own words and
+its re-enable condition; this row is the record AC-7.7 requires.
+
+| File | Criterion | Cells |
+| --- | --- | --- |
+| `tests/gateway/reconnect-backoff.test.ts` | AC-1.1 (b) | 2 |
+| `tests/gateway/resume-host-abandonment.test.ts` | AC-1.10 (b) | 3 |
+| `tests/gateway/end-releases-timers.test.ts` | AC-1.6 | 4 |
+| `tests/api/informationFreeBackoff.test.ts` | AC-9.8 (b), including its `maxRateLimitRetry` clause | 3 |
+| `tests/api/serverErrorResetRegression.test.ts` | AC-5.2 (i) | 2 |
+
+**The owner's ruling, his own words** (`steering/001-rulings.md`, `007f65c`, `114168a`): *"those
+tests are the only verification the reconnect fix works — and they've accomplished their purpose.
+the fix works because they pass. the only reason to keep them is to guard, and I'm ruling that the
+ever-present guard is not worth the cost atm."* **Re-enable condition, his own words**: *"if they
+touch work that's already validated and DONE, then they can be commented out until that
+functionality is being reaonsbly touched and tested again."*
+
+**What is withdrawn is the guard, not the verification.** Each cell's verdict stands on the tree
+where it ran (WP-1 and WP-9b at `bdd9fef`, WP-5 at `272a7a8`) and is not retracted. What is given
+up is standing protection against a *later* package regressing the behaviour — the criteria above
+keep their text in the plan and lose their suite instrument from this commit on.
+
+**Not in this set** (a widening is a registration, not a comment-out): `tests/gateway/heartbeat-veto.test.ts`
+(AC-1.5), `tests/gateway/close-matrix.test.ts` (AC-1.2/1.3/1.11, the 60s force-close case),
+`tests/api/rateLimit429.test.ts` (AC-9.1's 4.5s windows), and every WP-6 RPC cell
+(`rpcRecreateSingleFlight.test.ts`, `rpcDeadlineFallback.test.ts`, `rpcDeadlineNoFallback.test.ts`).
+The arithmetic forms stay live: `tests/unit/backoffSchedule.test.ts`, `tests/unit/failureCounter.test.ts`,
+`tests/unit/rateLimitRetryTarget.test.ts`, `tests/unit/sharedScheduleGuard.test.ts` (AC-1.1 (a),
+AC-9.8 (a), AC-9.12).
+
 ## Naming and test-form conventions
 
 - **Spec-form by default**: a test states what the surface does, not the absence of a past bug.
