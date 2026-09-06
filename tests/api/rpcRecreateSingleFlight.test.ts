@@ -132,7 +132,7 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     counts.closed = 0;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const first = await (api as any).recreateRpcService() as Promise<boolean>;
+    const first = await ((api as any).recreateRpcService() as Promise<boolean>);
     await rpc.waitForHello(2, 5000);
     expect(first).toBe(true);
     expect(rpc.helloCalls).toBe(2); // the initial connect's hello, plus this recreate's
@@ -142,7 +142,7 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     // shard that loses its RPC server twice reconnects once and then never again,
     // silently, while every request still completes.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const second = await (api as any).recreateRpcService() as Promise<boolean>;
+    const second = await ((api as any).recreateRpcService() as Promise<boolean>);
     await rpc.waitForHello(3, 5000);
     expect(second).toBe(true);
     expect(rpc.helloCalls).toBe(3);
@@ -341,9 +341,15 @@ describe('AC-6.1 — the identity check in checkRpcServiceConnection is the sole
     // An immediate transport failure on authorize forces the recreate at ~8s, well
     // before S1's own hello deadline fires at ~10s.
     rpc.injectFault('authorize', { code: grpcStatus.UNAVAILABLE });
-    const r1 = api.request('GET', '/channels/123/messages').then(() => 'ok', (e: { code?: unknown; message?: unknown }) => `err:${e?.code ?? e?.message}`);
+    // Not awaited or asserted — this call's only role is to force the recreate;
+    // `rpc.forceClose()` below ends it in flight either way.
+    void api.request('GET', '/channels/123/messages').then(() => 'ok', (e: { code?: unknown; message?: unknown }) => `err:${e?.code ?? e?.message}`);
 
-    await new Promise((r) => { setTimeout(r, 4000); }); // t ≈ 12s: S1's stale rejection has landed
+    // The second request means nothing until S1's stale rejection has landed. `added` —
+    // the promise addRateLimitService returns — settles exactly then, with `false`, so
+    // awaiting and asserting it states the precondition directly rather than through a
+    // sleep sized to outlast it.
+    expect(await added).toBe('resolved:false');
     const t2 = Date.now();
     const r2 = await api.request('GET', '/channels/123/messages').then(() => 'ok', (e: { code?: unknown; message?: unknown }) => `err:${e?.code ?? e?.message}`);
     const r2ms = Date.now() - t2;
@@ -359,8 +365,6 @@ describe('AC-6.1 — the identity check in checkRpcServiceConnection is the sole
       && typeof e.message === 'string' && /client is connecting to rpc server/i.test(e.message));
     expect(latchWarnings).toHaveLength(0);
 
-    await Promise.race([r1, Promise.resolve()]);
-    await Promise.race([added, Promise.resolve()]);
     api.end();
     await origin.close();
     rpc.forceClose(); // WP6-F4: a withheld stream does not resolve close()
