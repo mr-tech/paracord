@@ -135,11 +135,13 @@ rather than by widening `skipLibCheck`:
   the exact transform its frozen code performs), not by running its archived code in-process;
   qa's Phase 2 owns any further `git archive`-based pairing rig.
 
-## Suite guard withdrawn (D-50, WP-7 step 7, AC-7.7)
+## Suite guard withdrawn, then restored (D-50 → D-52, WP-7 steps 7 → 10, AC-7.7 → AC-7.10)
 
-As of WP-7 step 7, the following cells are **commented out, never deleted**, in the five files
-named — no other cell moves. Each file's header carries this ruling in the owner's own words and
-its re-enable condition; this row is the record AC-7.7 requires.
+At WP-7 step 7 the following cells were commented out, never deleted, in the five files named —
+no other cell moved. At step 10 the owner had the suite's actual pole attacked first (step 8) and
+its cost read on both sides of the cut (step 9) before ruling all fourteen cells restored; every
+cell below is live again as of that commit, and each file's header carries this history in the
+owner's own words.
 
 | File | Criterion | Cells |
 | --- | --- | --- |
@@ -149,17 +151,18 @@ its re-enable condition; this row is the record AC-7.7 requires.
 | `tests/api/informationFreeBackoff.test.ts` | AC-9.8 (b), including its `maxRateLimitRetry` clause | 3 |
 | `tests/api/serverErrorResetRegression.test.ts` | AC-5.2 (i) | 2 |
 
-**The owner's ruling, his own words** (`steering/001-rulings.md`, `007f65c`, `114168a`): *"those
-tests are the only verification the reconnect fix works — and they've accomplished their purpose.
-the fix works because they pass. the only reason to keep them is to guard, and I'm ruling that the
-ever-present guard is not worth the cost atm."* **Re-enable condition, his own words**: *"if they
-touch work that's already validated and DONE, then they can be commented out until that
-functionality is being reaonsbly touched and tested again."*
+**The withdrawal, his own words** (`steering/001-rulings.md`, `007f65c`, `114168a`): *"those tests
+are the only verification the reconnect fix works — and they've accomplished their purpose. the
+fix works because they pass. the only reason to keep them is to guard, and I'm ruling that the
+ever-present guard is not worth the cost atm."* Re-enable condition, his own words: *"if they touch
+work that's already validated and DONE, then they can be commented out until that functionality is
+being reaonsbly touched and tested again."*
 
-**What is withdrawn is the guard, not the verification.** Each cell's verdict stands on the tree
-where it ran (WP-1 and WP-9b at `bdd9fef`, WP-5 at `272a7a8`) and is not retracted. What is given
-up is standing protection against a *later* package regressing the behaviour — the criteria above
-keep their text in the plan and lose their suite instrument from this commit on.
+**The restoration, his own words** (`steering/001-rulings.md`, `998496b`): *"1, but attack the pole
+first, then profile before and after restoring the cut to see if the cut changes anything."* The
+pole (`tests/gateway/close-matrix.test.ts`) was made concurrent at step 8, profiled at step 9, and
+the fourteen cells above returned at step 10 — the whole suite carries them again, and the
+criteria above regain their own instrument rather than resting on a prior tree's verdict.
 
 **Not in this set** (a widening is a registration, not a comment-out): `tests/gateway/heartbeat-veto.test.ts`
 (AC-1.5), `tests/gateway/close-matrix.test.ts` (AC-1.2/1.3/1.11, the 60s force-close case),

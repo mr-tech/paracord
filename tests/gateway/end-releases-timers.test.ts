@@ -26,9 +26,10 @@ function settle(ms = 300): Promise<void> {
  * `end()` has had time to settle — so a timer armed during startup and never released is
  * inside the measured window rather than invisible to it.
  *
- * WP-7 step 7 (D-50, AC-7.7): all four cells below are commented out, not deleted — see
- * `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words (the
- * ruling and its re-enable condition) and the D-50 register row; not restated per file.
+ * WP-7 step 10 (D-52, AC-7.10): all four cells below, commented out at step 7 (D-50),
+ * are restored — see `tests/gateway/reconnect-backoff.test.ts`'s header for the
+ * owner's own words ordering the restoration and the D-52 register row; not restated
+ * per file.
  */
 describe('AC-1.6: end() releases every timer', () => {
   let server: LoopbackGatewayServer;
@@ -38,13 +39,6 @@ describe('AC-1.6: end() releases every timer', () => {
     bot?.end();
     await server?.close();
   });
-
-  // Vitest errors a suite with zero collected tests ("No test found in suite") rather
-  // than passing it vacuously — this placeholder keeps the file green while all four
-  // real cells below stay commented out, not deleted.
-  it.skip('placeholder — see the file header above (D-50); the commented cells below are the real content', () => {});
-
-  /*
   it('no further connect attempt occurs, and no timer armed since login() survives end()', async () => {
     await settle();
     const before = countActiveTimers();
@@ -161,5 +155,4 @@ describe('AC-1.6: end() releases every timer', () => {
 
     expect(after).toBe(before);
   }, 60000);
-  */
 });

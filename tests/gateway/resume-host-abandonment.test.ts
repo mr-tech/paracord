@@ -10,9 +10,10 @@ import { waitForResumable, waitForCondition } from '../harness/waitFor';
  * resume host abandon it — the session survives (`resumable` stays true throughout)
  * and the fourth attempt targets the base URL, sending RESUME rather than IDENTIFY.
  *
- * WP-7 step 7 (D-50, AC-7.7): all three cells below are commented out, not deleted —
- * see `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words (the
- * ruling and its re-enable condition) and the D-50 register row; not restated per file.
+ * WP-7 step 10 (D-52, AC-7.10): all three cells below, commented out at step 7 (D-50),
+ * are restored — see `tests/gateway/reconnect-backoff.test.ts`'s header for the
+ * owner's own words ordering the restoration and the D-52 register row; not restated
+ * per file.
  */
 describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
   let baseServer: LoopbackGatewayServer;
@@ -25,12 +26,6 @@ describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
     await resumeServer?.close();
   });
 
-  // Vitest errors a suite with zero collected tests ("No test found in suite") rather
-  // than passing it vacuously — this placeholder keeps the file green while all three
-  // real cells below stay commented out, not deleted.
-  it.skip('placeholder — see the file header above (D-50); the commented cells below are the real content', () => {});
-
-  /*
   it('abandons the resume host at k=3, resumable stays true, the 4th attempt RESUMEs on the base URL', async () => {
     resumeServer = await LoopbackGatewayServer.start({ mode: 'reject503' });
     baseServer = await LoopbackGatewayServer.start({ resumeGatewayUrl: resumeServer.url });
@@ -118,5 +113,4 @@ describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {
     // from there: 1 real attempt before the consumer close, 3 more after.
     expect(resumeServer.attempts.length).toBe(4);
   }, 45000);
-  */
 });

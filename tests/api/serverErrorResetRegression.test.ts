@@ -22,9 +22,9 @@ import type Api from '../../src/clients/Api/Api';
  * discriminating on this machine and the run is void rather than a data point — the
  * same reason an arm short of its own scripted accept count is a failed run, not one.
  *
- * WP-7 step 7 (D-50, AC-7.7): both cells below are commented out, not deleted — see
- * `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words (the
- * ruling and its re-enable condition) and the D-50 register row; not restated per file.
+ * WP-7 step 10 (D-52, AC-7.10): both cells below, commented out at step 7 (D-50), are
+ * restored — see `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's
+ * own words ordering the restoration and the D-52 register row; not restated per file.
  */
 const IF: ScriptedResponse = { status: 429, headers: { 'content-type': 'application/json' }, body: { message: 'You are being rate limited.' } };
 const E5: ScriptedResponse = { status: 500, headers: { 'content-type': 'application/json' }, body: { message: 'Internal Server Error' } };
@@ -78,12 +78,6 @@ describe('5xx resets the information-free 429 schedule at WP-5\'s tip (AC-5.2 (i
     return finalGap;
   };
 
-  // Vitest errors a suite with zero collected tests ("No test found in suite") rather
-  // than passing it vacuously — this placeholder keeps the file green while both real
-  // cells below stay commented out, not deleted.
-  it.skip('placeholder — see the file header above (D-50); the commented cells below are the real content', () => {});
-
-  /*
   it('control x3: reaches the ~4000ms family at n = 3 (positive control)', async () => {
     for (let i = 0; i < 3; i += 1) {
       // eslint-disable-next-line no-await-in-loop
@@ -100,5 +94,4 @@ describe('5xx resets the information-free 429 schedule at WP-5\'s tip (AC-5.2 (i
       expect(finalGap, `treatment run ${i + 1}`).toBeLessThan(D3_FLOOR);
     }
   }, 120000);
-  */
 });

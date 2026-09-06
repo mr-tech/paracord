@@ -15,15 +15,12 @@ import { waitForResumable } from '../harness/waitFor';
  *
  * escaped: agent-output/user-files/_TODO.txt, owner report 2026-09-03
  *
- * WP-7 step 7 (D-50, AC-7.7): both cells below are commented out, not deleted. The
- * owner, in his own words: "those tests are the only verification the reconnect fix
- * works — and they've accomplished their purpose. the fix works because they pass. the
- * only reason to keep them is to _guard_, and I'm ruling that the ever-present guard is
- * not worth the cost atm." Re-enable condition, his own words: "if they touch work
- * that's already validated and DONE, then they can be commented out until that
- * functionality is being reaonsbly touched and tested again." The verdict these cells
- * produced stands on the tree where they ran (`ecbc431`/`ce49d19`); nothing here
- * retracts it.
+ * WP-7 step 10 (D-52, AC-7.10): the two cells below, commented out at step 7 (D-50),
+ * are restored — his own words, ordering the pole attacked first and the cut read on
+ * both sides of it: "1, but attack the pole first, then profile before and after
+ * restoring the cut to see if the cut changes anything." D-50's guard-not-verification
+ * reading stands as record; these cells regain their place as the suite's own
+ * instrument for AC-1.1 (b) rather than as a record of a prior verdict.
  */
 describe('AC-1.1 (incident): the reconnect loop backs off instead of spinning', () => {
   let server: LoopbackGatewayServer;
@@ -34,12 +31,6 @@ describe('AC-1.1 (incident): the reconnect loop backs off instead of spinning', 
     await server?.close();
   });
 
-  // Vitest errors a suite with zero collected tests ("No test found in suite") rather
-  // than passing it vacuously — this placeholder keeps the file green while both real
-  // cells below stay commented out, not deleted.
-  it.skip('placeholder — see the file header above (D-50); the commented cells below are the real content', () => {});
-
-  /*
   it('the close of a live, READY\'d session reconnects at the next tick, not milliseconds later', async () => {
     server = await LoopbackGatewayServer.start();
     bot = createTestBot(server.url);
@@ -94,5 +85,4 @@ describe('AC-1.1 (incident): the reconnect loop backs off instead of spinning', 
     // The schedule is climbing, not flat: n=3's floor clears n=1's bound entirely.
     expect(gaps[2]).toBeGreaterThan(1.2 * 1 * 1000 + 1000);
   });
-  */
 });

@@ -28,10 +28,10 @@ const OK = {
  * gaps, observed over real loopback sockets on the real clock: growing, not flat, and
  * reset by any response that is not itself information-free.
  *
- * WP-7 step 7 (D-50, AC-7.7): all three cells below are commented out, not deleted —
- * including the `maxRateLimitRetry` cell — see
- * `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words (the
- * ruling and its re-enable condition) and the D-50 register row; not restated per file.
+ * WP-7 step 10 (D-52, AC-7.10): all three cells below, commented out at step 7 (D-50)
+ * including the `maxRateLimitRetry` cell, are restored — see
+ * `tests/gateway/reconnect-backoff.test.ts`'s header for the owner's own words
+ * ordering the restoration and the D-52 register row; not restated per file.
  */
 describe('information-free 429 backoff (AC-9.8)', () => {
   let origin: LoopbackApiOrigin | undefined;
@@ -43,13 +43,6 @@ describe('information-free 429 backoff (AC-9.8)', () => {
     origin = undefined;
     api = undefined;
   });
-
-  // Vitest errors a suite with zero collected tests ("No test found in suite") rather
-  // than passing it vacuously — this placeholder keeps the file green while all three
-  // real cells below stay commented out, not deleted.
-  it.skip('placeholder — see the file header above (D-50); the commented cells below are the real content', () => {});
-
-  /*
   it('gap_n lies in [0.8*s_n, 1.2*s_n + tick] for n = 1..3, and cannot be a flat schedule', async () => {
     // Four information-free responses, not three: gap1 and gap2 alone do not
     // discriminate this schedule from a flat one, because the pre-fix flat 2s floor
@@ -124,5 +117,4 @@ describe('information-free 429 backoff (AC-9.8)', () => {
     await new Promise((resolve) => { setTimeout(resolve, 300); });
     expect(origin.acceptCount).toBe(2);
   }, 15000);
-  */
 });
