@@ -60,9 +60,11 @@ new Api(token: string, options?: ApiOptions)
 Makes a request to Discord, handling rate limits and returning when a non-429 response is received.
 
 Rate-limit handling: a 429 that carries no timing information at all (no body `retry_after`, no
-`retry-after` header, no `x-ratelimit-reset-after`) is retried with growing backoff — 1 s, 2 s,
-4 s … doubling, capped at 60 s — and the schedule resets on any other response; a Cloudflare 429
-(HTML body, `retry-after` header) waits out the header's full value, with no ceiling.
+`retry-after` header, no `x-ratelimit-reset-after`) is retried on **the backoff schedule** — 1 s
+base, doubling, ±20% jitter on every draw, capped at 60 s; the one schedule the library uses
+wherever it backs off, including gateway reconnection under `Paracord` below — and the schedule
+resets on any other response; a Cloudflare 429 (HTML body, `retry-after` header) waits out the
+header's full value, with no ceiling.
 
 Retry policy for a 5xx response or a transport error: up to 3 attempts for GET, HEAD, OPTIONS,
 PUT and DELETE; 1 attempt for every other method — POST and PATCH surface the failure at once and
@@ -284,7 +286,8 @@ interface IdentityOptions {
 
 Orchestrates multiple Gateway clients with serialized login queue, startup tracking, and automatic reconnection.
 
-Reconnection backs off — 1 s base, doubling, ±20% jitter, capped at 60 s — and never gives up. After
+Reconnection backs off on the backoff schedule stated under `api.request` above (1 s base, doubling,
+±20% jitter, 60 s cap — the same schedule, not a second one) and never gives up. After
 three consecutive abnormal-close (1006) failures against the resume host, the gateway abandons that
 host and sends a RESUME on the base `wsUrl` with its session kept; it then runs without a resume
 host until the next READY, a state Discord documents as prone to more frequent disconnects.
@@ -329,13 +332,20 @@ bot that emitter is the `Paracord` instance itself, whose own `handleEvent` does
 only. Subclass `Paracord` and override it, calling `super` so that bookkeeping still runs:
 
 ```ts
+import { Paracord } from 'paracord';
+import type { Gateway, GatewayEvent, ParacordEvent, ParacordGatewayEvent } from 'paracord';
+
 class Bot extends Paracord {
-  handleEvent(type, data, shard) {
+  handleEvent(type: ParacordGatewayEvent | GatewayEvent | ParacordEvent, data: unknown, shard: Gateway) {
     super.handleEvent(type, data, shard);
     if (type === 'GUILD_CREATE') { /* ... */ }
   }
 }
 ```
+
+What `handleEvent` receives, as types: every `GatewayEvent` (all `GatewayDispatchEvents`, plus
+`HELLO` and `INVALID_SESSION`) and every `ParacordGatewayEvent` the instance does not itself emit
+(`GATEWAY_RESUME`, `HEARTBEAT_SENT`, `HEARTBEAT_ACK`, `GUILD_MEMBERS_CHUNK`, `REQUEST_GUILD_MEMBERS`).
 
 The events the Paracord instance does emit, listened to with `paracord.on`:
 

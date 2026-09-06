@@ -116,9 +116,10 @@ Events the Paracord instance emits (`bot.on(name, handler)`):
 - Startup: `SHARD_STARTUP_COMPLETE`, `PARACORD_STARTUP_COMPLETE`
 - Debug: `DEBUG`
 
-Everything else reaches a consumer through `handleEvent(type, data, shard)`, never through `bot.on`:
-every Discord dispatch event (`READY`, `GUILD_CREATE`, `MESSAGE_CREATE`, … — all
-`GatewayDispatchEvents`) and the gateway's `GATEWAY_RESUME`, `HEARTBEAT_SENT`, `HEARTBEAT_ACK`,
+Everything else reaches a consumer through `handleEvent(type, data, shard)`, never through `bot.on`.
+As types: every `GatewayEvent` — all `GatewayDispatchEvents` (`READY`, `GUILD_CREATE`,
+`MESSAGE_CREATE`, …) plus `HELLO` and `INVALID_SESSION` — and every `ParacordGatewayEvent` the
+instance does not itself emit: `GATEWAY_RESUME`, `HEARTBEAT_SENT`, `HEARTBEAT_ACK`,
 `GUILD_MEMBERS_CHUNK`, `REQUEST_GUILD_MEMBERS`. Each `Gateway` passes them to its emitter's
 `handleEvent`; for a `Paracord` bot that is `Paracord#handleEvent` (startup bookkeeping only) —
 subclass and override it, as in the quick start. A bare `Gateway` receives them on the `emitter`
