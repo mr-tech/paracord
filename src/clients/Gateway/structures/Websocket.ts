@@ -64,7 +64,7 @@ export default class Websocket {
   #lastEventTimestamp = 0;
 
   /** Timer for resume connect behavior after a close, allowing backpressure to be processed before reinitializing the websocket. */
-  #flushInterval: undefined | NodeJS.Timeout = undefined;
+  #flushTimeout: undefined | NodeJS.Timeout = undefined;
 
   #eventsDuringFlush = 0;
 
@@ -201,9 +201,9 @@ export default class Websocket {
       if (flushWaitTime > 0) {
         this.#session.log('DEBUG', `Waiting ${flushWaitTime}ms for events to flush before closing.`);
 
-        this.#flushInterval = setTimeout(() => {
+        this.#flushTimeout = setTimeout(() => {
           this.#session.log('DEBUG', `Flush interval timed out. Flushed ${this.#eventsDuringFlush} events during close.`);
-          this.#flushInterval = undefined;
+          this.#flushTimeout = undefined;
           this.#onClose(code, origin);
         }, flushWaitTime);
       } else {
@@ -236,13 +236,13 @@ export default class Websocket {
 
     clearTimeout(this.#closeTimeout);
 
-    if (this.#flushInterval) {
+    if (this.#flushTimeout) {
       this.#session.log('DEBUG', `Flushed ${this.#eventsDuringFlush} events during close.`);
-      clearInterval(this.#flushInterval);
+      clearTimeout(this.#flushTimeout);
     }
 
     this.#closeTimeout = undefined;
-    this.#flushInterval = undefined;
+    this.#flushTimeout = undefined;
 
     this.#connection.onclose = null;
     this.#connection.onerror = null;
