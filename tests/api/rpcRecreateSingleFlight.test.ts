@@ -5,8 +5,8 @@ import { status as grpcStatus } from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
 import LoopbackApiOrigin from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
+import { createInstrumentedApi, type Counts } from '../harness/instrumentedApi';
 
-import type Api from '../../src/clients/Api/Api';
 import type { ApiDebugEvent, ApiOptions } from '../../src/clients/Api/types';
 
 /**
@@ -45,40 +45,6 @@ import type { ApiDebugEvent, ApiOptions } from '../../src/clients/Api/types';
  * exactly the window a `recreateRpcService` that clears the field before assigning its
  * replacement could have flipped.
  */
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-interface Counts { constructed: number; closed: number; services: any[] }
-
-async function createInstrumentedApi(origin: LoopbackApiOrigin, counts: Counts, options: ApiOptions = {}): Promise<Api> {
-  vi.resetModules();
-  vi.doMock('../../src/constants', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../src/constants')>();
-    return { ...actual, DISCORD_API_URL: `${origin.url}/api` };
-  });
-  vi.doMock('../../src/rpc', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('../../src/rpc')>();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const countClose = (create: (opts: any) => any) => (opts: any) => {
-      const service = create(opts);
-      counts.constructed += 1;
-      counts.services.push(service);
-      const originalClose = service.close.bind(service);
-      service.close = () => {
-        counts.closed += 1;
-        originalClose();
-      };
-      return service;
-    };
-    return {
-      ...actual,
-      createRateLimitService: countClose(actual.createRateLimitService),
-      createRequestService: countClose(actual.createRequestService),
-    };
-  });
-
-  const { default: ApiCtor } = await import('../../src/clients/Api/Api');
-  return new ApiCtor('test-token', options);
-}
 
 const OK_RESPONSE = { status: 200, body: { ok: true }, headers: { 'content-type': 'application/json' } };
 

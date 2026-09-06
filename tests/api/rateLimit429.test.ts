@@ -1,8 +1,9 @@
 import {
   describe, it, expect, afterEach, vi,
 } from 'vitest';
-import LoopbackApiOrigin, { createApiAgainstOrigin, type ScriptedResponse } from '../harness/loopbackApiOrigin';
+import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
+import { SHAPES } from '../harness/rateLimit429Shapes';
 import BaseRequest from '../../src/clients/Api/structures/BaseRequest';
 import ApiStatic from '../../src/clients/Api/Api';
 
@@ -10,87 +11,11 @@ import type Api from '../../src/clients/Api/Api';
 
 /**
  * WP-9b step 1 — AC-9.2 (client-side recovery), over the 429 shape class × the request
- * path {local, RPC} (D-20). Header/body values for the shared-scope, global and
- * Cloudflare shapes are the research's own
- * (`research/uncommitted-429-fix-intent-2026-09-03.md` §F2) — `retry-after: 2` for the
- * shared shape, `retry_after: 5.2` for the global shape, `retry-after: 620` for the
- * Cloudflare shape (shortened here to a value still outside the 4.5 s window it once
- * shared with AC-9.1's own cells).
- *
- * AC-9.1 (send counts over a real 4.5s window) had its own cells here; removed — a
- * real-time-window test, not a pure state read against the clock. `Shape`'s
- * `expectedSends` field is unused now and stays on the type, matching every shape's own
- * data rather than being split out for one removed consumer.
+ * path {local, RPC} (D-20). The shapes are `tests/harness/rateLimit429Shapes.ts`, shared
+ * with AC-9.1's send-count cells in `tests/timing/rateLimit429-sendCounts.test.ts`.
+ * Every cell here reads a cache or queue decision against a `vi.setSystemTime` jump —
+ * a state read against the clock, never a real wait.
  */
-
-const CONTROL: ScriptedResponse = {
-  status: 429,
-  headers: {
-    'content-type': 'application/json',
-    'x-ratelimit-global': 'false',
-    'x-ratelimit-bucket': 'control-bucket',
-    'x-ratelimit-limit': '5',
-    'x-ratelimit-remaining': '0',
-    'x-ratelimit-reset-after': '1.5',
-  },
-  body: { message: 'You are being rate limited.' },
-};
-
-const SHARED: ScriptedResponse = {
-  status: 429,
-  headers: {
-    'content-type': 'application/json',
-    'x-ratelimit-scope': 'shared',
-    'retry-after': '2.2',
-  },
-  // No body retry_after — matching the research's exact shape (`54f02df` §F2): shared-scope
-  // 429s omit bucket headers and are identified by the header alone, so this also exercises
-  // extractRetryAfter's fall-through to the header (CR-4's own concern).
-  body: { global: false, message: 'The resource is being rate limited.' },
-};
-
-const GLOBAL: ScriptedResponse = {
-  status: 429,
-  headers: {
-    'content-type': 'application/json',
-    'x-ratelimit-global': 'true',
-  },
-  body: { retry_after: 5.2, global: true, message: 'You are being globally rate limited.' },
-};
-
-const CLOUDFLARE: ScriptedResponse = {
-  status: 429,
-  headers: { 'content-type': 'text/html', 'retry-after': '10' },
-  body: '<html><body>error code: 1015</body></html>',
-  raw: true,
-};
-
-/** No body retry_after, no retry-after header, no x-ratelimit-reset-after (D-17). */
-const INFORMATION_FREE: ScriptedResponse = {
-  status: 429,
-  headers: { 'content-type': 'application/json' },
-  body: { message: 'You are being rate limited.' },
-};
-
-interface Shape {
-  label: string;
-  response: ScriptedResponse;
-  /** Expected network sends over the 4.5s window (research's instrument), each path. */
-  expectedSends: number | { min: number; max: number };
-}
-
-const SHAPES: Shape[] = [
-  { label: 'control (bucket 429, full headers)', response: CONTROL, expectedSends: 3 },
-  { label: 'shared-scope 429 (x-ratelimit-scope: shared)', response: SHARED, expectedSends: 2 },
-  { label: 'global 429 (body retry_after, no bucket headers)', response: GLOBAL, expectedSends: 1 },
-  { label: 'Cloudflare ban (HTML body, retry-after header)', response: CLOUDFLARE, expectedSends: 1 },
-  {
-    label: 'information-free 429 (D-17 growth schedule)',
-    response: INFORMATION_FREE,
-    // AC-9.1: "attempts at 0, >= 1s and >= 3s under the schedule" - up to 3 in the window.
-    expectedSends: { min: 2, max: 3 },
-  },
-];
 
 describe('Api 429 handling: recovery (AC-9.2)', () => {
   afterEach(() => {

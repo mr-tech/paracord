@@ -77,7 +77,22 @@ rather than by widening `skipLibCheck`:
   `Api.createWrappedRequestMethod`, which spreads `requestOptions.headers` into every outgoing
   request, so a test tags the proxy's own `Api` (`{ requestOptions: { headers: { 'x-wp7-party':
   'proxy' } } }`) and reads `LoopbackApiOrigin#receivedHeaders` directly — already fed in step
-  with `requestReceipts`, nothing added there either.
+  with `requestReceipts`, nothing added there either. Three later harness modules hold fixtures a
+  standing file and a `tests/timing/` file both need, so neither copies the other:
+  `rateLimit429Shapes.ts` (the 429 shape class, AC-9.1/AC-9.2), `partyAttribution.ts` (the
+  resend gate's per-party origin attribution, AC-7.6) and `instrumentedApi.ts` (AC-6.1's
+  construct/close-counting `Api`).
+- `tests/timing/` — **the timeout/time-based cells, and nothing else.** A cell belongs here when the
+  property it verifies is defined in terms of real elapsed wall-clock time during the run — a
+  backoff schedule's growth, a deadline's expiry, a heartbeat-ack timeout's firing count, a
+  real-time rate-limit window — whether measured by a real sleep or a virtual clock jump. **The
+  standing suite never collects this directory** (`vitest.config.mts` excludes it); it is collected
+  only by `vitest.timing.config.mts`, behind `npm run test:timing`, and nothing runs that by
+  default. `npm run test:types` still type-checks it, so a cell here cannot rot unnoticed. A cell
+  here is **not coverage** for the criterion it names: a reader counting instruments counts
+  `tests/unit`, `tests/api`, `tests/gateway` and `tests/smoke` — see the section below. A cell that
+  uses `setTimeout`/`waitForCondition` only as a settle buffer or a polling bound, with a value as
+  its assertion, is not time-based and stays in its own directory.
 - `tests/fixtures/` — standalone scripts a test forks as a child process, for a case that would
   otherwise crash its host (`.cjs`, run by `node` directly — not part of the TypeScript program a
   vitest worker transforms).
@@ -135,15 +150,33 @@ rather than by widening `skipLibCheck`:
   the exact transform its frozen code performs), not by running its archived code in-process;
   qa's Phase 2 owns any further `git archive`-based pairing rig.
 
-## Timeout / time-based cells removed (owner ruling, superseding D-50/D-52; no plan text)
+## Timeout / time-based cells: removed from the standing suite (D-56), kept behind a flag (D-57)
 
-**This section supersedes the "Suite guard withdrawn, then restored" record below it in this
-file's own history** (kept as a closed chapter at the end of this section rather than deleted,
-since it explains why the same five files appear twice). D-50 commented fourteen cells out; D-52
-restored them at WP-7 step 10 (`4992e81`). Both were plan-text decisions with a criterion behind
-them. This is neither: the owner's ruling has no criterion, no step and no plan revision — the
-planner is stood down for the rest of this effort and he declined to lift it for this. His words,
-verbatim and entire, given as two messages minutes apart:
+**Current state, D-57**: every cell the table below lists is present again under `tests/timing/`
+— the eight whole files restored byte-for-byte from `9098177`, the three partial removals as
+their own files (`rateLimit429-sendCounts`, `rpcProxyResendGate-withhold`,
+`rpcRecreateSingleFlight-staleRejection`) — and **none of them runs by default**. D-56 is not
+withdrawn: the standing `npm test` excludes the directory and the ~50 s suite is the shape he asked
+for; what D-57 bought back is the ability to **ask** (`npm run test:timing`), which deletion had
+priced at a git-history restore. **A flag-gated cell does not exercise its criterion.** The seven
+criteria qa's census found with zero instruments after D-56 (AC-1.5, AC-1.10, AC-6.2, AC-6.3,
+AC-6.5, AC-6.6, AC-9.5 — WP7-F14) still have zero *standing* instruments; the release record must
+name them (B-16) until qa re-censuses under the flag and says otherwise. The one member that did
+come back to the standing suite is AC-7.6's code 4, as an **injected status** at no wall-clock cost
+in `tests/api/rpcProxyResendGate.test.ts` — a different remedy from the flag (CR-48), not a
+time-based cell. The harness affordances the removal orphaned (`withhold`, `release`,
+`waitForAttempt`, `forwardThenWithhold`/`clearForwardThenWithhold`) have live callers again under
+`tests/timing/`; they are load-bearing for D-57 and for the one-more-run allowance below, and are
+not dead code to a tidy-up sweep.
+
+**The removal, D-56 — the record as written when the cells went.** This section supersedes the
+"Suite guard withdrawn, then restored" record below it in this file's own history (kept as a closed
+chapter at the end of this section rather than deleted, since it explains why the same five files
+appear twice). D-50 commented fourteen cells out; D-52 restored them at WP-7 step 10 (`4992e81`).
+Both were plan-text decisions with a criterion behind them. D-56 and D-57 are neither: the owner's
+rulings have no criterion, no step and no plan revision — the planner is stood down for the rest of
+this effort and he declined to lift it for either. His words for D-56, verbatim and entire, given as
+two messages minutes apart:
 
 > "I reject all timeout / time-based tests. The[y] can run during the fulfillment of a milestone
 > to confirm behavior, and then must be removed after the milestone completion."

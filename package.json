@@ -23,6 +23,7 @@
     "build:types": "rimraf build && tsc -p ./tsconfig.json --declaration true --declarationMap true --outDir build && api-extractor run",
     "rebuild": "npm run build",
     "test": "vitest run",
+    "test:timing": "vitest run -c vitest.timing.config.mts",
     "test:types": "tsc -p tsconfig.tests.json --noEmit"
   },
   "repository": {

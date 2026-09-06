@@ -2,8 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { status as grpcStatus } from '@grpc/grpc-js';
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
-
-import type { ApiOptions } from '../../src/clients/Api/types';
+import {
+  PARTY_HEADER, PROXY_OPTIONS, proxyReceipts, clientReceipts, requestOutcome,
+} from '../harness/partyAttribution';
 
 /**
  * Plan 001 WP-7 step 5, AC-7.6 (D-49): `Api#handleRequestRemote`'s catch re-sends a
@@ -14,12 +15,10 @@ import type { ApiOptions } from '../../src/clients/Api/types';
  * unchanged) and the transport error is rethrown to the caller when the method is
  * gated out.
  *
- * Origin-level, per qa's WP7-F2 remedy: the proxy's own `Api` is tagged with a
- * distinguishing request header (`x-wp7-party: proxy`, `Api.createWrappedRequestMethod`
- * spreads `requestOptions.headers` into every outgoing request), so the origin's
- * `receivedHeaders` attribute each receipt to proxy or client directly — never by
- * subtraction, which qa demonstrated gives a false positive under a non-2xx origin or a
- * waited-out 429 (neither exercised here; both are outside this gate's scope).
+ * Origin-level, per qa's WP7-F2 remedy: per-party attribution
+ * (`tests/harness/partyAttribution.ts`) — the proxy's own `Api` is tagged with a
+ * distinguishing request header, so the origin's `receivedHeaders` attribute each
+ * receipt to proxy or client directly, never by subtraction.
  *
  * Uses `LoopbackRpcServer#forwardThenFail` (step 6): the real production handler runs to
  * completion — a genuine forward reaches the loopback origin, counted like any other
@@ -33,34 +32,15 @@ import type { ApiOptions } from '../../src/clients/Api/types';
  * — qa's Phase 2 audits that matrix's adequacy. Every conjunct of the compound predicate
  * is the sole decider in at least one fixture below, per qa's Coverage Obligations table.
  *
- * Code 4 (the deadline, `forwardThenWithhold`) is not driven here — a real-time-window
- * test, removed. The trigger-code population this file exercises is {14, 1, 13}.
+ * The trigger-code population this file exercises is the decider's whole set {14, 4, 1,
+ * 13}, every member as an injected status at no wall-clock cost. Code 4 reached the way
+ * production reaches it — the client's own real deadline expiring behind a withheld
+ * reply — is `tests/timing/rpcProxyResendGate-withhold.test.ts`, run only on request.
  */
 
 const OK_RESPONSE = { status: 200, body: { ok: true } };
-const PARTY_HEADER = 'x-wp7-party';
-const PROXY_OPTIONS: ApiOptions = { requestOptions: { headers: { [PARTY_HEADER]: 'proxy' } } };
 
-function proxyReceipts(origin: LoopbackApiOrigin): number {
-  return origin.receivedHeaders.filter((h) => h[PARTY_HEADER] === 'proxy').length;
-}
-
-function clientReceipts(origin: LoopbackApiOrigin): number {
-  return origin.receivedHeaders.filter((h) => h[PARTY_HEADER] !== 'proxy').length;
-}
-
-async function requestOutcome(
-  api: Awaited<ReturnType<typeof createApiAgainstOrigin>>,
-  method: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ resolved: boolean; status?: number; code?: unknown }> {
-  return api.request(method as never, '/channels/1/messages', { data: { content: 'hi' } }).then(
-    (res) => ({ resolved: true, status: res.status }),
-    (err: { code?: unknown }) => ({ resolved: false, code: err.code }),
-  );
-}
-
-describe('AC-7.6 — forward-then-fail (codes 14/1/13), allowFallback: true', () => {
+describe('AC-7.6 — forward-then-fail (codes 14/4/1/13), allowFallback: true', () => {
   it.each([
     ['POST', false, grpcStatus.UNAVAILABLE],
     ['post', false, grpcStatus.UNAVAILABLE],
@@ -68,14 +48,18 @@ describe('AC-7.6 — forward-then-fail (codes 14/1/13), allowFallback: true', ()
     ['GET', true, grpcStatus.UNAVAILABLE],
     ['get', true, grpcStatus.UNAVAILABLE],
     ['PUT', true, grpcStatus.UNAVAILABLE],
-    // WP7-F11: the describe title names three codes; only 14 (UNAVAILABLE) above was
-    // ever driven. One non-idempotent and one idempotent member per remaining code,
-    // both case spellings, closes the gap without the full 14-spelling x 4-code matrix
-    // qa's Phase 1 probe already drove exhaustively.
+    // One non-idempotent and one idempotent member per remaining code, both case
+    // spellings, so every member of the decider's set is driven here without the full
+    // 14-spelling x 4-code matrix qa's Phase 1 probe already drove exhaustively.
     ['POST', false, grpcStatus.CANCELLED],
     ['get', true, grpcStatus.CANCELLED],
     ['post', false, grpcStatus.INTERNAL],
     ['GET', true, grpcStatus.INTERNAL],
+    // Code 4 as a status the proxy answers with after its forward: exercises the
+    // decider's DEADLINE_EXCEEDED member without a real deadline. The real-deadline
+    // form of the same member is the `tests/timing/` withhold cell.
+    ['PATCH', false, grpcStatus.DEADLINE_EXCEEDED],
+    ['put', true, grpcStatus.DEADLINE_EXCEEDED],
   ])('%s resends locally from the client iff the method is idempotent', async (method, shouldResend, code) => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE, OK_RESPONSE]);
