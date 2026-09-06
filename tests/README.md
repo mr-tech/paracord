@@ -135,42 +135,83 @@ rather than by widening `skipLibCheck`:
   the exact transform its frozen code performs), not by running its archived code in-process;
   qa's Phase 2 owns any further `git archive`-based pairing rig.
 
-## Suite guard withdrawn, then restored (D-50 → D-52, WP-7 steps 7 → 10, AC-7.7 → AC-7.10)
+## Timeout / time-based cells removed (owner ruling, superseding D-50/D-52; no plan text)
 
-At WP-7 step 7 the following cells were commented out, never deleted, in the five files named —
-no other cell moved. At step 10 the owner had the suite's actual pole attacked first (step 8) and
-its cost read on both sides of the cut (step 9) before ruling all fourteen cells restored; every
-cell below is live again as of that commit, and each file's header carries this history in the
-owner's own words.
+**This section supersedes the "Suite guard withdrawn, then restored" record below it in this
+file's own history** (kept as a closed chapter at the end of this section rather than deleted,
+since it explains why the same five files appear twice). D-50 commented fourteen cells out; D-52
+restored them at WP-7 step 10 (`4992e81`). Both were plan-text decisions with a criterion behind
+them. This is neither: the owner's ruling has no criterion, no step and no plan revision — the
+planner is stood down for the rest of this effort and he declined to lift it for this. His words,
+verbatim and entire, given as two messages minutes apart:
 
-| File | Criterion | Cells |
+> "I reject all timeout / time-based tests. The[y] can run during the fulfillment of a milestone
+> to confirm behavior, and then must be removed after the milestone completion."
+>
+> "They can also run once right before declaring the code deployable if must-be."
+
+**The one constraint his own amendment adds**: these cells may run once more, right before the
+code is declared deployable, if that becomes necessary. Removal is by plain deletion (not
+comment-out) precisely because git history is the recovery path for that one-more-run, and D-50's
+comment-out/restore pair is not repeated here — this implementer was told deletion forecloses the
+iff-both-directions audit comment-out/restore gave AC-7.7/AC-7.10 (a), and to record what is lost
+rather than try to preserve it.
+
+**The rule applied** (the load-bearing judgement is the implementer's; the owner's two sentences
+name no test by name): a cell is *timeout / time-based* if the property it verifies is defined in
+terms of real elapsed wall-clock time during the test's own run — a backoff schedule's growth, a
+deadline's expiry, a heartbeat-ack timeout's firing count, a rate-limit window's real-time
+boundary — **regardless of whether the test measures that behaviour via a real sleep or a virtual
+clock jump**. A cell is *not* time-based merely because it uses `setTimeout` or `waitForCondition`
+as a mechanism to wait for a state change or settle a buffer before asserting a value; there the
+timeout is a failure budget, not the property under test.
+
+Cells removed by this rule, all on `chain-001`, this ruling's commit:
+
+| File | Cells removed | Criteria losing their instrument (text stays; the cells verified it once and are gone) |
 | --- | --- | --- |
-| `tests/gateway/reconnect-backoff.test.ts` | AC-1.1 (b) | 2 |
-| `tests/gateway/resume-host-abandonment.test.ts` | AC-1.10 (b) | 3 |
-| `tests/gateway/end-releases-timers.test.ts` | AC-1.6 | 4 |
-| `tests/api/informationFreeBackoff.test.ts` | AC-9.8 (b), including its `maxRateLimitRetry` clause | 3 |
-| `tests/api/serverErrorResetRegression.test.ts` | AC-5.2 (i) | 2 |
+| `tests/gateway/reconnect-backoff.test.ts` | 2 (whole file) | AC-1.1 (b) |
+| `tests/gateway/resume-host-abandonment.test.ts` | 3 (whole file) | AC-1.10 (b) |
+| `tests/gateway/end-releases-timers.test.ts` | 4 (whole file) | AC-1.6 |
+| `tests/api/informationFreeBackoff.test.ts` | 3 (whole file) | AC-9.8 (b), incl. its `maxRateLimitRetry` clause |
+| `tests/api/serverErrorResetRegression.test.ts` | 2 (whole file) | AC-5.2 (i) |
+| `tests/gateway/heartbeat-veto.test.ts` | 2 (whole file) | AC-1.5 |
+| `tests/api/rpcDeadlineFallback.test.ts` | 7 (whole file) | AC-6.2 (the `allowFallback: true` deadline sites), WP6-F10's regression guard, the SL-1/SL-2 substitute readings |
+| `tests/api/rpcDeadlineNoFallback.test.ts` | 4 (whole file) | AC-6.2 (the `allowFallback: false` arm), D-43's latch-timing reading |
+| `tests/api/rateLimit429.test.ts` | 10 of 20 (the `AC-9.1` describe block only) | AC-9.1 (send counts inside a real 4.5s window) — AC-9.2's two describe blocks are untouched: they read a cache/queue decision against `vi.setSystemTime`, not against a real wait, and keep their instrument |
+| `tests/api/rpcProxyResendGate.test.ts` | 2 of 17 (the `forward-then-withhold` describe only) | AC-7.6's code-4/deadline trigger-code member — the {14, 1, 13} members and every control keep their instrument |
+| `tests/api/rpcRecreateSingleFlight.test.ts` | 1 of 10 (one cell) | WP6-F9's real-timing-discriminated cell (the "stale rejection" case) — the sibling "stale success" cell (WP6-F9's other mutant, M9) is fully mocked with no real time and stays; WP6-F9 keeps a partial guard, not none |
 
-**The withdrawal, his own words** (`steering/001-rulings.md`, `007f65c`, `114168a`): *"those tests
-are the only verification the reconnect fix works — and they've accomplished their purpose. the
-fix works because they pass. the only reason to keep them is to guard, and I'm ruling that the
-ever-present guard is not worth the cost atm."* Re-enable condition, his own words: *"if they touch
-work that's already validated and DONE, then they can be commented out until that functionality is
-being reaonsbly touched and tested again."*
+**Total: 40 cells across 11 files** (8 files emptied entirely and deleted outright — a file with
+every cell removed left no test behind to keep it alive as a `.test.ts`, and vitest v4 errors a
+suite with zero collected tests rather than passing it vacuously, which is the same reason step 7
+needed an `it.skip` placeholder it does not get to use this time since there is nothing being kept
+green in these eight); 3 files partially edited, every other cell in them untouched.
 
-**The restoration, his own words** (`steering/001-rulings.md`, `998496b`): *"1, but attack the pole
-first, then profile before and after restoring the cut to see if the cut changes anything."* The
-pole (`tests/gateway/close-matrix.test.ts`) was made concurrent at step 8, profiled at step 9, and
-the fourteen cells above returned at step 10 — the whole suite carries them again, and the
-criteria above regain their own instrument rather than resting on a prior tree's verdict.
+**Deliberately not removed, read against the same rule and named so an omission is not mistaken
+for one**: `tests/gateway/chunk-ttl.test.ts` (AC-1.12) tests a TTL — a time-bounded property in
+substance — entirely via `vi.setSystemTime` clock jumps, never a real wait, so it costs no real
+time and carries none of the flakiness-under-contention risk the real-clock tests above do; kept
+on that basis, not overlooked. `tests/gateway/close-matrix.test.ts`, `chunk-state.test.ts`,
+`corrupt-zlib-frame.test.ts`, `close-connecting.test.ts`, `close-invalid-wire-code.test.ts`, both
+`smoke/` files, `rpcServiceLoss.test.ts`, `rpcCacheUpdateRecreateFailure.test.ts`,
+`globalRateLimitSibling.test.ts`, `serverErrorRetry.test.ts`, `serverErrorTransport.test.ts` and
+`serverErrorSignal.test.ts` all use a fixed real sleep only as a settle buffer or a
+`waitForCondition` polling bound — a failure budget, never the value under test — and keep their
+cells. Every `tests/unit/` arithmetic form (`backoffSchedule`, `failureCounter`,
+`rateLimitRetryTarget`, `sharedScheduleGuard`) computes a schedule value synchronously with no real
+or virtual clock involved at all and was never a candidate.
 
-**Not in this set** (a widening is a registration, not a comment-out): `tests/gateway/heartbeat-veto.test.ts`
-(AC-1.5), `tests/gateway/close-matrix.test.ts` (AC-1.2/1.3/1.11, the 60s force-close case),
-`tests/api/rateLimit429.test.ts` (AC-9.1's 4.5s windows), and every WP-6 RPC cell
-(`rpcRecreateSingleFlight.test.ts`, `rpcDeadlineFallback.test.ts`, `rpcDeadlineNoFallback.test.ts`).
-The arithmetic forms stay live: `tests/unit/backoffSchedule.test.ts`, `tests/unit/failureCounter.test.ts`,
-`tests/unit/rateLimitRetryTarget.test.ts`, `tests/unit/sharedScheduleGuard.test.ts` (AC-1.1 (a),
-AC-9.8 (a), AC-9.12).
+### Prior history, closed by this section: Suite guard withdrawn, then restored (D-50 → D-52)
+
+At WP-7 step 7 the same five gateway/backoff cells above were commented out under D-50, then
+restored at step 10 under D-52 (`4992e81`) once the suite's actual pole (`close-matrix.test.ts`)
+was made concurrent and the cut's cost was read on both sides of it — both plan-text decisions,
+both with a criterion (AC-7.7, AC-7.10) behind them. That episode is now superseded by the ruling
+above: those five files are gone again, this time by deletion under an owner ruling with no plan
+text, and AC-7.7/AC-7.10 (a) no longer describe a suite that exists. The full quoted rulings for
+D-50 and D-52 are in `steering/001-rulings.md` (`007f65c`, `114168a`, `998496b`) and the plan's
+Decisions Register; not restated here a third time.
 
 ## Naming and test-form conventions
 

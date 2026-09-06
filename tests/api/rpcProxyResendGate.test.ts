@@ -21,17 +21,20 @@ import type { ApiOptions } from '../../src/clients/Api/types';
  * subtraction, which qa demonstrated gives a false positive under a non-2xx origin or a
  * waited-out 429 (neither exercised here; both are outside this gate's scope).
  *
- * Uses `LoopbackRpcServer#forwardThenFail`/`forwardThenWithhold` (step 6): the real
- * production handler runs to completion — a genuine forward reaches the loopback origin,
- * counted like any other request — before the client is answered with the trigger code
- * or left to its own deadline. The proxy's `apiClient` is pointed at the loopback origin
- * via `startRequestService`'s `origin` parameter (qa WP7-F4's arm M2) so no cell here can
- * reach Discord's real API by construction.
+ * Uses `LoopbackRpcServer#forwardThenFail` (step 6): the real production handler runs to
+ * completion — a genuine forward reaches the loopback origin, counted like any other
+ * request — before the client is answered with the trigger code. The proxy's
+ * `apiClient` is pointed at the loopback origin via `startRequestService`'s `origin`
+ * parameter (qa WP7-F4's arm M2) so no cell here can reach Discord's real API by
+ * construction.
  *
  * Representative members, not the full 14-spelling x 4-code x 2-arm matrix qa's Phase 1
  * probe already drove exhaustively against the unfixed tree (`wp7-ac76-fixed-tree-ee277b5.json`)
  * — qa's Phase 2 audits that matrix's adequacy. Every conjunct of the compound predicate
  * is the sole decider in at least one fixture below, per qa's Coverage Obligations table.
+ *
+ * Code 4 (the deadline, `forwardThenWithhold`) is not driven here — a real-time-window
+ * test, removed. The trigger-code population this file exercises is {14, 1, 13}.
  */
 
 const OK_RESPONSE = { status: 200, body: { ok: true } };
@@ -129,40 +132,6 @@ describe('AC-7.6 — forward-then-fail, allowFallback: false (unaffected baselin
     rpc.clearForwardThenFail('request');
     rpc.forceClose();
   }, 15000);
-});
-
-describe('AC-7.6 — forward-then-withhold (code 4, the client\'s own deadline)', () => {
-  it.each([
-    ['POST', false],
-    ['GET', true],
-  ])('%s resends locally from the client iff the method is idempotent', async (method, shouldResend) => {
-    const origin = await LoopbackApiOrigin.start();
-    origin.setScript([OK_RESPONSE, OK_RESPONSE]);
-    const rpc = await LoopbackRpcServer.startRequestService('test-token', origin, PROXY_OPTIONS);
-    rpc.forwardThenWithhold('request');
-
-    const api = await createApiAgainstOrigin(origin);
-    await api.addRequestService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
-
-    const t0 = Date.now();
-    const outcome = await requestOutcome(api, method);
-    const elapsed = Date.now() - t0;
-
-    expect(elapsed).toBeGreaterThanOrEqual(10_000 - 1000);
-    expect(elapsed).toBeLessThan(10_000 + 5000);
-    expect(proxyReceipts(origin)).toBe(1);
-    if (shouldResend) {
-      expect(outcome).toEqual({ resolved: true, status: 200 });
-      expect(clientReceipts(origin)).toBe(1);
-    } else {
-      expect(outcome).toEqual({ resolved: false, code: grpcStatus.DEADLINE_EXCEEDED });
-      expect(clientReceipts(origin)).toBe(0);
-    }
-
-    api.end();
-    await origin.close();
-    rpc.forceClose(); // a withheld stream does not resolve close() (WP6-F4's precedent)
-  }, 20000);
 });
 
 describe('AC-7.6 — controls (WP7-F2\'s non-member population)', () => {
