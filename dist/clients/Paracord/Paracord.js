@@ -121,16 +121,10 @@ class Paracord extends events_1.EventEmitter {
                 this.handleGatewayReady(data);
                 break;
             case 'RESUMED':
-                // Always complete startup on a successful resume, even when this gateway is
-                // `#startingGateway` — since `b36d1be` routed every gateway-requested
-                // reconnect (resumable included) through the login queue, a resumable
-                // gateway can now be picked as `#startingGateway` and have the 120s
-                // shard-startup timer armed for it. Skipping this call for exactly that case
-                // (the previous `if (!this.isStartingGateway(gateway))` guard) left the timer
-                // armed forever, so it fired 120s after a resume that had already succeeded.
-                // `completeShardStartup` -> `clearStartingShardState` already no-ops when
-                // `gateway` is not the current `#startingGateway`, so the ordinary resume
-                // case (never the starting gateway) behaves exactly as before.
+                // A resumed gateway always completes shard startup, whether or not it is the
+                // current `#startingGateway` — `clearStartingShardState` (called via
+                // `completeShardStartup`) is a no-op for any other gateway, so this only ever
+                // clears state, timers included, for the gateway that just resumed.
                 (0, failureCounter_1.markReady)(gateway);
                 this.completeShardStartup({ shard: gateway, resumed: true });
                 break;

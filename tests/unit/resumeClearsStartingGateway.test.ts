@@ -6,21 +6,15 @@ import { GATEWAY_CLOSE_CODES } from '../../src/constants';
 import type Gateway from '../../src/clients/Gateway';
 
 /**
- * fix-paracord-resume-startup-timeout. `b36d1be` routed every gateway-requested
- * reconnect (including a resumable one) through the 1s login queue, so a resumable
- * gateway can now become `#startingGateway` and have the 120s shard-startup timer
- * armed for it — something that could not happen before that commit (research
- * shard-13-16-message-stall-2026-09-07.md, §Defect A). The pre-existing guard on
- * `case 'RESUMED'` in `handleEvent` (`if (!this.isStartingGateway(gateway))`) then
- * skips `completeShardStartup` for exactly this case, so the timer that should have
- * been cancelled by a successful resume never is, and fires 120s later.
- *
- * No real or virtual clock advance is needed to prove or disprove this: the defect
- * is that the timer is never *cleared*, not that it fires early or late. Spying on
- * `setTimeout`/`clearTimeout` proves the arm/clear relationship directly and
- * deterministically — a stub gateway stands in for a live one (duck-typed, matching
+ * A resumable gateway can be picked as `#startingGateway` from the login queue and
+ * have the 120s shard-startup timer armed for it. A successful resume (`RESUMED`)
+ * must clear that state and that timer regardless — this asserts the state
+ * transition directly rather than by waiting out the timeout (real or fake): the
+ * property under test is whether the timer is *cleared*, not when it fires, so
+ * spying on `setTimeout`/`clearTimeout` proves the arm/clear relationship
+ * deterministically. A stub gateway stands in for a live one (duck-typed, matching
  * the `tests/unit/failureCounter.test.ts` convention), and `processGatewayQueue` is
- * `private` (soft), reached the same way any interval tick reaches it.
+ * reached via a cast, the same state transition an interval tick reaches.
  */
 function stubGateway(id = 0): Gateway {
   return {
@@ -32,7 +26,7 @@ function stubGateway(id = 0): Gateway {
   } as unknown as Gateway;
 }
 
-describe('fix-paracord-resume-startup-timeout: a successful RESUME clears starting-shard state', () => {
+describe('Paracord#handleEvent: a successful RESUME clears starting-shard state', () => {
   it('clears #startingGateway and the armed shard-startup timer when a gateway-requested reconnect resumes', async () => {
     const paracord = new Paracord('harness.token.value', {
       gatewayOptions: { wsUrl: 'ws://example.invalid', wsParams: { v: '10', encoding: 'json' } },
@@ -44,8 +38,8 @@ describe('fix-paracord-resume-startup-timeout: a successful RESUME clears starti
 
     const gateway = stubGateway();
 
-    // The exact trigger (research §Defect A): a gateway-requested reconnect (4992)
-    // on a resumable gateway, answered with shouldReconnect: true.
+    // A gateway-requested reconnect (4992) on a resumable gateway, answered with
+    // shouldReconnect: true.
     paracord.emit('GATEWAY_CLOSE', {
       gateway,
       shouldReconnect: true,
@@ -55,8 +49,7 @@ describe('fix-paracord-resume-startup-timeout: a successful RESUME clears starti
     // One queue tick — what `#gatewayLoginInterval` does every second.
     await (paracord as unknown as { processGatewayQueue: () => Promise<void> }).processGatewayQueue();
 
-    // Instrument: confirms the mechanism research names, before asserting the fix —
-    // the resumable gateway was picked as `#startingGateway` and its 120s timer armed.
+    // The resumable gateway was picked as `#startingGateway` and its 120s timer armed.
     expect(paracord.startingGateway).toBe(gateway);
     expect(gateway.login).toHaveBeenCalledTimes(1);
     const armedCall = setTimeoutSpy.mock.calls.at(-1)!;
