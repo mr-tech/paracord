@@ -168,12 +168,10 @@ export default class Paracord extends EventEmitter {
         this.handleGatewayReady(<GatewayReadyDispatchData>data);
         break;
       case 'RESUMED':
-        // A resumed gateway always completes shard startup, whether or not it is the
-        // current `#startingGateway` — `clearStartingShardState` (called via
-        // `completeShardStartup`) is a no-op for any other gateway, so this only ever
-        // clears state, timers included, for the gateway that just resumed.
         markReady(gateway);
-        this.completeShardStartup({ shard: gateway, resumed: true });
+        if (!this.isStartingGateway(gateway) || this.#guildWaitCount <= 0) {
+          this.completeShardStartup({ shard: gateway, resumed: true });
+        }
         break;
       default:
     }
