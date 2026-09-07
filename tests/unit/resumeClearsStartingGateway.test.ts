@@ -89,4 +89,98 @@ describe('Paracord#handleEvent: RESUMED and starting-shard state', () => {
     expect(shardStartupCompletions).toHaveLength(1);
     expect(paracord.startingGateway).toBeUndefined();
   });
+
+  it('completes shard startup for a RESUMED gateway that does not hold the connect slot, while another shard is still ingesting its guilds', async () => {
+    const paracord = new Paracord('harness.token.value', {
+      gatewayOptions: { wsUrl: 'ws://example.invalid', wsParams: { v: '10', encoding: 'json' } },
+      shardStartupTimeout: 120,
+    });
+    const completions: { shard: Gateway }[] = [];
+    paracord.on('SHARD_STARTUP_COMPLETE', (e: unknown) => { completions.push(e as { shard: Gateway }); });
+
+    const gatewayA = stubGateway(0);
+    const gatewayB = stubGateway(1);
+    const processQueue = (paracord as unknown as { processGatewayQueue: () => Promise<void> }).processGatewayQueue;
+
+    paracord.gatewayLoginQueue.push(gatewayA);
+    await processQueue();
+    paracord.handleEvent('READY', { user: { username: 'u', discriminator: '0' }, guilds: [{}, {}, {}] }, gatewayA);
+    expect(paracord.startingGateway).toBe(gatewayA);
+
+    paracord.handleEvent('RESUMED', {}, gatewayB);
+
+    expect(completions.map((c) => c.shard)).toEqual([gatewayB]);
+    expect(paracord.startingGateway).toBe(gatewayA);
+
+    for (let i = 0; i < 3; i += 1) {
+      paracord.handleEvent('GUILD_CREATE', {}, gatewayA);
+    }
+    await new Promise((r) => { setImmediate(r); });
+
+    expect(completions.map((c) => c.shard)).toEqual([gatewayB, gatewayA]);
+    expect(paracord.startingGateway).toBeUndefined();
+  });
+
+  it('holds the connect slot and the startup timer when RESUMED arrives with exactly one guild outstanding', async () => {
+    const paracord = new Paracord('harness.token.value', {
+      gatewayOptions: { wsUrl: 'ws://example.invalid', wsParams: { v: '10', encoding: 'json' } },
+      shardStartupTimeout: 120,
+    });
+    const completions: { shard: Gateway }[] = [];
+    paracord.on('SHARD_STARTUP_COMPLETE', (e: unknown) => { completions.push(e as { shard: Gateway }); });
+
+    const gatewayA = stubGateway(0);
+    const processQueue = (paracord as unknown as { processGatewayQueue: () => Promise<void> }).processGatewayQueue;
+
+    paracord.gatewayLoginQueue.push(gatewayA);
+    await processQueue();
+    paracord.handleEvent('READY', { user: { username: 'u', discriminator: '0' }, guilds: [{}] }, gatewayA);
+    expect(paracord.startingGateway).toBe(gatewayA);
+
+    paracord.handleEvent('RESUMED', {}, gatewayA);
+
+    expect(completions).toHaveLength(0);
+    expect(paracord.startingGateway).toBe(gatewayA);
+
+    paracord.handleEvent('GUILD_CREATE', {}, gatewayA);
+    await new Promise((r) => { setImmediate(r); });
+
+    expect(completions.map((c) => c.shard)).toEqual([gatewayA]);
+    expect(paracord.startingGateway).toBeUndefined();
+  });
+
+  it('does not hold a resumed gateway open on a previous shard\'s outstanding guild count', async () => {
+    const paracord = new Paracord('harness.token.value', {
+      gatewayOptions: { wsUrl: 'ws://example.invalid', wsParams: { v: '10', encoding: 'json' } },
+      shardStartupTimeout: 120,
+    });
+    const completions: { shard: Gateway }[] = [];
+    paracord.on('SHARD_STARTUP_COMPLETE', (e: unknown) => { completions.push(e as { shard: Gateway }); });
+
+    const gatewayA = stubGateway(0);
+    const gatewayB = stubGateway(1);
+    const processQueue = (paracord as unknown as { processGatewayQueue: () => Promise<void> }).processGatewayQueue;
+
+    paracord.gatewayLoginQueue.push(gatewayA);
+    await processQueue();
+    paracord.handleEvent('READY', { user: { username: 'u', discriminator: '0' }, guilds: [{}, {}, {}] }, gatewayA);
+    expect(paracord.startingGateway).toBe(gatewayA);
+
+    (gatewayA as unknown as { resumable: boolean }).resumable = false;
+    paracord.emit('GATEWAY_CLOSE', {
+      gateway: gatewayA,
+      shouldReconnect: true,
+      code: GATEWAY_CLOSE_CODES.SESSION_NO_LONGER_VALID,
+    });
+    expect(paracord.startingGateway).toBeUndefined();
+
+    paracord.gatewayLoginQueue.push(gatewayB);
+    await processQueue();
+    expect(paracord.startingGateway).toBe(gatewayB);
+
+    paracord.handleEvent('RESUMED', {}, gatewayB);
+
+    expect(completions.map((c) => c.shard)).toEqual([gatewayB]);
+    expect(paracord.startingGateway).toBeUndefined();
+  });
 });

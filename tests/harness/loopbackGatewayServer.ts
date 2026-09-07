@@ -24,6 +24,7 @@ export interface LoopbackGatewayServerOptions {
   resumeResponse?: 'resumed' | 'invalidSession';
   /** `heartbeat_interval` (ms) sent in HELLO. Default 45000. */
   heartbeatIntervalMs?: number;
+  readyGuilds?: number;
 }
 
 /**
@@ -54,6 +55,8 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   private readonly heartbeatIntervalMs: number;
 
+  private readonly readyGuilds: number;
+
   /** Op codes received from the live client, in arrival order — `heartbeatsReceived` etc. read this. */
   readonly receivedOps: number[] = [];
 
@@ -68,6 +71,7 @@ export class LoopbackGatewayServer extends EventEmitter {
     this.explicitResumeGatewayUrl = opts.resumeGatewayUrl;
     this.resumeResponse = opts.resumeResponse ?? 'resumed';
     this.heartbeatIntervalMs = opts.heartbeatIntervalMs ?? 45000;
+    this.readyGuilds = opts.readyGuilds ?? 0;
   }
 
   static start(opts: LoopbackGatewayServerOptions = {}): Promise<LoopbackGatewayServer> {
@@ -209,7 +213,7 @@ export class LoopbackGatewayServer extends EventEmitter {
           d: {
             v: 10,
             user: { id: '1', username: 'harness', discriminator: '0001' },
-            guilds: [],
+            guilds: Array.from({ length: this.readyGuilds }, (_, i) => ({ id: String(i + 1), unavailable: true })),
             session_id: 'HARNESS_SESSION',
             resume_gateway_url: this.explicitResumeGatewayUrl ?? `ws://127.0.0.1:${this.port}`,
             application: { id: '1', flags: 0 },
