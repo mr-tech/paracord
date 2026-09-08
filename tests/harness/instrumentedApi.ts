@@ -7,17 +7,6 @@ import type { ApiOptions } from '../../src/clients/Api/types';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface Counts { constructed: number; closed: number; services: any[] }
 
-/**
- * An `Api` whose RPC service factories are wrapped, not replaced, so every construct
- * and every `close()` is counted while `hello`/`authorize`/`update`/`request` still make
- * a genuine round trip to the loopback server. AC-6.1's instrument, shared by
- * `tests/api/rpcRecreateSingleFlight.test.ts` and
- * `tests/timing/rpcRecreateSingleFlight-staleRejection.test.ts`.
- *
- * `vi.resetModules()` + `vi.doMock` means the returned class is a fresh module instance
- * per call; the mock paths resolve from this file, so it must stay directly under
- * `tests/harness/`.
- */
 export async function createInstrumentedApi(origin: LoopbackApiOrigin, counts: Counts, options: ApiOptions = {}): Promise<Api> {
   vi.resetModules();
   vi.doMock('../../src/constants', async (importOriginal) => {

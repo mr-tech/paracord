@@ -11,7 +11,6 @@ export interface RequestService {
   request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
   allowFallback: boolean;
   target: string;
-  /** Closes the underlying channel. Synchronous — never awaited. */
   close(): void;
 }
 
@@ -38,8 +37,6 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
 
       const dest = `${host}:${port}`;
 
-      // Same channel args as the rate-limit service's, once its two inert
-      // `max_connection_*` args are gone — this service passed none before.
       super(dest, channel, {
         'grpc.enable_channelz': 0,
       });
@@ -78,7 +75,6 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
       });
     }
 
-    /** Closes the underlying channel (`grpc.Client#close`, synchronous). */
     public close(): void {
       super.close();
     }

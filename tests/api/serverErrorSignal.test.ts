@@ -5,16 +5,6 @@ import LoopbackApiOrigin, { createApiAgainstOrigin, type ScriptedResponse } from
 
 import type { Method } from 'axios';
 
-/**
- * Plan 001 WP-5 step 4, AC-5.5: `SERVER_ERROR` — a documented `'DEBUG'` event — must keep
- * firing at the same population it fired at before the method gate landed (code review
- * CR-36; owner ruling D-40). The gate must not read the method before deciding whether to
- * emit: only the count decides that (the structural clause, the F-68 form) — emitting
- * unconditionally on the whole throwing branch (reading (a)) would over-fire for the
- * idempotent five; emitting whenever the method is non-idempotent regardless of the count
- * (reading (c)) would fire on the composite member below, where it must stay silent. Both
- * readings are excluded by the plan; this file asserts the property they would each break.
- */
 async function driveServerErrorSignal(
   origin: LoopbackApiOrigin,
   method: Method,

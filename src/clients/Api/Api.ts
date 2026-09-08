@@ -69,11 +69,6 @@ export default class Api {
 
   #connectingToRpcService: boolean;
 
-  /**
-   * The in-flight recreation, shared by every concurrent caller so exactly one new
-   * client is constructed and exactly one `close()` is issued on the predecessor.
-   * Cleared once the recreation settles, success or failure.
-   */
   #recreateInFlight?: undefined | Promise<boolean>;
 
   #defaultRequestOptions: RequestOptions;
@@ -84,14 +79,6 @@ export default class Api {
   /** Number of requests sent that have not received a response. */
   #inFlight = 0;
 
-  /**
-   * Each request's running count of consecutive information-free 429s — request
-   * state, not cache or global state; survives re-queue because the same
-   * `ApiRequest` instance is reused across queue cycles (`RequestQueue`), and never
-   * leaks because a `WeakMap` drops the entry once the request itself is collected.
-   * Kept off `ApiRequest`'s own shape: a new public field there would move
-   * `api-report/paracord.api.md`.
-   */
   #informationFreeRetryCounts = new WeakMap<ApiRequest, number>();
 
   public static isApiDebugEvent(event: unknown): event is ApiDebugEvent {
@@ -148,9 +135,6 @@ export default class Api {
 
     instance.interceptors.response.use(
       (response) => response,
-      // A transport failure carries no response at all; `statusText` is what
-      // `handleServerErrorResponse` throws with once attempts are exhausted, so it must
-      // carry the underlying transport error's own message.
       (error) => ({
         status: 500, statusText: error.message, headers: {}, data: { message: error.message },
       }),
@@ -198,18 +182,6 @@ export default class Api {
     return [topLevelResource, topLevelID, key.join('-')];
   }
 
-  /**
-   * Creates a new Api client.
-   * @param token Discord token. Will be coerced into a bot token.
-   * @param options Optional parameters for this handler.
-   *
-   * @example
-   * ```ts
-   * const api = new Api('myBotToken');
-   * const res = await api.request('GET', '/channels/123456789');
-   * console.log(res.data);
-   * ```
-   */
   public constructor(token: string, options: ApiOptions = {}) {
     Api.validateParams(token);
 
@@ -397,10 +369,6 @@ export default class Api {
    * @returns `true` is connection was successful.
    */
   private checkRpcServiceConnection = async (service: RateLimitService | RequestService): Promise<boolean> => {
-    // `service` may be superseded by a later recreate before this settles —
-    // a concurrent recreate's own `hello()` call is not gated by this one's. Only the
-    // service `Api` currently holds may clear or set `#connectingToRpcService`; a stale
-    // callback still reports its own outcome to whoever is awaiting it.
     const isCurrentService = () => service === this.#rpcRateLimitService || service === this.rpcRequestService;
 
     try {
@@ -425,15 +393,6 @@ export default class Api {
   };
 
   // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
-  /**
-   * Single-flight — every concurrent caller shares one in-flight recreation,
-   * reading `#recreateInFlight` and closing the predecessor before its replacement is
-   * assigned. The kind (`usesRateLimitService`) is captured before anything is cleared,
-   * and the clear-then-assign sequence inside `recreate` carries no `await`, so no
-   * concurrent caller can ever observe the service field `undefined` — the field the
-   * `add*Service` guard tests, and the only way a rate-limit client could otherwise
-   * silently acquire a request service (or vice versa).
-   */
   private recreateRpcService(): Promise<boolean> {
     if (this.#recreateInFlight !== undefined) {
       return this.#recreateInFlight;
@@ -555,11 +514,6 @@ export default class Api {
       if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
 
-        // D-49: a body the client has already handed to the proxy is never re-sent by
-        // the client for a non-idempotent method — the proxy may have forwarded it
-        // before this failure, and repeating it here risks a duplicate write. The
-        // recreate above still runs regardless of method (WP-6's lifecycle, AC-6.1's
-        // count unchanged); only the local re-send is gated.
         if (isIdempotentMethod(request.method)) {
           const message = 'The RPC request did not succeed. Falling back to handling request locally.';
           this.log('ERROR', 'ERROR', message, err);
@@ -703,12 +657,6 @@ export default class Api {
     const { waitUntil } = request;
     const now = new Date().getTime();
 
-    // Both values are absolute timestamps, so the later of the two is the one to honour. A 429 that
-    // told us nothing still has to back off: leaving `waitUntil` at or behind now hands the request
-    // straight back to the queue, which re-sends it on the next tick and loops on the rate limit.
-    // An information-free 429 (directed <= now) grows this wait on a per-request schedule
-    // instead of the flat floor, and resets to the schedule's start once the response tells us
-    // something real again.
     const { target, nextInformationFreeRetryCount } = computeRateLimitRetryTarget(
       now,
       resetTimestamp,
@@ -738,23 +686,14 @@ export default class Api {
     headers: ApiResponse<T>,
     fromQueue: boolean,
   ): Promise<string | ApiResponse<T>> {
-    // The event fires for every response that is not the one on which the count is
-    // exhausted, regardless of method — the count alone decides this, before anything
-    // reads the method, so a non-idempotent request's one response still gets it even
-    // though that same response is about to throw for a different reason below.
     if (request.attempts < MAX_SERVER_ERROR_RETRIES) {
       this.log('DEBUG', 'SERVER_ERROR', `Received server error: ${request.method} ${request.url}`, { request, headers, queued: fromQueue });
     }
 
-    // Only a method safe to resend without risking a duplicate write gets the retry at
-    // all; every other method surfaces the failure on its first attempt, with the same
-    // thrown shape the exhausted-retries branch uses.
     if (!isIdempotentMethod(request.method) || request.attempts >= MAX_SERVER_ERROR_RETRIES) {
       throw createError(new Error(headers.statusText), request.config, headers.status, request, headers);
     }
 
-    // A 5xx re-queues the request but is not an information-free 429 — it resets the
-    // schedule so the request's next one starts over at n = 1.
     this.#informationFreeRetryCounts.delete(request);
 
     await new Promise((resolve) => { setTimeout(resolve, SECOND_IN_MILLISECONDS); });
@@ -793,9 +732,6 @@ export default class Api {
       request.bucketHashKey,
       (bucketHash) => request.getRateLimitKey(bucketHash),
     );
-    // The local cache is already current (above), so a rejection here — the shared RPC
-    // budget could not be told about this response — never needs to be retried; it is
-    // logged once and the shard keeps running on its own cache.
     this.updateRpcCache(request, rateLimitHeaders).catch((err: any) => {
       const message = 'The RPC rate limit cache update did not succeed. Continuing with the local cache.';
       this.log('ERROR', 'ERROR', message, err);

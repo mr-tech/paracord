@@ -2,20 +2,6 @@ import { describe, it, expect } from 'vitest';
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 
-/**
- * Plan 001 WP-7 steps 1-2, AC-7.1 (qa WP7-F1, WP7-F7): a request proxied over RPC
- * returns the same value the local path would for the same server response, for every
- * JSON body shape — object, array, string, number, boolean, null and the falsy/empty
- * members the server-side presence check keys on (`""`, `0`, `false`, `null`, and a
- * response with no body at all). Before this package, the identity `transformResponse` +
- * second `JSON.stringify` pair double-encodes every truthy body into a string, and the
- * truthy guard drops every falsy body to `undefined`.
- *
- * Uses `LoopbackRpcServer#startRequestService`'s `origin` parameter (step 6 (a), qa
- * WP7-F4's arm M2) so the proxy's own `Api` reaches this test's controllable origin —
- * never Discord's real API.
- */
-
 const BODIES: Array<[string, unknown]> = [
   ['object', { id: '123', nested: { a: 1 } }],
   ['array', [1, 2, 3]],

@@ -18,8 +18,6 @@ const createRequestService = (options) => {
         constructor(opts) {
             const { host, port, channel, allowFallback, } = (0, common_1.mergeOptionsWithDefaults)(opts ?? {});
             const dest = `${host}:${port}`;
-            // Same channel args as the rate-limit service's, once its two inert
-            // `max_connection_*` args are gone — this service passed none before.
             super(dest, channel, {
                 'grpc.enable_channelz': 0,
             });
@@ -56,7 +54,6 @@ const createRequestService = (options) => {
                 });
             });
         }
-        /** Closes the underlying channel (`grpc.Client#close`, synchronous). */
         close() {
             super.close();
         }

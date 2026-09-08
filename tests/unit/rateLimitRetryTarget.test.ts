@@ -2,16 +2,6 @@ import { describe, it, expect } from 'vitest';
 import computeRateLimitRetryTarget from '../../src/clients/Api/structures/rateLimitRetryTarget';
 import computeBackoffMs from '../../src/clients/Gateway/structures/backoffSchedule';
 
-/**
- * WP-9b step 6 (D-17), AC-9.8. Pure arithmetic (time-seam rule, form (a)): given
- * `now`, the server-directed target (`resetTimestamp`/`waitUntil`), and the request's
- * running count of consecutive information-free 429s, computes the next target and
- * count. A response that told us nothing (`directed <= now`) grows the wait on
- * `computeBackoffMs` — the D-8 schedule WP-1 built, reused rather than reimplemented
- * (one schedule function serves both packages). A response that told us something real
- * resets the count to 0, so the *next* information-free 429 on this request starts the
- * schedule over at n = 1, not wherever it left off.
- */
 describe('computeRateLimitRetryTarget', () => {
   it('when the response is not information-free (directed > now), uses the directed target and resets the count to 0', () => {
     const now = 1_000_000;
@@ -49,8 +39,6 @@ describe('computeRateLimitRetryTarget', () => {
 
   it('is built on computeBackoffMs, not a second copy of the same arithmetic', () => {
     const now = 1_000_000;
-    // n = 7 reaches the 60s cap deterministically enough to compare bounds (not exact
-    // value, since computeBackoffMs draws jitter) against a direct call.
     const direct = computeBackoffMs(7);
     const viaTarget = computeRateLimitRetryTarget(now, 0, undefined, 6).target - now;
     expect(viaTarget).toBeGreaterThanOrEqual(0.8 * 60 * 1000);

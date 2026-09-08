@@ -9,43 +9,6 @@ import { createInstrumentedApi, type Counts } from '../harness/instrumentedApi';
 
 import type { ApiDebugEvent, ApiOptions } from '../../src/clients/Api/types';
 
-/**
- * Plan 001 WP-6 step 1, AC-6.1: `recreateRpcService` becomes single-flight (concurrent
- * callers share one in-flight recreation) and closes the previous client before replacing
- * it — over the five reachable (site, kind) pairs the mutual-exclusion guard on
- * `add*Service` leaves (WP6-F1): `reattemptConnectInFuture` under either kind,
- * `authorizeRequestWithServer`/`updateRpcCache` under the rate-limit kind only,
- * `handleRequestRemote` under the request kind only.
- *
- * Two separate properties, two separate constructions, because driving them together is
- * unreliable: concurrency and site-reachability.
- *
- * - **Concurrency** (`recreateRpcService` coalesces N ≥ 8 simultaneous callers into one
- *   recreation) is driven by calling the private method directly, N times in one
- *   `Promise.all`. This is deliberate, not the shortcut WP6-F1 warns against: eight
- *   independent real RPC calls failing over a real loopback socket do not arrive within
- *   the same synchronous tick — measured (`rpcCacheUpdateRecreateFailure`-style bursts
- *   here first): 2–3 separate recreations, not 1, purely from network scheduling, which
- *   would misreport the *method's* own single-flight gate as broken. A direct call
- *   removes that noise; it is the caller-agnostic mechanism itself under test here, and
- *   its correctness does not depend on which site invokes it.
- * - **Site-reachability** (each of the five pairs genuinely reaches `recreateRpcService`,
- *   with the right kind) is driven through each site's own real trigger, one concurrent
- *   call at a time — exactly what WP6-F1 asks for, and what a direct call cannot show.
- *
- * Every cell drives the real production client against a real loopback `RpcServer` — not
- * a bare stub — so the counts below also stand for AC-6.1's real-channel requirement
- * (E-6): `createRateLimitService`/`createRequestService` are wrapped, not replaced, via
- * `vi.doMock('../../src/rpc', ...)`, so `hello`/`authorize`/`update`/`request` all make a
- * genuine round trip to the harness server and only `close()` is intercepted to count.
- *
- * WP6-F2's required cell — the service kind asserted after a recreate, not just the
- * construct/close counts — is folded into every cell below rather than run once on its
- * own: `api.hasRateLimitService`/`hasRequestService` are read afterwards, which is
- * exactly the window a `recreateRpcService` that clears the field before assigning its
- * replacement could have flipped.
- */
-
 const OK_RESPONSE = { status: 200, body: { ok: true }, headers: { 'content-type': 'application/json' } };
 
 describe('AC-6.1 — recreateRpcService is single-flight and closes the predecessor exactly once', () => {
@@ -57,7 +20,7 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     const api = await createInstrumentedApi(origin, counts);
     await api.addRateLimitService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
     const predecessor = counts.services[0];
-    counts.constructed = 0; // the initial connect's own construct is not what this cell measures
+    counts.constructed = 0;
     counts.closed = 0;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -66,14 +29,10 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
 
     expect(counts.constructed).toBe(1);
     expect(counts.closed).toBe(1);
-    expect(api.hasRateLimitService).toBe(true); // WP6-F2: never flipped kind
+    expect(api.hasRateLimitService).toBe(true);
     expect(api.hasRequestService).toBe(false);
     expect(api.rpcRequestService).toBeUndefined();
 
-    // WP6-F11: AC-6.1's counters only see that `close()` was called, not that it closed
-    // anything — a `close()` that closes nothing satisfies them just the same. The
-    // predecessor's channel must actually be dead: calling it now must fail, the same
-    // shape RP-2's positive control measured for a client closing its own channel.
     const predecessorOutcome = await predecessor.hello().then(
       () => 'resolved',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -100,12 +59,8 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     const first = await ((api as any).recreateRpcService() as Promise<boolean>);
     await rpc.waitForHello(2, 5000);
     expect(first).toBe(true);
-    expect(rpc.helloCalls).toBe(2); // the initial connect's hello, plus this recreate's
+    expect(rpc.helloCalls).toBe(2);
 
-    // WP6-F8: if `#recreateInFlight` is never cleared, this second call returns the
-    // FIRST recreation's cached promise and no new `hello` ever reaches the server — a
-    // shard that loses its RPC server twice reconnects once and then never again,
-    // silently, while every request still completes.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const second = await ((api as any).recreateRpcService() as Promise<boolean>);
     await rpc.waitForHello(3, 5000);
@@ -135,7 +90,7 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     rpc.injectFault('authorize', { code: grpcStatus.UNAVAILABLE });
     const res = await api.request('GET', '/channels/1');
     expect(res.status).toBe(200);
-    expect(origin.acceptCount).toBe(1); // fell back locally
+    expect(origin.acceptCount).toBe(1);
 
     expect(counts.constructed).toBe(1);
     expect(counts.closed).toBe(1);
@@ -149,7 +104,7 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
 
     const successor = await api.request('GET', '/channels/2');
     expect(successor.status).toBe(200);
-    expect(rpc.authorizeCalls).toBeGreaterThanOrEqual(1); // reached the server for real — E-6
+    expect(rpc.authorizeCalls).toBeGreaterThanOrEqual(1);
 
     expect(unhandled).toHaveLength(0);
     process.off('unhandledRejection', onUnhandled);
@@ -172,7 +127,7 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     rpc.injectFault('update', { code: grpcStatus.UNAVAILABLE });
     await api.request('GET', '/channels/1');
     await rpc.waitForUpdate(1);
-    await rpc.waitForHello(2, 5000); // the recreate's own hello has reached the server
+    await rpc.waitForHello(2, 5000);
 
     expect(counts.constructed).toBe(1);
     expect(counts.closed).toBe(1);
@@ -205,9 +160,6 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     expect(api.hasRequestService).toBe(true);
     expect(api.hasRateLimitService).toBe(false);
 
-    // WP6-F11: the request-service twin of the rate-limit assertion above — its own
-    // `close()` mutant (M22) is a separate production file from the rate-limit kind's
-    // (M21) and is not caught by that one cell.
     const predecessorOutcome = await predecessor.hello().then(
       () => 'resolved',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -236,17 +188,9 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
       (e: { code?: unknown }) => `rejected:${e?.code}`,
     );
 
-    // D-49: the method gate stops the local re-send for a non-idempotent method — the
-    // request rejects with the transport error rather than resolving locally, and the
-    // origin never sees it (no duplicate write).
     expect(outcome).toBe(`rejected:${grpcStatus.UNAVAILABLE}`);
     expect(origin.acceptCount).toBe(0);
 
-    // Step 5's own text promises the recreate runs "for every other method" too — moving
-    // it inside the idempotent-method gate survives the whole suite with no cell to catch
-    // it (WP7-F10). This is that cell, reusing AC-6.1's own instrument (WP6-F11) rather
-    // than the resend gate's origin-receipt one, since what is under test here is the
-    // recreate, not the resend.
     expect(counts.constructed).toBe(1);
     expect(counts.closed).toBe(1);
 
@@ -268,7 +212,7 @@ describe('AC-6.1 — recreateRpcService is single-flight and closes the predeces
     expect(counts.constructed).toBe(1);
 
     rpc.clearFault('hello');
-    await rpc.waitForHello(2, 5000); // the timer's own recreate (reattemptConnectInFuture(1))
+    await rpc.waitForHello(2, 5000);
 
     expect(counts.constructed).toBe(2);
     expect(counts.closed).toBe(1);
@@ -313,13 +257,6 @@ function createDeferred<T = void>(): { promise: Promise<T>; resolve: (v: T) => v
   return { promise, resolve, reject };
 }
 
-/**
- * `checkRpcServiceConnection`'s identity check (`isCurrentService`) exists because a
- * service superseded by a recreate may still have a `hello()` call outstanding, and that
- * call's eventual settlement — success or failure — must not be read as the *current*
- * service's own outcome. WP6-F1's five reachable (site, kind) pairs above never build
- * this race, so nothing there exercises the guard at all.
- */
 describe('AC-6.1 — the identity check in checkRpcServiceConnection is the sole deciding factor (WP6-F9)', () => {
   it('a stale success from a superseded service does not clear the reconnect latch armed by its successor', async () => {
     vi.resetModules();
@@ -328,13 +265,6 @@ describe('AC-6.1 — the identity check in checkRpcServiceConnection is the sole
       const actual = await importOriginal<typeof import('../../src/rpc')>();
       return {
         ...actual,
-        // A fully-controlled stand-in, not a wrapped real factory: the guard under test
-        // is the identity check's own logic in `checkRpcServiceConnection`, not any
-        // transport property, and only a controlled `hello()` can deterministically
-        // place a real success *after* a recreate has already replaced its service —
-        // `LoopbackRpcServer`'s `withhold` holds a call open forever (it has no way to
-        // answer one after the fact), so it can only ever produce a stale *failure*
-        // (the cell above), never a stale *success*.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         createRateLimitService: (opts: any) => {
           const deferred = createDeferred<void>();
@@ -357,23 +287,19 @@ describe('AC-6.1 — the identity check in checkRpcServiceConnection is the sole
     const api = new ApiCtor('test-token', { emitter } as ApiOptions);
 
     const added = api.addRateLimitService({ host: '127.0.0.1', port: '1', allowFallback: true })
-      .then((v) => `resolved:${v}`, (e: { code?: unknown }) => `rejected:${e?.code}`); // S1's hello (helloDeferreds[0]) is now pending
+      .then((v) => `resolved:${v}`, (e: { code?: unknown }) => `rejected:${e?.code}`);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const recreated = (api as any).recreateRpcService() as Promise<boolean>; // synchronous: S2 created, S1 closed, before either hello settles
+    const recreated = (api as any).recreateRpcService() as Promise<boolean>;
     expect(helloDeferreds).toHaveLength(2);
 
-    helloDeferreds[1].reject(Object.assign(new Error('down'), { code: grpcStatus.UNAVAILABLE })); // S2's own hello fails — arms the latch
+    helloDeferreds[1].reject(Object.assign(new Error('down'), { code: grpcStatus.UNAVAILABLE }));
     await recreated;
 
     const successLogs = () => events.filter((e) => typeof e.message === 'string'
       && /successfully established connection to rpc server/i.test(e.message));
-    expect(successLogs()).toHaveLength(0); // sanity: nothing has succeeded yet
+    expect(successLogs()).toHaveLength(0);
 
-    // WP6-F9 (M9): S1 is no longer current when its stale hello finally answers. Without
-    // the identity guard on the try arm, this unconditionally logs success and clears
-    // the latch S2's failure just armed — silently re-opening the fallback window S2's
-    // own reconnect ladder exists to close.
     helloDeferreds[0].resolve();
     await added;
 

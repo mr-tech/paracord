@@ -7,34 +7,6 @@ import { LOG_LEVELS } from '../../src/constants';
 
 import type { ApiDebugEvent } from '../../src/clients/Api/types';
 
-/**
- * Plan 001 WP-2 (H1: unhandled RPC-cache rejection and the LOST_CONNECTION widening).
- *
- * Two properties, over the full class qa-P001-2's Phase 1 probes (`468154c`) settled:
- * 16 non-OK `@grpc/grpc-js` status codes x 2 `allowFallback` arms.
- *
- * - AC-2.1 (`describe` "cache-update resilience"): a rejection from `updateRpcCache`
- *   (the `update` RPC, fired after every response) never crashes the process. qa's
- *   partition (WP2-F2): with the server alive and only `update` faulted, the 4
- *   transport-set codes {14, 4, 1, 13} take the recreate branch — `hello()` succeeds
- *   against the same live server, so nothing throws and 0 cells are non-discriminating
- *   by construction; the other 12 throw straight to the new handler — exactly one ERROR
- *   line, no unhandled rejection. Arm-independent (`updateRpcCache` never reads
- *   `#allowFallback`) — both arms are driven and asserted equal, not skipped, because
- *   silence on an arm is not a statement (critique F-60).
- * - AC-2.2 (`describe` "request fallback"): `allowFallback: true` falls back to the
- *   local path for the 4 transport-set codes and rejects for the other 12;
- *   `allowFallback: false` rejects for all 16 — the unchanged guard (E-1's register
- *   entry: WP-2 replaces the comparison inside `&& this.#allowFallback`, never the
- *   guard itself).
- *
- * Every cell is one fresh `Api` and one fresh `LoopbackRpcServer` (qa's mitigation for
- * the sticky `#connectingToRpcService` flag and the recreate branch's own
- * `hello()` round trip — "A mechanism the plan does not name"), and asserts a positive
- * completion count (`rpc.updateCalls`/`origin.acceptCount`) before reading the
- * rejection/fallback outcome, so a cell that never ran isn't read as one that ran clean.
- */
-
 const NON_OK_CODES = Object.entries(grpcStatus)
   .filter(([k, v]) => typeof v === 'number' && k !== 'OK')
   .map(([name, code]) => ({ name, code: code as number }));
@@ -48,13 +20,6 @@ afterEach(() => {
 
 const OK_RESPONSE = { status: 200, body: { ok: true }, headers: { 'content-type': 'application/json' } };
 
-/**
- * Resolves once `events` holds an entry matching `predicate` — the condition this
- * suite's cells can observe via the `Api` instance's own `'DEBUG'` stream
- * (`tests/README.md`: no fixed sleep for a condition the harness can observe). Checks
- * the already-captured array first so an event that fired before this call was made is
- * not missed (code review CR-31(a)).
- */
 function waitForDebugEvent(events: ApiDebugEvent[], emitter: EventEmitter, predicate: (e: ApiDebugEvent) => boolean, timeoutMs = 5000): Promise<void> {
   if (events.some(predicate)) return Promise.resolve();
 
@@ -99,13 +64,8 @@ async function driveUpdateCell(code: number, allowFallback: boolean) {
   await api.request('GET', '/channels/1');
   await rpc.waitForUpdate(1);
   if (TRANSPORT_SET.has(code)) {
-    // Absence assertion (the recreate succeeds, nothing is ever logged) — cannot be
-    // waited on by event, so a bounded window is the correct shape here (code review
-    // CR-31(a)). Sized well above qa-P001-2's own measured settle time for this exact
-    // path (p90 2.29ms, max 3.98ms across 96 cells, `wp2-settle-window.check.js`).
     await new Promise((resolve) => { setTimeout(resolve, 50); });
   } else {
-    // The condition the harness can observe: step 1's handler emits an ERROR event.
     await waitForDebugEvent(events, emitter, isErrorEvent);
   }
 
@@ -131,14 +91,14 @@ describe('Api RPC cache-update resilience (AC-2.1, H1) — 16 codes x 2 arms', (
       it(`allowFallback=${allowFallback}, update faults ${name} (${code}) — ${inSet ? 'recreate succeeds, no rejection' : 'one ERROR line, process survives'}`, async () => {
         const { unhandledCount, errorCount, errorMessages, updateCalls } = await driveUpdateCell(code, allowFallback);
 
-        expect(updateCalls).toBeGreaterThanOrEqual(1); // positive completion: the fault actually fired
+        expect(updateCalls).toBeGreaterThanOrEqual(1);
 
-        expect(unhandledCount).toBe(0); // the property itself: never an unhandled rejection, any code, either arm
+        expect(unhandledCount).toBe(0);
 
         if (inSet) {
-          expect(errorCount).toBe(0); // regression cell — recreate's hello() succeeds against the still-alive server
+          expect(errorCount).toBe(0);
         } else {
-          expect(errorCount).toBe(1); // the fix's own line, exactly once
+          expect(errorCount).toBe(1);
           expect(errorMessages[0]).toMatch(/the rpc rate limit cache update did not succeed/i);
         }
       }, 10000);
@@ -146,7 +106,7 @@ describe('Api RPC cache-update resilience (AC-2.1, H1) — 16 codes x 2 arms', (
   }
 
   it('both arms agree cell-for-cell (arm-independence, critique F-60)', async () => {
-    const code = grpcStatus.RESOURCE_EXHAUSTED; // an arbitrary non-set member
+    const code = grpcStatus.RESOURCE_EXHAUSTED;
     const trueArm = await driveUpdateCell(code, true);
     const falseArm = await driveUpdateCell(code, false);
     expect(trueArm.errorCount).toBe(falseArm.errorCount);
@@ -172,7 +132,7 @@ async function driveAuthorizeCell(code: number, allowFallback: boolean) {
     errCode = err.code;
   }
 
-  const accepted = origin.acceptCount; // 1 iff the request reached Discord (fell back locally); 0 iff it rejected first
+  const accepted = origin.acceptCount;
 
   api.end();
   await origin.close();
@@ -205,13 +165,6 @@ describe('Api RPC request fallback (AC-2.2) — 16 codes x 2 arms', () => {
   }
 });
 
-/**
- * qa-P001-2 Phase 2, finding QA-2: `handleRequestRemote`'s `&& this.#allowFallback`
- * conjunct (the guard on the request-SERVICE path, `addRequestService` — distinct from
- * the rate-limit service every other cell in this file drives) had no cell reaching it at
- * all; mutant M7 (dropping that conjunct) survived the whole suite. Mirrors
- * `driveAuthorizeCell` exactly, against `LoopbackRpcServer.startRequestService()` instead.
- */
 async function driveRequestFallbackCell(code: number, allowFallback: boolean) {
   const origin = await LoopbackApiOrigin.start();
   origin.setScript([OK_RESPONSE]);
@@ -230,7 +183,7 @@ async function driveRequestFallbackCell(code: number, allowFallback: boolean) {
     errCode = err.code;
   }
 
-  const accepted = origin.acceptCount; // 1 iff the request reached Discord (fell back locally); 0 iff it rejected first
+  const accepted = origin.acceptCount;
 
   api.end();
   await origin.close();
@@ -268,7 +221,7 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE]);
     const rpc = await LoopbackRpcServer.start();
-    rpc.injectFault('hello', { code: grpcStatus.DEADLINE_EXCEEDED }); // in the widened set, not the old literal 14
+    rpc.injectFault('hello', { code: grpcStatus.DEADLINE_EXCEEDED });
 
     const events: ApiDebugEvent[] = [];
     const emitter = new EventEmitter();
@@ -278,7 +231,7 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
     await api.addRateLimitService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
 
     const res = await api.request('GET', '/channels/1');
-    expect(res.status).toBe(200); // hello() never connected, so authorize/request never reach the RPC path -> local
+    expect(res.status).toBe(200);
 
     const unexpectedErrorLines = events.filter(isUnexpectedErrorEvent);
     expect(unexpectedErrorLines).toHaveLength(0);
@@ -299,9 +252,6 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
     emitter.on('DEBUG', (e: ApiDebugEvent) => events.push(e));
 
     const api = await createApiAgainstOrigin(origin, 'test-token', { emitter });
-    // `addRateLimitService` awaits `checkRpcServiceConnection`, whose catch logs the
-    // "unexpected error" line synchronously before returning — by the time this resolves
-    // the event is already in `events`, so there is nothing to sleep for at all.
     await api.addRateLimitService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
     await waitForDebugEvent(events, emitter, isUnexpectedErrorEvent, 2000);
 
@@ -315,13 +265,6 @@ describe('checkRpcServiceConnection widened predicate (step 2, the hello site)',
 });
 
 describe('a real stopped-mid-session server (step 3\'s recording obligation)', () => {
-  // A real "before the call" stop takes two shapes. A graceful stop always produces
-  // UNAVAILABLE(14) (verified below). An abrupt stop's code is disputed between two
-  // independent measurements — UNAVAILABLE(14) in one, CANCELLED(1) in the other — most
-  // likely a race between the client noticing the destroyed session and issuing on it.
-  // That disagreement is why the assertion below is set-membership, never a specific
-  // code, via the ERROR-level DEBUG event `authorizeRequestWithServer` emits on this
-  // fallback path.
   it('graceful stop before the call (regression guard — pre-existing UNAVAILABLE(14) behaviour, unchanged by the widening)', async () => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE, OK_RESPONSE]);
@@ -341,12 +284,9 @@ describe('a real stopped-mid-session server (step 3\'s recording obligation)', (
 
     await api.request('GET', '/channels/1');
     await rpc.waitForUpdate(1);
-    await rpc.close(); // tryShutdown — graceful
+    await rpc.close();
 
-    // `authorizeRequestWithServer`'s catch logs its ERROR line synchronously before
-    // `sendRequest` falls through to the local send, so the event is already in
-    // `events` by the time `request()` resolves — nothing left to sleep for.
-    await api.request('GET', '/channels/2'); // authorize now hits the stopped server
+    await api.request('GET', '/channels/2');
     await waitForDebugEvent(events, emitter, isErrorEvent, 2000);
 
     expect(unhandled).toHaveLength(0);
@@ -378,13 +318,8 @@ describe('a real stopped-mid-session server (step 3\'s recording obligation)', (
 
     await api.request('GET', '/channels/1');
     await rpc.waitForUpdate(1);
-    // waitForUpdate resolves once the server has COUNTED the call, not once the client
-    // has received its reply — request 1's own fire-and-forget update round trip can
-    // still be in flight. A graceful close (above) drains it; an abrupt one would not,
-    // and could kill it mid-flight, producing a second, unrelated ERROR event from step
-    // 1's own handler rather than the single one this test means to isolate.
     await new Promise((resolve) => { setTimeout(resolve, 50); });
-    rpc.forceClose(); // abrupt — no graceful drain (qa probe P-2's "killed before call" shape)
+    rpc.forceClose();
 
     await api.request('GET', '/channels/2');
     await waitForDebugEvent(events, emitter, isErrorEvent, 2000);

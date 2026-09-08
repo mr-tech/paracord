@@ -1,15 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import RateLimitHeaders from '../../src/clients/Api/structures/RateLimitHeaders';
 
-/**
- * AC-9.3 (both construction sites enumerated) and code review CR-3: the constructor
- * restated `headerToCount`/`headerToBoolean` inline rather than calling them, and the
- * restatement is *weaker* than the original — `Number.isFinite(limit)` rejects a numeric
- * string outright where `headerToCount` coerces it first. The class is the header-value
- * coercions in this file (`global`, `limit`, `remaining`, `resetAfter`, `retryAfter`)
- * over the two construction sites (`extractRateLimitFromHeaders`, and the direct
- * constructor the RPC boundary uses — `addService.ts#update`).
- */
 const VALUE_CLASS: Array<{ label: string; value: unknown }> = [
   { label: 'absent', value: undefined },
   { label: 'empty string', value: '' },

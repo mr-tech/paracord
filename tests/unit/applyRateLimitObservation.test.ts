@@ -4,13 +4,6 @@ import RateLimitHeaders from '../../src/clients/Api/structures/RateLimitHeaders'
 
 import type RateLimitCache from '../../src/clients/Api/structures/RateLimitCache';
 
-/**
- * WP-9b step 3 (architect F-6; AC-9.9). The one place both `Api#updateRateLimitCache`
- * and `addService#update` invoke: the bucket update fires only when
- * `headers.hasState`, the global update fires unconditionally. This is the one
- * permitted bucket-presence conditional in the class — neither caller holds one of its
- * own once they call this.
- */
 function fakeCache() {
   return {
     update: vi.fn(),

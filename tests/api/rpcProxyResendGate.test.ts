@@ -6,38 +6,6 @@ import {
   PARTY_HEADER, PROXY_OPTIONS, proxyReceipts, clientReceipts, requestOutcome,
 } from '../harness/partyAttribution';
 
-/**
- * Plan 001 WP-7 step 5, AC-7.6 (D-49): `Api#handleRequestRemote`'s catch re-sends a
- * request locally, after an RPC transport failure, only where `isIdempotentMethod`
- * holds — the fallback gate's method conjunct, reusing WP-5's predicate verbatim. A
- * non-idempotent body the client has handed to the proxy is never re-sent by the
- * client; the recreate still runs either way (WP-6's lifecycle, AC-6.1's count
- * unchanged) and the transport error is rethrown to the caller when the method is
- * gated out.
- *
- * Origin-level, per qa's WP7-F2 remedy: per-party attribution
- * (`tests/harness/partyAttribution.ts`) — the proxy's own `Api` is tagged with a
- * distinguishing request header, so the origin's `receivedHeaders` attribute each
- * receipt to proxy or client directly, never by subtraction.
- *
- * Uses `LoopbackRpcServer#forwardThenFail` (step 6): the real production handler runs to
- * completion — a genuine forward reaches the loopback origin, counted like any other
- * request — before the client is answered with the trigger code. The proxy's
- * `apiClient` is pointed at the loopback origin via `startRequestService`'s `origin`
- * parameter (qa WP7-F4's arm M2) so no cell here can reach Discord's real API by
- * construction.
- *
- * Representative members, not the full 14-spelling x 4-code x 2-arm matrix qa's Phase 1
- * probe already drove exhaustively against the unfixed tree (`wp7-ac76-fixed-tree-ee277b5.json`)
- * — qa's Phase 2 audits that matrix's adequacy. Every conjunct of the compound predicate
- * is the sole decider in at least one fixture below, per qa's Coverage Obligations table.
- *
- * The trigger-code population this file exercises is the decider's whole set {14, 4, 1,
- * 13}, every member as an injected status at no wall-clock cost. Code 4 reached the way
- * production reaches it — the client's own real deadline expiring behind a withheld
- * reply — is `tests/timing/rpcProxyResendGate-withhold.test.ts`, run only on request.
- */
-
 const OK_RESPONSE = { status: 200, body: { ok: true } };
 
 describe('AC-7.6 — forward-then-fail (codes 14/4/1/13), allowFallback: true', () => {
@@ -48,16 +16,10 @@ describe('AC-7.6 — forward-then-fail (codes 14/4/1/13), allowFallback: true', 
     ['GET', true, grpcStatus.UNAVAILABLE],
     ['get', true, grpcStatus.UNAVAILABLE],
     ['PUT', true, grpcStatus.UNAVAILABLE],
-    // One non-idempotent and one idempotent member per remaining code, both case
-    // spellings, so every member of the decider's set is driven here without the full
-    // 14-spelling x 4-code matrix qa's Phase 1 probe already drove exhaustively.
     ['POST', false, grpcStatus.CANCELLED],
     ['get', true, grpcStatus.CANCELLED],
     ['post', false, grpcStatus.INTERNAL],
     ['GET', true, grpcStatus.INTERNAL],
-    // Code 4 as a status the proxy answers with after its forward: exercises the
-    // decider's DEADLINE_EXCEEDED member without a real deadline. The real-deadline
-    // form of the same member is the `tests/timing/` withhold cell.
     ['PATCH', false, grpcStatus.DEADLINE_EXCEEDED],
     ['put', true, grpcStatus.DEADLINE_EXCEEDED],
   ])('%s / idempotent=%s / code %i resends locally from the client iff the method is idempotent', async (method, shouldResend, code) => {
@@ -71,13 +33,7 @@ describe('AC-7.6 — forward-then-fail (codes 14/4/1/13), allowFallback: true', 
 
     const outcome = await requestOutcome(api, method);
 
-    expect(proxyReceipts(origin)).toBe(1); // the proxy's own forward always happens exactly once
-    // The party label is checked against a fact independent of the header it reads:
-    // receipt order. The proxy's own forward always reaches the origin first — it
-    // happens before the RPC failure that could trigger any client-side action — so
-    // receipt 0 must itself carry the 'proxy' tag, and (where a client resend follows)
-    // receipt 1 must not. `clientReceipts` alone cannot see a swapped or duplicated tag,
-    // since it is defined as the complement of `proxyReceipts` over the same array.
+    expect(proxyReceipts(origin)).toBe(1);
     expect(origin.receivedHeaders[0]![PARTY_HEADER]).toBe('proxy');
     if (shouldResend) {
       expect(outcome).toEqual({ resolved: true, status: 200 });
@@ -143,16 +99,16 @@ describe('AC-7.6 — controls (WP7-F2\'s non-member population)', () => {
     const origin = await LoopbackApiOrigin.start();
     origin.setScript([OK_RESPONSE]);
     const rpc = await LoopbackRpcServer.startRequestService('test-token', origin, PROXY_OPTIONS);
-    rpc.injectFault('hello', { code: grpcStatus.UNAVAILABLE }); // the initial connect fails transport-wise, arming the latch
+    rpc.injectFault('hello', { code: grpcStatus.UNAVAILABLE });
 
     const api = await createApiAgainstOrigin(origin);
     await api.addRequestService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
 
     const outcome = await requestOutcome(api, 'POST');
 
-    expect(outcome).toEqual({ resolved: true, status: 200 }); // falls back locally, unaffected by the new method gate
+    expect(outcome).toEqual({ resolved: true, status: 200 });
     expect(clientReceipts(origin)).toBe(1);
-    expect(proxyReceipts(origin)).toBe(0); // never forwarded — outside the gate's population
+    expect(proxyReceipts(origin)).toBe(0);
 
     api.end();
     await origin.close();

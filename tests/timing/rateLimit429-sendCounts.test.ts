@@ -3,15 +3,6 @@ import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackAp
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 import { SHAPES, type Shape } from '../harness/rateLimit429Shapes';
 
-/**
- * WP-9b step 1 — AC-9.1 (send counts over a real 4.5 s window), over the 429 shape class
- * × the request path {local, RPC} (D-20). The shapes themselves are
- * `tests/harness/rateLimit429Shapes.ts`, shared with AC-9.2's cells in `tests/api/`.
- *
- * Time-based: each cell waits out a real 4.5 s window and counts the sends that landed
- * inside it, so it lives in `tests/timing/` and runs only under `npm run test:timing`.
- */
-
 const PATHS: Array<'local' | 'rpc'> = ['local', 'rpc'];
 
 async function drive(shape: Shape, path: 'local' | 'rpc') {
@@ -42,9 +33,6 @@ async function drive(shape: Shape, path: 'local' | 'rpc') {
   api.end();
   await origin.close();
   await rpc?.close();
-  // Let the in-flight request settle rather than leaking a hanging promise into the
-  // next test — it is expected to still be queued/parked at teardown for every shape
-  // but the control (whose reset-after does eventually let it resolve or 429-throw).
   void requestPromise;
 
   return { sends, authorizeCalls };
@@ -66,8 +54,6 @@ describe('Api 429 handling: send counts over the class {shape} x {path} (AC-9.1)
           expect(sends).toBeLessThanOrEqual(shape.expectedSends.max);
         }
 
-        // AC-9.1's own path-membership predicate: authorize >= accept >= 1 on RPC,
-        // authorize = 0 on local. A member that fails this predicate has left its path.
         if (path === 'rpc') {
           expect(authorizeCalls).toBeGreaterThanOrEqual(sends);
           expect(authorizeCalls).toBeGreaterThanOrEqual(1);

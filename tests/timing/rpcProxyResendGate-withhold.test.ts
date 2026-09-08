@@ -6,18 +6,6 @@ import {
   PROXY_OPTIONS, proxyReceipts, clientReceipts, requestOutcome,
 } from '../harness/partyAttribution';
 
-/**
- * Plan 001 WP-7 step 5, AC-7.6 (D-49) — the deadline member of the resend gate's trigger
- * class, driven the way production reaches it: the proxy forwards, then withholds its
- * reply (`LoopbackRpcServer#forwardThenWithhold`), and the client's own 10 s RPC deadline
- * (code 4) is what fails the call. The other three members and every control are
- * `tests/api/rpcProxyResendGate.test.ts`, where code 4 is also driven as an injected
- * status at no wall-clock cost.
- *
- * Time-based: each cell waits out the real deadline and asserts on the elapsed time, so
- * it lives in `tests/timing/` and runs only under `npm run test:timing`.
- */
-
 const OK_RESPONSE = { status: 200, body: { ok: true } };
 
 describe('AC-7.6 — forward-then-withhold (code 4, the client\'s own deadline)', () => {
@@ -50,6 +38,6 @@ describe('AC-7.6 — forward-then-withhold (code 4, the client\'s own deadline)'
 
     api.end();
     await origin.close();
-    rpc.forceClose(); // a withheld stream does not resolve close() (WP6-F4's precedent)
+    rpc.forceClose();
   }, 20000);
 });

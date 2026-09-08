@@ -12,7 +12,6 @@ interface Params {
   log: Gateway['log'];
 }
 
-/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for. */
 const VETO_CAP = 3;
 
 export default class Heart {
@@ -23,7 +22,6 @@ export default class Heart {
   /** If the last heartbeat packet sent to Discord received an ACK. */
   #isAcknowledged = true;
 
-  /** Consecutive heartbeats the `isFetchingMembers` veto has held off a close for; reset on ack. */
   #consecutiveVetoes = 0;
 
   /** Time when last heartbeat packet was sent in ms. */

@@ -761,11 +761,13 @@ export class Session {
     handleMessage(p: GatewayReceivePayload): void;
     // (undocumented)
     get identity(): GatewayIdentify;
+    // (undocumented)
     get isFetchingMembers(): boolean;
     // (undocumented)
     log: Gateway['log'];
     login: () => void;
     requestGuildMembers(options: GatewayRequestGuildMembersData): boolean;
+    // (undocumented)
     get resumable(): boolean;
     get resuming(): boolean;
     // (undocumented)

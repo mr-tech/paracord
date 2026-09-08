@@ -15,13 +15,6 @@ function run(variant: string): Promise<{ code: number | null, stdout: string, st
   });
 }
 
-/**
- * WP-0 smoke test — AC-0.4(c). Isolates A-1.7's crash: `Websocket.destroy()`'s exact
- * sequence on a socket still `CONNECTING` — null the four `on*` handlers,
- * `removeAllListeners()`, then `terminate()` — raises an unhandled `'error'` event that
- * exits the process. Run in a child process (AC-0.4(c)'s own named instrument) since it
- * crashes its host.
- */
 describe('AC-0.4(c): destroy() on a CONNECTING socket crashes the process', () => {
   it('as-library: removeAllListeners() then terminate() exits non-zero with the A-1.7 error', async () => {
     const { code, stderr } = await run('as-library');

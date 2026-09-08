@@ -2,16 +2,6 @@ import { describe, it, expect } from 'vitest';
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 
-/**
- * Plan 001 WP-7 step 3, AC-7.3 (M8): every request option the local path carries onto
- * the request — `ApiRequest`'s constructor destructure less `data`/`headers` (already on
- * the wire) and `createForm` (resolved client-side, its own case below) — crosses the
- * proxy: `params`, `returnOnRateLimit`, `returnOnGlobalRateLimit`, `maxRateLimitRetry`.
- * Before this package all four are silently dropped in transit (M8, confirmed live at
- * `ee277b5` by A-2 and qa: `params` observable at the origin without server-side
- * introspection — the proxied receipt's path carries no query string at all).
- */
-
 const OK_RESPONSE = { status: 200, body: { ok: true } };
 
 describe('AC-7.3 — request options cross the proxy wire', () => {
@@ -56,11 +46,6 @@ describe('AC-7.3 — request options cross the proxy wire', () => {
     const api = await createApiAgainstOrigin(origin);
     await api.addRequestService({ host: '127.0.0.1', port: rpc.port, allowFallback: false });
 
-    // `Api#request`'s own `validateStatus` throws on a non-2xx status regardless of
-    // `returnOnRateLimit` — the same shape `rateLimit429.test.ts` uses on the other two
-    // paths. The discriminator here is that the *option reaching the proxy* is what
-    // stops a second origin request: without it, the proxy's own `allowQueue` would
-    // queue and retry the 429 against the same origin.
     await expect(api.request('POST', '/channels/1/messages', { ...options, data: { content: 'hi' } }))
       .rejects.toThrow();
     expect(origin.acceptCount).toBe(1);
@@ -92,13 +77,6 @@ describe('AC-7.3 — request options cross the proxy wire', () => {
     rpc.forceClose();
   }, 10000);
 
-  // AC-7.3 requires the option's VALUE on the proxy's own decoded ApiRequest, not an
-  // outcome a cell happens to produce. `returnOnGlobalRateLimit` — one of the four
-  // enumerated options and one of three sibling guarded spreads in `addService.ts` — had
-  // no cell anywhere driving it across the wire (WP7-F9); deleting its spread line left
-  // the entire suite green. Reads the proxy's own `Api#sendRequest` argument directly,
-  // by wrapping the method on the running instance, so the assertion is against the
-  // decoded message rather than an effect of it.
   it.each([
     ['control: no options at all', {},
       { params: null, returnOnRateLimit: false, returnOnGlobalRateLimit: false, retriesLeft: null }],

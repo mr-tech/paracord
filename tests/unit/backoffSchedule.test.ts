@@ -1,10 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import computeBackoffMs from '../../src/clients/Gateway/structures/backoffSchedule';
 
-/**
- * WP-1 step 2 (architect F-3, time-seam rule, form (a) arithmetic). D-8: 1 s base,
- * doubling, ±20% jitter, 60 s cap, no give-up. AC-1.1(a)'s own bounds.
- */
 describe('computeBackoffMs (D-8 pure schedule function)', () => {
   it('n = 0 is 0 (the failure-counter table: n = 0 has a value, d_0 = 0)', () => {
     expect(computeBackoffMs(0)).toBe(0);

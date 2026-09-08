@@ -32,9 +32,6 @@ function request(call, callback) {
     }
     try {
         const { method, url, data, headers, params, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, } = structures_1.RequestMessage.fromProto(call.request);
-        // `exactOptionalPropertyTypes`: `RequestOptions`' three retry-policy members are
-        // declared `?: boolean`/`?: number`, not `?: boolean | undefined`, so an explicit
-        // `undefined` value is only ever spread in, never assigned as a present key.
         this.apiClient.request(method, url, {
             data,
             headers,

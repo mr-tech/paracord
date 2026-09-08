@@ -13,13 +13,6 @@ function response(data: unknown, headers: Record<string, unknown> = {}): RateLim
   };
 }
 
-/**
- * Code review CR-4: `Number.isFinite(Number(x))` used as a *presence* test accepts
- * `null`, `''`, `[]` and `false` as `0`, so an empty-but-present earlier source silently
- * wins over a populated later one and the fallback chain the function exists to provide
- * is never consulted. Fixed: presence tested before coercion, so "present but empty" and
- * "absent" fall through identically.
- */
 describe('extractRetryAfter (CR-4: presence before coercion)', () => {
   it('prefers a finite body retry_after over the header', () => {
     expect(extractRetryAfter(response({ retry_after: 5 }, { 'retry-after': '20' }))).toBe(5);

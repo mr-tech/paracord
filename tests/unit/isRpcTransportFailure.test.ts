@@ -2,13 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { status as grpcStatus } from '@grpc/grpc-js';
 import isRpcTransportFailure from '../../src/clients/Api/structures/isRpcTransportFailure';
 
-/**
- * Plan 001 WP-2 step 2: one predicate replaces four literal
- * `err.code === RPC_CLOSE_CODES.LOST_CONNECTION` comparisons. The transport set is
- * exhaustive over the 16 non-OK canonical gRPC status codes: {UNAVAILABLE 14,
- * DEADLINE_EXCEEDED 4, CANCELLED 1, INTERNAL 13} are in; the other 12, including
- * UNKNOWN 2 (a server handler threw — the server is reachable and serving), are out.
- */
 describe('isRpcTransportFailure (WP-2 step 2)', () => {
   const TRANSPORT_SET = new Set([
     grpcStatus.UNAVAILABLE, grpcStatus.DEADLINE_EXCEEDED, grpcStatus.CANCELLED, grpcStatus.INTERNAL,

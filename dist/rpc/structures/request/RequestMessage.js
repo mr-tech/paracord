@@ -14,13 +14,9 @@ class RequestMessage {
     data;
     /** Headers to send with the request. */
     headers;
-    /** Url params to send with the request. */
     params;
-    /** Set to true to not retry the request on a bucket 429 rate limit. */
     returnOnRateLimit;
-    /** Set to true to not retry the request on a global rate limit. */
     returnOnGlobalRateLimit;
-    /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. */
     maxRateLimitRetry;
     /**
      * Validate incoming message and translate it into common state.
@@ -76,15 +72,6 @@ class RequestMessage {
             throw Error("received invalid message. missing property 'url'");
         }
     }
-    /**
-     * Create a new RequestMessage sent from client to server. `createForm`'s product is
-     * resolved here — before the message is built — since a function cannot cross the
-     * wire; its `data`, `headers` and `params` travel in those three fields instead. A
-     * product whose `data` is multipart form data is not JSON-representable: its `data`
-     * does not cross the wire, but its `headers` and `params` still do (unfunded
-     * residue) — the message this constructs can announce a multipart `content-type`
-     * boundary for a body it does not carry.
-     */
     constructor(apiRequest) {
         this.method = apiRequest.method;
         this.url = apiRequest.url;

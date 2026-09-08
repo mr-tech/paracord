@@ -6,12 +6,6 @@ import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
 import { createTestBot } from '../harness/testBot';
 import { waitForCondition, waitForResumable } from '../harness/waitFor';
 
-/**
- * AC-1.7. `zlib-stream` compression is the client's own decision
- * (`identity.compress: true`), so this harness never needs to actually compress
- * anything real — every frame this test sends over such a connection is routed through
- * the client's inflate stream regardless of what bytes it contains.
- */
 const FLUSH_MARKER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
 
 function validCompressed(): Buffer {

@@ -1,14 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../../constants");
-/** Consecutive heartbeats the `isFetchingMembers` veto may hold off `HEARTBEAT_TIMEOUT` for. */
 const VETO_CAP = 3;
 class Heart {
     #gateway;
     #websocket;
     /** If the last heartbeat packet sent to Discord received an ACK. */
     #isAcknowledged = true;
-    /** Consecutive heartbeats the `isFetchingMembers` veto has held off a close for; reset on ack. */
     #consecutiveVetoes = 0;
     /** Time when last heartbeat packet was sent in ms. */
     #previousTimestamp;

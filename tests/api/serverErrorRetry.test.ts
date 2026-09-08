@@ -5,15 +5,6 @@ import LoopbackApiOrigin, { createApiAgainstOrigin, type ScriptedResponse } from
 
 import type { Method } from 'axios';
 
-/**
- * Plan 001 WP-5, AC-5.2: the compound retry predicate — status in 500..599 **and**
- * method not idempotent — decides whether a 5xx response is retried. The status half's
- * full domain (500..599, 499, 600) is a form (a) unit test
- * (`tests/unit/isServerErrorResponse.test.ts`); this file drives the method class and
- * the conjunct/independence checks at the socket, per qa's decomposition (WP5-F1 route
- * 1) — each conjunct is the sole carrier of the decision in at least one fixture here.
- * Instrument: the origin's **request receipts**, never the connection count (WP5-F6).
- */
 const IDEMPOTENT_SPELLINGS: Method[] = ['GET', 'get', 'HEAD', 'head', 'OPTIONS', 'options', 'PUT', 'put', 'DELETE', 'delete'];
 const NON_IDEMPOTENT_SPELLINGS: Method[] = ['POST', 'post', 'PATCH', 'patch'];
 const BODY_CARRYING: Method[] = ['PUT', 'put', 'POST', 'post', 'PATCH', 'patch'];

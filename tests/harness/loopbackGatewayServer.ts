@@ -4,36 +4,17 @@ import type { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import { WebSocket, WebSocketServer } from 'ws';
 
-/**
- * The three upgrade behaviours the harness can answer with. Together with `acceptDelayMs`
- * these cover the audit's four named socket shapes (D-12): `reject503` is "never-opened
- * sockets" (i), `hang` is "stuck-CONNECTING" (i), `accept` with `acceptDelayMs` set is
- * "late-handshake" (i), and `closeLiveSocket`/`dropLiveSocket` below produce the
- * "session-preserving close" shape (i).
- */
 export type LoopbackMode = 'accept' | 'reject503' | 'hang';
 
 export interface LoopbackGatewayServerOptions {
-  /** Behaviour applied to each incoming upgrade until `setMode` changes it. Default 'accept'. */
   mode?: LoopbackMode;
-  /** Delay, in ms, before an 'accept' mode upgrade completes the handshake ("late-handshake"). */
   acceptDelayMs?: number;
-  /** `resume_gateway_url` sent in READY. Defaults to this server's own URL. */
   resumeGatewayUrl?: string;
-  /** How a RESUME (op 6) is answered: a RESUMED dispatch, or INVALID_SESSION. Default 'resumed'. */
   resumeResponse?: 'resumed' | 'invalidSession';
-  /** `heartbeat_interval` (ms) sent in HELLO. Default 45000. */
   heartbeatIntervalMs?: number;
   readyGuilds?: number;
 }
 
-/**
- * A loopback Discord-gateway stand-in: an HTTP server that upgrades to a real `ws`
- * connection, sends HELLO, and answers IDENTIFY with READY — or refuses/withholds the
- * upgrade per `mode`. Real sockets, not a fake `ws`, so the library's own `ws` usage runs
- * unmodified (plan Design section: "real loopback sockets replace the audit's proposed
- * fake-`ws`").
- */
 export class LoopbackGatewayServer extends EventEmitter {
   readonly attempts: number[] = [];
 
@@ -57,7 +38,6 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   private readonly readyGuilds: number;
 
-  /** Op codes received from the live client, in arrival order — `heartbeatsReceived` etc. read this. */
   readonly receivedOps: number[] = [];
 
   private nextDispatchSeq = 1;
@@ -103,11 +83,6 @@ export class LoopbackGatewayServer extends EventEmitter {
     return this.attempts.filter((a) => a >= t).length;
   }
 
-  /**
-   * Resolves once the server has recorded at least `n` upgrade attempts. The named-
-   * condition wait step 0 requires in place of a fixed sleep when a test needs the
-   * loop to have reached steady state.
-   */
   waitForAttempt(n: number, timeoutMs = 5000): Promise<void> {
     if (this.attempts.length >= n) return Promise.resolve();
 
@@ -127,41 +102,25 @@ export class LoopbackGatewayServer extends EventEmitter {
     });
   }
 
-  /** Abnormally drops the currently open session's socket (mirrors the analysis harness's mid-session failure). */
   dropLiveSocket(): void {
     // eslint-disable-next-line no-underscore-dangle
     (this.liveSocket as unknown as { _socket: Duplex } | null)?._socket?.destroy();
   }
 
-  /** A clean, server-initiated close of the live session with the given close code. */
   closeLiveSocket(code: number, reason = ''): void {
     this.liveSocket?.close(code, reason);
   }
 
-  /** Count of HEARTBEAT (op 1) messages received from the live client so far. */
   get heartbeatsReceived(): number {
     return this.receivedOps.filter((op) => op === 1).length;
   }
 
-  /**
-   * Sends an arbitrary dispatch (op 0) on the live socket — `t`/`d` as given, `s` the
-   * next sequence number unless overridden. For payloads the fixed READY/RESUMED
-   * handling above does not cover, e.g. `GUILD_MEMBERS_CHUNK` replay (AC-1.4/AC-1.12).
-   */
   sendDispatch(type: string, data: unknown, seq?: number): void {
     this.liveSocket?.send(JSON.stringify({
       op: 0, t: type, d: data, s: seq ?? this.nextDispatchSeq++,
     }));
   }
 
-  /**
-   * Sends raw bytes as a binary WebSocket frame on the live socket, bypassing JSON
-   * encoding entirely — for a deliberately corrupt compressed frame (AC-1.7), which a
-   * `zlib-stream` client (`identity.compress: true`) routes through its inflate stream
-   * regardless of what this harness actually sent, since compression is the client's own
-   * decision (`Websocket.ts` checks `this.#session.identity.compress`, not any
-   * server-negotiated parameter).
-   */
   sendRawBinary(bytes: Buffer): void {
     this.liveSocket?.send(bytes);
   }

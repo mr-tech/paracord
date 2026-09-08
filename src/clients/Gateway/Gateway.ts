@@ -192,16 +192,9 @@ export default class Gateway {
   };
 
   public close(code: GatewayCloseCode = GATEWAY_CLOSE_CODES.USER_TERMINATE_RECONNECT, flushWait = 0) {
-    // Read as the very first action, before any branch below — including the IDLE
-    // return immediately after — so an internal caller's tag (`Paracord.timeoutShard`
-    // is the one that still needs this) can never be separated from this read by a path
-    // that consumes neither. A raw external call carries nothing to read, so it falls
-    // through to the origin its own code already meant: `consumer`.
     const origin = takePendingCloseIntent(this) ?? 'consumer';
 
     if (!this.#session) {
-      // Never logged in, or already torn down after a close that will not reconnect —
-      // a no-op, logged with the discarded code; no event is emitted.
       this.log('WARNING', `Websocket is undefined when closing. Discarding code: ${code}.`);
       return;
     }
@@ -225,9 +218,6 @@ export default class Gateway {
   private handleClose(code: number, origin: CloseOrigin) {
     const shouldReconnect = this.handleCloseCode(code);
 
-    // Handed off keyed on the gateway instance itself rather than on the public event,
-    // which stays exactly {shouldReconnect, code, gateway} — a consumer reading it never
-    // sees where the close came from.
     setPendingOrigin(this, origin);
 
     const gatewayCloseEvent: GatewayCloseEvent = { shouldReconnect, code, gateway: this };

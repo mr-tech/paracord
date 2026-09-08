@@ -30,17 +30,6 @@ exports.mergeOptionsWithDefaults = exports.withCallDeadline = exports.RPC_CALL_D
 const grpc = __importStar(require("@grpc/grpc-js"));
 const protoLoader = __importStar(require("@grpc/proto-loader"));
 const path_1 = __importDefault(require("path"));
-/**
- * Load in a protobuf from a file.
- *
- * Resolves by directory, not by filename surgery: `protobufs/` is always the sibling of
- * this module's own directory (`services/`), under both `dist/rpc/services/common.js`
- * (the build copies `src/rpc/protobufs` to `dist/rpc/protobufs` alongside it) and
- * `src/rpc/services/common.ts` (vitest runs the source directly). A filename-based
- * rewrite of the compiled name is a no-op against the `.ts` filename vitest presents,
- * which hands protobufjs the module's own source file instead of a `.proto`.
- * @param proto Name of the proto file.
- */
 function loadProto(proto) {
     const protoPath = path_1.default.join(__dirname, '..', 'protobufs', `${proto}.proto`);
     return protoLoader.loadSync(protoPath, { keepCase: true });
@@ -54,17 +43,7 @@ function loadProtoDefinition(proto) {
     return grpc.loadPackageDefinition(loadProto(proto));
 }
 exports.loadProtoDefinition = loadProtoDefinition;
-/**
- * Every RPC call's deadline: 10 seconds. Computed fresh at call time by
- * `withCallDeadline`, never once per client or per request, so a chained recreate's
- * second call gets its own full window rather than inheriting an already-expiring one.
- */
 exports.RPC_CALL_DEADLINE_MS = 10000;
-/**
- * `grpc.CallOptions` carrying a deadline `RPC_CALL_DEADLINE_MS` from now — call this at
- * the moment of each RPC invocation, not once and reused, or every call after the first
- * inherits a shorter and shorter window.
- */
 function withCallDeadline() {
     return { deadline: new Date(Date.now() + exports.RPC_CALL_DEADLINE_MS) };
 }

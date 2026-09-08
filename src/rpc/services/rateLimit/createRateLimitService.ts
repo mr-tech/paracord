@@ -12,7 +12,6 @@ export interface RateLimitService {
   hello(): Promise<void>;
   authorize(request: ApiRequest): Promise<AuthorizationMessage>;
   update(request: ApiRequest, global: boolean, bucketHash: string | undefined, limit: number, remaining: number, resetAfter: number, retryAfter: number | undefined): Promise<void>;
-  /** Closes the underlying channel. Synchronous — never awaited. */
   close(): void;
 }
 
@@ -39,9 +38,6 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
 
       const dest = `${host}:${port}`;
 
-      // The two `max_connection_*` args are server-only at grpc-js 1.14.1 (read in
-      // `server.js`, in no client or channel path) and are dropped here so this channel's
-      // args match `createRequestService`'s.
       super(dest, channel, {
         'grpc.enable_channelz': 0,
       });
@@ -112,7 +108,6 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
       });
     }
 
-    /** Closes the underlying channel (`grpc.Client#close`, synchronous). */
     public close(): void {
       super.close();
     }

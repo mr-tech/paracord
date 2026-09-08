@@ -8,36 +8,6 @@ import { LOG_LEVELS } from '../../src/constants';
 
 import type { ApiDebugEvent } from '../../src/clients/Api/types';
 
-/**
- * Plan 001 WP-6 step 2, AC-6.2 + AC-6.3 (`allowFallback: true`): every RPC call site
- * carries a 10-second deadline (D-7) computed at call time, so a server that accepts but
- * never answers stalls a REST request for 10-20s instead of forever, and the request then
- * completes locally. Read together per the plan's own guidance (§Test strategy: "Read
- * AC-6.2 and AC-6.3 from the same runs") — one execution, two sets of assertions: the
- * settle-time/discriminator (AC-6.2) and the local-completion shape (AC-6.3).
- *
- * Per-site discriminator, qa's per-site table (`9d2b0e6`):
- * - `authorize` (rate-limit): the origin's `acceptCount`, `maxConcurrency: 1` — the one
- *   permitted wall-clock case (`sendRequest`'s own `#inFlight` gate serialises the second
- *   request behind the first's own deadline).
- * - `request` (request service): the origin's `acceptCount` — the fallback re-send.
- * - `hello`, initial (rate-limit): the connect promise settling within its deadline
- *   instead of pending forever, and the corrected SL-2 control on the next request
- *   (`authorizeCalls` stays 0 — it never reaches the server, it falls back).
- * - `update` (rate-limit), per-method withhold: SL-1's registered substitute — the
- *   recreate itself (server `hello` count 1→2), since the criterion's own named ERROR line
- *   never fires under this scope (it fires only under a whole-server withhold, below).
- * - `update` (rate-limit), whole-server withhold: the chained recreate at ~20s, the ERROR
- *   line fires exactly once.
- * - `authorize` (rate-limit), whole-server withhold: the chained recreate at ~20s, the
- *   request completes locally (SP-6).
- *
- * Timed bounds constructed per §Validation's read (a) — never fitted to a measurement —
- * as the sum of every gap the wait spans (a 10s deadline, or two chained) plus one tick
- * (`RequestQueue`'s 1s poll, the coarsest scheduler any of these waits passes through).
- * `10_000` is restated here as a literal, never imported from `src/` (AC-6.5).
- */
-
 const OK_RESPONSE = { status: 200, body: { ok: true }, headers: { 'content-type': 'application/json' } };
 const DEADLINE_MS = 10_000;
 const TICK_MS = 1_000;
@@ -65,7 +35,6 @@ function waitForDebugEvent(events: ApiDebugEvent[], emitter: EventEmitter, predi
   });
 }
 
-/** As `waitForDebugEvent`, but for the n-th matching event rather than the first. */
 function waitForDebugEventCount(events: ApiDebugEvent[], emitter: EventEmitter, predicate: (e: ApiDebugEvent) => boolean, n: number, timeoutMs: number): Promise<void> {
   if (events.filter(predicate).length >= n) return Promise.resolve();
 
@@ -108,7 +77,7 @@ describe('AC-6.2 + AC-6.3 — deadline sites, allowFallback: true', () => {
 
     expect(resA.status).toBe(200);
     expect(resB.status).toBe(200);
-    expect(origin.acceptCount).toBe(2); // AC-6.2/6.3: both fell back locally
+    expect(origin.acceptCount).toBe(2);
 
     const bound = DEADLINE_MS + TICK_MS + DEADLINE_MS + TICK_MS;
     expect(elapsed).toBeGreaterThanOrEqual(bound - 1500);
@@ -116,12 +85,12 @@ describe('AC-6.2 + AC-6.3 — deadline sites, allowFallback: true', () => {
 
     const errorEvents = events.filter((e) => isErrorEvent(e)
       && typeof e.message === 'string' && /authorization request did not succeed/i.test(e.message));
-    expect(errorEvents).toHaveLength(2); // AC-6.3: one per request's own expiry
+    expect(errorEvents).toHaveLength(2);
 
     api.end();
     await origin.close();
     rpc.release('authorize');
-    rpc.forceClose(); // WP6-F4: a withheld stream does not resolve close()
+    rpc.forceClose();
   }, 30000);
 
   it('request-service request hangs — the REST request completes via the local fallback re-send within its deadline', async () => {
@@ -179,10 +148,10 @@ describe('AC-6.2 + AC-6.3 — deadline sites, allowFallback: true', () => {
     const warnings = events.filter(isWarningEvent).map((e) => e.message as string);
     expect(warnings.some((m) => /failed to connect to rpc server/i.test(m))).toBe(true);
 
-    const res = await api.request('GET', '/channels/1'); // SL-2's corrected control
+    const res = await api.request('GET', '/channels/1');
     expect(res.status).toBe(200);
     expect(origin.acceptCount).toBe(1);
-    expect(rpc.authorizeCalls).toBe(0); // fell back — never reached the server's authorize
+    expect(rpc.authorizeCalls).toBe(0);
 
     const fallbackWarnings = events.filter(isWarningEvent).map((e) => e.message as string);
     expect(fallbackWarnings.some((m) => /fallback is allowed/i.test(m))).toBe(true);
@@ -241,9 +210,6 @@ describe('AC-6.2 + AC-6.3 — deadline sites, allowFallback: true', () => {
     const t0 = Date.now();
     await api.request('GET', '/channels/1');
     await rpc.waitForUpdate(1);
-    // SL-1's substitute discriminator: the recreate itself, read from the client's own
-    // DEBUG stream (not the server's hello count, which fires before the client's promise
-    // settles and would race this assertion).
     await waitForDebugEventCount(events, emitter, isSuccessLine, 2, 15000);
     const elapsed = Date.now() - t0;
 
@@ -252,9 +218,9 @@ describe('AC-6.2 + AC-6.3 — deadline sites, allowFallback: true', () => {
 
     const cacheErrorEvents = events.filter((e) => isErrorEvent(e)
       && /the rpc rate limit cache update did not succeed/i.test(e.message as string));
-    expect(cacheErrorEvents).toHaveLength(0); // the recreate succeeded — SL-1
+    expect(cacheErrorEvents).toHaveLength(0);
 
-    expect(events.filter(isSuccessLine).length).toBeGreaterThanOrEqual(2); // the initial connect, plus the recreate's
+    expect(events.filter(isSuccessLine).length).toBeGreaterThanOrEqual(2);
 
     api.end();
     await origin.close();
@@ -274,7 +240,7 @@ describe('AC-6.2 + AC-6.3 — deadline sites, allowFallback: true', () => {
     const api = await createApiAgainstOrigin(origin, 'test-token', { emitter });
     await api.addRateLimitService({ host: '127.0.0.1', port: rpc.port, allowFallback: true });
     rpc.withhold('update');
-    rpc.withhold('hello'); // whole-server: the recreate's own hello now also hangs
+    rpc.withhold('hello');
 
     const t0 = Date.now();
     await api.request('GET', '/channels/1');

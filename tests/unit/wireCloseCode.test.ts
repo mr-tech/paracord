@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import isValidWireCloseCode from '../../src/clients/Gateway/structures/wireCloseCode';
 
-/**
- * Matches `ws`'s own `isValidStatusCode` (node_modules/ws/lib/validation.js) exactly,
- * restated rather than imported (AC-1.9) so a `close()` caller's code can be checked
- * before it ever reaches `ws`.
- */
 describe('isValidWireCloseCode', () => {
   it('accepts 1000-1014 except 1004, 1005, 1006', () => {
     for (let code = 1000; code <= 1014; code += 1) {

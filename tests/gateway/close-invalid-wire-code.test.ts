@@ -6,13 +6,6 @@ import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
 import { createTestBot } from '../harness/testBot';
 import { waitForResumable, waitForCondition } from '../harness/waitFor';
 
-/**
- * AC-1.2(a)/(b), AC-1.3, AC-1.6. `close(ABNORMAL)` on an OPEN socket must not throw:
- * 1006 is a reserved close-frame code no WebSocket implementation accepts on the wire,
- * so the caller's code still has to reach `handleCloseCode` without ever being handed
- * to the socket unvalidated. A gateway this call leaves unclosable would fail `end()`
- * for the same reason it failed the first call.
- */
 describe('AC-1.2/1.3/1.6: close() with a wire-illegal code on an OPEN socket', () => {
   let server: LoopbackGatewayServer;
   let bot: Paracord;
@@ -38,11 +31,9 @@ describe('AC-1.2/1.3/1.6: close() with a wire-illegal code on an OPEN socket', (
     await waitForCondition(() => closeEvents.length >= 1, 'GATEWAY_CLOSE delivered', 3000);
     expect(closeEvents).toHaveLength(1);
     expect(closeEvents[0]!.code).toBe(GATEWAY_CLOSE_CODES.ABNORMAL);
-    expect(closeEvents[0]!.shouldReconnect).toBe(true); // ABNORMAL is P-keep
-    // ABNORMAL is P-keep: resumable is unaffected by this close.
+    expect(closeEvents[0]!.shouldReconnect).toBe(true);
     expect(gw.resumable).toBe(true);
 
-    // The gateway must still be closeable afterward — end() must not be inert.
     expect(() => bot.end()).not.toThrow();
     await new Promise((r) => { setTimeout(r, 100); });
   });

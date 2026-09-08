@@ -6,64 +6,20 @@ import type net from 'net';
 import type Api from '../../src/clients/Api/Api';
 import type { ApiOptions } from '../../src/clients/Api/types';
 
-/** One scripted answer to the next request the origin receives. */
 export interface ScriptedResponse {
   status: number;
-  /** Response headers, lower-cased keys as Discord/axios present them. */
   headers?: Record<string, string>;
-  /** JSON-serialised unless `raw` is set. */
   body?: unknown;
-  /** Send `body` as-is (a string) with `Content-Type` from `headers`, never JSON-encoded — the Cloudflare-ban shape (HTML, no `x-ratelimit-*`). */
   raw?: boolean;
 }
 
-/**
- * One HTTP request the origin finished receiving, in arrival order — plan 001 WP-5 step 3.
- * Fed once the request body ends; the existing `acceptCount` is already this count
- * (`requestCount.length`), so this adds the record, not a new count.
- */
 export interface RequestReceipt {
   method: string;
   path: string;
-  /** Whether any request body bytes were received (DELETE's is always stripped client-side). */
   bodyReceived: boolean;
   body: string;
 }
 
-/**
- * A loopback Discord-REST-API stand-in: a real `http` origin answering a **scripted
- * sequence** of status/headers/body, driven through `Api` — never by constructing
- * `RateLimitHeaders` by hand, which cannot see `Api#updateRateLimitCache` (WP-9b step 0,
- * plan; architect F-1). Real sockets, matching `loopbackGatewayServer.ts`'s convention
- * (no fake `axios`/`http`).
- *
- * `Api.ts` hardcodes its REST base URL to `https://discord.com/api/v<version>`
- * (`DISCORD_API_URL`, `src/constants.ts`) with no consumer-facing override — adding one
- * would be new public API surface and move `api-report/paracord.api.md` (AC-9.6). So
- * `createApiAgainstOrigin` below redirects it the same way any test-only constant
- * substitution does: `vi.doMock` the constants module to this origin's own
- * `http://127.0.0.1:<port>/api`, then a **dynamic** `import()` of `Api` so the mock is in
- * effect before the module graph loads — `vi.mock` (hoisted, static) cannot be
- * parameterised by a port only known after this origin has started. Production source is
- * untouched; only the test's own module registry is redirected, and the exchange over the
- * wire is a real HTTP request/response, not a stub.
- *
- * **Destroy-on-accept mode** (plan 001 WP-5 step 3, `setDestroyOnAccept`): the TCP
- * connection is destroyed the instant it is accepted, before any byte is written —
- * ECONNRESET / `socket hang up` at the client. `requestCount`/`acceptCount` and
- * `requestReceipts` are fed once a request's body has fully arrived (the HTTP `request`
- * event only starts the handler that waits for it) — one per request; under keep-alive
- * several retried sends can share one TCP connection. A send whose body is truncated
- * mid-transfer is accepted at the TCP level but never reaches this feed, so it is
- * recorded by neither `acceptCount` nor `requestReceipts`; the destroy mode goes further
- * still, never reaching even the `request` event, so it can only be measured by
- * `connectionCount` — fed on the TCP-level `connection` event, one per accepted socket —
- * which is why AC-5.1's instrument is the connection count and AC-5.2's is the
- * request-receipt count. The origin consumes every request body (needed for
- * `requestReceipts`' body-agreement field); doing so is measured safe — the receipt
- * count, connection count and client-visible status are identical whether the body is
- * read or not.
- */
 export default class LoopbackApiOrigin extends EventEmitter {
   private readonly server: http.Server;
 
@@ -77,10 +33,8 @@ export default class LoopbackApiOrigin extends EventEmitter {
 
   readonly receivedHeaders: http.IncomingHttpHeaders[] = [];
 
-  /** One entry per TCP `connection` event accepted, timestamped — AC-5.1's instrument. */
   readonly connectionEvents: number[] = [];
 
-  /** One entry per request body fully received, in arrival order — AC-5.2's instrument. */
   readonly requestReceipts: RequestReceipt[] = [];
 
   private constructor(server: http.Server) {
@@ -106,7 +60,6 @@ export default class LoopbackApiOrigin extends EventEmitter {
     return `http://127.0.0.1:${this.port}`;
   }
 
-  /** Queues responses, one per request, in order. The last one repeats once exhausted. */
   setScript(responses: ScriptedResponse[]): void {
     this.script = [...responses];
   }
@@ -115,11 +68,6 @@ export default class LoopbackApiOrigin extends EventEmitter {
     this.defaultResponse = response;
   }
 
-  /**
-   * Enables/disables destroy-on-accept mode: every subsequent TCP connection is
-   * destroyed the instant it is accepted, before any byte is written — ECONNRESET /
-   * `socket hang up` at the client, and the request never reaches `handleRequest`.
-   */
   setDestroyOnAccept(enabled: boolean): void {
     this.destroyOnAccept = enabled;
   }
@@ -128,12 +76,10 @@ export default class LoopbackApiOrigin extends EventEmitter {
     return this.requestCount.length;
   }
 
-  /** Number of TCP connections accepted so far — the destroy mode's only feed. */
   get connectionCount(): number {
     return this.connectionEvents.length;
   }
 
-  /** Resolves once the origin has answered at least `n` requests. */
   waitForAccept(n: number, timeoutMs = 5000): Promise<void> {
     if (this.requestCount.length >= n) return Promise.resolve();
 
@@ -153,7 +99,6 @@ export default class LoopbackApiOrigin extends EventEmitter {
     });
   }
 
-  /** Resolves once the origin has accepted at least `n` TCP connections. */
   waitForConnection(n: number, timeoutMs = 5000): Promise<void> {
     if (this.connectionEvents.length >= n) return Promise.resolve();
 
@@ -214,10 +159,6 @@ export default class LoopbackApiOrigin extends EventEmitter {
   }
 }
 
-/**
- * Builds an `Api` client pointed at `origin` — see the class doc comment for why this
- * redirection is necessary and what it does and does not touch.
- */
 export async function createApiAgainstOrigin(
   origin: LoopbackApiOrigin,
   token = 'test-token',

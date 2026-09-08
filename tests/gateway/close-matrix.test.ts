@@ -7,18 +7,6 @@ import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
 import { createTestBot } from '../harness/testBot';
 import { waitForCondition } from '../harness/waitFor';
 
-/**
- * AC-1.2 (every (code, state) in `GATEWAY_CLOSE_CODES` union {one non-member} times the
- * socket-state domain S delivers the caller's code exactly once), AC-1.3 (`resumable`
- * after the close follows the close-code partition) and AC-1.11 (the process survives
- * every member). The partition classes are the plan's own "close-code partition"
- * table, transcribed here rather than read back out of the library.
- *
- * The non-member representative is a code outside both ranges a real close frame can
- * legally carry (1000-1014 minus 1004/1005/1006, and 3000-4999) — 4321 is inside the
- * second range and would not exercise the wire-illegal-code path at all.
- */
-
 const G = GATEWAY_CLOSE_CODES;
 const NON_MEMBER = 50000;
 
@@ -76,8 +64,6 @@ describe.concurrent('AC-1.2/1.3/1.11: close-code x socket-state matrix', () => {
       } else if (state === 'CONNECTING') {
         await waitForCondition(() => server!.attempts.length >= 1, 'handshake in flight', 5000);
       } else {
-        // QUEUED: reach READY, then drop the socket with the host answering 503, so the
-        // gateway returns to the login queue with no socket rather than reconnecting.
         server.setMode('accept');
         await waitForCondition(() => gw.resumable, 'READY handled', 5000);
         server.setMode('reject503');
@@ -92,8 +78,6 @@ describe.concurrent('AC-1.2/1.3/1.11: close-code x socket-state matrix', () => {
       const attemptsBefore = server.attempts.length;
       const eventsBefore = events.length;
 
-      // The non-member representative (and any code a plain-JS caller might pass) is
-      // outside `GatewayCloseCode`'s enum by design — the cast stands in for that caller.
       expect(() => gw.close(code as GatewayCloseCode)).not.toThrow();
 
       let delivered: GatewayCloseEvent | null = null;
@@ -101,30 +85,23 @@ describe.concurrent('AC-1.2/1.3/1.11: close-code x socket-state matrix', () => {
         await waitForCondition(() => events.length > eventsBefore, 'GATEWAY_CLOSE delivered', 4000);
         delivered = events[eventsBefore]!;
       } catch {
-        // recorded as no delivery below
       }
 
-      await new Promise((r) => { setTimeout(r, 400); }); // settle: catch a second delivery
+      await new Promise((r) => { setTimeout(r, 400); });
 
       const cls = classOf(code);
 
-      // D1: exactly one delivery, carrying the caller's code.
       expect(events.length - eventsBefore).toBe(1);
       expect(delivered?.code).toBe(code);
 
-      // D2: shouldReconnect false for P-terminal, true otherwise.
       expect(delivered?.shouldReconnect).toBe(cls !== 'P-terminal');
 
-      // D3: resumable unchanged for P-keep/P-terminal, false for P-clear.
       const wantResumable = cls === 'P-clear' ? false : resumableBefore;
       expect(gw.resumable).toBe(wantResumable);
 
-      // D4: the process survives — this cell's own listeners, torn down below
-      // regardless of outcome (never shared with, or read by, another cell's hook).
       expect(uncaught).toBe(0);
       expect(unhandled).toBe(0);
 
-      // D5: a P-terminal close produces no further connect attempt.
       if (cls === 'P-terminal') {
         expect(server.attempts.length - attemptsBefore).toBe(0);
       }

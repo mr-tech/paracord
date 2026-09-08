@@ -17,16 +17,12 @@ export default class RequestMessage {
   /** Headers to send with the request. */
   public headers?: undefined | Record<string, unknown>;
 
-  /** Url params to send with the request. */
   public params?: undefined | Record<string, unknown>;
 
-  /** Set to true to not retry the request on a bucket 429 rate limit. */
   public returnOnRateLimit?: undefined | boolean;
 
-  /** Set to true to not retry the request on a global rate limit. */
   public returnOnGlobalRateLimit?: undefined | boolean;
 
-  /** The number of times to attempt to execute a rate limited request before returning with a local 429 response. */
   public maxRateLimitRetry?: undefined | number;
 
   /**
@@ -92,15 +88,6 @@ export default class RequestMessage {
     }
   }
 
-  /**
-   * Create a new RequestMessage sent from client to server. `createForm`'s product is
-   * resolved here — before the message is built — since a function cannot cross the
-   * wire; its `data`, `headers` and `params` travel in those three fields instead. A
-   * product whose `data` is multipart form data is not JSON-representable: its `data`
-   * does not cross the wire, but its `headers` and `params` still do (unfunded
-   * residue) — the message this constructs can announce a multipart `content-type`
-   * boundary for a body it does not carry.
-   */
   public constructor(apiRequest: IRequestMessage) {
     this.method = apiRequest.method;
     this.url = apiRequest.url;

@@ -58,18 +58,6 @@ export declare class Api {
      * @returns A key used internally to find related buckets.
      */
     static extractBucketHashKey(method: string, url: string): string[];
-    /**
-     * Creates a new Api client.
-     * @param token Discord token. Will be coerced into a bot token.
-     * @param options Optional parameters for this handler.
-     *
-     * @example
-     * ```ts
-     * const api = new Api('myBotToken');
-     * const res = await api.request('GET', '/channels/123456789');
-     * console.log(res.data);
-     * ```
-     */
     constructor(token: string, options?: ApiOptions);
     get hasRateLimitService(): boolean;
     get hasRequestService(): boolean;
@@ -107,15 +95,6 @@ export declare class Api {
      * @returns `true` is connection was successful.
      */
     private checkRpcServiceConnection;
-    /**
-     * Single-flight — every concurrent caller shares one in-flight recreation,
-     * reading `#recreateInFlight` and closing the predecessor before its replacement is
-     * assigned. The kind (`usesRateLimitService`) is captured before anything is cleared,
-     * and the clear-then-assign sequence inside `recreate` carries no `await`, so no
-     * concurrent caller can ever observe the service field `undefined` — the field the
-     * `add*Service` guard tests, and the only way a rate-limit client could otherwise
-     * silently acquire a request service (or vice versa).
-     */
     private recreateRpcService;
     private reattemptConnectInFuture;
     setToken(token: string): void;
@@ -356,13 +335,6 @@ export declare class BaseRequest {
  */
 export declare function clone<T>(object: T): T;
 
-/**
- * What decided to close a gateway connection: `consumer` = `Gateway.close()`/
- * `Paracord.end()` called from outside the library; `transport` = a socket error/1006,
- * `CONNECT_TIMEOUT`, `HEARTBEAT_TIMEOUT`, the zlib path; `discord` = a close frame from
- * the server, or Discord's own RECONNECT/INVALID_SESSION message.
- * @internal
- */
 declare type CloseOrigin = 'consumer' | 'transport' | 'discord';
 
 /**
@@ -999,7 +971,6 @@ export declare class RateLimitCache {
     /** How long until the rate limit resets in ms. */
     private get globalRateLimitResetAfter();
     end(): void;
-    /** Removes bucket hash mappings that haven't been written to within the expiry window. */
     private sweepExpiredBucketHashes;
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest;
@@ -1228,7 +1199,6 @@ declare interface RequestService {
     request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
     allowFallback: boolean;
     target: string;
-    /** Closes the underlying channel. Synchronous — never awaited. */
     close(): void;
 }
 
@@ -1326,12 +1296,6 @@ export declare class Session {
     get connection(): undefined | ws;
     /** Whether or not the websocket is open. */
     get connected(): boolean;
-    /**
-     * Whether or not the client has the conditions necessary to attempt to resume a
-     * gateway connection — session identity alone (a held `session_id` and a sequence
-     * seen), decoupled from `#resumeUrl`: after the resume host is abandoned, the session
-     * survives and resumes against the base URL.
-     */
     get resumable(): boolean;
     /** Whether or not the client is currently resuming a session. */
     get resuming(): boolean;
@@ -1339,13 +1303,7 @@ export declare class Session {
     get websocket(): undefined | Websocket;
     get gateway(): Gateway;
     get identity(): GatewayIdentify;
-    /** Reading this also sweeps stale chunk-request state — see {@link sweepStaleChunkState}. */
     get isFetchingMembers(): boolean;
-    /**
-     * Drops any nonce whose last chunk is older than the TTL — a pure predicate over
-     * elapsed time (time-seam rule), evaluated here (read) and by the heartbeat's inline
-     * check (`Gateway.isFetchingMembers` on every dispatch), never a timer per entry.
-     */
     private sweepStaleChunkState;
     log: Gateway['log'];
     emit: Gateway['emit'];

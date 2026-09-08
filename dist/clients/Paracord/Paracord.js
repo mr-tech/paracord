@@ -252,15 +252,6 @@ class Paracord extends events_1.EventEmitter {
             return;
         this.#processingQueue = true;
         try {
-            // A gateway whose backoff not-before has not passed is skipped — never picked as
-            // the starting gateway — so it neither jumps the queue early nor holds up a
-            // gateway behind it that is eligible now. A resumable gateway can still be
-            // `#startingGateway` from before its own connection just dropped, so it is
-            // re-validated here rather than only when first picked, which would otherwise
-            // re-login it unconditionally on every tick regardless of its wait. The clear
-            // goes through `clearStartingShardState` so the startup timers it owns
-            // (`#shardTimeout`, `#unavailableGuildsInterval`) are released with it rather
-            // than orphaned when the next starting gateway overwrites those fields.
             const now = Date.now();
             if (this.#startingGateway && !this.#startingGateway.connected && !(0, failureCounter_1.isEligible)(this.#startingGateway, now)) {
                 this.clearStartingShardState(this.#startingGateway);
@@ -286,7 +277,6 @@ class Paracord extends events_1.EventEmitter {
                     return;
                 }
             }
-            // if no resumable shard, get first eligible shard in queue
             if (!this.#startingGateway) {
                 this.#startingGateway = this.gatewayLoginQueue.find((g) => (0, failureCounter_1.isEligible)(g, now));
             }
@@ -477,14 +467,9 @@ class Paracord extends events_1.EventEmitter {
     // { gateway, shouldReconnect }: { gateway: Gateway, shouldReconnect: boolean },
     handleGatewayClose(data) {
         const { gateway, shouldReconnect } = data;
-        // Starting-shard state is torn down whenever the session won't survive the close,
-        // or won't be retried at all — never left armed for a gateway that is done.
         if (!gateway.resumable || !shouldReconnect) {
             this.clearStartingShardState(gateway);
         }
-        // Every reconnect, resumable or not, goes through the existing 1 s login queue
-        // instead of a synchronous `gateway.login()` — an immediate synchronous relogin,
-        // with no wait between attempts, is what turns a persistent close into a tight loop.
         const origin = (0, closeOrigin_1.takePendingOrigin)(gateway) ?? 'consumer';
         (0, failureCounter_1.recordClose)(gateway, origin, Date.now());
         if (shouldReconnect) {

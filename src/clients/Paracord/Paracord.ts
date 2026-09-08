@@ -310,15 +310,6 @@ export default class Paracord extends EventEmitter {
 
     this.#processingQueue = true;
     try {
-      // A gateway whose backoff not-before has not passed is skipped — never picked as
-      // the starting gateway — so it neither jumps the queue early nor holds up a
-      // gateway behind it that is eligible now. A resumable gateway can still be
-      // `#startingGateway` from before its own connection just dropped, so it is
-      // re-validated here rather than only when first picked, which would otherwise
-      // re-login it unconditionally on every tick regardless of its wait. The clear
-      // goes through `clearStartingShardState` so the startup timers it owns
-      // (`#shardTimeout`, `#unavailableGuildsInterval`) are released with it rather
-      // than orphaned when the next starting gateway overwrites those fields.
       const now = Date.now();
 
       if (this.#startingGateway && !this.#startingGateway.connected && !isEligible(this.#startingGateway, now)) {
@@ -349,7 +340,6 @@ export default class Paracord extends EventEmitter {
         }
       }
 
-      // if no resumable shard, get first eligible shard in queue
       if (!this.#startingGateway) {
         this.#startingGateway = this.gatewayLoginQueue.find((g) => isEligible(g, now));
       }
@@ -571,15 +561,10 @@ export default class Paracord extends EventEmitter {
   private handleGatewayClose(data: GatewayCloseEvent): void {
     const { gateway, shouldReconnect } = data;
 
-    // Starting-shard state is torn down whenever the session won't survive the close,
-    // or won't be retried at all — never left armed for a gateway that is done.
     if (!gateway.resumable || !shouldReconnect) {
       this.clearStartingShardState(gateway);
     }
 
-    // Every reconnect, resumable or not, goes through the existing 1 s login queue
-    // instead of a synchronous `gateway.login()` — an immediate synchronous relogin,
-    // with no wait between attempts, is what turns a persistent close into a tight loop.
     const origin = takePendingOrigin(gateway) ?? 'consumer';
     recordClose(gateway, origin, Date.now());
 

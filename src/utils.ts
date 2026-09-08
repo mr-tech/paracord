@@ -202,12 +202,10 @@ type AvatarParams = {
  */
 export function constructUserAvatarUrl(user: Pick<APIUser, 'id' | 'avatar'> & { discriminator?: string }, { fileType = 'jpg', animate = false }: AvatarParams = {}): string {
   if (!user.avatar) {
-    // Legacy users index by `discriminator % 5`; migrated users (discriminator '0') by `(id >> 22) % 6`.
     const defaultAvatarIndex = user.discriminator && user.discriminator !== '0'
       ? BigInt(user.discriminator) % BigInt(5)
       : (BigInt(user.id) >> BigInt(22)) % BigInt(6);
 
-    // The `embed/avatars` endpoint only serves png.
     return `${DISCORD_CDN_URL}/embed/avatars/${defaultAvatarIndex}.png`;
   }
 

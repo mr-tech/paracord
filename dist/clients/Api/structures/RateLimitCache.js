@@ -14,11 +14,6 @@ class RateLimitCache {
     #apiClient;
     /** Request meta values to their associated rate limit bucket, if one exists. */
     bucketHashes;
-    /**
-     * Expiry timestamps for entries in `bucketHashes`. Kept separate so that `bucketHashes` retains its
-     * public shape. Bucket hash keys can carry unbounded segments (webhook/interaction tokens, custom
-     * emoji names), so without expiry the map grows for the lifetime of the process.
-     */
     #bucketHashExpiry;
     #bucketHashExpiryInterval;
     /** Rate limit keys to their associate rate limit */
@@ -74,7 +69,6 @@ class RateLimitCache {
         clearInterval(this.#bucketHashExpiryInterval);
         this.#rateLimitMap.end();
     }
-    /** Removes bucket hash mappings that haven't been written to within the expiry window. */
     sweepExpiredBucketHashes = () => {
         const now = new Date().getTime();
         let count = 0;

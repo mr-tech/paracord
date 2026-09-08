@@ -6,13 +6,6 @@ import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackAp
 import type { Method } from 'axios';
 import type Api from '../../src/clients/Api/Api';
 
-/**
- * Plan 001 WP-5, AC-5.1: a transport failure (no response at all) surfaces the real
- * underlying message and gets the attempt count D-6 assigns to its method — same as a
- * 5xx response, since both take `Api`'s response-interceptor error branch and the same
- * `handleServerErrorResponse` gate. Instrument: the origin's **connection count**
- * (`tests/README.md`) — the only count destroy-on-accept mode can feed.
- */
 const IDEMPOTENT_SPELLINGS: Method[] = ['GET', 'get', 'HEAD', 'head', 'OPTIONS', 'options', 'PUT', 'put', 'DELETE', 'delete'];
 const NON_IDEMPOTENT_SPELLINGS: Method[] = ['POST', 'post', 'PATCH', 'patch'];
 const BODY_CARRYING = new Set<Method>(['PUT', 'put', 'DELETE', 'delete', 'POST', 'post', 'PATCH', 'patch']);
@@ -34,7 +27,6 @@ async function driveDestroyOnAccept(spelling: Method): Promise<{ thrown: Error |
   return { thrown, connectionCount };
 }
 
-/** Points `Api` at an arbitrary base URL — no `LoopbackApiOrigin` needed for a dead port or bad host. */
 async function apiAgainstUrl(baseUrl: string): Promise<Api> {
   vi.resetModules();
   vi.doMock('../../src/constants', async (importOriginal) => {

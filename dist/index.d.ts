@@ -58,18 +58,6 @@ export declare class Api {
      * @returns A key used internally to find related buckets.
      */
     static extractBucketHashKey(method: string, url: string): string[];
-    /**
-     * Creates a new Api client.
-     * @param token Discord token. Will be coerced into a bot token.
-     * @param options Optional parameters for this handler.
-     *
-     * @example
-     * ```ts
-     * const api = new Api('myBotToken');
-     * const res = await api.request('GET', '/channels/123456789');
-     * console.log(res.data);
-     * ```
-     */
     constructor(token: string, options?: ApiOptions);
     get hasRateLimitService(): boolean;
     get hasRequestService(): boolean;
@@ -107,15 +95,6 @@ export declare class Api {
      * @returns `true` is connection was successful.
      */
     private checkRpcServiceConnection;
-    /**
-     * Single-flight — every concurrent caller shares one in-flight recreation,
-     * reading `#recreateInFlight` and closing the predecessor before its replacement is
-     * assigned. The kind (`usesRateLimitService`) is captured before anything is cleared,
-     * and the clear-then-assign sequence inside `recreate` carries no `await`, so no
-     * concurrent caller can ever observe the service field `undefined` — the field the
-     * `add*Service` guard tests, and the only way a rate-limit client could otherwise
-     * silently acquire a request service (or vice versa).
-     */
     private recreateRpcService;
     private reattemptConnectInFuture;
     setToken(token: string): void;
@@ -356,7 +335,7 @@ export declare class BaseRequest {
  */
 export declare function clone<T>(object: T): T;
 
-/* Excluded from this release type: CloseOrigin */
+declare type CloseOrigin = 'consumer' | 'transport' | 'discord';
 
 /**
  * This is a bot library. Coerced non-compliant tokens to be bot-like.
@@ -956,7 +935,6 @@ export declare class RateLimitCache {
     /** How long until the rate limit resets in ms. */
     private get globalRateLimitResetAfter();
     end(): void;
-    /** Removes bucket hash mappings that haven't been written to within the expiry window. */
     private sweepExpiredBucketHashes;
     /** Decorator for requests. Decrements rate limit when executing if one exists for this request. */
     wrapRequest(requestFunc: AxiosInstance['request']): WrappedRequest;
@@ -1141,7 +1119,6 @@ declare interface RequestService {
     request<T>(apiRequest: ApiRequest): Promise<RemoteApiResponse<T>>;
     allowFallback: boolean;
     target: string;
-    /** Closes the underlying channel. Synchronous — never awaited. */
     close(): void;
 }
 

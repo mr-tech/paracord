@@ -56,9 +56,6 @@ function request(
       method, url, data, headers, params, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
     } = RequestMessage.fromProto(call.request);
 
-    // `exactOptionalPropertyTypes`: `RequestOptions`' three retry-policy members are
-    // declared `?: boolean`/`?: number`, not `?: boolean | undefined`, so an explicit
-    // `undefined` value is only ever spread in, never assigned as a present key.
     this.apiClient.request(method, url, {
       data,
       headers,

@@ -3,13 +3,6 @@ import {
   setPendingOrigin, takePendingOrigin, setPendingCloseIntent, takePendingCloseIntent,
 } from '../../src/clients/Gateway/structures/closeOrigin';
 
-/**
- * `Gateway.handleClose` → `Paracord` is the one hop with no way around a side channel:
- * `Gateway.handleClose` is private, `Paracord`'s listener is registered on the public
- * `GATEWAY_CLOSE` event whose own shape stays `{shouldReconnect, code, gateway}`, and
- * the two run in the same synchronous `emit()` call, so the write always precedes the
- * read with nothing able to intervene between them.
- */
 describe('closeOrigin (set/consume, one-shot per key)', () => {
   it('returns undefined when nothing was set for the key', () => {
     expect(takePendingOrigin({})).toBeUndefined();
@@ -31,14 +24,6 @@ describe('closeOrigin (set/consume, one-shot per key)', () => {
   });
 });
 
-/**
- * `Paracord.timeoutShard` → `Gateway.close()` is the one producer that still cannot
- * reach `Session#close`/`Websocket#close` by a direct parameter — `Gateway.close()` is
- * `@public` and shared with every real consumer, so the one call this library makes on
- * its own behalf still needs to say so out of band. A distinct channel from
- * `setPendingOrigin`/`takePendingOrigin` above — same key shape (a `Gateway` instance),
- * unrelated storage — so a value written for one hop can never be read by the other.
- */
 describe('closeOrigin (close-intent channel, independent of the origin channel above)', () => {
   it('returns undefined when nothing was set for the key', () => {
     expect(takePendingCloseIntent({})).toBeUndefined();
