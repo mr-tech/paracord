@@ -485,13 +485,6 @@ export default class Paracord extends EventEmitter {
     if (startingGateway !== undefined) {
       if (forced || guildWaitCount <= 0) {
         this.completeShardStartup({ shard: startingGateway, forced });
-
-        const eventNotEmitted = !this.#emittedStartupComplete;
-        const queueEmpty = this.gatewayLoginQueue.length === 0;
-        const noStartingShard = !this.#startingGateway;
-        if (eventNotEmitted && queueEmpty && noStartingShard) {
-          this.emitStartupComplete();
-        }
       } else {
         this.#previousGuildTimestamp = new Date().getTime();
         const message = `Shard ${startingGateway.id} - ${guildWaitCount} guilds left in start up.`;
@@ -516,6 +509,13 @@ export default class Paracord extends EventEmitter {
 
     this.clearStartingShardState(gateway);
     this.emit('SHARD_STARTUP_COMPLETE', event);
+
+    const eventNotEmitted = !this.#emittedStartupComplete;
+    const queueEmpty = this.gatewayLoginQueue.length === 0;
+    const noStartingShard = !this.#startingGateway;
+    if (eventNotEmitted && queueEmpty && noStartingShard) {
+      this.emitStartupComplete();
+    }
   }
 
   private clearStartingShardState(gateway: Gateway): void {
