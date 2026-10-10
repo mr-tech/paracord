@@ -115,7 +115,7 @@ rather than by widening `skipLibCheck`:
   `tests/timing/apiEndExit.test.ts` refuses to run when `dist/clients/Api/Api.js` is older than
   `src/clients/Api/Api.ts`: run `npm run build` first. The child repoints
   `require('<dist>/constants').DISCORD_API_URL` at the parent's loopback origin before it loads
-  `Api`, and the parent asserts the origin received 0 requests, so no child cell can reach Discord.
+  `Api`, and the parent asserts the origin received 0 requests. A zero reading cannot tell "redirected, nothing sent" from "not redirected, sent elsewhere", so the first cell of `apiEndExit.test.ts` is the control: a child with no service sends one request and the origin must read exactly 1. The 0 readings are trusted only after it passes.
   Module scope of the child's import graph reads no environment variable that selects a branch
   (`grep -rn process.env src` finds one read, inside `Paracord.ts`, in a method the child never
   calls).

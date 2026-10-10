@@ -3,14 +3,14 @@ import BaseRequest from './BaseRequest';
 import type { AxiosRequestConfig, Method, RawAxiosRequestHeaders } from 'axios';
 import type { RequestOptions, RequestFormDataFunction } from '../types';
 
-const timeouts = new WeakMap<object, number>();
-
 /**
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export default class ApiRequest extends BaseRequest {
+  #timeout: undefined | number;
+
   /** Data to send in the body of the request.  */
   public data: unknown | undefined;
 
@@ -71,7 +71,7 @@ export default class ApiRequest extends BaseRequest {
       data, headers, params, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, timeout,
     } = options;
 
-    if (timeout !== undefined) timeouts.set(this, timeout);
+    this.#timeout = timeout;
 
     this.createForm = createForm;
     this.data = data;
@@ -93,7 +93,7 @@ export default class ApiRequest extends BaseRequest {
     } else {
       ({ data, headers, params } = this);
     }
-    const timeout = timeouts.get(this);
+    const timeout = this.#timeout;
     return {
       method: this.method,
       url: this.url,

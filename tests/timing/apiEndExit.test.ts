@@ -20,7 +20,7 @@ const TIMER_ARMED_SETTLE_MS = 300;
 const LONG_DELAY_WAIT_MS = 20_000;
 
 type Kind = 'rateLimit' | 'request';
-type State = 'none' | 'reconnect timer at a long delay' | 'connected' | 'latched-connecting' | 'reconnect attempt in flight' | 'recreate in flight' | 'hello in flight' | 'connected, call open';
+type State = 'none' | 'none, one request sent' | 'reconnect timer at a long delay' | 'connected' | 'latched-connecting' | 'reconnect attempt in flight' | 'recreate in flight' | 'hello in flight' | 'connected, call open';
 
 const SERVICE_STATES: State[] = ['connected', 'latched-connecting', 'reconnect attempt in flight', 'recreate in flight', 'hello in flight', 'connected, call open'];
 const KINDS: Kind[] = ['rateLimit', 'request'];
@@ -60,7 +60,8 @@ async function startServer(kind: Kind, origin: LoopbackApiOrigin): Promise<Loopb
 
 async function runChild(kind: Kind, state: State, origin: LoopbackApiOrigin, rpc: LoopbackRpcServer | undefined): Promise<ChildResult> {
   const port = rpc?.port ?? 1;
-  const child = fork(CHILD, [kind, state === 'connected, call open' ? 'call-open' : state.replace(/ /g, '-'), String(port), origin.url], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
+  const childState = state === 'none, one request sent' ? 'none' : state.replace(/ /g, '-');
+  const child = fork(CHILD, [kind, state === 'connected, call open' ? 'call-open' : childState, String(port), origin.url], { stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
   const faults: string[] = [];
   const messages: Array<{ event: string; kind?: string; detail?: string }> = [];
   const waiters: Array<() => void> = [];
@@ -80,7 +81,10 @@ async function runChild(kind: Kind, state: State, origin: LoopbackApiOrigin, rpc
 
   await waitFor('ready');
 
-  if (state === 'reconnect timer at a long delay' && rpc) {
+  if (state === 'none, one request sent') {
+    child.send('trigger');
+    await origin.waitForAccept(1);
+  } else if (state === 'reconnect timer at a long delay' && rpc) {
     await rpc.waitForHello(LONG_DELAY_HELLO, LONG_DELAY_WAIT_MS);
     await settle(TIMER_ARMED_SETTLE_MS);
   } else if (state === 'reconnect attempt in flight' && rpc) {
@@ -133,6 +137,16 @@ describe('AC-5.1 — a process that calls end() exits on its own within 5 s, in 
     if (rpc && state !== 'latched-connecting') rpc.forceClose();
     return { result, receipts };
   }
+
+  it('control: a child with no service sends one request and it lands at the parent\'s origin, then the child exits', async () => {
+    const { result, receipts } = await exitCell('request', 'none, one request sent');
+
+    expect(receipts).toBe(1);
+    expect(result.exitMs).toBeDefined();
+    expect(result.exitMs).toBeLessThan(EXIT_BOUND_MS);
+    expect(result.exitCode).toBe(0);
+    expect(result.faults).toEqual([]);
+  }, 30_000);
 
   it('no service: exits (the control that the child can exit at all)', async () => {
     const { result, receipts } = await exitCell('request', 'none');

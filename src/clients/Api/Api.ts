@@ -40,7 +40,7 @@ function validateStatusDefault(status: number) {
   return status >= 200 && status <= 299;
 }
 
-function rejectFormUpload(request: ApiRequest): void {
+function resolveFormOnceOrReject(request: ApiRequest): void {
   const { createForm } = request;
   const resolved = createForm?.();
 
@@ -545,7 +545,7 @@ export default class Api {
    * @param request ApiRequest being made.
    */
   private async handleRequestRemote<T>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
-    rejectFormUpload(request);
+    resolveFormOnceOrReject(request);
 
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {

@@ -240,6 +240,7 @@ export declare interface ApiOptions {
  * @extends BaseRequest
  */
 export declare class ApiRequest extends BaseRequest {
+    #private;
     /** Data to send in the body of the request.  */
     data: unknown | undefined;
     /** Additional headers to send with the request. */
