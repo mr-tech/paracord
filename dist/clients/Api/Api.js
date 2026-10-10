@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const axios_1 = __importDefault(require("axios"));
 const events_1 = require("events");
+const form_data_1 = __importDefault(require("form-data"));
 const constants_1 = require("../../constants");
 const rpc_1 = require("../../rpc");
 const utils_1 = require("../../utils");
@@ -19,6 +20,19 @@ const rateLimitRetryTarget_1 = __importDefault(require("./structures/rateLimitRe
 const MAX_SERVER_ERROR_RETRIES = 3;
 function validateStatusDefault(status) {
     return status >= 200 && status <= 299;
+}
+function rejectFormUpload(request) {
+    const { createForm } = request;
+    const resolved = createForm?.();
+    if ((resolved ? resolved.data : request.data) instanceof form_data_1.default) {
+        throw Error('Form uploads cannot cross the RPC request proxy. Pass `local: true` to send this request from this client, or use a client with no request service.');
+    }
+    if (createForm && resolved) {
+        request.createForm = () => {
+            request.createForm = createForm;
+            return resolved;
+        };
+    }
 }
 function isRateLimitResponse(response) {
     return response.status === 429;
@@ -394,6 +408,7 @@ class Api {
      * @param request ApiRequest being made.
      */
     async handleRequestRemote(rpcRequestService, request) {
+        rejectFormUpload(request);
         if (this.#connectingToRpcService) {
             if (this.#allowFallback) {
                 const message = 'Client is connecting to RPC server. Falling back to handling request locally.';

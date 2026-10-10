@@ -88,6 +88,11 @@ rather than by widening `skipLibCheck`:
   `content-length` it never fills) and `delayMs` (answer after a delay). A held or stalled
   socket and a pending delayed answer are released by `close()`, so a cell that ends with a
   request still open does not keep the origin, or the worker, alive.
+  Plan 002 M4 adds to `loopbackRpcServer.ts` `requestCalls`/`waitForRequest`, mirroring
+  `helloCalls`/`waitForHello` at the same wrapper layer (before the withhold or fault check), so
+  a withheld or faulted `request` still counts as "reached the server". `rpcProxyFormRejection.test.ts`
+  reads it only after its own control has fired: one proxied JSON request reads 1, one
+  `local: true` request reads 0.
 - `tests/timing/` — **the timeout/time-based cells, and nothing else.** A cell belongs here when the
   property it verifies is defined in terms of real elapsed wall-clock time during the run — a
   backoff schedule's growth, a deadline's expiry, a heartbeat-ack timeout's firing count, a

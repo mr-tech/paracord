@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import axios, { Method } from 'axios';
 import { EventEmitter } from 'events';
+import FormData from 'form-data';
 
 import {
   API_DEBUG_CODES, API_GLOBAL_RATE_LIMIT, API_GLOBAL_RATE_LIMIT_RESET_PADDING_MILLISECONDS,
@@ -35,6 +36,22 @@ const MAX_SERVER_ERROR_RETRIES = 3;
 
 function validateStatusDefault(status: number) {
   return status >= 200 && status <= 299;
+}
+
+function rejectFormUpload(request: ApiRequest): void {
+  const { createForm } = request;
+  const resolved = createForm?.();
+
+  if ((resolved ? resolved.data : request.data) instanceof FormData) {
+    throw Error('Form uploads cannot cross the RPC request proxy. Pass `local: true` to send this request from this client, or use a client with no request service.');
+  }
+
+  if (createForm && resolved) {
+    request.createForm = () => {
+      request.createForm = createForm;
+      return resolved;
+    };
+  }
 }
 
 function isRateLimitResponse(response: ApiResponse | RateLimitedResponse): response is RateLimitedResponse {
@@ -498,6 +515,8 @@ export default class Api {
    * @param request ApiRequest being made.
    */
   private async handleRequestRemote<T>(rpcRequestService: RequestService, request: ApiRequest): Promise<RemoteApiResponse<T>> {
+    rejectFormUpload(request);
+
     if (this.#connectingToRpcService) {
       if (this.#allowFallback) {
         const message = 'Client is connecting to RPC server. Falling back to handling request locally.';

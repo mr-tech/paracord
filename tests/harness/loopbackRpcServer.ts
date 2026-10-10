@@ -25,6 +25,7 @@ interface HarnessState {
   forwardThenWithhold: Partial<Record<RpcMethodName, true>>;
   updateCount: number;
   helloCount: number;
+  requestCount: number;
 }
 
 export default class LoopbackRpcServer extends EventEmitter {
@@ -64,6 +65,10 @@ export default class LoopbackRpcServer extends EventEmitter {
             state.helloCount += 1;
             getInstance()?.emit('hello');
           }
+          if (name === 'request') {
+            state.requestCount += 1;
+            getInstance()?.emit('request');
+          }
           if (state.withholds[name]) return;
           const fault = state.faults[name];
           if (fault) {
@@ -100,7 +105,7 @@ export default class LoopbackRpcServer extends EventEmitter {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = {
-        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0,
+        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0, requestCount: 0,
       };
       let instance: LoopbackRpcServer | undefined;
 
@@ -121,7 +126,7 @@ export default class LoopbackRpcServer extends EventEmitter {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = {
-        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0,
+        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0, requestCount: 0,
       };
       let instance: LoopbackRpcServer | undefined;
 
@@ -157,6 +162,10 @@ export default class LoopbackRpcServer extends EventEmitter {
 
   get helloCalls(): number {
     return this.state.helloCount;
+  }
+
+  get requestCalls(): number {
+    return this.state.requestCount;
   }
 
   get rateLimitCache(): RateLimitCache {
@@ -211,6 +220,25 @@ export default class LoopbackRpcServer extends EventEmitter {
         }
       };
       this.on('hello', check);
+    });
+  }
+
+  waitForRequest(n: number, timeoutMs = 5000): Promise<void> {
+    if (this.state.requestCount >= n) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off('request', check);
+        reject(new Error(`waitForRequest timed out after ${timeoutMs}ms waiting for call ${n} (have ${this.state.requestCount})`));
+      }, timeoutMs);
+      const check = () => {
+        if (this.state.requestCount >= n) {
+          clearTimeout(timer);
+          this.off('request', check);
+          resolve();
+        }
+      };
+      this.on('request', check);
     });
   }
 
