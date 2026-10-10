@@ -84,6 +84,7 @@ Api(token: string, options?: ApiOptions)
 Api.request<T>(method: Method, url: string, options?: RequestOptions): Promise<ApiResponse<T>>
 Api.addRateLimitService(options?: ServiceOptions): Promise<boolean>
 Api.addRequestService(options?: ServiceOptions): Promise<boolean>
+Api.end(): void
 
 Gateway(token: string, options: GatewayOptions)
 Gateway.login(): void
@@ -128,8 +129,8 @@ object's own `handleEvent`.
 ## Key Types
 
 - `discord-api-types/v10` — All Discord payload types come from this package.
-- `ApiOptions` — `{ emitter?, requestOptions?, queueLoopInterval?, maxConcurrency? }`
-- `RequestOptions` — `{ data?, headers?, params?, local?, returnOnRateLimit?, globalRateLimitMax?, version? }`
+- `ApiOptions` — `{ emitter?, requestOptions?, maxConcurrency? }`
+- `RequestOptions` — `{ data?, headers?, params?, local?, returnOnRateLimit?, globalRateLimitMax?, version?, timeout? }`
 - `GatewayOptions` — `{ identity, emitter, wsUrl, wsParams, heartbeatIntervalOffset?, version? }`
 - `IdentityOptions` — `{ intents, shard?, compress?, largeThreshold?, presence? }`
 - `ParacordOptions` — `{ gatewayOptions, unavailableGuildTolerance?, unavailableGuildWait?, shardStartupTimeout?, compressShards? }`
@@ -150,6 +151,9 @@ object's own `handleEvent`.
 - REST retry: a 5xx or transport error is retried up to 3 attempts for GET, HEAD, OPTIONS, PUT and DELETE; 1 attempt for every other method (POST and PATCH are never retried).
 - RPC: every call carries a 10 s deadline. After a transport failure with `allowFallback`, a request is re-sent locally only for GET, HEAD, OPTIONS, PUT and DELETE; a POST or PATCH is never re-sent by the client.
 - Proxied responses: `data` is parsed once, the same value a local request yields.
+- Request `timeout` (ms; client-wide in `requestOptions` or per request, per-request overrides): applies to each attempt as an inactivity bound, not a wall-clock one; `0` or absent is none; a timed-out GET/HEAD/OPTIONS/PUT/DELETE is retried (3 attempts), POST/PATCH fail on the first; not carried over the RPC request proxy.
+- RPC request proxy: a form upload (a `form-data` `FormData` from `createForm` or `data`) is rejected before anything is sent; pass `local: true` or use a client with no request service.
+- `Api.end()`: cancels the RPC reconnect, rejects queued requests, cancels in-flight RPC calls and closes the RPC connection; any later request rejects with a "client has ended" error and nothing is sent.
 - Gateway reconnect: backoff 1 s base, doubling, ±20% jitter, 60 s cap, never gives up; after 3 consecutive 1006 failures the resume host is abandoned and the session RESUMEs on the base URL, session kept.
 - Heartbeat: while a members request is in flight, up to 3 unacknowledged heartbeats are tolerated; `HEARTBEAT_TIMEOUT` fires on the 4th (no `heartbeatTimeoutSeconds` default).
 
@@ -161,7 +165,7 @@ timestampFromSnowflake(snowflake: Snowflake): number
 computeChannelPerms({ member, guild, channel }): bigint
 computeGuildPerms({ member, guild }): bigint
 constructUserAvatarUrl(user, options?): string
-constructGuildIcon(guild, fileType?): string | undefined
+constructGuildIcon(guild, fileType?): string | undefined   // guild: { id, icon_hash? | icon? }; icon_hash wins
 clone<T>(object: T): T
 isApiError(val: unknown): val is ApiError
 ```

@@ -2,7 +2,7 @@
 
 > A TypeScript/Node.js toolkit for building scalable Discord bots with REST, Gateway, and optional gRPC-based remote services for rate limits and requests.
 
-Version: 0.0.6 | License: Apache-2.0 | Node: >=16 | Module: CommonJS
+Version: 0.0.7 | License: Apache-2.0 | Node: >=16 | Module: CommonJS
 
 ---
 
@@ -50,7 +50,6 @@ new Api(token: string, options?: ApiOptions)
 - `token` — Discord bot token. Automatically prefixed with `Bot ` if missing.
 - `options.emitter` — EventEmitter for debug events.
 - `options.requestOptions` — Default RequestOptions applied to all requests.
-- `options.queueLoopInterval` — Declared on `ApiOptions`; the request queue's processing cycle is fixed at 1 s and this option does not change it.
 - `options.maxConcurrency` — Max number of concurrent in-flight requests. Requests exceeding this are queued.
 
 ### Methods
@@ -91,8 +90,16 @@ Connects to a remote gRPC request server. The server makes Discord requests on b
 A proxied response arrives with `data` already parsed — the same value a local request yields for
 the same body, for every JSON shape. The request options `params`, `returnOnRateLimit`,
 `returnOnGlobalRateLimit` and `maxRateLimitRetry` travel with the request and the server honours
-them as a local request would; `createForm` is resolved on the client and its JSON-representable
-`data`, `headers` and `params` travel in its place.
+them as a local request would. A form upload cannot cross the proxy: a request whose resolved body
+is a `form-data` `FormData`, from `createForm` or from `data`, is rejected at once, before anything
+is sent and whatever `allowFallback` is, with an error that says form uploads cannot cross the RPC
+request proxy and names the remedy — pass `local: true` on that request, or use a client with no
+request service. A `createForm` whose product is not a `FormData` is resolved on the client and its
+JSON-representable `data`, `headers` and `params` travel in its place. Other multipart carriers (a
+global `FormData`, a `FormData` from a second installed copy of `form-data`, a stream, `Buffer` or
+`Blob` body with a multipart `content-type`) are not detected and are proxied as before.
+
+A per-request `timeout` does not cross the proxy; the server's own `Api` settings govern.
 
 Re-send policy on a transport failure (connection lost, cancelled, internal error, or the 10-second
 deadline) with `allowFallback`: the client reconnects and re-sends the request locally **only for
@@ -110,7 +117,13 @@ Updates the token and recreates the internal HTTP client.
 
 #### `api.end(): void`
 
-Shuts down the request queue and rate limit cache.
+Shuts the client down so the process can exit. It cancels a pending RPC reconnect, rejects every
+request still waiting in the queue, cancels the RPC calls in flight and closes the RPC service
+connection. Every request made after `end()` (`request` or `sendRequest`) rejects with an error
+saying the client has ended, and nothing more is sent: not from the queue, not by the local
+fallback after an RPC failure, and not as a retry. A call in flight when `end()` runs settles with
+that error. Calling `end()` again does nothing. A request already sent to Discord over HTTP is not
+cancelled.
 
 #### `Api.extractBucketHashKey(method: string, url: string): string[]`
 
@@ -152,8 +165,17 @@ interface RequestOptions {
   version?: number;                      // Discord API version (default: 10)
   maxRateLimitRetry?: number;            // Max retries before returning 429 locally
   validateStatus?: null | ((status: number) => boolean);  // Custom status validation
+  timeout?: number;                      // Ms an attempt may sit idle before it fails; 0 or absent: none
 }
 ```
+
+`timeout` applies to each attempt, as an inactivity bound rather than a wall-clock one: an attempt
+fails when no data has moved for that long, so a response that keeps streaming slowly is not cut
+off. It can be set in `ApiOptions.requestOptions` for the whole client and on a single request,
+where the per-request value overrides the default (`0` included). Time a request spends queued for
+a rate limit does not count. A timed-out attempt is a transport failure: GET, HEAD, OPTIONS, PUT
+and DELETE are retried under the 3-attempt policy above, POST and PATCH fail on the first attempt.
+It is not carried over the RPC request proxy.
 
 ---
 
@@ -525,7 +547,7 @@ Computes a member's guild-level permissions from their roles.
 Generates the Discord CDN URL for a user's avatar.
 
 ### `constructGuildIcon(guild, fileType?): string | undefined`
-Generates the Discord CDN URL for a guild's icon. Returns undefined if no icon.
+Generates the Discord CDN URL for a guild's icon. Takes an object with `id` and `icon_hash`, `icon`, or both — so a raw guild object works; when both are set, `icon_hash` wins. Returns undefined if no icon.
 
 ### `clone<T>(object: T): T`
 Deep clones an object via JSON serialization.
