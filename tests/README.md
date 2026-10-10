@@ -146,6 +146,12 @@ rather than by widening `skipLibCheck`:
   lines for the shapes that must be refused; a refused shape that starts to compile fails as an
   unused directive. Chain 002 adds `constructGuildIconArgs.ts` (M1, AC-1.4), `apiOptionsRemoved.ts` (M3, AC-3.3)
   and `apiErrorCode.ts` (M6, AC-6.2).
+  `shippedTypesEntry.ts` (fix-paracord-release-type-session-websocket) guards the shipped types
+  entry: `dist/index.d.ts`, api-extractor's trimmed rollup and the package's `types` target, must
+  type-check for a consumer with `skipLibCheck` unset. A declaration left referencing a trimmed
+  name turns `test:types` red. It imports **committed `dist/`, not `src/`**, so after a `src/`
+  change it checks stale types until `npm run build` runs. The pre-commit hook rebuilds at commit,
+  so the committed tree is consistent.
   `weakkey-shim.d.ts` is the compiler-version shim described above.
 - `tests/gateway/` — integration tests against the *fixed* gateway state machine (WP-1 on), over
   real loopback sockets, on the real clock (time-seam rule, forms (b)/(c)).
