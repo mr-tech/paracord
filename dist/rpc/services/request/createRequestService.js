@@ -27,21 +27,21 @@ const createRequestService = (options) => {
         /** Check for healthy connection. */
         hello() {
             return new Promise((resolve, reject) => {
-                super.hello(undefined, (0, common_1.withCallDeadline)(), (err) => {
+                (0, common_1.trackCall)(this, super.hello(undefined, (0, common_1.withCallDeadline)(), (err) => {
                     if (err !== null) {
                         reject(err);
                     }
                     else {
                         resolve();
                     }
-                });
+                }));
             });
         }
         /** Sends the information to make a request to Discord to the server. returning a promise with the response. */
         request(apiRequest) {
             const message = new structures_1.RequestMessage(apiRequest).proto;
             return new Promise((resolve, reject) => {
-                super.request(message, (0, common_1.withCallDeadline)(), (err, res) => {
+                (0, common_1.trackCall)(this, super.request(message, (0, common_1.withCallDeadline)(), (err, res) => {
                     if (err !== null) {
                         reject(err);
                     }
@@ -51,7 +51,7 @@ const createRequestService = (options) => {
                     else {
                         resolve(structures_1.ResponseMessage.fromProto(res));
                     }
-                });
+                }));
             });
         }
         close() {

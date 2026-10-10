@@ -18,6 +18,24 @@ export function loadProtoDefinition(proto: string): grpc.GrpcObject {
   return grpc.loadPackageDefinition(loadProto(proto));
 }
 
+const openCalls = new WeakMap<object, Set<grpc.ClientUnaryCall>>();
+
+export function trackCall<T extends grpc.ClientUnaryCall>(client: object, call: T): T {
+  let calls = openCalls.get(client);
+  if (calls === undefined) {
+    calls = new Set();
+    openCalls.set(client, calls);
+  }
+  const tracked = calls;
+  tracked.add(call);
+  call.once('status', () => { tracked.delete(call); });
+  return call;
+}
+
+export function cancelOpenCalls(client: object): void {
+  openCalls.get(client)?.forEach((call) => call.cancel());
+}
+
 export const RPC_CALL_DEADLINE_MS = 10_000;
 
 export function withCallDeadline(): grpc.CallOptions {

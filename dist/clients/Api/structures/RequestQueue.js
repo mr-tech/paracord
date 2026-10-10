@@ -1,5 +1,9 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
+const clientEndedError_1 = __importDefault(require("./clientEndedError"));
 /**
  * A queue for rate limited requests waiting to be sent.
  */
@@ -9,6 +13,7 @@ class RequestQueue {
     /** Api client through which to emit events. */
     #apiClient;
     #processing = false;
+    #ended = false;
     #processInterval;
     /**
      * Creates a new requests queue for rate limits requests.
@@ -21,12 +26,18 @@ class RequestQueue {
     }
     end() {
         clearInterval(this.#processInterval);
+        this.#ended = true;
+        this.#queue.splice(0).forEach((item) => item.reject((0, clientEndedError_1.default)()));
     }
     /**
      * Adds any number of requests to the queue.
      * @param items Request objects being queued.
      */
     push(...items) {
+        if (this.#ended) {
+            items.forEach((item) => item.reject((0, clientEndedError_1.default)()));
+            return;
+        }
         this.#queue.push(...items);
     }
     processQueue = () => {

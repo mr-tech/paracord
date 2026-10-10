@@ -1,5 +1,7 @@
 import { RequestMessage, ResponseMessage } from '../../structures';
-import { loadProtoDefinition, mergeOptionsWithDefaults, withCallDeadline } from '../common';
+import {
+  loadProtoDefinition, mergeOptionsWithDefaults, trackCall, withCallDeadline,
+} from '../common';
 
 import type { GrpcObject, ServiceError } from '@grpc/grpc-js';
 import type { IServerOptions } from '../../../@types';
@@ -48,13 +50,13 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
     /** Check for healthy connection. */
     public hello(): Promise<void> {
       return new Promise((resolve, reject) => {
-        super.hello(undefined, withCallDeadline(), (err: ServiceError) => {
+        trackCall(this, super.hello(undefined, withCallDeadline(), (err: ServiceError) => {
           if (err !== null) {
             reject(err);
           } else {
             resolve();
           }
-        });
+        }));
       });
     }
 
@@ -63,7 +65,7 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
       const message = new RequestMessage(apiRequest).proto;
 
       return new Promise((resolve, reject) => {
-        super.request(message, withCallDeadline(), (err: ServiceError, res?: ResponseProto) => {
+        trackCall(this, super.request(message, withCallDeadline(), (err: ServiceError, res?: ResponseProto) => {
           if (err !== null) {
             reject(err);
           } else if (res === undefined) {
@@ -71,7 +73,7 @@ const createRequestService = (options: Partial<IServerOptions>): RequestService 
           } else {
             resolve(ResponseMessage.fromProto(res));
           }
-        });
+        }));
       });
     }
 

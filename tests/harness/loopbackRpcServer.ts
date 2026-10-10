@@ -26,6 +26,7 @@ interface HarnessState {
   updateCount: number;
   helloCount: number;
   requestCount: number;
+  authorizeArrivalCount: number;
 }
 
 export default class LoopbackRpcServer extends EventEmitter {
@@ -64,6 +65,10 @@ export default class LoopbackRpcServer extends EventEmitter {
           if (name === 'hello') {
             state.helloCount += 1;
             getInstance()?.emit('hello');
+          }
+          if (name === 'authorize') {
+            state.authorizeArrivalCount += 1;
+            getInstance()?.emit('authorizeArrival');
           }
           if (name === 'request') {
             state.requestCount += 1;
@@ -105,7 +110,7 @@ export default class LoopbackRpcServer extends EventEmitter {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = {
-        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0, requestCount: 0,
+        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0, requestCount: 0, authorizeArrivalCount: 0,
       };
       let instance: LoopbackRpcServer | undefined;
 
@@ -126,7 +131,7 @@ export default class LoopbackRpcServer extends EventEmitter {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = {
-        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0, requestCount: 0,
+        faults: {}, withholds: {}, forwardThenFail: {}, forwardThenWithhold: {}, updateCount: 0, helloCount: 0, requestCount: 0, authorizeArrivalCount: 0,
       };
       let instance: LoopbackRpcServer | undefined;
 
@@ -166,6 +171,10 @@ export default class LoopbackRpcServer extends EventEmitter {
 
   get requestCalls(): number {
     return this.state.requestCount;
+  }
+
+  get authorizeArrivals(): number {
+    return this.state.authorizeArrivalCount;
   }
 
   get rateLimitCache(): RateLimitCache {
@@ -239,6 +248,25 @@ export default class LoopbackRpcServer extends EventEmitter {
         }
       };
       this.on('request', check);
+    });
+  }
+
+  waitForAuthorizeArrival(n: number, timeoutMs = 5000): Promise<void> {
+    if (this.state.authorizeArrivalCount >= n) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off('authorizeArrival', check);
+        reject(new Error(`waitForAuthorizeArrival timed out after ${timeoutMs}ms waiting for call ${n} (have ${this.state.authorizeArrivalCount})`));
+      }, timeoutMs);
+      const check = () => {
+        if (this.state.authorizeArrivalCount >= n) {
+          clearTimeout(timer);
+          this.off('authorizeArrival', check);
+          resolve();
+        }
+      };
+      this.on('authorizeArrival', check);
     });
   }
 

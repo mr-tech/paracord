@@ -27,14 +27,14 @@ const createRateLimitService = (options) => {
         /** Check for healthy connection. */
         hello() {
             return new Promise((resolve, reject) => {
-                super.hello(undefined, (0, common_1.withCallDeadline)(), (err) => {
+                (0, common_1.trackCall)(this, super.hello(undefined, (0, common_1.withCallDeadline)(), (err) => {
                     if (err !== null) {
                         reject(err);
                     }
                     else {
                         resolve();
                     }
-                });
+                }));
             });
         }
         /**
@@ -45,7 +45,7 @@ const createRateLimitService = (options) => {
             const { method, url } = request;
             const message = new structures_1.RequestMetaMessage(method, url).proto;
             return new Promise((resolve, reject) => {
-                super.authorize(message, (0, common_1.withCallDeadline)(), (err, res) => {
+                (0, common_1.trackCall)(this, super.authorize(message, (0, common_1.withCallDeadline)(), (err, res) => {
                     if (err !== null) {
                         reject(err);
                     }
@@ -55,7 +55,7 @@ const createRateLimitService = (options) => {
                     else {
                         resolve(structures_1.AuthorizationMessage.fromProto(res));
                     }
-                });
+                }));
             });
         }
         /**
@@ -67,14 +67,14 @@ const createRateLimitService = (options) => {
             const requestMeta = new structures_1.RequestMetaMessage(method, url);
             const message = new structures_1.RateLimitStateMessage(requestMeta, global, bucketHash, limit, remaining, resetAfter, retryAfter).proto;
             return new Promise((resolve, reject) => {
-                super.update(message, (0, common_1.withCallDeadline)(), (err) => {
+                (0, common_1.trackCall)(this, super.update(message, (0, common_1.withCallDeadline)(), (err) => {
                     if (err !== null) {
                         reject(err);
                     }
                     else {
                         resolve();
                     }
-                });
+                }));
             });
         }
         close() {

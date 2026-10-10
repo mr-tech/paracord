@@ -1,3 +1,5 @@
+import createClientEndedError from './clientEndedError';
+
 import type Api from '../Api';
 import type QueuedRequest from './QueuedRequest';
 
@@ -12,6 +14,8 @@ export default class RequestQueue {
   #apiClient: Api;
 
   #processing = false;
+
+  #ended = false;
 
   #processInterval: NodeJS.Timeout;
 
@@ -28,6 +32,8 @@ export default class RequestQueue {
 
   public end() {
     clearInterval(this.#processInterval);
+    this.#ended = true;
+    this.#queue.splice(0).forEach((item) => item.reject(createClientEndedError()));
   }
 
   /**
@@ -35,6 +41,10 @@ export default class RequestQueue {
    * @param items Request objects being queued.
    */
   public push(...items: QueuedRequest[]): void {
+    if (this.#ended) {
+      items.forEach((item) => item.reject(createClientEndedError()));
+      return;
+    }
     this.#queue.push(...items);
   }
 

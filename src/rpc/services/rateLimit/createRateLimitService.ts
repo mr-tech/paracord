@@ -1,5 +1,7 @@
 import { AuthorizationMessage, RateLimitStateMessage, RequestMetaMessage } from '../../structures';
-import { loadProtoDefinition, mergeOptionsWithDefaults, withCallDeadline } from '../common';
+import {
+  loadProtoDefinition, mergeOptionsWithDefaults, trackCall, withCallDeadline,
+} from '../common';
 
 import type { GrpcObject, ServiceError } from '@grpc/grpc-js';
 import type { IServerOptions } from '../../../@types';
@@ -49,13 +51,13 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
     /** Check for healthy connection. */
     public hello(): Promise<void> {
       return new Promise((resolve, reject) => {
-        super.hello(undefined, withCallDeadline(), (err: ServiceError) => {
+        trackCall(this, super.hello(undefined, withCallDeadline(), (err: ServiceError) => {
           if (err !== null) {
             reject(err);
           } else {
             resolve();
           }
-        });
+        }));
       });
     }
 
@@ -68,7 +70,7 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
 
       const message = new RequestMetaMessage(method, url).proto;
       return new Promise((resolve, reject) => {
-        super.authorize(message, withCallDeadline(), (err: ServiceError, res?: AuthorizationProto) => {
+        trackCall(this, super.authorize(message, withCallDeadline(), (err: ServiceError, res?: AuthorizationProto) => {
           if (err !== null) {
             reject(err);
           } else if (res === undefined) {
@@ -76,7 +78,7 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
           } else {
             resolve(AuthorizationMessage.fromProto(res));
           }
-        });
+        }));
       });
     }
 
@@ -98,13 +100,13 @@ const createRateLimitService = (options: Partial<IServerOptions>): RateLimitServ
       ).proto;
 
       return new Promise((resolve, reject) => {
-        super.update(message, withCallDeadline(), (err: ServiceError) => {
+        trackCall(this, super.update(message, withCallDeadline(), (err: ServiceError) => {
           if (err !== null) {
             reject(err);
           } else {
             resolve();
           }
-        });
+        }));
       });
     }
 

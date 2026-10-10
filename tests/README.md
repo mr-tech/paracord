@@ -93,6 +93,10 @@ rather than by widening `skipLibCheck`:
   a withheld or faulted `request` still counts as "reached the server". `rpcProxyFormRejection.test.ts`
   reads it only after its own control has fired: one proxied JSON request reads 1, one
   `local: true` request reads 0.
+  Plan 002 M5 adds `authorizeArrivals`/`waitForAuthorizeArrival` at the same wrapper layer: unlike
+  `authorizeCalls`, which wraps the real cache call and reads 0 under a withheld `authorize`, it
+  counts a withheld call as arrived, which is what a cell needs before it calls `Api#end()` with
+  that call open.
 - `tests/timing/` — **the timeout/time-based cells, and nothing else.** A cell belongs here when the
   property it verifies is defined in terms of real elapsed wall-clock time during the run — a
   backoff schedule's growth, a deadline's expiry, a heartbeat-ack timeout's firing count, a
@@ -107,6 +111,14 @@ rather than by widening `skipLibCheck`:
 - `tests/fixtures/` — standalone scripts a test forks as a child process, for a case that would
   otherwise crash its host (`.cjs`, run by `node` directly — not part of the TypeScript program a
   vitest worker transforms).
+  `apiEndChild.cjs` (plan 002 M5, AC-5.1) loads **`dist/`, not `src/`**, so
+  `tests/timing/apiEndExit.test.ts` refuses to run when `dist/clients/Api/Api.js` is older than
+  `src/clients/Api/Api.ts`: run `npm run build` first. The child repoints
+  `require('<dist>/constants').DISCORD_API_URL` at the parent's loopback origin before it loads
+  `Api`, and the parent asserts the origin received 0 requests, so no child cell can reach Discord.
+  Module scope of the child's import graph reads no environment variable that selects a branch
+  (`grep -rn process.env src` finds one read, inside `Paracord.ts`, in a method the child never
+  calls).
 - `tests/smoke/` — one file per subsystem behaviour a harness must reproduce against **unfixed**
   HEAD, proving the harness works before any fix package uses it (plan `001-audit-live-findings`,
   WP-0 step 4). A later WP's own regression tests are not smoke tests and do not belong here —

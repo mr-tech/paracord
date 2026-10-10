@@ -15,12 +15,14 @@ import {
 import {
   createRateLimitService, createRequestService, RateLimitService, RemoteApiResponse, RequestService,
 } from '../../rpc';
+import { cancelOpenCalls } from '../../rpc/services/common';
 import { coerceTokenToBotLike, shortMethod, stripLeadingSlash } from '../../utils';
 
 import {
   ApiRequest, QueuedRequest, RateLimitCache, RateLimitHeaders, RequestQueue,
 } from './structures';
 import applyRateLimitObservation from './structures/applyRateLimitObservation';
+import createClientEndedError from './structures/clientEndedError';
 import extractRetryAfter from './structures/extractRetryAfter';
 import isIdempotentMethod from './structures/isIdempotentMethod';
 import isRpcTransportFailure from './structures/isRpcTransportFailure';
@@ -97,6 +99,10 @@ export default class Api {
   #inFlight = 0;
 
   #informationFreeRetryCounts = new WeakMap<ApiRequest, number>();
+
+  #ended = false;
+
+  #reconnectTimer?: undefined | NodeJS.Timeout;
 
   public static isApiDebugEvent(event: unknown): event is ApiDebugEvent {
     function hasSource(evt = event): evt is { source: LogSource } {
@@ -253,8 +259,22 @@ export default class Api {
   }
 
   public end() {
+    if (this.#ended) return;
+    this.#ended = true;
+
+    clearTimeout(this.#reconnectTimer);
     this.#requestQueue.end();
     this.#rateLimitCache.end();
+
+    [this.#rpcRateLimitService, this.rpcRequestService].forEach((service) => {
+      if (service === undefined) return;
+      cancelOpenCalls(service);
+      service.close();
+    });
+  }
+
+  #assertNotEnded(): void {
+    if (this.#ended) throw createClientEndedError();
   }
 
   /*
@@ -321,6 +341,8 @@ export default class Api {
    * @returns `true` is connection was successful.
    */
   public addRequestService = (serviceOptions: ServiceOptions = {}): Promise<boolean> => {
+    this.#assertNotEnded();
+
     if (
       this.hasRateLimitService
       || this.hasRequestService
@@ -356,6 +378,8 @@ export default class Api {
    * @returns `true` is connection was successful.
    */
   public addRateLimitService = (serviceOptions: ServiceOptions = {}): Promise<boolean> => {
+    this.#assertNotEnded();
+
     if (this.hasRateLimitService || this.hasRequestService) {
       throw Error(
         'A rpc service has already been defined for this client. Only one may be added.',
@@ -411,6 +435,8 @@ export default class Api {
 
   // TODO: reach out to grpc maintainers to find out why the current state goes bad after this error
   private recreateRpcService(): Promise<boolean> {
+    if (this.#ended) return Promise.resolve(false);
+
     if (this.#recreateInFlight !== undefined) {
       return this.#recreateInFlight;
     }
@@ -438,9 +464,11 @@ export default class Api {
   }
 
   private reattemptConnectInFuture(delay: number) {
+    if (this.#ended) return;
+
     this.log('WARNING', 'GENERAL', `Failed to connect to Rpc server. Trying again in ${delay} seconds.`);
 
-    setTimeout(() => {
+    this.#reconnectTimer = setTimeout(() => {
       this.recreateRpcService()
         .then((success) => {
           if (!success) {
@@ -481,6 +509,8 @@ export default class Api {
    * ```
    */
   public request = async <T = any>(method: Method, url: string, options: RequestOptions = {}): Promise<ApiResponse<T> | RemoteApiResponse<T>> => {
+    this.#assertNotEnded();
+
     const merged = { ...this.#defaultRequestOptions, ...options };
     const { local, validateStatus = validateStatusDefault }: RequestOptions = merged;
 
@@ -530,6 +560,8 @@ export default class Api {
     try {
       return await rpcRequestService.request(request);
     } catch (err: any) {
+      this.#assertNotEnded();
+
       if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
 
@@ -553,6 +585,8 @@ export default class Api {
   public async sendRequest <T>(request: ApiRequest, fromQueue: true): Promise<string | ApiResponse<T>>
 
   public async sendRequest <T>(request: ApiRequest, fromQueue?: boolean): Promise<string | ApiResponse<T>> {
+    this.#assertNotEnded();
+
     ++this.#inFlight;
 
     let reason;
@@ -568,6 +602,8 @@ export default class Api {
         const { waitFor, global } = rateLimitState;
 
         if (waitFor === 0) {
+          this.#assertNotEnded();
+
           request.startTime = new Date().getTime();
 
           ++request.attempts;
@@ -651,6 +687,8 @@ export default class Api {
 
       return { waitFor, global };
     } catch (err: any) {
+      this.#assertNotEnded();
+
       if (isRpcTransportFailure(err.code) && this.#allowFallback) {
         await this.recreateRpcService();
         const message = 'The RPC authorization request did not succeed. Fallback is allowed. Allowing request to be made.';
@@ -763,6 +801,8 @@ export default class Api {
         const [global, bucketHash, limit, remaining, resetAfter, retryAfter] = rateLimitHeaders.rpcArgs;
         await this.#rpcRateLimitService.update(request, global, bucketHash, limit, remaining, resetAfter, retryAfter);
       } catch (err: any) {
+        if (this.#ended) return;
+
         if (isRpcTransportFailure(err.code)) {
           const success = await this.recreateRpcService();
           if (!success) throw err;

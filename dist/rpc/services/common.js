@@ -26,7 +26,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mergeOptionsWithDefaults = exports.withCallDeadline = exports.RPC_CALL_DEADLINE_MS = exports.loadProtoDefinition = exports.loadProto = void 0;
+exports.mergeOptionsWithDefaults = exports.withCallDeadline = exports.RPC_CALL_DEADLINE_MS = exports.cancelOpenCalls = exports.trackCall = exports.loadProtoDefinition = exports.loadProto = void 0;
 const grpc = __importStar(require("@grpc/grpc-js"));
 const protoLoader = __importStar(require("@grpc/proto-loader"));
 const path_1 = __importDefault(require("path"));
@@ -43,6 +43,23 @@ function loadProtoDefinition(proto) {
     return grpc.loadPackageDefinition(loadProto(proto));
 }
 exports.loadProtoDefinition = loadProtoDefinition;
+const openCalls = new WeakMap();
+function trackCall(client, call) {
+    let calls = openCalls.get(client);
+    if (calls === undefined) {
+        calls = new Set();
+        openCalls.set(client, calls);
+    }
+    const tracked = calls;
+    tracked.add(call);
+    call.once('status', () => { tracked.delete(call); });
+    return call;
+}
+exports.trackCall = trackCall;
+function cancelOpenCalls(client) {
+    openCalls.get(client)?.forEach((call) => call.cancel());
+}
+exports.cancelOpenCalls = cancelOpenCalls;
 exports.RPC_CALL_DEADLINE_MS = 10000;
 function withCallDeadline() {
     return { deadline: new Date(Date.now() + exports.RPC_CALL_DEADLINE_MS) };
