@@ -117,6 +117,12 @@ rather than by widening `skipLibCheck`:
   and, doubly encoded (old server, reproduced by formula), the `{object, array, null}` recovery
   set and the permanent ambiguous residue (a genuine string whose text is valid JSON of a
   non-string type mis-decodes on every pairing, named rather than left silent).
+- `tests/types/` — type-level fixtures, never collected by vitest (no `.test.ts` suffix) and
+  checked only by `npm run test:types`. A fixture is a module of typed uses of a public signature
+  (`declare const` inputs, an annotated export per accepted shape) plus `// @ts-expect-error`
+  lines for the shapes that must be refused; a refused shape that starts to compile fails as an
+  unused directive. Chain 002 adds `constructGuildIconArgs.ts` (M1, AC-1.4).
+  `weakkey-shim.d.ts` is the compiler-version shim described above.
 - `tests/gateway/` — integration tests against the *fixed* gateway state machine (WP-1 on), over
   real loopback sockets, on the real clock (time-seam rule, forms (b)/(c)).
 - `tests/api/` — integration tests against `Api`'s 429 handling (WP-9b on), over both request

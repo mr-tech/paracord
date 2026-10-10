@@ -193,12 +193,10 @@ exports.constructUserAvatarUrl = constructUserAvatarUrl;
  * @param fileType File extension of the image.
  */
 function constructGuildIcon(guild, fileType = '') {
-    if (!guild.icon_hash)
+    const hash = guild.icon_hash || guild.icon;
+    if (!hash)
         return undefined;
-    if (guild.icon_hash.startsWith('a_')) {
-        return `${constants_1.DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon_hash}${fileType ? `.${fileType}` : ''}`;
-    }
-    return `${constants_1.DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon_hash}${fileType ? `.${fileType}` : ''}`;
+    return `${constants_1.DISCORD_CDN_URL}/icons/${guild.id}/${hash}${fileType ? `.${fileType}` : ''}`;
 }
 exports.constructGuildIcon = constructGuildIcon;
 function isObject(v) {

@@ -376,7 +376,7 @@ export declare function computeGuildPerms({ member, guild, stopOnOwnerAdmin }: {
  * @param guild Guild whose icon url to generate.s
  * @param fileType File extension of the image.
  */
-export declare function constructGuildIcon(guild: Pick<APIGuild, 'id' | 'icon_hash'>, fileType?: string): string | undefined;
+export declare function constructGuildIcon(guild: Pick<APIGuild, 'id'> & Partial<Pick<APIGuild, 'icon_hash' | 'icon'>>, fileType?: string): string | undefined;
 
 /**
  * Creates the discord cdn link for a user's avatar.

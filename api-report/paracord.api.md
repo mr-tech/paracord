@@ -240,7 +240,7 @@ export function computeGuildPerms({ member, guild, stopOnOwnerAdmin }: {
 }): bigint;
 
 // @public
-export function constructGuildIcon(guild: Pick<APIGuild, 'id' | 'icon_hash'>, fileType?: string): string | undefined;
+export function constructGuildIcon(guild: Pick<APIGuild, 'id'> & Partial<Pick<APIGuild, 'icon_hash' | 'icon'>>, fileType?: string): string | undefined;
 
 // Warning: (ae-forgotten-export) The symbol "AvatarParams" needs to be exported by the entry point index.d.ts
 //

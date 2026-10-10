@@ -221,14 +221,11 @@ export function constructUserAvatarUrl(user: Pick<APIUser, 'id' | 'avatar'> & { 
  * @param guild Guild whose icon url to generate.s
  * @param fileType File extension of the image.
  */
-export function constructGuildIcon(guild: Pick<APIGuild, 'id' | 'icon_hash'>, fileType = ''): string | undefined {
-  if (!guild.icon_hash) return undefined;
+export function constructGuildIcon(guild: Pick<APIGuild, 'id'> & Partial<Pick<APIGuild, 'icon_hash' | 'icon'>>, fileType = ''): string | undefined {
+  const hash = guild.icon_hash || guild.icon;
+  if (!hash) return undefined;
 
-  if (guild.icon_hash.startsWith('a_')) {
-    return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon_hash}${fileType ? `.${fileType}` : ''}`;
-  }
-
-  return `${DISCORD_CDN_URL}/icons/${guild.id}/${guild.icon_hash}${fileType ? `.${fileType}` : ''}`;
+  return `${DISCORD_CDN_URL}/icons/${guild.id}/${hash}${fileType ? `.${fileType}` : ''}`;
 }
 
 export function isObject(v: unknown): boolean {
