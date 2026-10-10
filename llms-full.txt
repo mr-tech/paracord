@@ -2,7 +2,7 @@
 
 > A TypeScript/Node.js toolkit for building scalable Discord bots with REST, Gateway, and optional gRPC-based remote services for rate limits and requests.
 
-Version: 0.0.7 | License: Apache-2.0 | Node: >=16 | Module: CommonJS
+Version: 0.0.8 | License: Apache-2.0 | Node: >=16 | Module: CommonJS
 
 ---
 
