@@ -24,6 +24,7 @@ class Heart {
     #intervalOffset;
     #log;
     #destroyed = false;
+    /** @internal */
     constructor(params) {
         const { gateway, websocket, heartbeatIntervalOffset, heartbeatTimeoutSeconds, log, } = params;
         this.#gateway = gateway;

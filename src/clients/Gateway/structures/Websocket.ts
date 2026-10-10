@@ -20,6 +20,7 @@ import type { CloseOrigin } from './closeOrigin';
 import type { GatewayEvent, ParacordGatewayEvent } from '../types';
 import type Session from './Session';
 
+/** @internal */
 interface WebsocketParams {
   ws: typeof ws;
   session: Session;

@@ -631,6 +631,7 @@ export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | Gat
 
 export declare class Heartbeat {
     #private;
+    /** @internal */
     constructor(params: Params);
     get recentTimestamp(): number | undefined;
     private checkDestroyed;
@@ -887,6 +888,7 @@ export declare interface ParacordStartupEvent {
     resumed?: boolean;
 }
 
+/** @internal */
 declare interface Params {
     gateway: Gateway;
     websocket: Websocket;
@@ -1640,6 +1642,7 @@ declare class Websocket {
     private startCloseTimeout;
 }
 
+/** @internal */
 declare interface WebsocketParams {
     ws: typeof ws;
     session: Session;

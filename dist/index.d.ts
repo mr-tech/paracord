@@ -631,7 +631,7 @@ export declare type HandleEventCallback = (eventType: ParacordGatewayEvent | Gat
 
 export declare class Heartbeat {
     #private;
-    constructor(params: Params);
+    /* Excluded from this release type: __constructor */
     get recentTimestamp(): number | undefined;
     private checkDestroyed;
     /** Clears heartbeat values and clears the heartbeatTimers. */
@@ -887,13 +887,7 @@ export declare interface ParacordStartupEvent {
     resumed?: boolean;
 }
 
-declare interface Params {
-    gateway: Gateway;
-    websocket: Websocket;
-    heartbeatIntervalOffset?: undefined | number;
-    heartbeatTimeoutSeconds?: undefined | number;
-    log: Gateway['log'];
-}
+/* Excluded from this release type: Params */
 
 declare type PermissibleChannel = Pick<APIGuildChannel<ChannelType>, 'id' | 'permission_overwrites'>;
 
@@ -1426,12 +1420,7 @@ export declare function timestampNSecondsInFuture(seconds: number): number;
 
 /* Excluded from this release type: Websocket */
 
-declare interface WebsocketParams {
-    ws: typeof ws;
-    session: Session;
-    url: string;
-    onClose: Session['handleClose'];
-}
+/* Excluded from this release type: WebsocketParams */
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
 export declare type WrappedRequest<T = any, R = ApiResponse<T>> = (request: ApiRequest) => Promise<R>;

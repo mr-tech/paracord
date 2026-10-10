@@ -429,6 +429,8 @@ export type HandleEventCallback = (eventType: ParacordGatewayEvent | GatewayEven
 // @public (undocumented)
 export class Heartbeat {
     // Warning: (ae-forgotten-export) The symbol "Params" needs to be exported by the entry point index.d.ts
+    //
+    // @internal
     constructor(params: Params);
     ack(): void;
     checkIfShouldHeartbeat: () => void;

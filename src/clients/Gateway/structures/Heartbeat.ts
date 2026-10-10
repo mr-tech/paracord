@@ -4,6 +4,7 @@ import Websocket from './Websocket';
 
 import type Gateway from '../Gateway';
 
+/** @internal */
 interface Params {
   gateway: Gateway;
   websocket: Websocket;
@@ -49,6 +50,7 @@ export default class Heart {
 
   #destroyed = false;
 
+  /** @internal */
   public constructor(params: Params) {
     const {
       gateway, websocket, heartbeatIntervalOffset, heartbeatTimeoutSeconds, log,
