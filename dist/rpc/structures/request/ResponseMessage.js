@@ -23,13 +23,9 @@ class ResponseMessage {
             res = data;
         }
         if (typeof res === 'string') {
-            try {
-                const doubleDecoded = JSON.parse(res);
-                if (typeof doubleDecoded !== 'string') {
-                    res = doubleDecoded;
-                }
-            }
-            catch (err) {
+            const doubleDecoded = ResponseMessage.parseJsonOrUndefined(res);
+            if (doubleDecoded !== undefined && typeof doubleDecoded !== 'string') {
+                res = doubleDecoded;
             }
         }
         return {
@@ -65,6 +61,14 @@ class ResponseMessage {
             status_text: this.statusText,
             data: this.data,
         };
+    }
+    static parseJsonOrUndefined(text) {
+        try {
+            return JSON.parse(text);
+        }
+        catch (err) {
+            return undefined;
+        }
     }
 }
 exports.default = ResponseMessage;
