@@ -219,7 +219,7 @@ export declare type ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName>
 
 export declare interface ApiError<T = any> extends Error {
     config: ApiRequest['config'];
-    code?: string;
+    code?: number;
     request?: any;
     response?: ApiResponse<T> | RemoteApiResponse<T>;
     isApiError: boolean;

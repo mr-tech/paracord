@@ -142,7 +142,7 @@ export type ApiDebugEvent<T extends ApiDebugCodeName = ApiDebugCodeName> = {
 // @public (undocumented)
 export interface ApiError<T = any> extends Error {
     // (undocumented)
-    code?: string;
+    code?: number;
     // (undocumented)
     config: ApiRequest['config'];
     // (undocumented)

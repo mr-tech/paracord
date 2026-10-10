@@ -115,7 +115,7 @@ export type RateLimitState = {
 
 export interface ApiError<T = any> extends Error {
   config: ApiRequest['config'];
-  code?: string;
+  code?: number;
   request?: any;
   response?: ApiResponse<T> | RemoteApiResponse<T>;
   isApiError: boolean;
