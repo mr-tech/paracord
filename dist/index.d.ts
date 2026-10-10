@@ -1092,6 +1092,7 @@ export declare interface RequestOptions {
     transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
     /** Check if status is okay. Return with `false` to throw an error. Default throw on non-200 code. */
     validateStatus?: null | ((status: number) => boolean);
+    timeout?: number;
 }
 
 /**

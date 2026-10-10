@@ -693,6 +693,8 @@ export interface RequestOptions {
     params?: Record<string, unknown> | undefined;
     returnOnGlobalRateLimit?: boolean;
     returnOnRateLimit?: boolean;
+    // (undocumented)
+    timeout?: number;
     transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
     validateStatus?: null | ((status: number) => boolean);
     version?: number;

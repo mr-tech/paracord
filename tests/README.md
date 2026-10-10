@@ -82,6 +82,12 @@ rather than by widening `skipLibCheck`:
   `rateLimit429Shapes.ts` (the 429 shape class, AC-9.1/AC-9.2), `partyAttribution.ts` (the
   resend gate's per-party origin attribution, AC-7.6) and `instrumentedApi.ts` (AC-6.1's
   construct/close-counting `Api`).
+  Plan 002 M2 adds three answer modes to `loopbackApiOrigin.ts`'s `ScriptedResponse`, each
+  recorded in `requestReceipts` on the same body-end feed as any other request: `hold` (accept
+  the request and never answer), `stallAfterHeaders` (send the status line and headers with a
+  `content-length` it never fills) and `delayMs` (answer after a delay). A held or stalled
+  socket and a pending delayed answer are released by `close()`, so a cell that ends with a
+  request still open does not keep the origin, or the worker, alive.
 - `tests/timing/` — **the timeout/time-based cells, and nothing else.** A cell belongs here when the
   property it verifies is defined in terms of real elapsed wall-clock time during the run — a
   backoff schedule's growth, a deadline's expiry, a heartbeat-ack timeout's firing count, a

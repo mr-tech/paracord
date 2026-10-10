@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const BaseRequest_1 = __importDefault(require("./BaseRequest"));
+const timeouts = new WeakMap();
 /**
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
@@ -45,7 +46,9 @@ class ApiRequest extends BaseRequest_1.default {
      */
     constructor(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey, options = {}) {
         super(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey);
-        const { data, headers, params, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, } = options;
+        const { data, headers, params, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, timeout, } = options;
+        if (timeout !== undefined)
+            timeouts.set(this, timeout);
         this.createForm = createForm;
         this.data = data;
         this.headers = headers;
@@ -66,12 +69,14 @@ class ApiRequest extends BaseRequest_1.default {
         else {
             ({ data, headers, params } = this);
         }
+        const timeout = timeouts.get(this);
         return {
             method: this.method,
             url: this.url,
             data,
             headers: headers,
             params,
+            ...(timeout !== undefined ? { timeout } : {}),
             validateStatus: null, // Tells axios not to throw errors when non-200 response codes are encountered.
         };
     }

@@ -11,6 +11,9 @@ export interface ScriptedResponse {
   headers?: Record<string, string>;
   body?: unknown;
   raw?: boolean;
+  hold?: boolean;
+  stallAfterHeaders?: boolean;
+  delayMs?: number;
 }
 
 export interface RequestReceipt {
@@ -36,6 +39,10 @@ export default class LoopbackApiOrigin extends EventEmitter {
   readonly connectionEvents: number[] = [];
 
   readonly requestReceipts: RequestReceipt[] = [];
+
+  private readonly heldSockets = new Set<net.Socket>();
+
+  private readonly delayedAnswers = new Set<NodeJS.Timeout>();
 
   private constructor(server: http.Server) {
     super();
@@ -119,6 +126,10 @@ export default class LoopbackApiOrigin extends EventEmitter {
   }
 
   close(): Promise<void> {
+    this.delayedAnswers.forEach((timer) => clearTimeout(timer));
+    this.delayedAnswers.clear();
+    this.heldSockets.forEach((socket) => socket.destroy());
+    this.heldSockets.clear();
     return new Promise((resolve) => this.server.close(() => resolve()));
   }
 
@@ -149,13 +160,41 @@ export default class LoopbackApiOrigin extends EventEmitter {
       const scripted = this.script.length > 1 ? this.script.shift() : this.script[0];
       const answer = scripted ?? this.defaultResponse;
 
-      res.writeHead(answer.status, answer.headers ?? {});
-      if (answer.raw) {
-        res.end(String(answer.body ?? ''));
-      } else {
-        res.end(answer.body === undefined ? '' : JSON.stringify(answer.body));
+      if (answer.hold) {
+        this.holdOpen(req);
+        return;
       }
+      if (answer.stallAfterHeaders) {
+        res.writeHead(answer.status, { 'content-length': '1000', ...(answer.headers ?? {}) });
+        res.flushHeaders();
+        this.holdOpen(req);
+        return;
+      }
+      if (answer.delayMs !== undefined) {
+        const timer = setTimeout(() => {
+          this.delayedAnswers.delete(timer);
+          LoopbackApiOrigin.answer(res, answer);
+        }, answer.delayMs);
+        this.delayedAnswers.add(timer);
+        return;
+      }
+      LoopbackApiOrigin.answer(res, answer);
     });
+  }
+
+  private holdOpen(req: http.IncomingMessage): void {
+    const { socket } = req;
+    this.heldSockets.add(socket);
+    socket.once('close', () => this.heldSockets.delete(socket));
+  }
+
+  private static answer(res: http.ServerResponse, answer: ScriptedResponse): void {
+    res.writeHead(answer.status, answer.headers ?? {});
+    if (answer.raw) {
+      res.end(String(answer.body ?? ''));
+    } else {
+      res.end(answer.body === undefined ? '' : JSON.stringify(answer.body));
+    }
   }
 }
 

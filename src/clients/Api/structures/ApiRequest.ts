@@ -3,6 +3,8 @@ import BaseRequest from './BaseRequest';
 import type { AxiosRequestConfig, Method, RawAxiosRequestHeaders } from 'axios';
 import type { RequestOptions, RequestFormDataFunction } from '../types';
 
+const timeouts = new WeakMap<object, number>();
+
 /**
  * A request that will be made to Discord's REST API.
  * @extends BaseRequest
@@ -66,8 +68,10 @@ export default class ApiRequest extends BaseRequest {
     super(method, url, topLevelResource, topLevelID, bucketHash, bucketHashKey);
 
     const {
-      data, headers, params, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry,
+      data, headers, params, createForm, returnOnRateLimit, returnOnGlobalRateLimit, maxRateLimitRetry, timeout,
     } = options;
+
+    if (timeout !== undefined) timeouts.set(this, timeout);
 
     this.createForm = createForm;
     this.data = data;
@@ -89,12 +93,14 @@ export default class ApiRequest extends BaseRequest {
     } else {
       ({ data, headers, params } = this);
     }
+    const timeout = timeouts.get(this);
     return {
       method: this.method,
       url: this.url,
       data,
       headers: headers as RawAxiosRequestHeaders,
       params,
+      ...(timeout !== undefined ? { timeout } : {}),
       validateStatus: null, // Tells axios not to throw errors when non-200 response codes are encountered.
     };
   }

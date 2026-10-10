@@ -56,6 +56,7 @@ export interface RequestOptions {
   transformResponse?: (x: Record<string, unknown>) => Record<string, unknown>;
   /** Check if status is okay. Return with `false` to throw an error. Default throw on non-200 code. */
   validateStatus?: null | ((status: number) => boolean);
+  timeout?: number;
 }
 
 /** A `request` method of an axios instance wrapped to decrement the associated rate limit cached state if one exists. */
