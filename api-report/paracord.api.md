@@ -159,7 +159,6 @@ export interface ApiError<T = any> extends Error {
 export interface ApiOptions {
     emitter?: EventEmitter;
     maxConcurrency?: number;
-    queueLoopInterval?: number;
     // (undocumented)
     requestOptions?: RequestOptions;
 }

@@ -15,8 +15,6 @@ export interface ApiOptions {
   /** Event emitter through which to emit debug and warning events. */
   emitter?: EventEmitter;
   requestOptions?: RequestOptions;
-  /** Interval in milliseconds between queue processing cycles. Controls how often rate-limited requests are retried. */
-  queueLoopInterval?: number;
   /** Maximum number of concurrent in-flight requests. Requests exceeding this limit are queued. */
   maxConcurrency?: number;
 }
