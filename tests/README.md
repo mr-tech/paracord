@@ -314,3 +314,9 @@ Decisions Register; not restated here a third time.
 - `npm test` — `vitest run`, all files under `tests/**/*.test.ts`.
 - `npm run test:types` — type-checks `tests/` (`tsconfig.tests.json`), and the `src/` files it
   imports as dependencies, without emitting.
+- `npx eslint src tests --ext .ts` — lints `src/` and `tests/` (`.eslintrc.json` covers
+  `tsconfig.tests.json`). Errors must stay at 0. The warnings it prints for `tests/`
+  (`no-non-null-assertion`, `no-explicit-any`, `no-unused-vars`; 162 at `2cd539c`) are expected and
+  accepted by the owner (lint-tests L-3): not a finding, and not to be fixed in passing.
+  `convention-check.js` reports each of them as a lint FAIL; a FAIL that comes only from these
+  warnings in `tests/` is an accepted condition, not a finding.
