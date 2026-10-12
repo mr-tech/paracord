@@ -209,9 +209,7 @@ class Paracord extends events_1.EventEmitter {
             throw Error(reason);
         }
         gateway.importSession(state);
-        const queued = this.gatewayLoginQueue.indexOf(gateway);
-        if (queued !== -1)
-            this.gatewayLoginQueue.splice(queued, 1);
+        this.removeFromQueue(gateway);
         gateway.login();
         if (gateway.ws === undefined) {
             this.upsertGatewayQueue(gateway);
@@ -270,8 +268,9 @@ class Paracord extends events_1.EventEmitter {
         try {
             const now = Date.now();
             const isPickable = (g) => !g.heartbeatPinned && (0, failureCounter_1.isEligible)(g, now);
-            if (this.#startingGateway && !this.#startingGateway.connected && !isPickable(this.#startingGateway)) {
-                this.clearStartingShardState(this.#startingGateway);
+            const retained = this.#startingGateway;
+            if (retained && (retained.heartbeatPinned || (!retained.connected && !(0, failureCounter_1.isEligible)(retained, now)))) {
+                this.clearStartingShardState(retained);
             }
             if (!this.#startingGateway) {
                 // get resumable shard
@@ -282,7 +281,11 @@ class Paracord extends events_1.EventEmitter {
                 this.log('INFO', 'Checking if a shard is allowed to connect.');
                 const queue = [...this.gatewayLoginQueue];
                 for (const gateway of queue) {
-                    if (isPickable(gateway) && await this.#allowConnection(gateway)) {
+                    if (this.gatewayLoginQueue.includes(gateway)
+                        && isPickable(gateway)
+                        && await this.#allowConnection(gateway)
+                        && this.gatewayLoginQueue.includes(gateway)
+                        && isPickable(gateway)) {
                         this.#startingGateway = gateway;
                         this.log('INFO', 'Shard is allowed to connect.', { shard: gateway });
                         break;
@@ -301,7 +304,10 @@ class Paracord extends events_1.EventEmitter {
                 return;
             }
             // remove the starting shard from the queue
-            this.gatewayLoginQueue.splice(this.gatewayLoginQueue.indexOf(this.#startingGateway), 1);
+            if (!this.removeFromQueue(this.#startingGateway)) {
+                this.clearStartingShardState(this.#startingGateway);
+                return;
+            }
             if (this.#startingGateway.ws !== undefined) {
                 const held = this.#startingGateway;
                 this.log('DEBUG', `Shard ${held.id} already holds a connection.`, { shard: held });
@@ -494,6 +500,13 @@ class Paracord extends events_1.EventEmitter {
         if (shouldReconnect) {
             this.upsertGatewayQueue(gateway);
         }
+    }
+    removeFromQueue(gateway) {
+        const index = this.gatewayLoginQueue.indexOf(gateway);
+        if (index === -1)
+            return false;
+        this.gatewayLoginQueue.splice(index, 1);
+        return true;
     }
     upsertGatewayQueue(gateway, front = false) {
         if (!this.gatewayLoginQueue.includes(gateway)) {

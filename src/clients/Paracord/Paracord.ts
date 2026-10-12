@@ -270,8 +270,7 @@ export default class Paracord extends EventEmitter {
 
     gateway.importSession(state);
 
-    const queued = this.gatewayLoginQueue.indexOf(gateway);
-    if (queued !== -1) this.gatewayLoginQueue.splice(queued, 1);
+    this.removeFromQueue(gateway);
 
     gateway.login();
 
@@ -333,8 +332,9 @@ export default class Paracord extends EventEmitter {
       const now = Date.now();
       const isPickable = (g: Gateway): boolean => !g.heartbeatPinned && isEligible(g, now);
 
-      if (this.#startingGateway && !this.#startingGateway.connected && !isPickable(this.#startingGateway)) {
-        this.clearStartingShardState(this.#startingGateway);
+      const retained = this.#startingGateway;
+      if (retained && (retained.heartbeatPinned || (!retained.connected && !isEligible(retained, now)))) {
+        this.clearStartingShardState(retained);
       }
 
       if (!this.#startingGateway) {
@@ -347,7 +347,13 @@ export default class Paracord extends EventEmitter {
         this.log('INFO', 'Checking if a shard is allowed to connect.');
         const queue = [...this.gatewayLoginQueue];
         for (const gateway of queue) {
-          if (isPickable(gateway) && await this.#allowConnection(gateway)) {
+          if (
+            this.gatewayLoginQueue.includes(gateway)
+            && isPickable(gateway)
+            && await this.#allowConnection(gateway)
+            && this.gatewayLoginQueue.includes(gateway)
+            && isPickable(gateway)
+          ) {
             this.#startingGateway = gateway;
             this.log('INFO', 'Shard is allowed to connect.', { shard: gateway });
             break;
@@ -370,7 +376,10 @@ export default class Paracord extends EventEmitter {
       }
 
       // remove the starting shard from the queue
-      this.gatewayLoginQueue.splice(this.gatewayLoginQueue.indexOf(this.#startingGateway), 1);
+      if (!this.removeFromQueue(this.#startingGateway)) {
+        this.clearStartingShardState(this.#startingGateway);
+        return;
+      }
 
       if (this.#startingGateway.ws !== undefined) {
         const held = this.#startingGateway;
@@ -594,6 +603,14 @@ export default class Paracord extends EventEmitter {
     if (shouldReconnect) {
       this.upsertGatewayQueue(gateway);
     }
+  }
+
+  private removeFromQueue(gateway: Gateway): boolean {
+    const index = this.gatewayLoginQueue.indexOf(gateway);
+    if (index === -1) return false;
+
+    this.gatewayLoginQueue.splice(index, 1);
+    return true;
   }
 
   private upsertGatewayQueue(gateway: Gateway, front = false): void {

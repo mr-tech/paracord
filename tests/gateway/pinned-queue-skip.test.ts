@@ -152,6 +152,30 @@ describe('AC-1.3: the queue never picks a pinned gateway, on each of its four pi
       }
     }, 20000);
 
+    it('pinned while OPEN (a consumer login outside the queue, then the pin), it keeps its queue slot', async () => {
+      const rig = await startBotRig({ readyGuilds: 3 }, {}, [0], {}, false);
+      try {
+        const gw = rig.gateway;
+        await waitForCondition(() => rig.bot.startingGateway === gw && gw.resumable, 'mid-identify', 8000);
+        const logins = countLogins(gw);
+        rig.bot.once('GATEWAY_CLOSE', () => { gw.login(); });
+        gw.close(GATEWAY_CLOSE_CODES.USER_TERMINATE_RESUMABLE);
+        await waitForCondition(() => gw.connected, 'the consumer login opened', 3000);
+        const loginsBeforePin = logins.calls;
+        expect(rig.bot.gatewayLoginQueue.indexOf(gw)).toBe(0);
+        expect(rig.bot.startingGateway).toBe(gw);
+        gw.beginSessionHandoff();
+
+        await sleep(ABSENCE_WINDOW_MS);
+
+        expect(rig.bot.gatewayLoginQueue.indexOf(gw)).toBe(0);
+        expect(logins.calls).toBe(loginsBeforePin);
+        expect(gw.heartbeatPinned).toBe(true);
+      } finally {
+        await rig.end();
+      }
+    }, 20000);
+
     it('pinned inside the close listener, it is not picked: no login, no ERROR, no op 6, same queue slot', async () => {
       const {
         rig, gw, logins, op6Before, errorsBefore, observed,

@@ -451,7 +451,10 @@ export default class Gateway {
         this.clearSession();
     }
 
-    this.log(level, `Websocket closed. Code: ${code}. Reason: ${message}`);
+    const reason = pinned
+      ? `${message.replace(/ \((?:Reconnecting|Terminating)[^)]*\)$/, '')} (Not reconnecting: heartbeat pin set.)`
+      : message;
+    this.log(level, `Websocket closed. Code: ${code}. Reason: ${reason}`);
 
     return shouldReconnect && !pinned;
   }

@@ -166,6 +166,27 @@ describe('AC-3.2: a refused admission leaves the queue and the session as they w
     }
   }, 20000);
 
+  it('a gateway the consumer already took out of the queue is admitted without removing another queued gateway', async () => {
+    const resumeHost = await LoopbackGatewayServer.start();
+    const rig = await startBotRig({}, {}, [1, 2], { shardCount: 3 }, false);
+    try {
+      const own = rig.bot.shards.get(1)!;
+      const other = rig.bot.shards.get(2)!;
+      expect(rig.bot.gatewayLoginQueue).toEqual([own, other]);
+      rig.bot.gatewayLoginQueue.splice(rig.bot.gatewayLoginQueue.indexOf(own), 1);
+
+      rig.bot.admitImportedSession(own, {
+        sessionId: ADMITTED_SESSION, sequence: 5, shard: [1, 3], resumeUrl: resumeHost.url,
+      });
+
+      expect(rig.bot.gatewayLoginQueue).toEqual([other]);
+      expect(own.resumable).toBe(true);
+    } finally {
+      await rig.end();
+      await resumeHost.close();
+    }
+  }, 20000);
+
   it('control: a gateway of this client that is queued and session-less is admitted', async () => {
     const r = await admissionRig();
     try {

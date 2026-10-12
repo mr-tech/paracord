@@ -840,6 +840,7 @@ declare class Paracord extends EventEmitter {
      */
     private handleGatewayReady;
     private handleGatewayClose;
+    private removeFromQueue;
     private upsertGatewayQueue;
     private isStartingGateway;
 }

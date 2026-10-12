@@ -131,6 +131,11 @@ describe('AC-1.3/1.4: a pinned gateway never reconnects itself, for every close 
 
         expect(gw.resumable).toBe(cls === 'P-clear' ? false : resumableBefore);
         expect(gw.heartbeatPinned).toBe(cls !== 'P-clear');
+
+        const closeLine = rig.debug.find((d) => d.message.startsWith(`Websocket closed. Code: ${code}.`));
+        expect(closeLine).toBeDefined();
+        expect(closeLine!.message.includes('Not reconnecting')).toBe(true);
+        expect(/\((Reconnecting|Terminating)/.test(closeLine!.message)).toBe(false);
       } finally {
         await rig.end();
       }
@@ -171,6 +176,21 @@ describe('AC-1.3/1.4: a pinned gateway never reconnects itself, for every close 
       }, 20000);
     }
   });
+});
+
+describe('a close log line says what happens next', () => {
+  it('control: an unpinned P-keep close says it reconnects', async () => {
+    const rig = await startBotRig();
+    try {
+      rig.gateway.close(G.CLEAN as GatewayCloseCode);
+      await waitForCondition(() => rig.closes.length === 1, 'GATEWAY_CLOSE delivered', 4000);
+      const line = rig.debug.find((d) => d.message.startsWith(`Websocket closed. Code: ${G.CLEAN}.`));
+      expect(line!.message.includes('(Reconnecting.)')).toBe(true);
+      expect(line!.message.includes('Not reconnecting')).toBe(false);
+    } finally {
+      await rig.end();
+    }
+  }, 20000);
 });
 
 describe('AC-1.3: a heartbeat timeout (4995) closes a pinned gateway without reconnecting it', () => {
