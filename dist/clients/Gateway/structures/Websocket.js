@@ -54,8 +54,10 @@ class Websocket {
             heartbeatTimeoutSeconds: this.#session.gateway.options.heartbeatTimeoutSeconds,
             log: this.#session.log,
         });
+        let connection;
         try {
-            this.#connection = new _websocket(url, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
+            connection = new _websocket(url, { maxPayload: constants_1.GIGABYTE_IN_BYTES });
+            this.#connection = connection;
             this.setupConnection();
         }
         catch (err) {
@@ -68,6 +70,8 @@ class Websocket {
                 console.error(err); // TODO: emit
             }
             this.clearConnectTimeout();
+            if (connection !== undefined)
+                this.destroy();
             throw err;
         }
     }

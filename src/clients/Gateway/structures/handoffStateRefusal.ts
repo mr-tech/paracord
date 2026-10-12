@@ -29,7 +29,7 @@ export default function handoffStateRefusal(state: unknown, shard: GatewayIdenti
 
   if (typeof sessionId !== 'string' || sessionId.length === 0) return 'The sessionId is not a non-empty string';
   if (!Number.isSafeInteger(sequence) || (sequence as number) < 0) return 'The sequence is not a non-negative safe integer';
-  if (resumeUrl !== undefined && !isWebSocketUrl(resumeUrl)) return 'The resumeUrl is not a ws: or wss: URL';
+  if (resumeUrl !== undefined && !isWebSocketUrl(resumeUrl)) return 'The resumeUrl is not a ws: or wss: URL with no query, no fragment and no surrounding whitespace';
   if (!isSameShard(stateShard, shard)) return 'The shard is not this gateway\'s shard';
 
   return undefined;

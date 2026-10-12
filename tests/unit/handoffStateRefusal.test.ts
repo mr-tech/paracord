@@ -82,6 +82,18 @@ describe('AC-2.1: the import validation, member by member', () => {
     expect(handoffStateRefusal(state, shard)).toBeUndefined();
   });
 
+  const RESUME_URL_REFUSED = REFUSED.filter(([label]) => label.startsWith('resumeUrl'));
+  const RESUME_URL_RULE_CLAUSES = ['ws:', 'wss:', 'query', 'fragment', 'whitespace'];
+
+  it('the resumeUrl members are the ones this rule is checked over', () => {
+    expect(RESUME_URL_REFUSED).toHaveLength(18);
+  });
+
+  it.each(RESUME_URL_REFUSED)('a resumeUrl refusal states every clause of the resumeUrl rule: %s', (_label, state, shard) => {
+    const reason = handoffStateRefusal(state, shard) as string;
+    expect(RESUME_URL_RULE_CLAUSES.filter((clause) => !reason.includes(clause))).toEqual([]);
+  });
+
   it('a refusal reason never contains the values it refused', () => {
     const state = withField('sessionId', '');
     const secretish = {

@@ -105,8 +105,10 @@ export default class Websocket {
       log: this.#session.log,
     });
 
+    let connection: undefined | ws;
     try {
-      this.#connection = new _websocket(url, { maxPayload: GIGABYTE_IN_BYTES });
+      connection = new _websocket(url, { maxPayload: GIGABYTE_IN_BYTES });
+      this.#connection = connection;
       this.setupConnection();
     } catch (err) {
       if (isApiError(err)) {
@@ -118,6 +120,7 @@ export default class Websocket {
       }
 
       this.clearConnectTimeout();
+      if (connection !== undefined) this.destroy();
       throw err;
     }
   }

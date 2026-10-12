@@ -153,6 +153,14 @@ export class LoopbackGatewayServer extends EventEmitter {
     return this.connections;
   }
 
+  get openClientCount(): number {
+    return [...this.wss.clients].filter((c) => c.readyState === WebSocket.OPEN).length;
+  }
+
+  terminateClients(): void {
+    this.wss.clients.forEach((c) => c.terminate());
+  }
+
   requestHeartbeat(): void {
     this.liveSocket?.send(JSON.stringify({ op: 1, d: null }));
   }

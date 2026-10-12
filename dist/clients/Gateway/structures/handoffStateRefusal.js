@@ -28,7 +28,7 @@ function handoffStateRefusal(state, shard) {
     if (!Number.isSafeInteger(sequence) || sequence < 0)
         return 'The sequence is not a non-negative safe integer';
     if (resumeUrl !== undefined && !isWebSocketUrl(resumeUrl))
-        return 'The resumeUrl is not a ws: or wss: URL';
+        return 'The resumeUrl is not a ws: or wss: URL with no query, no fragment and no surrounding whitespace';
     if (!isSameShard(stateShard, shard))
         return 'The shard is not this gateway\'s shard';
     return undefined;
