@@ -97,6 +97,13 @@ rather than by widening `skipLibCheck`:
   `authorizeCalls`, which wraps the real cache call and reads 0 under a withheld `authorize`, it
   counts a withheld call as arrived, which is what a cell needs before it calls `Api#end()` with
   that call open.
+  fix-paracord-refusal-text-socket-leak adds to `loopbackGatewayServer.ts` `openClientCount`: the
+  server-side clients (`wss.clients`) whose `readyState` is `OPEN` at the moment it is read. It is a
+  current reading, not a tally, so it falls when a client closes. That makes it distinct from
+  `connectionCount`, which counts every upgrade the server ever completed and never decreases.
+  `half-built-websocket.test.ts` reads it after the bot ends, to see a connection nobody owns. Also
+  added: `terminateClients()`, which terminates every tracked client. A red run that leaves a
+  client open calls it before `close()`, which otherwise waits on that client and hangs the file.
 - `tests/timing/` — **the timeout/time-based cells, and nothing else.** A cell belongs here when the
   property it verifies is defined in terms of real elapsed wall-clock time during the run — a
   backoff schedule's growth, a deadline's expiry, a heartbeat-ack timeout's firing count, a
