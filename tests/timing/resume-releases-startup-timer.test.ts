@@ -1,10 +1,12 @@
 import {
   describe, it, expect,
 } from 'vitest';
+
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForCondition } from '../harness/waitFor';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
+
 import type Gateway from '../../src/clients/Gateway/Gateway';
 import type { GatewayCloseEvent } from '../../src/clients/Gateway/types';
 

@@ -1,14 +1,16 @@
 import {
   describe, it, expect, beforeAll, vi, afterEach,
 } from 'vitest';
+
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
-import type { GatewayCloseCode } from '../../src/constants';
-import type { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
 import {
   startBotRig, deliverToBot, op2Count, op6Count, sleep,
 } from '../harness/botRig';
-import type { BotRig } from '../harness/botRig';
 import { waitForCondition } from '../harness/waitFor';
+
+import type { GatewayCloseCode } from '../../src/constants';
+import type { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
+import type { BotRig } from '../harness/botRig';
 
 const G = GATEWAY_CLOSE_CODES;
 const NON_MEMBER = 50000;
@@ -47,10 +49,18 @@ const ROUTES: Array<{
   drop: (server: LoopbackGatewayServer) => void;
   expectCode: number;
 }> = [
-  { name: '1006, the socket drops', serverOptions: {}, drop: (s) => s.dropLiveSocket(), expectCode: G.ABNORMAL },
-  { name: 'op 7, Discord asks to reconnect', serverOptions: {}, drop: (s) => s.sendReconnect(), expectCode: G.RECONNECT },
-  { name: 'op 9 d:true, Discord reports a resumable invalid session', serverOptions: {}, drop: (s) => s.sendInvalidSession(true), expectCode: G.SESSION_INVALIDATED_RESUMABLE },
-  { name: 'a server wire close, 4000', serverOptions: {}, drop: (s) => s.closeLiveSocket(4000), expectCode: 4000 },
+  {
+    name: '1006, the socket drops', serverOptions: {}, drop: (s) => s.dropLiveSocket(), expectCode: G.ABNORMAL,
+  },
+  {
+    name: 'op 7, Discord asks to reconnect', serverOptions: {}, drop: (s) => s.sendReconnect(), expectCode: G.RECONNECT,
+  },
+  {
+    name: 'op 9 d:true, Discord reports a resumable invalid session', serverOptions: {}, drop: (s) => s.sendInvalidSession(true), expectCode: G.SESSION_INVALIDATED_RESUMABLE,
+  },
+  {
+    name: 'a server wire close, 4000', serverOptions: {}, drop: (s) => s.closeLiveSocket(4000), expectCode: 4000,
+  },
 ];
 
 const controls = { keep: false, clear: false, routes: {} as Record<string, boolean> };

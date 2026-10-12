@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import RateLimitHeaders from '../../src/clients/Api/structures/RateLimitHeaders';
 
 const VALUE_CLASS: Array<{ label: string; value: unknown }> = [
@@ -33,10 +34,8 @@ describe('RateLimitHeaders coercion guards, both construction sites (AC-9.3)', (
 
   describe.each(VALUE_CLASS)('$label — direct constructor (the RPC boundary\'s site)', ({ value }) => {
     it('produces finite limit/remaining/resetAfter/retryAfter and a boolean global', () => {
-      const headers = new RateLimitHeaders(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        value as any, 'bucket-1', value as any, value as any, value as any, value as any,
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const headers = new RateLimitHeaders(value as any, 'bucket-1', value as any, value as any, value as any, value as any);
 
       expect(Number.isFinite(headers.limit)).toBe(true);
       expect(Number.isFinite(headers.remaining)).toBe(true);
@@ -55,10 +54,8 @@ describe('RateLimitHeaders coercion guards, both construction sites (AC-9.3)', (
       'x-ratelimit-reset-after': '1',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any, undefined);
-    const viaDirectConstructor = new RateLimitHeaders(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      false, 'b', '5' as any, '3' as any, 1000, undefined,
-    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const viaDirectConstructor = new RateLimitHeaders(false, 'b', '5' as any, '3' as any, 1000, undefined);
 
     expect(viaDirectConstructor.limit).toBe(viaHeaders.limit);
     expect(viaDirectConstructor.remaining).toBe(viaHeaders.remaining);

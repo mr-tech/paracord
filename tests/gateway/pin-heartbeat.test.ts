@@ -1,11 +1,13 @@
 import {
   describe, it, expect, vi, afterEach,
 } from 'vitest';
+
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import type { LoopbackGatewayServerOptions } from '../harness/loopbackGatewayServer';
 import { createDirectGateway, deliver, loginDirect } from '../harness/directGateway';
 import { waitForCondition } from '../harness/waitFor';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
+
+import type { LoopbackGatewayServerOptions } from '../harness/loopbackGatewayServer';
 import type { GatewayCloseCode } from '../../src/constants';
 
 async function setup(opts: LoopbackGatewayServerOptions = {}) {

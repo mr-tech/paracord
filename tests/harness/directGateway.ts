@@ -1,6 +1,9 @@
 import { EventEmitter } from 'events';
+
 import Gateway from '../../src/clients/Gateway/Gateway';
+
 import { waitForCondition } from './waitFor';
+
 import type { LoopbackGatewayServer } from './loopbackGatewayServer';
 
 export interface DebugLine {

@@ -7,9 +7,11 @@ const fixture = path.join(__dirname, '..', 'fixtures', 'handshakeDestroy.cjs');
 function run(variant: string): Promise<{ code: number | null, stdout: string, stderr: string }> {
   return new Promise((resolve) => {
     execFile('node', [fixture, variant], (error, stdout, stderr) => {
-      const code = error && typeof (error as NodeJS.ErrnoException & { code?: number }).code === 'number'
-        ? (error as NodeJS.ErrnoException & { code?: number }).code as number
-        : (error ? 1 : 0);
+      let code: number | null = 0;
+      if (error) {
+        const errorCode = (error as NodeJS.ErrnoException & { code?: number }).code;
+        code = typeof errorCode === 'number' ? errorCode : 1;
+      }
       resolve({ code, stdout, stderr });
     });
   });

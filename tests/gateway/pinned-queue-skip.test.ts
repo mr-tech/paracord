@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
+
 import { GATEWAY_CLOSE_CODES, LOG_LEVELS } from '../../src/constants';
-import { startBotRig, op2Count, op6Count, sleep } from '../harness/botRig';
-import type { BotRig } from '../harness/botRig';
+import {
+  startBotRig, op2Count, op6Count, sleep,
+} from '../harness/botRig';
 import { waitForCondition } from '../harness/waitFor';
+
+import type { BotRig } from '../harness/botRig';
 import type Gateway from '../../src/clients/Gateway/Gateway';
 
 const ABSENCE_WINDOW_MS = 2600;

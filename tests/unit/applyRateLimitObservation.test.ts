@@ -1,4 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import {
+  describe, it, expect, vi,
+} from 'vitest';
+
 import applyRateLimitObservation from '../../src/clients/Api/structures/applyRateLimitObservation';
 import RateLimitHeaders from '../../src/clients/Api/structures/RateLimitHeaders';
 

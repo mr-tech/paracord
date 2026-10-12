@@ -1,16 +1,24 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import {
+  describe, it, expect, afterEach,
+} from 'vitest';
 import zlib from 'zlib';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForCondition, waitForResumable } from '../harness/waitFor';
 
 const FLUSH_MARKER = Buffer.from([0x00, 0x00, 0xff, 0xff]);
 
 function validCompressed(): Buffer {
   return zlib.deflateSync(Buffer.from(JSON.stringify({
-    op: 0, t: 'X', s: 1, d: { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7 },
+    op: 0,
+    t: 'X',
+    s: 1,
+    d: {
+      a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7,
+    },
   })));
 }
 

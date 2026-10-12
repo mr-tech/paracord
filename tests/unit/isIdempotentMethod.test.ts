@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import isIdempotentMethod from '../../src/clients/Api/structures/isIdempotentMethod';
 
 describe('isIdempotentMethod (WP-5 step 2, D-6)', () => {

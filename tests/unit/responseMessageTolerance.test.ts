@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import ResponseMessage from '../../src/rpc/structures/request/ResponseMessage';
 
 import type { ResponseProto } from '../../src/rpc/types';

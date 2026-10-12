@@ -1,8 +1,10 @@
 import {
   describe, it, expect, vi,
 } from 'vitest';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
+
 import type Gateway from '../../src/clients/Gateway';
 
 function dropSocket(gateway: Gateway): void {

@@ -1,8 +1,9 @@
 import http from 'http';
 import net from 'net';
-import type { Duplex } from 'stream';
 import { EventEmitter } from 'events';
 import { WebSocket, WebSocketServer } from 'ws';
+
+import type { Duplex } from 'stream';
 
 export type LoopbackMode = 'accept' | 'reject503' | 'hang';
 
@@ -204,8 +205,12 @@ export class LoopbackGatewayServer extends EventEmitter {
   async close(): Promise<void> {
     this.heldSockets.forEach((s) => s.destroy());
     this.liveSocket?.terminate();
-    await new Promise<void>((resolve) => this.wss.close(() => resolve()));
-    await new Promise<void>((resolve) => this.server.close(() => resolve()));
+    await new Promise<void>((resolve) => {
+      this.wss.close(() => resolve());
+    });
+    await new Promise<void>((resolve) => {
+      this.server.close(() => resolve());
+    });
   }
 
   private handleUpgrade(req: http.IncomingMessage, socket: Duplex, head: Buffer): void {
@@ -237,7 +242,9 @@ export class LoopbackGatewayServer extends EventEmitter {
     this.liveSocket = client;
     this.connections += 1;
     const conn = this.connections;
-    client.send(JSON.stringify({ op: 10, d: { heartbeat_interval: this.heartbeatIntervalMs }, s: null, t: null }));
+    client.send(JSON.stringify({
+      op: 10, d: { heartbeat_interval: this.heartbeatIntervalMs }, s: null, t: null,
+    }));
 
     client.on('message', (buf: Buffer) => {
       const payload = JSON.parse(buf.toString());
@@ -265,7 +272,9 @@ export class LoopbackGatewayServer extends EventEmitter {
         this.receivedResumes.push({ sessionId: payload.d?.session_id, seq: payload.d?.seq, conn });
         this.emit('resume', payload.d);
         if (this.resumeResponse === 'resumed') {
-          client.send(JSON.stringify({ op: 0, s: this.nextDispatchSeq++, t: 'RESUMED', d: {} }));
+          client.send(JSON.stringify({
+            op: 0, s: this.nextDispatchSeq++, t: 'RESUMED', d: {},
+          }));
         } else {
           client.send(JSON.stringify({ op: 9, d: false }));
         }

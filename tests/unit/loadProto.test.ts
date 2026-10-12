@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { loadProto } from '../../src/rpc/services/common';
 import RpcServer from '../../src/rpc/server/RpcServer';
 

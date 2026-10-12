@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import computeBackoffMs from '../../src/clients/Gateway/structures/backoffSchedule';
 
 describe('computeBackoffMs (D-8 pure schedule function)', () => {

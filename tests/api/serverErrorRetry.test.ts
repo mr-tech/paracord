@@ -1,6 +1,7 @@
 import {
   describe, it, expect,
 } from 'vitest';
+
 import LoopbackApiOrigin, { createApiAgainstOrigin, type ScriptedResponse } from '../harness/loopbackApiOrigin';
 
 import type { Method } from 'axios';
@@ -101,7 +102,7 @@ describe('Api 5xx retry, method class (AC-5.2)', () => {
     }, 20000);
   });
 
-  describe("AC-5.2 (ii) control — a 429 is outside this class, unchanged by WP-5", () => {
+  describe('AC-5.2 (ii) control — a 429 is outside this class, unchanged by WP-5', () => {
     const RATE_LIMITED: ScriptedResponse = {
       status: 429,
       headers: {

@@ -1,12 +1,14 @@
 import {
   describe, it, expect, vi, afterEach,
 } from 'vitest';
+
 import { startBotRig, sleep } from '../harness/botRig';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import type { BotRig } from '../harness/botRig';
-import type { DebugLine } from '../harness/directGateway';
 import { waitForCondition } from '../harness/waitFor';
 import { isEligible } from '../../src/clients/Paracord/failureCounter';
+
+import type { BotRig } from '../harness/botRig';
+import type { DebugLine } from '../harness/directGateway';
 import type Gateway from '../../src/clients/Gateway/Gateway';
 
 afterEach(() => {

@@ -6,13 +6,13 @@ declare const gateway: Gateway;
 
 declare const paracord: Paracord;
 
-export const heartbeat: Heartbeat | undefined = gateway.heartbeat;
+export const { heartbeat }: { heartbeat: Heartbeat | undefined } = gateway;
 
 export const recentTimestamp: number | undefined = gateway.heartbeat?.recentTimestamp;
 
 export const sendHeartbeat: (() => void) | undefined = gateway.heartbeat?.sendHeartbeat;
 
-export const heartbeatPinned: boolean = gateway.heartbeatPinned;
+export const { heartbeatPinned }: { heartbeatPinned: boolean } = gateway;
 
 export const handoffState: SessionHandoffState = gateway.beginSessionHandoff();
 

@@ -1,8 +1,11 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import {
+  describe, it, expect, afterEach,
+} from 'vitest';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForResumable, waitForCondition } from '../harness/waitFor';
 
 describe('AC-1.10: resume-host abandonment after 3 consecutive 1006s', () => {

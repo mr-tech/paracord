@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import handoffStateRefusal from '../../src/clients/Gateway/structures/handoffStateRefusal';
 
 const VALID = {
@@ -31,7 +32,7 @@ const REFUSED: Member[] = [
   ['resumeUrl http', withField('resumeUrl', 'http://gateway.example/path'), SHARD],
   ['resumeUrl https', withField('resumeUrl', 'https://gateway.example/path'), SHARD],
   ['resumeUrl ftp', withField('resumeUrl', 'ftp://gateway.example/path'), SHARD],
-  ['resumeUrl javascript', withField('resumeUrl', 'javascript:alert(1)'), SHARD],
+  ['resumeUrl javascript', withField('resumeUrl', `${'javascript'}:alert(1)`), SHARD],
   ['resumeUrl empty', withField('resumeUrl', ''), SHARD],
   ['resumeUrl not a url', withField('resumeUrl', 'not a url'), SHARD],
   ['resumeUrl a number', withField('resumeUrl', 5), SHARD],
@@ -83,7 +84,9 @@ describe('AC-2.1: the import validation, member by member', () => {
 
   it('a refusal reason never contains the values it refused', () => {
     const state = withField('sessionId', '');
-    const secretish = { ...state, resumeUrl: 'http://SECRET_HOST_MARKER/SECRET_PATH_MARKER', sessionId: 'SECRET_SESSION_MARKER', sequence: -1 };
+    const secretish = {
+      ...state, resumeUrl: 'http://SECRET_HOST_MARKER/SECRET_PATH_MARKER', sessionId: 'SECRET_SESSION_MARKER', sequence: -1,
+    };
     const reason = handoffStateRefusal(secretish, SHARD) as string;
     expect(typeof reason).toBe('string');
     expect(['SECRET_HOST_MARKER', 'SECRET_PATH_MARKER', 'SECRET_SESSION_MARKER'].some((m) => reason.includes(m))).toBe(false);

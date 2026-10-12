@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 
@@ -79,17 +80,31 @@ describe('AC-7.3 — request options cross the proxy wire', () => {
 
   it.each([
     ['control: no options at all', {},
-      { params: null, returnOnRateLimit: false, returnOnGlobalRateLimit: false, retriesLeft: null }],
+      {
+        params: null, returnOnRateLimit: false, returnOnGlobalRateLimit: false, retriesLeft: null,
+      }],
     ['params only', { params: { limit: 7, after: 'abc' } },
-      { params: JSON.stringify({ limit: 7, after: 'abc' }), returnOnRateLimit: false, returnOnGlobalRateLimit: false, retriesLeft: null }],
+      {
+        params: JSON.stringify({ limit: 7, after: 'abc' }), returnOnRateLimit: false, returnOnGlobalRateLimit: false, retriesLeft: null,
+      }],
     ['returnOnRateLimit: true', { returnOnRateLimit: true },
-      { params: null, returnOnRateLimit: true, returnOnGlobalRateLimit: false, retriesLeft: null }],
+      {
+        params: null, returnOnRateLimit: true, returnOnGlobalRateLimit: false, retriesLeft: null,
+      }],
     ['returnOnGlobalRateLimit: true — no other cell drives this', { returnOnGlobalRateLimit: true },
-      { params: null, returnOnRateLimit: false, returnOnGlobalRateLimit: true, retriesLeft: null }],
+      {
+        params: null, returnOnRateLimit: false, returnOnGlobalRateLimit: true, retriesLeft: null,
+      }],
     ['maxRateLimitRetry: 0', { maxRateLimitRetry: 0 },
-      { params: null, returnOnRateLimit: false, returnOnGlobalRateLimit: false, retriesLeft: 0 }],
-    ['all four at once, each a distinct value', { params: { a: 1 }, returnOnRateLimit: true, returnOnGlobalRateLimit: true, maxRateLimitRetry: 2 },
-      { params: JSON.stringify({ a: 1 }), returnOnRateLimit: true, returnOnGlobalRateLimit: true, retriesLeft: 2 }],
+      {
+        params: null, returnOnRateLimit: false, returnOnGlobalRateLimit: false, retriesLeft: 0,
+      }],
+    ['all four at once, each a distinct value', {
+      params: { a: 1 }, returnOnRateLimit: true, returnOnGlobalRateLimit: true, maxRateLimitRetry: 2,
+    },
+    {
+      params: JSON.stringify({ a: 1 }), returnOnRateLimit: true, returnOnGlobalRateLimit: true, retriesLeft: 2,
+    }],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ] as Array<[string, Record<string, unknown>, Record<string, any>]>)('%s reaches the proxy\'s own ApiRequest by value', async (_label, options, expected) => {
     const origin = await LoopbackApiOrigin.start();

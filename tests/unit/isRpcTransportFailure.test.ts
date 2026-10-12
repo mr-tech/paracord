@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { status as grpcStatus } from '@grpc/grpc-js';
+
 import isRpcTransportFailure from '../../src/clients/Api/structures/isRpcTransportFailure';
 
 describe('isRpcTransportFailure (WP-2 step 2)', () => {

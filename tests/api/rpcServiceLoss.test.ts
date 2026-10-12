@@ -1,6 +1,9 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import {
+  describe, it, expect, afterEach,
+} from 'vitest';
 import { EventEmitter } from 'events';
 import { status as grpcStatus } from '@grpc/grpc-js';
+
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 import { LOG_LEVELS } from '../../src/constants';
@@ -70,14 +73,16 @@ async function driveUpdateCell(code: number, allowFallback: boolean) {
   }
 
   const errorEvents = events.filter(isErrorEvent);
-  const updateCalls = rpc.updateCalls;
+  const { updateCalls } = rpc;
 
   api.end();
   await origin.close();
   await rpc.close();
   process.off('unhandledRejection', onUnhandled);
 
-  return { unhandledCount: unhandled.length, errorCount: errorEvents.length, errorMessages: errorEvents.map((e) => e.message), updateCalls };
+  return {
+    unhandledCount: unhandled.length, errorCount: errorEvents.length, errorMessages: errorEvents.map((e) => e.message), updateCalls,
+  };
 }
 
 describe('Api RPC cache-update resilience (AC-2.1, H1) — 16 codes x 2 arms', () => {
@@ -89,7 +94,9 @@ describe('Api RPC cache-update resilience (AC-2.1, H1) — 16 codes x 2 arms', (
     for (const { name, code } of NON_OK_CODES) {
       const inSet = TRANSPORT_SET.has(code);
       it(`allowFallback=${allowFallback}, update faults ${name} (${code}) — ${inSet ? 'recreate succeeds, no rejection' : 'one ERROR line, process survives'}`, async () => {
-        const { unhandledCount, errorCount, errorMessages, updateCalls } = await driveUpdateCell(code, allowFallback);
+        const {
+          unhandledCount, errorCount, errorMessages, updateCalls,
+        } = await driveUpdateCell(code, allowFallback);
 
         expect(updateCalls).toBeGreaterThanOrEqual(1);
 

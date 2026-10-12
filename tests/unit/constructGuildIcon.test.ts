@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import { constructGuildIcon } from '../../src/utils';
 
 const GUILD_ID = '123456789012345678';

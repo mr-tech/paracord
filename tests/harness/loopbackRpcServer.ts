@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import * as grpc from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
+
 import RpcServer from '../../src/rpc/server/RpcServer';
+
 import { createApiAgainstOrigin } from './loopbackApiOrigin';
 
 import type { UntypedServiceImplementation } from '@grpc/grpc-js';
@@ -127,7 +129,7 @@ export default class LoopbackRpcServer extends EventEmitter {
     });
   }
 
-  static startRequestService(token = 'test-token', origin?: LoopbackApiOrigin, apiOptions: ApiOptions = {}): Promise<LoopbackRpcServer> {
+  static startRequestService(token = 'test-token', origin: LoopbackApiOrigin | undefined = undefined, apiOptions: ApiOptions = {}): Promise<LoopbackRpcServer> {
     return new Promise((resolve, reject) => {
       const server = new RpcServer({ host: '127.0.0.1', port: 0 });
       const state: HarnessState = {

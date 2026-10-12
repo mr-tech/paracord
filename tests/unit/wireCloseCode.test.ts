@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import isValidWireCloseCode from '../../src/clients/Gateway/structures/wireCloseCode';
 
 describe('isValidWireCloseCode', () => {

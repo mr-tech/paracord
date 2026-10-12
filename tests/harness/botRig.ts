@@ -1,7 +1,8 @@
 import { LoopbackGatewayServer } from './loopbackGatewayServer';
-import type { LoopbackGatewayServerOptions } from './loopbackGatewayServer';
-import { createTestBot } from './testBot';
+import createTestBot from './testBot';
 import { waitForCondition } from './waitFor';
+
+import type { LoopbackGatewayServerOptions } from './loopbackGatewayServer';
 import type Paracord from '../../src/clients/Paracord/Paracord';
 import type Gateway from '../../src/clients/Gateway/Gateway';
 import type { ParacordLoginOptions, ParacordOptions } from '../../src/clients/Paracord/types';

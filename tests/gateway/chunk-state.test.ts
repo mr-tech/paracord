@@ -1,8 +1,11 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import {
+  describe, it, expect, afterEach,
+} from 'vitest';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForCondition, waitForResumable } from '../harness/waitFor';
 
 const G = GATEWAY_CLOSE_CODES;

@@ -1,8 +1,11 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import {
+  describe, it, expect, beforeAll,
+} from 'vitest';
 import { fork } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { status as grpcStatus } from '@grpc/grpc-js';
+
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import { LOG_LEVELS } from '../../src/constants';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
@@ -176,7 +179,7 @@ describe('AC-5.1 — a process that calls end() exits on its own within 5 s, in 
       expect(result.exitMs).toBeLessThan(EXIT_BOUND_MS);
       expect(result.exitCode).toBe(0);
       expect(result.faults).toEqual([]);
-        expect(receipts).toBe(0);
+      expect(receipts).toBe(0);
     }, 30_000);
   });
 });
@@ -302,7 +305,12 @@ describe('AC-5.4 — a request waiting in the queue at end() is rejected and nev
     origin.setScript([
       exhaustedBucket('ac54-b'),
       {
-        status: 429, delayMs: 1200, headers: { 'x-ratelimit-bucket': 'ac54-b', 'x-ratelimit-limit': '1', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset-after': '1.5' }, body: { message: 'rate limited', retry_after: 1.5, global: false },
+        status: 429,
+        delayMs: 1200,
+        headers: {
+          'x-ratelimit-bucket': 'ac54-b', 'x-ratelimit-limit': '1', 'x-ratelimit-remaining': '0', 'x-ratelimit-reset-after': '1.5',
+        },
+        body: { message: 'rate limited', retry_after: 1.5, global: false },
       },
     ]);
     const api = await createApiAgainstOrigin(origin);

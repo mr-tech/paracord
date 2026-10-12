@@ -1,7 +1,10 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import {
+  describe, it, expect, afterEach,
+} from 'vitest';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForCondition, waitForResumable } from '../harness/waitFor';
 
 function countActiveTimers(): number {

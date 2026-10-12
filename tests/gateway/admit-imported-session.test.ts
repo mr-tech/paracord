@@ -1,13 +1,17 @@
 import { describe, it, expect } from 'vitest';
+
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import type { LoopbackGatewayServerOptions } from '../harness/loopbackGatewayServer';
 import { startBotRig, sleep } from '../harness/botRig';
-import type { BotRig } from '../harness/botRig';
 import { createDirectGateway } from '../harness/directGateway';
-import type { DebugLine } from '../harness/directGateway';
-import { SESSION_MARKER, TOKEN_MARKER, carriesAny, handoffLines } from '../harness/handoffTelemetry';
+import {
+  SESSION_MARKER, TOKEN_MARKER, carriesAny, handoffLines,
+} from '../harness/handoffTelemetry';
 import { waitForCondition } from '../harness/waitFor';
 import { GATEWAY_CLOSE_CODES, LOG_LEVELS } from '../../src/constants';
+
+import type { DebugLine } from '../harness/directGateway';
+import type { BotRig } from '../harness/botRig';
+import type { LoopbackGatewayServerOptions } from '../harness/loopbackGatewayServer';
 import type Gateway from '../../src/clients/Gateway/Gateway';
 import type { SessionHandoffState } from '../../src/clients/Gateway/types';
 import type { ParacordStartupEvent } from '../../src/clients/Paracord/types';

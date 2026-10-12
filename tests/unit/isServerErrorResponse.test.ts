@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import isServerErrorResponse from '../../src/clients/Api/structures/isServerErrorResponse';
 
 describe('isServerErrorResponse (WP-5 step 2)', () => {

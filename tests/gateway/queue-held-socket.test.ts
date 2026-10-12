@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
+
 import { startBotRig, sleep } from '../harness/botRig';
-import type { BotRig } from '../harness/botRig';
 import { waitForCondition } from '../harness/waitFor';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
+
+import type { BotRig } from '../harness/botRig';
 import type Gateway from '../../src/clients/Gateway/Gateway';
 
 const TEN_TICKS_MS = 10500;

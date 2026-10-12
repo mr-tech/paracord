@@ -130,7 +130,9 @@ export default class LoopbackApiOrigin extends EventEmitter {
     this.delayedAnswers.clear();
     this.heldSockets.forEach((socket) => socket.destroy());
     this.heldSockets.clear();
-    return new Promise((resolve) => this.server.close(() => resolve()));
+    return new Promise((resolve) => {
+      this.server.close(() => resolve());
+    });
   }
 
   private handleConnection(socket: net.Socket): void {

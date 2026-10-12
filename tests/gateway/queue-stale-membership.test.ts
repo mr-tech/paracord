@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
+
 import { startBotRig, sleep } from '../harness/botRig';
 import { LOG_LEVELS } from '../../src/constants';
 import { waitForCondition } from '../harness/waitFor';
+
 import type Gateway from '../../src/clients/Gateway/Gateway';
 
 interface Call { id: number; heldSocket: boolean }

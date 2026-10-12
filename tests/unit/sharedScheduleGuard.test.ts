@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import computeRateLimitRetryTarget from '../../src/clients/Api/structures/rateLimitRetryTarget';
 import { markReady, recordClose, isEligible } from '../../src/clients/Paracord/failureCounter';
 

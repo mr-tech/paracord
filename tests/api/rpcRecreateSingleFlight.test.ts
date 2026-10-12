@@ -3,6 +3,7 @@ import {
 } from 'vitest';
 import { status as grpcStatus } from '@grpc/grpc-js';
 import { EventEmitter } from 'events';
+
 import LoopbackApiOrigin from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 import { createInstrumentedApi, type Counts } from '../harness/instrumentedApi';

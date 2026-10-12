@@ -38,7 +38,10 @@
       },
       "parserOptions": {
         "ecmaVersion": 2022,
-        "project": "./tsconfig.json"
+        "project": [
+          "./tsconfig.json",
+          "./tsconfig.tests.json"
+        ]
       }
     }
   ],

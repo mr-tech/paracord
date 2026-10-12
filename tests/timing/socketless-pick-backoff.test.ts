@@ -1,5 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
+import {
+  describe, it, expect, vi,
+} from 'vitest';
+
 import { startBotRig, sleep } from '../harness/botRig';
+
 import type { DebugLine } from '../harness/directGateway';
 
 describe('AC-3.7 (queue route), the time-defined limb: a gateway that fails every attempt backs off, and its siblings are not slowed', () => {

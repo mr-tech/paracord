@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
+
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
 import { createDirectGateway } from '../harness/directGateway';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
+
 import type { SessionHandoffState } from '../../src/clients/Gateway/types';
 
 const EXPECTED_SEARCH = '?v=10&encoding=json';

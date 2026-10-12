@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { status as grpcStatus } from '@grpc/grpc-js';
+
 import LoopbackApiOrigin from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 import { createInstrumentedApi } from '../harness/instrumentedApi';
@@ -84,7 +85,9 @@ describe('AC-5.3 — every request made after end() rejects with the ended error
   });
 
   it('request service, proxied path: Api#request, and the service is never asked', async () => {
-    const { api, origin, rpc, counts, stop } = await rig('request');
+    const {
+      api, origin, rpc, counts, stop,
+    } = await rig('request');
     const serviceRequests = spyOnCalls(counts.services[0], 'request');
     api.end();
     const outcome = await outcomeOf(api.request('GET', '/channels/1/messages'));
@@ -97,7 +100,9 @@ describe('AC-5.3 — every request made after end() rejects with the ended error
   });
 
   it('request service, local: true: Api#request', async () => {
-    const { api, origin, rpc, stop } = await rig('request');
+    const {
+      api, origin, rpc, stop,
+    } = await rig('request');
     api.end();
     const outcome = await outcomeOf(api.request('GET', '/channels/1/messages', { local: true }));
     await settle();
@@ -109,7 +114,9 @@ describe('AC-5.3 — every request made after end() rejects with the ended error
   });
 
   it('rate-limit service: Api#request', async () => {
-    const { api, origin, rpc, stop } = await rig('rateLimit');
+    const {
+      api, origin, rpc, stop,
+    } = await rig('rateLimit');
     api.end();
     const outcome = await outcomeOf(api.request('GET', '/channels/1/messages'));
     await settle();
@@ -134,7 +141,9 @@ describe('AC-5.3 — every request made after end() rejects with the ended error
   });
 
   it('a direct call of the public Api#sendRequest with a rate-limit service: the service is never asked', async () => {
-    const { api, origin, counts, stop } = await rig('rateLimit');
+    const {
+      api, origin, counts, stop,
+    } = await rig('rateLimit');
     const authorizations = spyOnCalls(counts.services[0], 'authorize');
     api.end();
     const apiRequest = new ApiRequest('GET', '/channels/1/messages', 'channels', '1', undefined, 'GET-channels');
@@ -148,7 +157,9 @@ describe('AC-5.3 — every request made after end() rejects with the ended error
   });
 
   it.each(['request', 'rateLimit'] as const)('adding a %s service after end() creates no client', async (kind) => {
-    const { api, counts, rpc, stop } = await rig('none');
+    const {
+      api, counts, rpc, stop,
+    } = await rig('none');
     const constructedBefore = counts.constructed;
     api.end();
     const attempt = kind === 'request'
@@ -205,7 +216,9 @@ describe('AC-5.4 — requests waiting in the queue, and continuations that would
 describe('AC-5.5 — a call in flight at end() settles and is never re-sent', () => {
   describe.each([true, false])('allowFallback: %s', (allowFallback) => {
     it('a proxied request withheld by the server settles promptly, with no local send and no new client', async () => {
-      const { api, origin, rpc, counts, stop } = await rig('request', allowFallback);
+      const {
+        api, origin, rpc, counts, stop,
+      } = await rig('request', allowFallback);
       rpc!.withhold('request');
       const pending = api.request('GET', '/channels/11/messages');
       await rpc!.waitForRequest(1);
@@ -224,7 +237,9 @@ describe('AC-5.5 — a call in flight at end() settles and is never re-sent', ()
     });
 
     it('a proxied request the server forwarded and then withheld settles promptly, with no send from this client', async () => {
-      const { api, origin, rpc, counts, stop } = await rig('request', allowFallback);
+      const {
+        api, origin, rpc, counts, stop,
+      } = await rig('request', allowFallback);
       rpc!.forwardThenWithhold('request');
       const pending = api.request('GET', '/channels/12/messages');
       await origin.waitForAccept(1);
@@ -247,7 +262,9 @@ describe('AC-5.5 — a call in flight at end() settles and is never re-sent', ()
     });
 
     it('an authorize withheld by the rate-limit server settles promptly, with no local send and no new client', async () => {
-      const { api, origin, rpc, counts, stop } = await rig('rateLimit', allowFallback);
+      const {
+        api, origin, rpc, counts, stop,
+      } = await rig('rateLimit', allowFallback);
       rpc!.withhold('authorize');
       const pending = api.request('GET', '/channels/13/messages');
       await rpc!.waitForAuthorizeArrival(1);
@@ -267,7 +284,9 @@ describe('AC-5.5 — a call in flight at end() settles and is never re-sent', ()
   });
 
   it.each(['request', 'rateLimit'] as const)('%s service: a transport failure whose recreate is still in flight at end() is not re-sent locally', async (kind) => {
-    const { api, origin, rpc, counts, stop } = await rig(kind, true);
+    const {
+      api, origin, rpc, counts, stop,
+    } = await rig(kind, true);
     rpc!.injectFault(kind === 'request' ? 'request' : 'authorize', { code: grpcStatus.UNAVAILABLE });
     rpc!.withhold('hello');
     const pending = api.request('GET', '/channels/14/messages');
@@ -286,7 +305,9 @@ describe('AC-5.5 — a call in flight at end() settles and is never re-sent', ()
 
 describe('AC-5.2 — a rate-limit update cancelled by end() is not reported as a failure', () => {
   it('no ERROR event is emitted when end() cancels an update in flight', async () => {
-    const { api, origin, rpc, stop } = await rig('rateLimit');
+    const {
+      api, origin, rpc, stop,
+    } = await rig('rateLimit');
     const errors: unknown[] = [];
     api.on('ERROR', (event) => { errors.push(event); });
     rpc!.withhold('update');

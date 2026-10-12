@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
-import type { GatewayCloseCode } from '../../src/constants';
-import type { GatewayCloseEvent } from '../../src/clients/Gateway/types';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForCondition } from '../harness/waitFor';
+
+import type { GatewayCloseEvent } from '../../src/clients/Gateway/types';
+import type { GatewayCloseCode } from '../../src/constants';
 
 const G = GATEWAY_CLOSE_CODES;
 const NON_MEMBER = 50000;
@@ -80,12 +82,8 @@ describe.concurrent('AC-1.2/1.3/1.11: close-code x socket-state matrix', () => {
 
       expect(() => gw.close(code as GatewayCloseCode)).not.toThrow();
 
-      let delivered: GatewayCloseEvent | null = null;
-      try {
-        await waitForCondition(() => events.length > eventsBefore, 'GATEWAY_CLOSE delivered', 4000);
-        delivered = events[eventsBefore]!;
-      } catch {
-      }
+      const delivered: GatewayCloseEvent | null = await waitForCondition(() => events.length > eventsBefore, 'GATEWAY_CLOSE delivered', 4000)
+        .then(() => events[eventsBefore]!, () => null);
 
       await new Promise((r) => { setTimeout(r, 400); });
 

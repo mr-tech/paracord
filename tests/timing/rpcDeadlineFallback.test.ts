@@ -2,6 +2,7 @@ import {
   describe, it, expect,
 } from 'vitest';
 import { EventEmitter } from 'events';
+
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 import { LOG_LEVELS } from '../../src/constants';

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import {
   setPendingOrigin, takePendingOrigin, setPendingCloseIntent, takePendingCloseIntent,
 } from '../../src/clients/Gateway/structures/closeOrigin';

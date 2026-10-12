@@ -3,6 +3,7 @@ import {
 } from 'vitest';
 import { EventEmitter } from 'events';
 import { status as grpcStatus } from '@grpc/grpc-js';
+
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 import { LOG_LEVELS } from '../../src/constants';
@@ -42,7 +43,7 @@ async function driveRecreateFailureCell(code: number, allowFallback: boolean) {
   const errorEvents = events.filter((e) => e.level === LOG_LEVELS.ERROR);
   const handlerLines = errorEvents.filter((e) => typeof e.message === 'string'
     && /the rpc rate limit cache update did not succeed/i.test(e.message));
-  const updateCalls = rpc.updateCalls;
+  const { updateCalls } = rpc;
 
   api.end();
   await origin.close();

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+
 import extractRetryAfter from '../../src/clients/Api/structures/extractRetryAfter';
 
 import type { RateLimitedResponse } from '../../src/clients/Api/types';

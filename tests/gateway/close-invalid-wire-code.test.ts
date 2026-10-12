@@ -1,10 +1,14 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import {
+  describe, it, expect, afterEach,
+} from 'vitest';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
-import type { GatewayCloseEvent } from '../../src/clients/Gateway/types';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForResumable, waitForCondition } from '../harness/waitFor';
+
+import type { GatewayCloseEvent } from '../../src/clients/Gateway/types';
 
 describe('AC-1.2/1.3/1.6: close() with a wire-illegal code on an OPEN socket', () => {
   let server: LoopbackGatewayServer;

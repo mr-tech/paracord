@@ -1,9 +1,10 @@
 import {
   describe, it, expect, afterEach, vi,
 } from 'vitest';
+
 import Paracord from '../../src/clients/Paracord/Paracord';
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import { createTestBot } from '../harness/testBot';
+import createTestBot from '../harness/testBot';
 import { waitForResumable } from '../harness/waitFor';
 
 const TTL_MS = 60 * 1000;

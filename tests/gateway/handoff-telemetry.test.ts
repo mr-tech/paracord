@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
+
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
-import type { DebugLine } from '../harness/directGateway';
 import {
   createDirectGateway, deliver, loginDirect, requestHeartbeatD,
 } from '../harness/directGateway';
@@ -9,6 +9,8 @@ import {
 } from '../harness/handoffTelemetry';
 import { GATEWAY_CLOSE_CODES, LOG_LEVELS } from '../../src/constants';
 import { waitForCondition } from '../harness/waitFor';
+
+import type { DebugLine } from '../harness/directGateway';
 import type { SessionHandoffState } from '../../src/clients/Gateway/types';
 
 const RESUME_MARKER = 'RESUME_MARKER';
@@ -234,7 +236,10 @@ describe('AC-2.3: the import lines', () => {
     const base = await LoopbackGatewayServer.start();
     const gw2 = createDirectGateway(base.url);
     return {
-      s, state, base, gw2,
+      s,
+      state,
+      base,
+      gw2,
       async end() {
         await base.close();
         await s.end();
@@ -298,7 +303,10 @@ describe('AC-1.8: importSession leaves the gateway session-less when the consume
     const base = await LoopbackGatewayServer.start();
     const gw2 = createDirectGateway(base.url);
     return {
-      s, state, base, gw2,
+      s,
+      state,
+      base,
+      gw2,
       async end() {
         await base.close();
         await s.end();

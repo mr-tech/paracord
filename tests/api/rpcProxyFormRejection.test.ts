@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import FormData from 'form-data';
 import { status as grpcStatus } from '@grpc/grpc-js';
+
 import LoopbackApiOrigin, { createApiAgainstOrigin } from '../harness/loopbackApiOrigin';
 import LoopbackRpcServer from '../harness/loopbackRpcServer';
 
@@ -80,7 +81,9 @@ describe('AC-4.4 — the request counter reads what it should before any M4 crit
   });
 
   it('reads 0 after one local: true request (a non-member)', async () => {
-    const { api, rpc, origin, stop } = await rig('connected', false);
+    const {
+      api, rpc, origin, stop,
+    } = await rig('connected', false);
     const res = await api.request('POST', '/channels/123/messages', { data: { content: 'hi' }, local: true });
     await settle();
     const calls = rpc.requestCalls;
@@ -101,7 +104,9 @@ describe('AC-4.1 — a form upload on the RPC proxy path fails at once and nothi
     describe.each([true, false])('allowFallback: %s', (allowFallback) => {
       describe.each(SOURCES)('form reached by: %s', (source) => {
         it.each(METHODS)('%s rejects stating the proxy cannot carry forms and naming local: true; no rpc request, no origin receipt', async (method) => {
-          const { api, rpc, origin, stop } = await rig(state, allowFallback);
+          const {
+            api, rpc, origin, stop,
+          } = await rig(state, allowFallback);
           const err = await rejection(api, method, formOptions(source));
           await settle();
           const rpcCalls = rpc.requestCalls;
@@ -121,7 +126,9 @@ describe('AC-4.1 — a form upload on the RPC proxy path fails at once and nothi
 
 describe('AC-4.2 — requests the gate must not touch', () => {
   it('a createForm product whose data is not a FormData still proxies, and createForm runs once', async () => {
-    const { api, rpc, origin, stop } = await rig('connected', false);
+    const {
+      api, rpc, origin, stop,
+    } = await rig('connected', false);
     let formCalls = 0;
     const res = await api.request('POST', '/channels/123/messages', {
       createForm: () => { formCalls += 1; return { data: { content: 'plain' }, headers: { 'x-form': 'yes' } }; },
@@ -137,7 +144,9 @@ describe('AC-4.2 — requests the gate must not touch', () => {
   });
 
   it('a latched client with fallback that sends a non-form createForm product locally calls createForm once', async () => {
-    const { api, rpc, origin, stop } = await rig('latched-connecting', true);
+    const {
+      api, rpc, origin, stop,
+    } = await rig('latched-connecting', true);
     let formCalls = 0;
     const res = await api.request('POST', '/channels/123/messages', {
       createForm: () => { formCalls += 1; return { data: { content: 'plain' } }; },
@@ -153,7 +162,9 @@ describe('AC-4.2 — requests the gate must not touch', () => {
   });
 
   it.each(['createForm', 'data'] as FormSource[])('the same FormData request with local: true (%s) is sent locally as a multipart body', async (source) => {
-    const { api, rpc, origin, stop } = await rig('connected', false);
+    const {
+      api, rpc, origin, stop,
+    } = await rig('connected', false);
     const res = await api.request('POST', '/channels/123/messages', { ...formOptions(source), local: true });
     const rpcCalls = rpc.requestCalls;
     const [receipt] = origin.requestReceipts;

@@ -1,13 +1,15 @@
 import {
   describe, it, expect, vi, afterEach,
 } from 'vitest';
+
 import { LoopbackGatewayServer } from '../harness/loopbackGatewayServer';
 import { startBotRig } from '../harness/botRig';
-import type { BotRig } from '../harness/botRig';
-import type { DebugLine } from '../harness/directGateway';
 import { TOKEN_MARKER, carriesAny, handoffLines } from '../harness/handoffTelemetry';
 import { waitForCondition } from '../harness/waitFor';
 import { LOG_LEVELS } from '../../src/constants';
+
+import type { DebugLine } from '../harness/directGateway';
+import type { BotRig } from '../harness/botRig';
 import type Gateway from '../../src/clients/Gateway/Gateway';
 import type { SessionHandoffState } from '../../src/clients/Gateway/types';
 
