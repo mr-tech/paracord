@@ -270,7 +270,11 @@ export const DISCORD_WS_VERSION = 10;
 export class Gateway {
     constructor(token: string, options: GatewayOptions);
     // (undocumented)
+    beginSessionHandoff(): SessionHandoffState;
+    // (undocumented)
     checkIfShouldHeartbeat(): void;
+    // (undocumented)
+    clearHeartbeatPin(): void;
     // (undocumented)
     close(code?: GatewayCloseCode, flushWait?: number): void;
     // (undocumented)
@@ -278,6 +282,8 @@ export class Gateway {
     get connected(): boolean;
     // (undocumented)
     get heartbeat(): Heartbeat | undefined;
+    // (undocumented)
+    get heartbeatPinned(): boolean;
     get id(): number;
     // (undocumented)
     get isFetchingMembers(): boolean;
@@ -746,6 +752,8 @@ export interface ServiceOptions {
 export class Session {
     // Warning: (ae-forgotten-export) The symbol "SessionParams" needs to be exported by the entry point index.d.ts
     constructor(params: SessionParams);
+    // (undocumented)
+    clearHeartbeatPin(): void;
     // Warning: (ae-forgotten-export) The symbol "CloseOrigin" needs to be exported by the entry point index.d.ts
     //
     // (undocumented)
@@ -763,25 +771,43 @@ export class Session {
     handleEvent(type: GatewayEvent | ParacordGatewayEvent, data: unknown): void;
     handleMessage(p: GatewayReceivePayload): void;
     // (undocumented)
+    get heartbeatPinned(): boolean;
+    // (undocumented)
+    get heartbeatSequence(): null | number;
+    // (undocumented)
     get identity(): GatewayIdentify;
     // (undocumented)
     get isFetchingMembers(): boolean;
     // (undocumented)
     log: Gateway['log'];
     login: () => void;
+    // (undocumented)
+    pinHeartbeat(): number;
     requestGuildMembers(options: GatewayRequestGuildMembersData): boolean;
     // (undocumented)
     get resumable(): boolean;
+    // (undocumented)
+    get resumeUrl(): undefined | string;
     get resuming(): boolean;
     // (undocumented)
     send: Websocket['send'];
     // (undocumented)
     get sequence(): null | number;
+    // (undocumented)
+    get sessionId(): undefined | string;
     // Warning: (ae-forgotten-export) The symbol "Websocket" needs to be exported by the entry point index.d.ts
     //
     // (undocumented)
     get websocket(): undefined | Websocket;
 }
+
+// @public (undocumented)
+export type SessionHandoffState = {
+    sessionId: string;
+    sequence: number;
+    shard: [number, number] | undefined;
+    resumeUrl?: undefined | string;
+};
 
 // @public
 export class ShardLauncher {

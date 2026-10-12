@@ -27,6 +27,7 @@ class Session {
     #wsParams;
     /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
     #sequence = null;
+    #heartbeatPin = null;
     /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
     #sessionId;
     #membersRequestNonceCounter = 0;
@@ -63,6 +64,25 @@ class Session {
     }
     get sequence() {
         return this.#sequence;
+    }
+    get heartbeatSequence() {
+        return this.#heartbeatPin ?? this.#sequence;
+    }
+    get heartbeatPinned() {
+        return this.#heartbeatPin !== null;
+    }
+    get sessionId() {
+        return this.#sessionId;
+    }
+    get resumeUrl() {
+        return this.#resumeUrl;
+    }
+    pinHeartbeat() {
+        this.#heartbeatPin = this.#sequence;
+        return this.#heartbeatPin;
+    }
+    clearHeartbeatPin() {
+        this.#heartbeatPin = null;
     }
     get websocket() {
         return this.#websocket;
@@ -204,7 +224,7 @@ class Session {
                 break;
             case constants_1.GATEWAY_OP_CODES.HEARTBEAT:
                 if (!this.#resuming)
-                    this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.#sequence);
+                    this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.heartbeatSequence);
                 break;
             case constants_1.GATEWAY_OP_CODES.INVALID_SESSION:
                 this.handleInvalidSession(data);

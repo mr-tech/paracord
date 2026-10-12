@@ -311,14 +311,15 @@ export default class Paracord extends EventEmitter {
     this.#processingQueue = true;
     try {
       const now = Date.now();
+      const isPickable = (g: Gateway): boolean => !g.heartbeatPinned && isEligible(g, now);
 
-      if (this.#startingGateway && !this.#startingGateway.connected && !isEligible(this.#startingGateway, now)) {
+      if (this.#startingGateway && !this.#startingGateway.connected && !isPickable(this.#startingGateway)) {
         this.clearStartingShardState(this.#startingGateway);
       }
 
       if (!this.#startingGateway) {
         // get resumable shard
-        this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable && isEligible(g, now));
+        this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable && isPickable(g));
       }
 
       // if no resumable shard, get first shard in queue that is allowed to connect
@@ -326,7 +327,7 @@ export default class Paracord extends EventEmitter {
         this.log('INFO', 'Checking if a shard is allowed to connect.');
         const queue = [...this.gatewayLoginQueue];
         for (const gateway of queue) {
-          if (isEligible(gateway, now) && await this.#allowConnection(gateway)) {
+          if (isPickable(gateway) && await this.#allowConnection(gateway)) {
             this.#startingGateway = gateway;
             this.log('INFO', 'Shard is allowed to connect.', { shard: gateway });
             break;
@@ -341,7 +342,7 @@ export default class Paracord extends EventEmitter {
       }
 
       if (!this.#startingGateway) {
-        this.#startingGateway = this.gatewayLoginQueue.find((g) => isEligible(g, now));
+        this.#startingGateway = this.gatewayLoginQueue.find((g) => isPickable(g));
       }
 
       if (!this.#startingGateway) {

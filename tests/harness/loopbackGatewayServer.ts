@@ -13,6 +13,18 @@ export interface LoopbackGatewayServerOptions {
   resumeResponse?: 'resumed' | 'invalidSession';
   heartbeatIntervalMs?: number;
   readyGuilds?: number;
+  ackHeartbeats?: boolean;
+}
+
+export interface ReceivedHeartbeat {
+  d: number | null;
+  conn: number;
+}
+
+export interface ReceivedResume {
+  sessionId: unknown;
+  seq: unknown;
+  conn: number;
 }
 
 export class LoopbackGatewayServer extends EventEmitter {
@@ -38,7 +50,15 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   private readonly readyGuilds: number;
 
+  private readonly ackHeartbeats: boolean;
+
   readonly receivedOps: number[] = [];
+
+  readonly receivedHeartbeats: ReceivedHeartbeat[] = [];
+
+  readonly receivedResumes: ReceivedResume[] = [];
+
+  private connections = 0;
 
   private nextDispatchSeq = 1;
 
@@ -52,6 +72,7 @@ export class LoopbackGatewayServer extends EventEmitter {
     this.resumeResponse = opts.resumeResponse ?? 'resumed';
     this.heartbeatIntervalMs = opts.heartbeatIntervalMs ?? 45000;
     this.readyGuilds = opts.readyGuilds ?? 0;
+    this.ackHeartbeats = opts.ackHeartbeats ?? false;
   }
 
   static start(opts: LoopbackGatewayServerOptions = {}): Promise<LoopbackGatewayServer> {
@@ -115,6 +136,53 @@ export class LoopbackGatewayServer extends EventEmitter {
     return this.receivedOps.filter((op) => op === 1).length;
   }
 
+  get lastSentSeq(): number {
+    return this.nextDispatchSeq - 1;
+  }
+
+  get connectionCount(): number {
+    return this.connections;
+  }
+
+  requestHeartbeat(): void {
+    this.liveSocket?.send(JSON.stringify({ op: 1, d: null }));
+  }
+
+  sendReconnect(): void {
+    this.liveSocket?.send(JSON.stringify({ op: 7, d: null }));
+  }
+
+  sendInvalidSession(resumable: boolean): void {
+    this.liveSocket?.send(JSON.stringify({ op: 9, d: resumable }));
+  }
+
+  waitForHeartbeats(n: number, timeoutMs = 5000): Promise<void> {
+    return this.waitForCount(() => this.receivedHeartbeats.length >= n, `heartbeat ${n}`, 'heartbeat', timeoutMs);
+  }
+
+  waitForResumes(n: number, timeoutMs = 5000): Promise<void> {
+    return this.waitForCount(() => this.receivedResumes.length >= n, `resume ${n}`, 'resume', timeoutMs);
+  }
+
+  private waitForCount(done: () => boolean, label: string, event: string, timeoutMs: number): Promise<void> {
+    if (done()) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.off(event, check);
+        reject(new Error(`waitFor ${label} timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+      const check = () => {
+        if (done()) {
+          clearTimeout(timer);
+          this.off(event, check);
+          resolve();
+        }
+      };
+      this.on(event, check);
+    });
+  }
+
   sendDispatch(type: string, data: unknown, seq?: number): void {
     this.liveSocket?.send(JSON.stringify({
       op: 0, t: type, d: data, s: seq ?? this.nextDispatchSeq++,
@@ -159,12 +227,18 @@ export class LoopbackGatewayServer extends EventEmitter {
 
   private onClientOpen(client: WebSocket): void {
     this.liveSocket = client;
+    this.connections += 1;
+    const conn = this.connections;
     client.send(JSON.stringify({ op: 10, d: { heartbeat_interval: this.heartbeatIntervalMs }, s: null, t: null }));
 
     client.on('message', (buf: Buffer) => {
       const payload = JSON.parse(buf.toString());
       this.receivedOps.push(payload.op);
-      if (payload.op === 2) {
+      if (payload.op === 1) {
+        this.receivedHeartbeats.push({ d: payload.d, conn });
+        this.emit('heartbeat');
+        if (this.ackHeartbeats) client.send(JSON.stringify({ op: 11, d: null }));
+      } else if (payload.op === 2) {
         client.send(JSON.stringify({
           op: 0,
           s: this.nextDispatchSeq++,
@@ -180,6 +254,7 @@ export class LoopbackGatewayServer extends EventEmitter {
         }));
         this.emit('ready');
       } else if (payload.op === 6) {
+        this.receivedResumes.push({ sessionId: payload.d?.session_id, seq: payload.d?.seq, conn });
         this.emit('resume', payload.d);
         if (this.resumeResponse === 'resumed') {
           client.send(JSON.stringify({ op: 0, s: this.nextDispatchSeq++, t: 'RESUMED', d: {} }));

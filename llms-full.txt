@@ -30,7 +30,7 @@ All types are available from `paracord` as named exports:
 ```ts
 import type { ApiOptions, RequestOptions, ApiResponse, GatewayOptions, IdentityOptions,
   ParacordOptions, ParacordLoginOptions, ShardLauncherOptions, ServiceOptions,
-  RpcServerOptions, GatewayCloseEvent, ParacordStartupEvent } from 'paracord';
+  RpcServerOptions, GatewayCloseEvent, ParacordStartupEvent, SessionHandoffState } from 'paracord';
 ```
 
 Discord payload types come from: `discord-api-types/v10`
@@ -219,13 +219,49 @@ new Gateway(token: string, options: GatewayOptions)
 - `gateway.connected: boolean` — Whether the WebSocket is open.
 - `gateway.resumable: boolean` — Whether the session can be resumed.
 - `gateway.resuming: boolean` — Whether currently resuming a session.
+- `gateway.heartbeatPinned: boolean` — Whether heartbeats are pinned for a session handoff
+  (`beginSessionHandoff()` sets the pin, `clearHeartbeatPin()` lifts it). A session cleared by a
+  close takes the pin with it, so this reads `false` afterwards.
 - `gateway.compression: boolean` — Whether compression is enabled.
 
 ### Methods
 
 #### `gateway.login(): void`
 
-Opens a WebSocket connection to Discord and begins the identify/resume flow.
+Opens a WebSocket connection to Discord and begins the identify/resume flow. Throws while
+`gateway.heartbeatPinned` is `true` and opens no socket: a pinned gateway never connects.
+
+#### `gateway.beginSessionHandoff(): SessionHandoffState`
+
+Pins this gateway's heartbeats at its session's current sequence `S` and returns the session in
+the same call, so the pin and the returned `sequence` are equal by construction. Every heartbeat
+the gateway sends while pinned carries `S`, whatever dispatches arrive, so that Discord keeps the
+events after `S` available to a process that resumes from it. It takes no sequence argument.
+
+While pinned, the gateway never connects itself:
+- every close reports `shouldReconnect: false` on `GATEWAY_CLOSE` and adds nothing to a login
+  queue, whatever the close code;
+- what happens to the session on a close is unchanged: a code that clears the session clears the
+  pin with it, a code that keeps it keeps the pin;
+- `login()` throws, and `Paracord`'s login queue skips the gateway in place (it keeps its position
+  and is never offered to `allowConnection`).
+
+To resume this gateway later, call `clearHeartbeatPin()` first and then log it in: it resumes from
+the live sequence, not from `S`.
+
+Throws when the gateway holds no resumable session, and when a pin is already set (a second call
+never moves the pin off `S`). Each refusal emits one WARNING `DEBUG` line, and a successful call
+emits one INFO line. These lines carry the shard (`data.shardId`) and the sequence, never the
+session id, the resume URL or the token. If the emitter throws while a line is emitted, the call
+throws and the pin is as it was before the call.
+
+#### `gateway.clearHeartbeatPin(): void`
+
+Lifts the pin. A no-op, with no log line, when no pin is set or the gateway has no session. It
+changes nothing but the pin: a gateway that was closed while pinned and kept its session is left
+resumable and out of every queue, and a following `login()`, or the login queue's pick after you
+queue it again, resumes from the live sequence. An effective call emits one INFO `DEBUG` line with
+the shard, the pinned sequence and the live sequence.
 
 #### `gateway.close(code?: GatewayCloseCode, flushWait?: number): void`
 
@@ -251,6 +287,23 @@ Enables or disables payload compression.
 
 ---
 
+## Type: SessionHandoffState
+
+```ts
+type SessionHandoffState = {
+  sessionId: string;                       // Discord session id
+  sequence: number;                        // The sequence the pin holds; the point to resume from
+  shard: [number, number] | undefined;     // [shardId, shardCount]; undefined for an unsharded gateway
+  resumeUrl?: string;                      // Discord's resume host; absent once the gateway has abandoned it
+}
+```
+
+**Credential-adjacent: a `SessionHandoffState` must not be logged or persisted beyond the handoff.**
+Its `sessionId` and `resumeUrl` are what a RESUME is built from, and the RESUME payload that
+follows carries the bot token to the host `resumeUrl` names.
+
+---
+
 ## Class: Session (internal — `Gateway`'s own delegate, not part of the published type surface)
 
 `@internal`. Not exported from `dist/index.d.ts` (the package's own `types` entry point), so a
@@ -260,6 +313,11 @@ Reachable at the JS value level regardless (`require('paracord').Session`), with
 for a caller who reaches it that way. Documented here only so the change to its `close()`
 signature is on record; nothing about this class is a supported entry point, and nothing on the
 published type surface moved with it.
+
+`Session` also gained internal members for the heartbeat pin: `heartbeatSequence`,
+`heartbeatPinned`, `sessionId`, `resumeUrl`, `pinHeartbeat()` and `clearHeartbeatPin()`. They
+are listed in `api-report/paracord.api.md` because the report carries this class, and
+`Gateway`'s `beginSessionHandoff()` and `clearHeartbeatPin()` above are their only callers.
 
 #### `session.close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin): void`
 
@@ -413,7 +471,7 @@ interface ParacordLoginOptions {
 
 ```ts
 type GatewayCloseEvent = {
-  shouldReconnect: boolean;  // Whether the client will attempt reconnection
+  shouldReconnect: boolean;  // Whether the client will attempt reconnection; always false for a pinned gateway
   code: number;              // WebSocket close code
   gateway: Gateway;          // The gateway that closed
 }

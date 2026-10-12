@@ -71,6 +71,13 @@ export type GatewayCloseEvent = {
   gateway: Gateway
 }
 
+export type SessionHandoffState = {
+  sessionId: string;
+  sequence: number;
+  shard: [number, number] | undefined;
+  resumeUrl?: undefined | string;
+}
+
 /** Emitted when a heartbeat is sent to Discord. */
 export type GatewayHeartbeatSentEvent = {
   /** Difference in ms between the scheduled heartbeat time and the actual send time. */

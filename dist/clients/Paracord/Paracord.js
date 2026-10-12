@@ -253,19 +253,20 @@ class Paracord extends events_1.EventEmitter {
         this.#processingQueue = true;
         try {
             const now = Date.now();
-            if (this.#startingGateway && !this.#startingGateway.connected && !(0, failureCounter_1.isEligible)(this.#startingGateway, now)) {
+            const isPickable = (g) => !g.heartbeatPinned && (0, failureCounter_1.isEligible)(g, now);
+            if (this.#startingGateway && !this.#startingGateway.connected && !isPickable(this.#startingGateway)) {
                 this.clearStartingShardState(this.#startingGateway);
             }
             if (!this.#startingGateway) {
                 // get resumable shard
-                this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable && (0, failureCounter_1.isEligible)(g, now));
+                this.#startingGateway = this.gatewayLoginQueue.find((g) => g.resumable && isPickable(g));
             }
             // if no resumable shard, get first shard in queue that is allowed to connect
             if (!this.#startingGateway && this.#allowConnection) {
                 this.log('INFO', 'Checking if a shard is allowed to connect.');
                 const queue = [...this.gatewayLoginQueue];
                 for (const gateway of queue) {
-                    if ((0, failureCounter_1.isEligible)(gateway, now) && await this.#allowConnection(gateway)) {
+                    if (isPickable(gateway) && await this.#allowConnection(gateway)) {
                         this.#startingGateway = gateway;
                         this.log('INFO', 'Shard is allowed to connect.', { shard: gateway });
                         break;
@@ -278,7 +279,7 @@ class Paracord extends events_1.EventEmitter {
                 }
             }
             if (!this.#startingGateway) {
-                this.#startingGateway = this.gatewayLoginQueue.find((g) => (0, failureCounter_1.isEligible)(g, now));
+                this.#startingGateway = this.gatewayLoginQueue.find((g) => isPickable(g));
             }
             if (!this.#startingGateway) {
                 return;

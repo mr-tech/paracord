@@ -446,6 +446,7 @@ export declare class Gateway {
     get options(): GatewayOptions;
     get heartbeat(): Heartbeat | undefined;
     get isFetchingMembers(): boolean;
+    get heartbeatPinned(): boolean;
     /**
      * Simple alias for logging events emitted by this client.
      * @param level Key of the logging level of this message.
@@ -453,6 +454,7 @@ export declare class Gateway {
      * @param data Data pertinent to the event.
      */
     private log;
+    private refuse;
     /**
      * Emits various events through `this.#emitter`, both Discord and Api. Will emit all events if `this.#events` is undefined; otherwise will only emit those defined as keys in the `this.#events` object.
      * @param type Type of event. (e.g. "GATEWAY_CLOSE" or "CHANNEL_CREATE")
@@ -467,6 +469,8 @@ export declare class Gateway {
      */
     requestGuildMembers(options: GatewayRequestGuildMembersData): boolean;
     updatePresence(presence: GatewayPresenceUpdateData): boolean;
+    beginSessionHandoff(): SessionHandoffState;
+    clearHeartbeatPin(): void;
     login: () => void;
     close(code?: GatewayCloseCode, flushWait?: number): void;
     checkIfShouldHeartbeat(): void;
@@ -1204,6 +1208,13 @@ export declare interface ServiceOptions {
 }
 
 /* Excluded from this release type: Session */
+
+export declare type SessionHandoffState = {
+    sessionId: string;
+    sequence: number;
+    shard: [number, number] | undefined;
+    resumeUrl?: undefined | string;
+};
 
 declare interface SessionParams extends Pick<GatewayOptions, 'wsUrl' | 'wsParams'> {
     gateway: Gateway;

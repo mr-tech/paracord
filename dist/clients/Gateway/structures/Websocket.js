@@ -343,7 +343,7 @@ class Websocket {
     }
     sendHeartbeat() {
         if (this.connected)
-            this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.#session.sequence);
+            this.send(constants_1.GATEWAY_OP_CODES.HEARTBEAT, this.#session.heartbeatSequence);
         else
             this.#session.log('WARNING', 'Heartbeat sent when websocket is not open.');
     }

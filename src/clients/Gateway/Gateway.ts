@@ -13,7 +13,7 @@ import Heart from './structures/Heartbeat';
 import type { CloseOrigin } from './structures/closeOrigin';
 import type { DebugLevel, EventHandler } from '../../@types';
 import type {
-  GatewayCloseEvent, GatewayEvent, GatewayOptions, ParacordGatewayEvent,
+  GatewayCloseEvent, GatewayEvent, GatewayOptions, ParacordGatewayEvent, SessionHandoffState,
 } from './types';
 
 /** A client to handle a Discord gateway connection. */
@@ -108,6 +108,10 @@ export default class Gateway {
     return !!this.#session?.isFetchingMembers;
   }
 
+  public get heartbeatPinned(): boolean {
+    return !!this.#session?.heartbeatPinned;
+  }
+
   /*
    ********************************
    *********** INTERNAL ***********
@@ -128,6 +132,11 @@ export default class Gateway {
       message,
       data,
     });
+  }
+
+  private refuse(reason: string): Error {
+    this.log('WARNING', `Session handoff refused on shard ${this.id}. ${reason}.`, { shardId: this.id, reason });
+    return Error(reason);
   }
 
   /**
@@ -174,7 +183,44 @@ export default class Gateway {
     return sent;
   }
 
+  public beginSessionHandoff(): SessionHandoffState {
+    const session = this.#session;
+    if (session === null || !session.resumable) {
+      throw this.refuse('The gateway holds no resumable session');
+    }
+    if (session.heartbeatPinned) {
+      throw this.refuse('A heartbeat pin is already set');
+    }
+
+    const sequence = session.sequence as number;
+    this.log('INFO', `Session handoff begun on shard ${this.id}. Pinning heartbeats at sequence ${sequence}.`, { shardId: this.id, sequence });
+
+    const state: SessionHandoffState = {
+      sessionId: session.sessionId as string,
+      sequence: session.pinHeartbeat(),
+      shard: this.shard !== undefined ? [this.shard[0], this.shard[1]] : undefined,
+    };
+    if (session.resumeUrl !== undefined) state.resumeUrl = session.resumeUrl;
+
+    return state;
+  }
+
+  public clearHeartbeatPin(): void {
+    const session = this.#session;
+    if (!session?.heartbeatPinned) return;
+
+    const sequence = session.heartbeatSequence;
+    const liveSequence = session.sequence;
+    this.log('INFO', `Heartbeat pin cleared on shard ${this.id}. Pinned sequence: ${sequence}. Live sequence: ${liveSequence}.`, { shardId: this.id, sequence, liveSequence });
+
+    session.clearHeartbeatPin();
+  }
+
   public login = () => {
+    if (this.heartbeatPinned) {
+      throw this.refuse('A heartbeat pin is set; clear it before logging in');
+    }
+
     if (!this.#session) {
       this.#session = new Session({
         gateway: this,
@@ -259,6 +305,8 @@ export default class Gateway {
       USER_TERMINATE,
       UNKNOWN,
     } = GATEWAY_CLOSE_CODES;
+
+    const pinned = this.heartbeatPinned;
 
     let message: string;
     let shouldReconnect = true;
@@ -383,7 +431,7 @@ export default class Gateway {
 
     this.log(level, `Websocket closed. Code: ${code}. Reason: ${message}`);
 
-    return shouldReconnect;
+    return shouldReconnect && !pinned;
   }
 
   private clearSession() {

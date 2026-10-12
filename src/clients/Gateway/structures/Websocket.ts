@@ -448,7 +448,7 @@ export default class Websocket {
   }
 
   public sendHeartbeat(): void {
-    if (this.connected) this.send(GATEWAY_OP_CODES.HEARTBEAT, this.#session.sequence as number);
+    if (this.connected) this.send(GATEWAY_OP_CODES.HEARTBEAT, this.#session.heartbeatSequence as number);
     else this.#session.log('WARNING', 'Heartbeat sent when websocket is not open.');
   }
 

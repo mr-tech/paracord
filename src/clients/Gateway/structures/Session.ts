@@ -62,6 +62,8 @@ export default class Session {
   /** From Discord - Most recent event sequence id received. https://discord.com/developers/docs/topics/gateway#payloads */
   #sequence: null | number = null;
 
+  #heartbeatPin: null | number = null;
+
   /** From Discord - Id of this gateway connection. https://discord.com/developers/docs/topics/gateway#ready-ready-event-fields */
   #sessionId?: undefined | string;
 
@@ -114,6 +116,31 @@ export default class Session {
 
   public get sequence(): null | number {
     return this.#sequence;
+  }
+
+  public get heartbeatSequence(): null | number {
+    return this.#heartbeatPin ?? this.#sequence;
+  }
+
+  public get heartbeatPinned(): boolean {
+    return this.#heartbeatPin !== null;
+  }
+
+  public get sessionId(): undefined | string {
+    return this.#sessionId;
+  }
+
+  public get resumeUrl(): undefined | string {
+    return this.#resumeUrl;
+  }
+
+  public pinHeartbeat(): number {
+    this.#heartbeatPin = this.#sequence as number;
+    return this.#heartbeatPin;
+  }
+
+  public clearHeartbeatPin(): void {
+    this.#heartbeatPin = null;
   }
 
   public get websocket(): undefined | Websocket {
@@ -283,7 +310,7 @@ export default class Session {
         break;
 
       case GATEWAY_OP_CODES.HEARTBEAT:
-        if (!this.#resuming) this.send(GATEWAY_OP_CODES.HEARTBEAT, <number> this.#sequence);
+        if (!this.#resuming) this.send(GATEWAY_OP_CODES.HEARTBEAT, <number> this.heartbeatSequence);
         break;
 
       case GATEWAY_OP_CODES.INVALID_SESSION:
