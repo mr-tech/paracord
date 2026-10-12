@@ -120,6 +120,30 @@ describe('AC-1.3: the queue never picks a pinned gateway, on each of its four pi
     }, 20000);
   });
 
+  describe('route (2) with a pinned gateway that holds an OPEN socket', () => {
+    it('is not offered to allowConnection and keeps its queue slot', async () => {
+      const offered: Gateway[] = [];
+      const rig = await startBotRig({}, {}, [0], {
+        allowConnection: (gw) => { offered.push(gw); return true; },
+      });
+      try {
+        const { gateway: gw, bot } = rig;
+        await waitForCondition(() => bot.startingGateway === undefined, 'startup released', 8000);
+        const offeredBefore = offered.length;
+        gw.beginSessionHandoff();
+        bot.gatewayLoginQueue.push(gw);
+        expect(gw.connected).toBe(true);
+
+        await sleep(ABSENCE_WINDOW_MS);
+
+        expect(bot.gatewayLoginQueue).toEqual([gw]);
+        expect(offered.length).toBe(offeredBefore);
+      } finally {
+        await rig.end();
+      }
+    }, 20000);
+  });
+
   describe('route (0): the retained starting gateway, still queued', () => {
     async function startingAndQueued(pin: boolean) {
       const rig = await startBotRig({ readyGuilds: 2 }, { shardStartupTimeout: 30 });

@@ -73,11 +73,14 @@ describe('AC-3.7: after admission returns, the gateway holds a Websocket or is i
     }
   }, 20000);
 
-  it('the realistic member: a resumeUrl with a fragment makes the ws constructor throw, and the gateway is queued with one WARNING and logged in again by the queue', async () => {
+  it('the realistic member: a gateway wsUrl with a fragment makes the ws constructor throw, and the gateway is queued with one WARNING and logged in again by the queue', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const r = await rigWith();
+    const resumeHost = await LoopbackGatewayServer.start();
+    const r = await rigWith({ gatewayOptions: { wsUrl: `${resumeHost.url}#x`, wsParams: { v: '10', encoding: 'json' } } });
     try {
-      expect(() => r.bot.admitImportedSession(r.gw, stateFor(r.resumeHost, `${r.resumeHost.url}/${RESUME_MARKER}#x`))).not.toThrow();
+      const { resumeUrl, ...withoutResumeUrl } = stateFor(r.resumeHost);
+      expect(resumeUrl).toBeDefined();
+      expect(() => r.bot.admitImportedSession(r.gw, withoutResumeUrl)).not.toThrow();
 
       expect(consoleError).toHaveBeenCalled();
       expect(r.gw.ws).toBeUndefined();
@@ -87,9 +90,10 @@ describe('AC-3.7: after admission returns, the gateway holds a Websocket or is i
 
       expect(r.logins.calls).toBe(1);
       await waitForCondition(() => r.logins.calls >= 2, 'the queue logs the gateway in again', 6000);
-      expect(r.resumeHost.attempts).toHaveLength(0);
+      expect(resumeHost.attempts).toHaveLength(0);
     } finally {
       await r.endAll();
+      await resumeHost.close();
     }
   }, 20000);
 

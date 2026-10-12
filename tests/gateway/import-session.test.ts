@@ -144,6 +144,9 @@ describe('AC-2.1: a refused import leaves the gateway session-less, and a later 
     ['ftp:', (h) => `ftp://127.0.0.1:${h.port}/x`],
     ['an empty string', () => ''],
     ['not a url', () => 'not a url'],
+    ['a query', (h) => `ws://127.0.0.1:${h.port}/x?y=1`],
+    ['a fragment', (h) => `ws://127.0.0.1:${h.port}/x#y`],
+    ['a trailing space', (h) => `ws://127.0.0.1:${h.port}/x `],
   ];
 
   it.each(SCHEMES)('resumeUrl %s', async (_label, build) => {

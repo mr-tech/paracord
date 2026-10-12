@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 function isWebSocketUrl(value) {
-    if (typeof value !== 'string')
+    if (typeof value !== 'string' || value !== value.trim() || value.includes('?') || value.includes('#'))
         return false;
     try {
         const { protocol } = new URL(value);

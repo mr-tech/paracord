@@ -265,8 +265,11 @@ it was (session-less, and nothing connected). It throws, emitting one WARNING `D
 - the gateway already holds a session (that session is left intact);
 - `sessionId` is not a non-empty string;
 - `sequence` is not a non-negative safe integer;
-- `resumeUrl` is present and is not a `ws:` or `wss:` URL (an `http:` or `https:` URL is refused:
-  the RESUME payload carries the bot token to that host);
+- `resumeUrl` is present and is not of the accepted form: a string equal to its own trimmed form
+  whose parse has scheme `ws:` or `wss:` and a host, an optional path, and no query and no fragment
+  (an `http:` or `https:` URL is refused: the RESUME payload carries the bot token to that host; a
+  `?` or `#` anywhere is refused because the connection parameters are appended with `?`, so a
+  query would swallow them and a fragment makes the `ws` client throw);
 - `shard` differs from this gateway's `shard`, compared element by element (`undefined` equals
   `undefined`), so a gateway cannot resume another shard's session.
 
@@ -455,10 +458,20 @@ while the login queue is empty and no gateway is starting. An admitted shard's R
 moment.
 
 The login queue itself changed in the same release. It never logs in a gateway whose `Session` still
-holds a `Websocket` (connecting, open, closing, or closed but not yet destroyed): it removes the
-gateway from the queue and releases the starting slot, so a gateway queued behind it is started on a
-following tick. It skips a pinned gateway (`gateway.heartbeatPinned`) in place, without offering it
-to `allowConnection`.
+holds a `Websocket` (connecting, open, closing, or closed but not yet destroyed), and it never
+offers such a gateway to `allowConnection`: it removes the gateway from the queue and releases the
+starting slot, so a gateway queued behind it is started on a following tick. It skips a pinned
+gateway (`gateway.heartbeatPinned`) in place, without offering it to `allowConnection`. It never
+offers `allowConnection` a gateway that left the queue while the answer was pending, and it never
+picks one: an admission that lands during the `allowConnection` call leaves every other queued
+gateway where it was.
+
+When a pick's `login()` returns without opening a connection (the `ws` client rejects the URL, or
+the consumer's emitter throws while the connection is being set up), the pick releases the starting
+slot in the same tick, re-queues the gateway, and records the failure as a transport close, so the
+gateway waits the reconnect schedule's backoff before its next attempt (1 s base, doubling, ±20%
+jitter, 60 s cap). Without that, one gateway failing every attempt would hold the starting slot
+forever when `shardStartupTimeout` is unset, which is the default.
 
 #### `paracord.end(): void`
 

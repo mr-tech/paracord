@@ -281,6 +281,10 @@ class Paracord extends events_1.EventEmitter {
                 this.log('INFO', 'Checking if a shard is allowed to connect.');
                 const queue = [...this.gatewayLoginQueue];
                 for (const gateway of queue) {
+                    if (this.gatewayLoginQueue.includes(gateway) && isPickable(gateway) && gateway.ws !== undefined) {
+                        this.#startingGateway = gateway;
+                        break;
+                    }
                     if (this.gatewayLoginQueue.includes(gateway)
                         && isPickable(gateway)
                         && await this.#allowConnection(gateway)
@@ -317,6 +321,13 @@ class Paracord extends events_1.EventEmitter {
             const gateway = this.#startingGateway;
             try {
                 gateway.login();
+                if (gateway.ws === undefined) {
+                    (0, failureCounter_1.recordClose)(gateway, 'transport', Date.now());
+                    this.clearStartingShardState(gateway);
+                    this.upsertGatewayQueue(gateway);
+                    this.log('WARNING', `Shard ${gateway.id} opened no connection. Returned it to the login queue to wait its backoff.`, { shard: gateway });
+                    return;
+                }
                 if (this.#shardStartupTimeout) {
                     const timeout = this.#shardStartupTimeout;
                     clearTimeout(this.#shardTimeout);

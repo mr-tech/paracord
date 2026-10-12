@@ -1,7 +1,7 @@
 import type GatewayIdentify from './GatewayIdentify';
 
 function isWebSocketUrl(value: unknown): boolean {
-  if (typeof value !== 'string') return false;
+  if (typeof value !== 'string' || value !== value.trim() || value.includes('?') || value.includes('#')) return false;
 
   try {
     const { protocol } = new URL(value);

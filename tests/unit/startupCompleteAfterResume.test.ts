@@ -5,14 +5,20 @@ import Paracord from '../../src/clients/Paracord/Paracord';
 import { GATEWAY_CLOSE_CODES } from '../../src/constants';
 import type Gateway from '../../src/clients/Gateway';
 
+function dropSocket(gateway: Gateway): void {
+  (gateway as unknown as { ws: unknown }).ws = undefined;
+}
+
 function stubGateway(id = 0): Gateway {
-  return {
+  const stub = {
     id,
     resumable: true,
     connected: false,
-    login: vi.fn(),
+    ws: undefined as unknown,
+    login: vi.fn(() => { stub.ws = {}; }),
     close: vi.fn(),
-  } as unknown as Gateway;
+  };
+  return stub as unknown as Gateway;
 }
 
 type Harness = {
@@ -57,6 +63,7 @@ async function driveToLastShardForcedWhileFirstIsQueued(h: Harness): Promise<{ g
   paracord.handleEvent('READY', { user: { username: 'u', discriminator: '0' }, guilds: [] }, gatewayA);
   expect(paracord.startingGateway).toBeUndefined();
 
+  dropSocket(gatewayA);
   paracord.emit('GATEWAY_CLOSE', { gateway: gatewayA, shouldReconnect: true, code: GATEWAY_CLOSE_CODES.ABNORMAL });
   expect(paracord.gatewayLoginQueue).toEqual([gatewayB, gatewayA]);
 

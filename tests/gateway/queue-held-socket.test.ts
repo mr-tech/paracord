@@ -104,4 +104,41 @@ describe('AC-3.5: the queue never logs in a gateway whose Session holds a Websoc
       await rig.end();
     }
   }, 20000);
+
+  describe('with allowConnection set', () => {
+    it('control: a queued gateway that holds no socket is offered to allowConnection', async () => {
+      const offered: Array<{ id: number; held: boolean }> = [];
+      const rig = await startBotRig({ mode: 'hang' }, {}, [0], {
+        allowConnection: (gw) => { offered.push({ id: gw.id, held: gw.ws !== undefined }); return true; },
+      }, false);
+      try {
+        await waitForCondition(() => offered.length >= 1, 'the queue consults allowConnection', 4000);
+        expect(offered[0]).toEqual({ id: 0, held: false });
+        await rig.server.waitForAttempt(1);
+      } finally {
+        await rig.end();
+      }
+    }, 20000);
+
+    it('a queued gateway that already holds a socket is never offered to allowConnection, and the queue drops it and releases the slot', async () => {
+      const offered: Array<{ id: number; held: boolean }> = [];
+      const rig = await startBotRig({ mode: 'hang' }, {}, [0], {
+        allowConnection: (gw) => { offered.push({ id: gw.id, held: gw.ws !== undefined }); return true; },
+      }, false);
+      try {
+        const { gateway: gw, bot } = rig;
+        gw.login();
+        expect(bot.gatewayLoginQueue.includes(gw)).toBe(true);
+
+        await waitForCondition(() => !bot.gatewayLoginQueue.includes(gw), 'the queue drops the held gateway', 4000);
+        await sleep(1200);
+
+        expect(offered.filter((o) => o.held)).toEqual([]);
+        expect(alreadyInitializedErrors(rig)).toBe(0);
+        expect(bot.startingGateway === gw).toBe(false);
+      } finally {
+        await rig.end();
+      }
+    }, 20000);
+  });
 });
