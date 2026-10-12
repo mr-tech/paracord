@@ -518,6 +518,8 @@ export const OVERWRITE_ROLE_VALUE = 0;
 class Paracord extends EventEmitter {
     constructor(token: string, options: ParacordOptions);
     // (undocumented)
+    admitImportedSession(gateway: Gateway, state: SessionHandoffState): void;
+    // (undocumented)
     compressShards?: undefined | number[];
     get connecting(): boolean;
     emit(event: ParacordGatewayEvent | ParacordEvent, ...args: unknown[]): boolean;

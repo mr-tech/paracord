@@ -33,6 +33,7 @@ export async function startBotRig(
   botOpts: Partial<ParacordOptions> = {},
   shards: number[] = [0],
   loginOptions: Partial<ParacordLoginOptions> = {},
+  waitForReady = true,
 ): Promise<BotRig> {
   const server = await LoopbackGatewayServer.start(serverOpts);
   const bot = createTestBot(server.url, botOpts);
@@ -48,10 +49,10 @@ export async function startBotRig(
   };
 
   await bot.login({
-    ...loginOptions, identity: { intents: 1 }, shards, shardCount: shards.length,
+    identity: { intents: 1 }, shards, shardCount: shards.length, ...loginOptions,
   });
   const gateway = bot.shards.get(shards[0]!)!;
-  await waitForCondition(() => gateway.resumable, 'READY handled', 10000);
+  if (waitForReady) await waitForCondition(() => gateway.resumable, 'READY handled', 10000);
 
   return {
     server,

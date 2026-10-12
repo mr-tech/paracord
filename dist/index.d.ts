@@ -804,6 +804,7 @@ declare class Paracord extends EventEmitter {
     end(): void;
     /** Begins the interval that kicks off gateway logins from the queue. */
     private startGatewayLoginInterval;
+    admitImportedSession(gateway: Gateway, state: SessionHandoffState): void;
     /** Decides shards to spawn and pushes a gateway onto the queue for each one.
      * @param options Options used when logging in.
      */

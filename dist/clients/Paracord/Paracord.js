@@ -202,6 +202,22 @@ class Paracord extends events_1.EventEmitter {
     startGatewayLoginInterval() {
         this.#gatewayLoginInterval = setInterval(() => { void this.processGatewayQueue(); }, constants_1.SECOND_IN_MILLISECONDS);
     }
+    admitImportedSession(gateway, state) {
+        if (this.#gateways.get(gateway.id) !== gateway) {
+            const reason = 'The gateway is not one of this client\'s';
+            this.log('WARNING', `Admission refused on shard ${gateway.id}. ${reason}.`, { shardId: gateway.id, reason });
+            throw Error(reason);
+        }
+        gateway.importSession(state);
+        const queued = this.gatewayLoginQueue.indexOf(gateway);
+        if (queued !== -1)
+            this.gatewayLoginQueue.splice(queued, 1);
+        gateway.login();
+        if (gateway.ws === undefined) {
+            this.upsertGatewayQueue(gateway);
+            this.log('WARNING', `Admission on shard ${gateway.id} opened no connection. Returned the gateway to the login queue.`, { shardId: gateway.id, reason: 'No connection was opened' });
+        }
+    }
     /** Decides shards to spawn and pushes a gateway onto the queue for each one.
      * @param options Options used when logging in.
      */
@@ -286,8 +302,10 @@ class Paracord extends events_1.EventEmitter {
             }
             // remove the starting shard from the queue
             this.gatewayLoginQueue.splice(this.gatewayLoginQueue.indexOf(this.#startingGateway), 1);
-            if (this.#startingGateway.connected) {
-                this.log('DEBUG', `Shard ${this.#startingGateway.id} already connected.`, { shard: this.#startingGateway });
+            if (this.#startingGateway.ws !== undefined) {
+                const held = this.#startingGateway;
+                this.log('DEBUG', `Shard ${held.id} already holds a connection.`, { shard: held });
+                this.clearStartingShardState(held);
                 return;
             }
             const gateway = this.#startingGateway;

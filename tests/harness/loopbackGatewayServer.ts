@@ -128,6 +128,14 @@ export class LoopbackGatewayServer extends EventEmitter {
     (this.liveSocket as unknown as { _socket: Duplex } | null)?._socket?.destroy();
   }
 
+  holdClosing(): void {
+    // eslint-disable-next-line no-underscore-dangle
+    const socket = (this.liveSocket as unknown as { _socket: Duplex } | null)?._socket;
+    if (!socket) return;
+    socket.pause();
+    socket.write(Buffer.from([0x88, 0x02, 0x03, 0xe8]));
+  }
+
   closeLiveSocket(code: number, reason = ''): void {
     this.liveSocket?.close(code, reason);
   }

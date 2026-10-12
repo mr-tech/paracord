@@ -102,6 +102,7 @@ Session.close(code: GatewayCloseCode, flushWaitTime: number, origin: CloseOrigin
 
 Paracord(token: string, options: ParacordOptions)  extends EventEmitter
 Paracord.login(options?: Partial<ParacordLoginOptions>): Promise<void>
+Paracord.admitImportedSession(gateway: Gateway, state: SessionHandoffState): void   // imports, then logs in outside the starting slot
 Paracord.end(): void
 
 ShardLauncher(main: string, options: ShardLauncherOptions)

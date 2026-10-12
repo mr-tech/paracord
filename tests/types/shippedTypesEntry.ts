@@ -1,6 +1,10 @@
-import type { Gateway, Heartbeat, SessionHandoffState } from '../../dist/index';
+import type {
+  Gateway, Heartbeat, Paracord, SessionHandoffState,
+} from '../../dist/index';
 
 declare const gateway: Gateway;
+
+declare const paracord: Paracord;
 
 export const heartbeat: Heartbeat | undefined = gateway.heartbeat;
 
@@ -23,3 +27,5 @@ export const handoffResumeUrl: string | undefined = handoffState.resumeUrl;
 export const clearHeartbeatPin: () => void = () => gateway.clearHeartbeatPin();
 
 export const importSession: (state: SessionHandoffState) => void = (state) => gateway.importSession(state);
+
+export const admitImportedSession: (g: Gateway, state: SessionHandoffState) => void = (g, state) => paracord.admitImportedSession(g, state);

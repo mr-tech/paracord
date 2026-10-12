@@ -417,6 +417,49 @@ Connects to Discord's gateway. Spawns gateways for each shard and begins the log
 
 When launched via `ShardLauncher`, shard info is injected via `PARACORD_SHARD_IDS` and `PARACORD_SHARD_COUNT` env vars.
 
+#### `paracord.admitImportedSession(gateway: Gateway, state: SessionHandoffState): void`
+
+Admits one of this client's gateways with a session exported by another process's
+`gateway.beginSessionHandoff()`. It imports the state (`gateway.importSession`: the same validation
+and refusals), takes the gateway out of the login queue if it is in it, and logs it in directly,
+**outside the starting slot**. The RESUME goes out on the gateway's own connection's HELLO and does
+not wait behind another gateway's identify; the starting gateway's bookkeeping (its guild count and
+its startup timer) is not touched, and a RESUME takes no identify concurrency.
+
+The contract for a `login()` made outside the login queue, in its author's words: *it behaves as
+`login()` does for the queue's pick, minus the startup timer and the starting-gateway bookkeeping.*
+On RESUMED, a gateway that is not the starting gateway emits `SHARD_STARTUP_COMPLETE` with
+`resumed: true`. The contract is scoped to **resumable** gateways. An identify outside the queue is
+outside it: any gateway's READY sets the guild count the starting gateway is waiting on.
+`admitImportedSession` satisfies the contract.
+
+Throws, with the queue membership and the session exactly as they were, when the gateway is not one
+of this client's (compared by identity, not by shard id), when the import refuses the state, and when the
+gateway already holds a session. Each refusal emits one WARNING `DEBUG` line with the shard
+(`data.shardId`) and the reason, never the session id, the resume URL or the token. A throwing
+consumer emitter at any of those lines leaves the same state and the call throws. A successful admission emits the
+INFO line `importSession` emits (shard and sequence).
+
+After a call that returns without throwing, the gateway holds a connection or is in the login queue,
+never neither. If the login opens no connection (the `ws` client rejects the URL, or the consumer's
+emitter throws while the connection is being set up), the gateway is returned to the login queue,
+where its resumable session is picked as any other, and one WARNING `DEBUG` line carrying the shard
+says so.
+
+If Discord refuses the resume (INVALID_SESSION), the gateway closes 4993 with its session cleared
+and re-enters the login queue through the normal close path; it identifies when the queue picks it.
+No reconnect is synchronous: an admission is a first connection.
+
+`PARACORD_STARTUP_COMPLETE` is emitted at most once: the first time a shard completes startup
+while the login queue is empty and no gateway is starting. An admitted shard's RESUMED can be that
+moment.
+
+The login queue itself changed in the same release. It never logs in a gateway whose `Session` still
+holds a `Websocket` (connecting, open, closing, or closed but not yet destroyed): it removes the
+gateway from the queue and releases the starting slot, so a gateway queued behind it is started on a
+following tick. It skips a pinned gateway (`gateway.heartbeatPinned`) in place, without offering it
+to `allowConnection`.
+
 #### `paracord.end(): void`
 
 Terminates all gateways and stops the login interval.
