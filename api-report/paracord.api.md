@@ -286,6 +286,8 @@ export class Gateway {
     get heartbeatPinned(): boolean;
     get id(): number;
     // (undocumented)
+    importSession(state: SessionHandoffState): void;
+    // (undocumented)
     get isFetchingMembers(): boolean;
     // (undocumented)
     login: () => void;

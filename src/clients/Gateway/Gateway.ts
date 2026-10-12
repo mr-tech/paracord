@@ -8,6 +8,7 @@ import { coerceTokenToBotLike } from '../../utils';
 
 import { GatewayIdentify, Session } from './structures';
 import { setPendingOrigin, takePendingCloseIntent } from './structures/closeOrigin';
+import handoffStateRefusal from './structures/handoffStateRefusal';
 import Heart from './structures/Heartbeat';
 
 import type { CloseOrigin } from './structures/closeOrigin';
@@ -134,6 +135,20 @@ export default class Gateway {
     });
   }
 
+  private createSession(handoff?: undefined | SessionHandoffState): Session {
+    return new Session({
+      gateway: this,
+      identity: this.#identity,
+      wsUrl: this.#options.wsUrl,
+      wsParams: this.#options.wsParams,
+      log: this.log.bind(this),
+      handleEvent: this.handleEvent.bind(this),
+      emit: this.emit.bind(this),
+      onClose: this.handleClose.bind(this),
+      handoff,
+    });
+  }
+
   private refuse(reason: string): Error {
     this.log('WARNING', `Session handoff refused on shard ${this.id}. ${reason}.`, { shardId: this.id, reason });
     return Error(reason);
@@ -205,6 +220,22 @@ export default class Gateway {
     return state;
   }
 
+  public importSession(state: SessionHandoffState): void {
+    if (this.#session !== null) {
+      throw this.refuse('The gateway already holds a session');
+    }
+
+    const refusal = handoffStateRefusal(state, this.shard);
+    if (refusal !== undefined) {
+      throw this.refuse(refusal);
+    }
+
+    const session = this.createSession(state);
+    this.log('INFO', `Session imported on shard ${this.id}. Resuming from sequence ${state.sequence}.`, { shardId: this.id, sequence: state.sequence });
+
+    this.#session = session;
+  }
+
   public clearHeartbeatPin(): void {
     const session = this.#session;
     if (!session?.heartbeatPinned) return;
@@ -222,16 +253,7 @@ export default class Gateway {
     }
 
     if (!this.#session) {
-      this.#session = new Session({
-        gateway: this,
-        identity: this.#identity,
-        wsUrl: this.#options.wsUrl,
-        wsParams: this.#options.wsParams,
-        log: this.log.bind(this),
-        handleEvent: this.handleEvent.bind(this),
-        emit: this.emit.bind(this),
-        onClose: this.handleClose.bind(this),
-      });
+      this.#session = this.createSession();
     }
 
     this.#session?.login();

@@ -21,3 +21,5 @@ export const handoffShard: [number, number] | undefined = handoffState.shard;
 export const handoffResumeUrl: string | undefined = handoffState.resumeUrl;
 
 export const clearHeartbeatPin: () => void = () => gateway.clearHeartbeatPin();
+
+export const importSession: (state: SessionHandoffState) => void = (state) => gateway.importSession(state);

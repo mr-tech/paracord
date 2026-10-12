@@ -14,7 +14,9 @@ import GatewayIdentify from './GatewayIdentify';
 import Websocket from './Websocket';
 
 import type { CloseOrigin } from './closeOrigin';
-import type { GatewayEvent, GatewayOptions, ParacordGatewayEvent } from '../types';
+import type {
+  GatewayEvent, GatewayOptions, ParacordGatewayEvent, SessionHandoffState,
+} from '../types';
 
 interface GuildChunkState {
   receivedIndexes: Set<number>;
@@ -24,6 +26,7 @@ interface GuildChunkState {
 const CHUNK_STATE_TTL_MILLISECONDS = 60 * SECOND_IN_MILLISECONDS;
 
 interface SessionParams extends Pick<GatewayOptions, 'wsUrl' | 'wsParams'> {
+  handoff?: undefined | Pick<SessionHandoffState, 'sessionId' | 'sequence' | 'resumeUrl'>;
   gateway: Gateway;
   identity: GatewayIdentify;
   log: Gateway['log'];
@@ -81,7 +84,7 @@ export default class Session {
 
   constructor(params: SessionParams) {
     const {
-      gateway, identity, wsUrl, wsParams, emit, log, handleEvent, onClose,
+      gateway, identity, wsUrl, wsParams, emit, log, handleEvent, onClose, handoff,
     } = params;
 
     this.#gateway = gateway;
@@ -92,6 +95,12 @@ export default class Session {
     this.#wsUrl = wsUrl;
     this.#wsParams = wsParams;
     this.#onClose = onClose;
+
+    if (handoff !== undefined) {
+      this.#sessionId = handoff.sessionId;
+      this.#sequence = handoff.sequence;
+      this.#resumeUrl = handoff.resumeUrl;
+    }
 
     this.#log('DEBUG', `Session object created with url: ${wsUrl}.`);
   }

@@ -255,6 +255,28 @@ emits one INFO line. These lines carry the shard (`data.shardId`) and the sequen
 session id, the resume URL or the token. If the emitter throws while a line is emitted, the call
 throws and the pin is as it was before the call.
 
+#### `gateway.importSession(state: SessionHandoffState): void`
+
+Installs a session exported by another process's `beginSessionHandoff()` into this gateway, so
+that its next `login()` resumes that session with a RESUME instead of identifying. It validates
+first and installs a finished session in one final step: when it throws, the gateway is exactly as
+it was (session-less, and nothing connected). It throws, emitting one WARNING `DEBUG` line, when:
+
+- the gateway already holds a session (that session is left intact);
+- `sessionId` is not a non-empty string;
+- `sequence` is not a non-negative safe integer;
+- `resumeUrl` is present and is not a `ws:` or `wss:` URL (an `http:` or `https:` URL is refused:
+  the RESUME payload carries the bot token to that host);
+- `shard` differs from this gateway's `shard`, compared element by element (`undefined` equals
+  `undefined`), so a gateway cannot resume another shard's session.
+
+`resumeUrl` is optional. Without it the gateway resumes on its base `wsUrl`. If Discord refuses the
+resume (INVALID_SESSION) the gateway closes 4993 with its session cleared, as any gateway does.
+A throwing consumer emitter, at the constructor's `DEBUG` line or at the line below, also leaves the
+gateway session-less and the call throws. A successful import emits one INFO line carrying the
+shard (`data.shardId`) and the sequence, never the session id, the resume URL or the token. The
+import itself connects nothing: call `login()` afterwards.
+
 #### `gateway.clearHeartbeatPin(): void`
 
 Lifts the pin. A no-op, with no log line, when no pin is set or the gateway has no session. It

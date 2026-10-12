@@ -454,6 +454,7 @@ export declare class Gateway {
      * @param data Data pertinent to the event.
      */
     private log;
+    private createSession;
     private refuse;
     /**
      * Emits various events through `this.#emitter`, both Discord and Api. Will emit all events if `this.#events` is undefined; otherwise will only emit those defined as keys in the `this.#events` object.
@@ -470,6 +471,7 @@ export declare class Gateway {
     requestGuildMembers(options: GatewayRequestGuildMembersData): boolean;
     updatePresence(presence: GatewayPresenceUpdateData): boolean;
     beginSessionHandoff(): SessionHandoffState;
+    importSession(state: SessionHandoffState): void;
     clearHeartbeatPin(): void;
     login: () => void;
     close(code?: GatewayCloseCode, flushWait?: number): void;
@@ -1381,6 +1383,7 @@ export declare type SessionHandoffState = {
 };
 
 declare interface SessionParams extends Pick<GatewayOptions, 'wsUrl' | 'wsParams'> {
+    handoff?: undefined | Pick<SessionHandoffState, 'sessionId' | 'sequence' | 'resumeUrl'>;
     gateway: Gateway;
     identity: GatewayIdentify;
     log: Gateway['log'];

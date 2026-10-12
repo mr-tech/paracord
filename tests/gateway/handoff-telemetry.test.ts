@@ -8,6 +8,8 @@ import {
   SESSION_MARKER, TOKEN_MARKER, carriesAny, handoffLines,
 } from '../harness/handoffTelemetry';
 import { GATEWAY_CLOSE_CODES, LOG_LEVELS } from '../../src/constants';
+import { waitForCondition } from '../harness/waitFor';
+import type { SessionHandoffState } from '../../src/clients/Gateway/types';
 
 const RESUME_MARKER = 'RESUME_MARKER';
 const SECRETS = [SESSION_MARKER, RESUME_MARKER, TOKEN_MARKER];
@@ -220,6 +222,113 @@ describe('AC-1.8: a consumer emitter that throws leaves the pin as it was and th
       expect(s.gateway.heartbeatPinned).toBe(true);
     } finally {
       await s.end();
+    }
+  });
+});
+
+describe('AC-2.3: the import lines', () => {
+  async function importRig() {
+    const s = await setup();
+    await deliver(s.server, s.emitter, 2);
+    const state = s.gateway.beginSessionHandoff();
+    const base = await LoopbackGatewayServer.start();
+    const gw2 = createDirectGateway(base.url);
+    return {
+      s, state, base, gw2,
+      async end() {
+        await base.close();
+        await s.end();
+      },
+    };
+  }
+
+  it('a successful import emits exactly one INFO line with the shard and the sequence, and none of the three secrets', async () => {
+    const r = await importRig();
+    try {
+      r.gw2.gateway.importSession(r.state);
+      const lines = handoffLines(r.gw2.emitter.debug);
+      expect(lines).toHaveLength(1);
+      expect(lines[0]!.level).toBe(LOG_LEVELS.INFO);
+      expect(lines[0]!.data.shardId).toBe(r.gw2.gateway.id);
+      expect(lines[0]!.data.sequence).toBe(r.state.sequence);
+      expect(carriesAny(lines[0]!, SECRETS)).toBe(false);
+    } finally {
+      await r.end();
+    }
+  });
+
+  it('the instrument is scoped to the new line class: the import-then-login flow also emits a pre-existing line that carries the resume URL', async () => {
+    const r = await importRig();
+    try {
+      r.gw2.gateway.importSession(r.state);
+      r.gw2.gateway.login();
+      await waitForCondition(() => r.gw2.emitter.debug.some((d) => d.message.startsWith('Resuming on url')), 'the login line', 5000);
+
+      const wholeFlow = r.gw2.emitter.debug.filter((d) => carriesAny(d, [RESUME_MARKER]));
+      expect(wholeFlow.length).toBeGreaterThanOrEqual(1);
+      expect(wholeFlow.every((d) => !handoffLines(r.gw2.emitter.debug).includes(d))).toBe(true);
+      expect(handoffLines(r.gw2.emitter.debug).some((d) => carriesAny(d, SECRETS))).toBe(false);
+      r.gw2.gateway.close(GATEWAY_CLOSE_CODES.USER_TERMINATE);
+    } finally {
+      await r.end();
+    }
+  });
+
+  it('a refused import emits exactly one WARNING line with the shard and a reason, and none of the three secrets', async () => {
+    const r = await importRig();
+    try {
+      const refused = { ...r.state, sequence: -1 };
+      expect(() => r.gw2.gateway.importSession(refused)).toThrow();
+      const lines = handoffLines(r.gw2.emitter.debug);
+      expect(lines).toHaveLength(1);
+      expect(lines[0]!.level).toBe(LOG_LEVELS.WARNING);
+      expect(lines[0]!.data.shardId).toBe(r.gw2.gateway.id);
+      expect(typeof lines[0]!.data.reason).toBe('string');
+      expect(carriesAny(lines[0]!, SECRETS)).toBe(false);
+    } finally {
+      await r.end();
+    }
+  });
+});
+
+describe('AC-1.8: importSession leaves the gateway session-less when the consumer emitter throws, at every site it reaches', () => {
+  async function importRig() {
+    const s = await setup();
+    const state = s.gateway.beginSessionHandoff();
+    const base = await LoopbackGatewayServer.start();
+    const gw2 = createDirectGateway(base.url);
+    return {
+      s, state, base, gw2,
+      async end() {
+        await base.close();
+        await s.end();
+      },
+    };
+  }
+
+  const SITES: Array<[string, (d: DebugLine) => boolean, (state: SessionHandoffState) => SessionHandoffState]> = [
+    ['the Session constructor DEBUG line', (d) => d.message.includes('Session object created'), (state) => state],
+    ['the import INFO line', (d) => d.data !== undefined && 'shardId' in d.data && d.level === LOG_LEVELS.INFO, (state) => state],
+    ['the refusal line', (d) => d.data !== undefined && 'shardId' in d.data && d.level === LOG_LEVELS.WARNING, (state) => ({ ...state, sequence: -1 })],
+  ];
+
+  it.each(SITES)('at %s: the call throws, nothing is installed, and a retry succeeds', async (_label, matches, shape) => {
+    const r = await importRig();
+    try {
+      let armed = true;
+      r.gw2.emitter.on('DEBUG', (d: DebugLine) => {
+        if (armed && matches(d)) throw new Error('consumer emitter threw');
+      });
+
+      expect(() => r.gw2.gateway.importSession(shape(r.state))).toThrow('consumer emitter threw');
+      expect(r.gw2.gateway.resumable).toBe(false);
+      expect(r.gw2.gateway.ws).toBeUndefined();
+
+      armed = false;
+      r.gw2.gateway.importSession(r.state);
+      expect(r.gw2.gateway.resumable).toBe(true);
+    } finally {
+      await r.end();
     }
   });
 });

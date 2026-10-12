@@ -37,7 +37,7 @@ class Session {
     #emit;
     #onClose;
     constructor(params) {
-        const { gateway, identity, wsUrl, wsParams, emit, log, handleEvent, onClose, } = params;
+        const { gateway, identity, wsUrl, wsParams, emit, log, handleEvent, onClose, handoff, } = params;
         this.#gateway = gateway;
         this.#identity = identity;
         this.#log = log;
@@ -46,6 +46,11 @@ class Session {
         this.#wsUrl = wsUrl;
         this.#wsParams = wsParams;
         this.#onClose = onClose;
+        if (handoff !== undefined) {
+            this.#sessionId = handoff.sessionId;
+            this.#sequence = handoff.sequence;
+            this.#resumeUrl = handoff.resumeUrl;
+        }
         this.#log('DEBUG', `Session object created with url: ${wsUrl}.`);
     }
     get connection() {

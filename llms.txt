@@ -91,6 +91,7 @@ Gateway.login(): void
 Gateway.close(code?: GatewayCloseCode, flushWait?: number): void
 Gateway.requestGuildMembers(options: GatewayRequestGuildMembersData): boolean
 Gateway.beginSessionHandoff(): SessionHandoffState   // pins heartbeats at the session's sequence and returns it
+Gateway.importSession(state: SessionHandoffState): void   // validate-first; the next login() RESUMEs it
 Gateway.clearHeartbeatPin(): void
 Gateway.heartbeatPinned: boolean   // login() throws and no close reconnects while true
 

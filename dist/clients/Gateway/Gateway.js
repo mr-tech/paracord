@@ -1,9 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("../../constants");
 const utils_1 = require("../../utils");
 const structures_1 = require("./structures");
 const closeOrigin_1 = require("./structures/closeOrigin");
+const handoffStateRefusal_1 = __importDefault(require("./structures/handoffStateRefusal"));
 /** A client to handle a Discord gateway connection. */
 class Gateway {
     #options;
@@ -98,6 +102,19 @@ class Gateway {
             data,
         });
     }
+    createSession(handoff) {
+        return new structures_1.Session({
+            gateway: this,
+            identity: this.#identity,
+            wsUrl: this.#options.wsUrl,
+            wsParams: this.#options.wsParams,
+            log: this.log.bind(this),
+            handleEvent: this.handleEvent.bind(this),
+            emit: this.emit.bind(this),
+            onClose: this.handleClose.bind(this),
+            handoff,
+        });
+    }
     refuse(reason) {
         this.log('WARNING', `Session handoff refused on shard ${this.id}. ${reason}.`, { shardId: this.id, reason });
         return Error(reason);
@@ -159,6 +176,18 @@ class Gateway {
             state.resumeUrl = session.resumeUrl;
         return state;
     }
+    importSession(state) {
+        if (this.#session !== null) {
+            throw this.refuse('The gateway already holds a session');
+        }
+        const refusal = (0, handoffStateRefusal_1.default)(state, this.shard);
+        if (refusal !== undefined) {
+            throw this.refuse(refusal);
+        }
+        const session = this.createSession(state);
+        this.log('INFO', `Session imported on shard ${this.id}. Resuming from sequence ${state.sequence}.`, { shardId: this.id, sequence: state.sequence });
+        this.#session = session;
+    }
     clearHeartbeatPin() {
         const session = this.#session;
         if (!session?.heartbeatPinned)
@@ -173,16 +202,7 @@ class Gateway {
             throw this.refuse('A heartbeat pin is set; clear it before logging in');
         }
         if (!this.#session) {
-            this.#session = new structures_1.Session({
-                gateway: this,
-                identity: this.#identity,
-                wsUrl: this.#options.wsUrl,
-                wsParams: this.#options.wsParams,
-                log: this.log.bind(this),
-                handleEvent: this.handleEvent.bind(this),
-                emit: this.emit.bind(this),
-                onClose: this.handleClose.bind(this),
-            });
+            this.#session = this.createSession();
         }
         this.#session?.login();
     };
