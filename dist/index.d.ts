@@ -52,7 +52,7 @@ export declare class Api {
     /** Creates an isolated axios instance for use by this REST handler. */
     private static createWrappedRequestMethod;
     /**
-     * Takes the method and url "minor parameters" to create a key used in navigating rate limits. Condenses common paths.
+     * Takes the top-level resource, the method and the url "minor parameters" to create a key used in navigating rate limits. Condenses common paths.
      * @param method HTTP method of the request.
      * @param rateLimitMinorParameters Request method and parameters in the url following the major parameter.
      * @returns A key used internally to find related buckets.
@@ -306,7 +306,7 @@ export declare class BaseRequest {
     method: Method;
     /** Discord REST endpoint target of the request. (e.g. channels/123) */
     url: string;
-    /** Key generated from the method and minor parameters of a request used internally to get shared buckets. */
+    /** Key generated from the top-level resource, method and minor parameters of a request used internally to get shared buckets. */
     bucketHashKey: string;
     /** "Major Parameter" used to differentiate rate limit states. */
     topLevelResource: string;

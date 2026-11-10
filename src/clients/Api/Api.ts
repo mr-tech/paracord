@@ -168,7 +168,7 @@ export default class Api {
   }
 
   /**
-   * Takes the method and url "minor parameters" to create a key used in navigating rate limits. Condenses common paths.
+   * Takes the top-level resource, the method and the url "minor parameters" to create a key used in navigating rate limits. Condenses common paths.
    * @param method HTTP method of the request.
    * @param rateLimitMinorParameters Request method and parameters in the url following the major parameter.
    * @returns A key used internally to find related buckets.

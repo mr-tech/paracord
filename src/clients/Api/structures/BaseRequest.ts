@@ -14,7 +14,7 @@ export default class BaseRequest {
   /** Discord REST endpoint target of the request. (e.g. channels/123) */
   public url: string;
 
-  /** Key generated from the method and minor parameters of a request used internally to get shared buckets. */
+  /** Key generated from the top-level resource, method and minor parameters of a request used internally to get shared buckets. */
   public bucketHashKey: string;
 
   /** "Major Parameter" used to differentiate rate limit states. */
