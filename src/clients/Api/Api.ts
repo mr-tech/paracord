@@ -176,7 +176,7 @@ export default class Api {
   public static extractBucketHashKey(method: string, url: string): string[] {
     const [topLevelResource, topLevelID, ...rateLimitMinorParameters] = stripLeadingSlash(url).split('?')[0].split('/');
 
-    const key = [shortMethod(method)];
+    const key = [topLevelResource, shortMethod(method)];
 
     for (const param of rateLimitMinorParameters) {
       switch (param) {

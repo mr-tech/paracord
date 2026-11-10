@@ -51,7 +51,7 @@ export default class BaseRequest {
   }
 
   public get logKey(): string {
-    return `${this.topLevelResource}-${this.bucketHashKey}`;
+    return this.bucketHashKey;
   }
 
   public get id(): string {

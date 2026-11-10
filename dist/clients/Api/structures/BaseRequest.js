@@ -38,7 +38,7 @@ class BaseRequest {
         this.#id = (0, crypto_1.randomUUID)();
     }
     get logKey() {
-        return `${this.topLevelResource}-${this.bucketHashKey}`;
+        return this.bucketHashKey;
     }
     get id() {
         return this.#id;
